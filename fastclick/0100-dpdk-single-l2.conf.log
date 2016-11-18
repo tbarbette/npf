@@ -1,0 +1,12 @@
+0100-dpdk-single-l2.conf
+{}
+Test did not show result? stdout and stderr :
+
+CONFIG:11: While configuring 'fd1 :: FromDPDKDevice':
+  1 : Unknown or invalid PORT
+CONFIG:12: While configuring 'td1 :: ToDPDKDevice':
+  1 : Unknown or invalid PORT
+CONFIG:10: While configuring 'td0 :: ToDPDKDevice':
+  0 : Unknown or invalid PORT
+Router could not be initialized!
+
