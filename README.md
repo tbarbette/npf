@@ -29,4 +29,4 @@ TODO
   - if 2 variable : use variables as X/Y and make one line per run
   - if more : Like 2 variables, but make more lines for each variables 
 
-WIP!!! Agressively looking for collaborators !
+WIP!!! Looking for collaborators !
