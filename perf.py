@@ -3,125 +3,51 @@ import sys
 import re
 import os
 import shlex
+import argparse
+import math
 
-def is_numeric(s):
-    try:
-        val = float(s)
-    except TypeError:
-        return False
-    except ValueError:
-        return False
-    return val
-
-class VariableFactory:
-    @staticmethod
-    def build(name,valuedata):
-        if is_numeric(valuedata):
-            return SimpleVariable(name,valuedata)
-        result = re.match("\[(-?[0-9]+)([+]|[*])(-?[0-9]+)\]", valuedata)
-        if result:
-            return RangeVariable(name,int(result.group(1)),int(result.group(3)),result.group(2) == "*")
-        raise Exception("Unkown variable type : " + valuedata)
-
-
-class SimpleVariable:
-    def __init__(self,name,value):
-        self.name = name
-        self.value = value
-
-    def makeValues(self):
-        return [{self.name : self.value}]
-
-class RangeVariable:
-    def __init__(self,name,valuestart,valueend,log):
-        if (valuestart > valueend):
-            self.a = valueend
-            self.b = valuestart
-        else:
-            self.a = valuestart
-            self.b = valueend
-        self.name = name
-        self.log = log
-
-    def makeValues(self):
-        vs=[]
-        if self.log:
-            i=self.a
-            while i <= self.b:
-                vs.append({self.name : i})
-                if i==0:
-                    i = 1
-                else:
-                    i*=2
-        else:
-            for i in range(self.a,self.b + 1):
-                vs.append({self.name : i})
-        return vs
-
-class SectionFactory:
-    @staticmethod
-    def build(perf, data):
-        s=Section(data[0].rstrip())
-        if (s.name == 'file'):
-            s.filename = data[1].rstrip()
-            perf.files.append(s)
-        elif (len(data) > 1):
-            raise Exception("Only file section takes arguments (" + s.name +" has argument " + data[1] + ")");
-        elif (hasattr(perf,s.name)):
-            raise Exception("Only one section of type " + s.name + " is allowed")
-        else:
-            setattr(perf,s.name,s)
-        return s
-
-class Section:
-    def __init__(self, name):
-        self.name = name
-        self.content = ''
+from src.section import *
+from src.variable import *
 
 class Perf:
-    def __init__(self, script):
+    def __init__(self, script, repo, clickpath, quiet = False, show_full = False):
         self.sections = []
         self.files = []
         self.filename = os.path.basename(script)
+        self.repo = repo
+        self.clickpath = clickpath
+        self.quiet = quiet
+        self.show_full = show_full
         section=''
+
         f = open(script, 'r')
         for line in f:
             if line.startswith("#"):
                 continue
             elif line.startswith("%"):
-                if (section):
-                    self.sections.append(section)
                 result = line[1:].split(' ')
                 section = SectionFactory.build(self, result)
+                self.sections.append(section)
             elif (not section):
                 raise Exception("Bad syntax, file must start by a section");
             else:
                 section.content += line
+
         if (not hasattr(self,"info")):
             self.info = Section("info")
             self.info.content = self.filename
+            self.sections.append(self.info)
 
-    def expandvariables(self):
+        if (not hasattr(self,"stdin")):
+            self.stdin = Section("stdin")
+            self.sections.append(self.stdin)
+
         if (not hasattr(self,"variables")):
-            self.variables = [dict()]
-        else:
-            var_section = self.variables
-            self.variables=[dict()]
-            vs=[]
-            for line in var_section.content.split("\n"):
-                if not line:
-                    continue
-                var = line.split('=')
-                vs.append(VariableFactory.build(var[0],var[1]))
+            self.variables = SectionVariable()
+            self.sections.append(self.variables)
 
-            for v in vs:
-                newList=[]
-                for nvalue in v.makeValues():
-                    for ovalue in self.variables:
-                        z = ovalue.copy()
-                        z.update(nvalue)
-                        newList.append(z)
-                self.variables = newList
+        for section in self.sections:
+            section.finish(self)
 
     def createfiles(self, v):
         for s in self.files:
@@ -135,47 +61,128 @@ class Perf:
         for s in self.files:
             os.remove(s.filename)
 
-    def resultFilename(self, repo, uuid, scriptname, vs):
-        return repo + '/results/' + uuid + '/' +  (scriptname + '_'.join([ key + "-" + str(value) for key, value in vs.items()]));
+    def resultFilename(self, uuid, vs):
+        return self.repo + '/results/' + uuid + '/' + (self.filename + '_'.join([ key + "-" + str(value) for key, value in vs.items()]));
 
-def usage():
-    print "Usage : " + sys.argv[0] + " script repo uuid"
-    print "     script : path to script"
-    print "     repo : name of the repo/group of builds"
-    print "     uuid : build id"
+    def writeUuid(self, uuid, vs, n):
+        filename = self.resultFilename(uuid,vs)
+        try:
+            os.makedirs(os.path.dirname(filename))
+        except OSError:
+            pass
+        f = open(filename,'w+')
+        f.write(str(n))
+        f.close
 
-def main(argv=sys.argv):
+    def readUuid(self, uuid, vs):
+        filename = self.resultFilename(uuid,vs)
+        f = open(filename,'r')
+        n = float(f.readline())
+        f.close
+        return n
 
-    if len(argv) < 4:
-        usage();
-    script = Perf(argv[1])
-    repo=argv[2]
-    uuid=argv[3]
-    clickpath=repo+"/build"
+    def __execute(self):
+        p=Popen(self.script.content,stdin=PIPE,stdout=PIPE,stderr=PIPE,shell=True,env={"PATH":self.__curdir + self.repo+"/build/bin"})
 
-    print script.info.content.strip()
-    script.expandvariables()
-    for v in script.variables:
-        print v
-        script.createfiles(v)
-        p=Popen(script.script.content,stdin=PIPE,stdout=PIPE,stderr=PIPE,shell=True,env={"PATH":repo+"/build/bin"})
-        output, err = p.communicate("")
-        nr = re.match("RESULT ([0-9.]+)",output.strip())
+        output, err = p.communicate(self.stdin.content)
+        nr = re.search("RESULT ([0-9.]+)",output.strip())
+
+        if (self.show_full):
+            print 'stdout:'
+            print output
+            print 'stderr:'
+            print err
+
         if (nr):
             n = float(nr.group(1))
-            filename = script.resultFilename(repo,uuid,script.filename,v)
-            try:
-                os.makedirs(os.path.dirname(filename))
-            except OSError:
-                pass
-            f = open(filename,'w+')
-            f.write(str(n))
-            f.close
+            return n
         else:
-            print "Test did not show result? stdout and stderr :"
-            print output
-            print err
-    script.cleanup()
+            return False
+
+
+    def run(self, uuid, old_uuids=[]):
+        script = self
+        returncode=0
+        self.__curdir = os.path.dirname(os.path.realpath(__file__)) + "/"
+
+        for v in self.variables.expanded:
+            if len(v):
+                print v
+            script.createfiles(v)
+            result = []
+            for i in range(self.config.n_runs):
+                n = self.__execute()
+                if n == False:
+                    result = False
+                    break
+                result.append(n)
+
+            if result:
+                n = sum(result)/float(len(result))
+                script.writeUuid(uuid,v,n)
+
+                for ouuid in old_uuids:
+                    lastn = script.readUuid(ouuid,v)
+                    diff=abs(lastn - n) / float(lastn)
+                    ok = False
+                    if (diff > script.config.acceptable):
+                        if (script.config.unacceptable_n_runs > 0):
+                            if not self.quiet:
+                                print "Outside acceptable range ("+str(diff*100)+"%). Running supplementary tests..."
+                            for i in range(self.config.unacceptable_n_runs):
+                                n = self.__execute()
+                                if n == False:
+                                    result = False
+                                    break
+                                result.append(n)
+                            if result:
+                                result.sort()
+                                for i in range(math.floor(len(result) / 4)):
+                                    result.pop()
+                                    result.popleft()
+                                n = sum(result)/float(len(result))
+                                diff=abs(lastn - n) / float(lastn)
+                                ok = diff <= script.config.acceptable
+                    else:
+                        ok = True
+
+                    if not ok:
+                        print "ERROR: Test " + script.filename + " is outside acceptable margin between " +uuid+ " and " + ouuid + " : difference of " + str(diff*100) + "% !"
+                        returncode=1
+                    else:
+                        print "Acceptable difference of " + str(diff * 100) + "%"
+
+            else:
+                print "Test did not show result? stdout :"
+                print output
+                print "stderr :"
+                print err
+        script.cleanup()
+
+def main(argv=sys.argv):
+    parser = argparse.ArgumentParser(description='Click Performance Executor')
+    parser.add_argument('--show-full', help='Show full execution results', dest='show_full', action='store_true')
+
+    parser.add_argument('--quiet', help='Quiet mode', dest='quiet', action='store_true')
+    parser.add_argument('script', metavar='script', type=str, nargs=1, help='path to script');
+    parser.add_argument('repo', metavar='repo', type=str, nargs=1, help='name of the repo/group of builds');
+    parser.add_argument('uuid', metavar='uuid', type=str, nargs=1, help='build id');
+    parser.add_argument('old_uuids', metavar='old_uuids', type=str, nargs='*', help='old build id to compare against');
+    parser.set_defaults(show_full=False)
+    parser.set_defaults(quiet=False)
+    args = parser.parse_args();
+
+    repo=args.repo[0]
+    uuid=args.uuid[0]
+    clickpath=repo+"/build"
+    old_uuids=args.old_uuids
+
+    script = Perf(args.script[0],repo,clickpath,quiet=args.quiet,show_full=args.show_full)
+
+    print script.info.content.strip()
+
+    returncode = script.run(uuid, old_uuids);
+    sys.exit(returncode)
 
 
 if __name__ == "__main__":
