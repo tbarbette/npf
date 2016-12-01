@@ -7,7 +7,7 @@ def is_numeric(s):
         return False
     except ValueError:
         return False
-    return val
+    return True
 
 class VariableFactory:
     @staticmethod

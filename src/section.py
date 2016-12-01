@@ -35,8 +35,8 @@ class SectionConfig(Section):
         self.content = ''
 
         self.acceptable = 0.01
-        self.n_runs = 1
-        self.unacceptable_n_runs = 3
+        self.n_runs=1
+        self.unacceptable_n_runs=3
 
     def finish(self, perf):
         if (self.content):
@@ -44,7 +44,7 @@ class SectionConfig(Section):
                 if not line:
                     continue
                 var = line.split('=')
-                val = var[1]
+                val = var[1].strip()
                 if is_numeric(val):
                     val = float(val)
                     if val.is_integer():
@@ -60,16 +60,14 @@ class SectionFile(Section):
     def finish(self, perf):
         perf.files.append(self)
 
-
-class SectionVariable(Section):
-    def __init__(self):
-        self.name = 'variables'
-        self.content = ''
-
-    def finish(self, perf):
+class BruteVariableExpander():
+    """Expand all variables building the full
+    matrix first."""
+    def __init__(self,vsec):
+        self.vsec = vsec
         self.expanded = [dict()]
 
-        if (self.content):
+        if (self.vsec.content):
             vs=[]
             for line in self.content.split("\n"):
                 if not line:
@@ -85,5 +83,20 @@ class SectionVariable(Section):
                         z.update(nvalue)
                         newList.append(z)
                 self.expanded = newList
+        self.it = self.expanded.__iter__()
 
+
+    def next(self):
+        return self.it.next()
+
+class SectionVariable(Section):
+    def __init__(self):
+        self.name = 'variables'
+        self.content = ''
+
+    def __iter__(self):
+        return BruteVariableExpander(self)
+
+    def finish(self, perf):
+        pass
 

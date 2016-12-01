@@ -105,7 +105,7 @@ class Perf:
         returncode=0
         self.__curdir = os.path.dirname(os.path.realpath(__file__)) + "/"
 
-        for v in self.variables.expanded:
+        for v in self.variables:
             if len(v):
                 print v
             script.createfiles(v)
@@ -141,7 +141,6 @@ class Perf:
                                 for i in range(rem):
                                     result.pop()
                                     result.pop(0)
-                                    print result
                                 n = sum(result)/float(len(result))
                                 diff=abs(lastn - n) / float(lastn)
                                 ok = diff <= script.config.acceptable
