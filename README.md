@@ -1,28 +1,52 @@
 Click Performance Watcher
--------------------------
+=========================
 
 Run performance test on click using configuration files much like 
 testies.
 
-Configuration files allows matrix parameters to try many different parameters configuration.
+Configuration files allows matrix parameters to try many different parameters for each test files.
 
-perf.py
--------
+regression.py
+-------------
 This python scripts takes a test file, parse it, and run the given command for each combination of variables.
 
 Example :
-	PATH=$(pwd)/fastclick/master/bin:$PATH python perf.py tests/0050-fastudpgen.conf fastclick master-ref old-master-ref
+	PATH=$(pwd)/fastclick/master/bin:$PATH python regression.py tests/0050-fastudpgen.conf fastclick master-ref old-master-ref
 
 run\_all.sh
 -----------
-Checkout or update a given repository, build click, and launch perf.py for all tests in the test folder. If the script was previously ran, it will pass the last branch HEAD to perf.py to make a comparison of last versions.
+Checkout or update a given repository, build click, and launch regression.py
+for all tests in the test folder. If the script was previously ran, it will
+pass the last branch HEAD to regression.py to make a comparison of last
+versions.
 
 Example :
 	./run_all.sh http://gitlab.run.montefiore.ulg.ac.be/sdn-pp/fastclick.git fastclick
 
+Writing configuration files
+---------------------------
+
+The file is made of multiple sections, starting with a % like "%file CONFIG" which means that a file named CONFIG should be created.
+
+
+# Config
+List of test configuration option
+ - acceptable=0.01         Acceptable difference between multiple regression runs
+ - n\_runs=1               Number of runs to do of each test
+ - unacceptable\_n\_runs=0 Number of runs to do when the value is first rejected (to avoid false positives). Half the most abnormal runs will be rejected to have a most common value average.
+ - required\_tags=         Comma-separated list of tags needed to run this run
+
+# Variables
+List of variables (like LENGTH) that will be replaced in any file section (searching for pattern $LENGTH).
+
+Optionnaly, variable can describe multiple values to try
+ - LENGTH=60 Single value
+ - LENGTH=[60+1024] All values between 60 and 1024, included
+ - LENGTH=\[64\*1024\] All values starting from 64 multiplied per 2 up to 1024
+ - LENGTH={60,64,128,256,1024,1496} A list of values
+
 TODO
 ----
-- The comparison with the last performance test is not done yet
 - Plot results using gnuplot :
   - if no variable, just the result compared to last run in bars,
   - if 1 variable : multiple dual bars comparing for each value of variable the result with the previous run
