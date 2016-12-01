@@ -1,0 +1,4 @@
+name=FastClick
+parent=click
+url=http://gitlab.run.montefiore.ulg.ac.be/sdn-pp/fastclick.git
+configure+=--enable-dpdk CFLAGS="-O3" CXXFLAGS="-std=gnu++11 -O3"

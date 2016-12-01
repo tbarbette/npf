@@ -58,7 +58,7 @@ class Script:
             os.remove(s.filename)
 
     def execute(self):
-        p=Popen(self.script.content,stdin=PIPE,stdout=PIPE,stderr=PIPE,shell=True,env={"PATH":self.appdir + self.repo+"/build/bin"})
+        p=Popen(self.script.content,stdin=PIPE,stdout=PIPE,stderr=PIPE,shell=True,env={"PATH":self.appdir + self.repo.reponame+"/build/bin"})
 
         output, err = p.communicate(self.stdin.content)
         nr = re.search("RESULT ([0-9.]+)",output.strip())
