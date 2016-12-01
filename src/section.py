@@ -69,7 +69,7 @@ class BruteVariableExpander():
 
         if (self.vsec.content):
             vs=[]
-            for line in self.content.split("\n"):
+            for line in self.vsec.content.split("\n"):
                 if not line:
                     continue
                 var = line.split('=')

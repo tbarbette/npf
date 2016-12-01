@@ -51,7 +51,7 @@ cd ../..
 exitcode=0
 for test in ./tests/* ; do
 	echo "Running $(basename $test) for $uuid, compare against $prevuuid"
-	python perf.py $test $name $uuid $prevuuid | tee $name/$(basename $test).log
+	python regression.py $test $name $uuid $prevuuid | tee $name/$(basename $test).log
 	if [ ! $? -eq 0 ] ; then
 		echo "Error executing last test... Continuing anyway."
 		exitcode=1
