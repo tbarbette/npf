@@ -137,9 +137,11 @@ class Perf:
                                 result.append(n)
                             if result:
                                 result.sort()
-                                for i in range(math.floor(len(result) / 4)):
+                                rem=int(math.floor(len(result) / 4))
+                                for i in range(rem):
                                     result.pop()
-                                    result.popleft()
+                                    result.pop(0)
+                                    print result
                                 n = sum(result)/float(len(result))
                                 diff=abs(lastn - n) / float(lastn)
                                 ok = diff <= script.config.acceptable

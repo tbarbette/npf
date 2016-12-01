@@ -44,7 +44,12 @@ class SectionConfig(Section):
                 if not line:
                     continue
                 var = line.split('=')
-                setattr(self,var[0],var[1])
+                val = var[1]
+                if is_numeric(val):
+                    val = float(val)
+                    if val.is_integer():
+                        val = int(val)
+                setattr(self,var[0],val)
 
 class SectionFile(Section):
     def __init__(self,filename):
