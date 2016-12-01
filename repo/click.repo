@@ -2,3 +2,4 @@ name=Click
 branch=master
 url=https://github.com/kohler/click.git
 configure=--disable-linuxmodule --enable-userlevel --enable-user-multithread --enable-dpdk 
+tags=click
