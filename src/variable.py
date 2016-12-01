@@ -17,6 +17,12 @@ class VariableFactory:
         result = re.match("\[(-?[0-9]+)([+]|[*])(-?[0-9]+)\]", valuedata)
         if result:
             return RangeVariable(name,int(result.group(1)),int(result.group(3)),result.group(2) == "*")
+
+        result = re.match("\{([^,]+)(?:(?:,)([^,])+)*}", valuedata)
+        if result:
+            return ListVariable(name,result.groups())
+
+
         raise Exception("Unkown variable type : " + valuedata)
 
 
@@ -27,6 +33,19 @@ class SimpleVariable:
 
     def makeValues(self):
         return [{self.name : self.value}]
+
+class ListVariable:
+    def __init__(self,name,l):
+        self.name = name
+        self.lvalues = l
+
+    def makeValues(self):
+        vs=[]
+        for v in self.lvalues:
+            if (v is None):
+                continue
+            vs.append({self.name : v})
+        return vs
 
 class RangeVariable:
     def __init__(self,name,valuestart,valueend,log):

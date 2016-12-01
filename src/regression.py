@@ -55,36 +55,38 @@ class Regression:
 
                 for ouuid in old_uuids:
                     lastn = self.readUuid(ouuid,v)
-                    diff=abs(lastn - n) / float(lastn)
-                    ok = False
-                    if (diff > script.config.acceptable):
-                        if (script.config.unacceptable_n_runs > 0):
-                            if not script.quiet:
-                                print "Outside acceptable range ("+str(diff*100)+"%). Running supplementary tests..."
-                            for i in range(script.config.unacceptable_n_runs):
-                                n,output,err = script.execute()
-                                if n == False:
-                                    result = False
-                                    break
-                                result.append(n)
-                            if result:
-                                result.sort()
-                                rem=int(math.floor(len(result) / 4))
-                                for i in range(rem):
-                                    result.pop()
-                                    result.pop(0)
-                                n = sum(result)/float(len(result))
-                                diff=abs(lastn - n) / float(lastn)
-                                ok = diff <= script.config.acceptable
-                    else:
-                        ok = True
+                    if lastn:
+                        diff=abs(lastn - n) / float(lastn)
+                        ok = False
+                        if (diff > script.config.acceptable):
+                            if (script.config.unacceptable_n_runs > 0):
+                                if not script.quiet:
+                                    print "Outside acceptable range ("+str(diff*100)+"%). Running supplementary tests..."
+                                for i in range(script.config.unacceptable_n_runs):
+                                    n,output,err = script.execute()
+                                    if n == False:
+                                        result = False
+                                        break
+                                    result.append(n)
+                                if result:
+                                    result.sort()
+                                    rem=int(math.floor(len(result) / 4))
+                                    for i in range(rem):
+                                        result.pop()
+                                        result.pop(0)
+                                    n = sum(result)/float(len(result))
+                                    diff=abs(lastn - n) / float(lastn)
+                                    ok = diff <= script.config.acceptable
+                        else:
+                            ok = True
 
-                    if not ok:
-                        print "ERROR: Test " + script.filename + " is outside acceptable margin between " +uuid+ " and " + ouuid + " : difference of " + str(diff*100) + "% !"
-                        returncode=1
-                    else:
-                        print "Acceptable difference of " + str(diff * 100) + "%"
-
+                        if not ok:
+                            print "ERROR: Test " + script.filename + " is outside acceptable margin between " +uuid+ " and " + ouuid + " : difference of " + str(diff*100) + "% !"
+                            returncode=1
+                        else:
+                            print "Acceptable difference of " + str(diff * 100) + "%"
+                else:
+                    print "No old values for this test (new=%f)." % n
             else:
                 print "Test did not show result? stdout :"
                 print output

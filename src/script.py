@@ -48,9 +48,10 @@ class Script:
     def createfiles(self, v):
         for s in self.files:
             f = open(s.filename,"w")
+            p = s.content
             for k,v in v.iteritems():
-                s.content = s.content.replace("$" + k,str(v))
-            f.write(s.content)
+                p = p.replace("$" + k,str(v))
+            f.write(p)
             f.close()
 
     def cleanup(self):

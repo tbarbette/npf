@@ -1,6 +1,6 @@
 from script import *
 
-repo_variables=['name','branch','configure','url','parent']
+repo_variables=['name','branch','configure','url','parent','tags']
 class Repository:
     def __init__(self, repo):
         self.reponame = repo
@@ -23,7 +23,7 @@ class Repository:
                 if val.is_integer():
                     val = int(val)
             if not var in repo_variables:
-                raise Exception("unknown variable %s " % var)
+                raise Exception("Unknown variable %s " % var)
             elif var == "parent":
                 parent = Repository(val)
                 for attr in dir(parent):
