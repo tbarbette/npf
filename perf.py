@@ -160,6 +160,7 @@ class Perf:
                 print "stderr :"
                 print err
         script.cleanup()
+        return returncode
 
 def main(argv=sys.argv):
     parser = argparse.ArgumentParser(description='Click Performance Executor')
