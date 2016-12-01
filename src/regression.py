@@ -21,9 +21,12 @@ class Regression:
 
     def readUuid(self, uuid, vs):
         filename = self.resultFilename(uuid,vs)
-        f = open(filename,'r')
-        n = float(f.readline())
-        f.close
+        try:
+            f = open(filename,'r')
+            n = float(f.readline())
+            f.close
+        except IOError:
+            return False
         return n
 
     def run(self, uuid, old_uuids=[]):
