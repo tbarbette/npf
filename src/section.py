@@ -1,9 +1,14 @@
 from variable import *
+from collections import OrderedDict
+
+sections=['info','config','variables','script','file']
 
 class SectionFactory:
     @staticmethod
     def build(perf, data):
         sectionName=data[0].rstrip()
+        if not sectionName in sections:
+            raise Exception("Unknown section %s" % sectionName);
         if (sectionName == 'file'):
             s=SectionFile(data[1].rstrip())
         elif (len(data) > 1):
@@ -29,28 +34,6 @@ class Section:
     def finish(self, perf):
         pass
 
-class SectionConfig(Section):
-    def __init__(self):
-        self.name = 'config'
-        self.content = ''
-
-        self.acceptable = 0.01
-        self.n_runs=1
-        self.unacceptable_n_runs=3
-
-    def finish(self, perf):
-        if (self.content):
-            for line in self.content.split("\n"):
-                if not line:
-                    continue
-                var = line.split('=')
-                val = var[1].strip()
-                if is_numeric(val):
-                    val = float(val)
-                    if val.is_integer():
-                        val = int(val)
-                setattr(self,var[0],val)
-
 class SectionFile(Section):
     def __init__(self,filename):
         self.name = 'file'
@@ -63,26 +46,16 @@ class SectionFile(Section):
 class BruteVariableExpander():
     """Expand all variables building the full
     matrix first."""
-    def __init__(self,vsec):
-        self.vsec = vsec
-        self.expanded = [dict()]
-
-        if (self.vsec.content):
-            vs=[]
-            for line in self.vsec.content.split("\n"):
-                if not line:
-                    continue
-                var = line.split('=')
-                vs.append(VariableFactory.build(var[0],var[1]))
-
-            for v in vs:
-                newList=[]
-                for nvalue in v.makeValues():
-                    for ovalue in self.expanded:
-                        z = ovalue.copy()
-                        z.update(nvalue)
-                        newList.append(z)
-                self.expanded = newList
+    def __init__(self,vlist):
+        self.expanded = [OrderedDict()]
+        for k,v in vlist.iteritems():
+            newList=[]
+            for nvalue in v.makeValues():
+                for ovalue in self.expanded:
+                    z = ovalue.copy()
+                    z.update({k:nvalue})
+                    newList.append(z)
+            self.expanded = newList
         self.it = self.expanded.__iter__()
 
 
@@ -93,10 +66,57 @@ class SectionVariable(Section):
     def __init__(self):
         self.name = 'variables'
         self.content = ''
+        self.vlist=OrderedDict()
 
     def __iter__(self):
-        return BruteVariableExpander(self)
+        return BruteVariableExpander(self.vlist)
+
+    def dynamics(self):
+        """List of non-constants variables"""
+        dyn = OrderedDict()
+        for k,v in self.vlist.iteritems():
+            if v.count()>1: dyn[k] = v
+        return dyn
 
     def finish(self, perf):
-        pass
+        for line in self.content.split("\n"):
+            if not line:
+                continue
+            pair = line.split('=')
+            var = pair[0].split(':')
+
+            if len(var) == 1:
+                var = var[0]
+            else:
+                if ((var[0] in perf.tags) or (var[0].startswith('-') and not var[0][1:] in perf.tags)):
+                    var = var[1]
+                else:
+                    continue
+
+            self.vlist[var] = VariableFactory.build(var,pair[1])
+
+
+class SectionConfig(SectionVariable):
+
+    def __add(self, var , val):
+        self.vlist[var] = SimpleVariable(var,val)
+
+    def __init__(self):
+        self.name = 'config'
+        self.content = ''
+        self.vlist={}
+        self.__add("acceptable", 0.01)
+        self.__add("n_runs", 1)
+        self.__add("unacceptable_n_runs", 3)
+
+    def varname(self,key):
+        if (key in self["varnames"]):
+            return self["varnames"][key]
+        else:
+            return key
+
+    def __getitem__(self,key):
+        var = self.vlist[key]
+        v = var.makeValues()[0]
+        return v
 

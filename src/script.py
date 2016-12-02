@@ -5,7 +5,7 @@ import sys
 from src.section import *
 
 class Script:
-    def __init__(self, script, repo, clickpath, quiet = False, show_full = False):
+    def __init__(self, script, repo, clickpath, quiet = False, show_full = False, tags=[]):
         self.sections = []
         self.files = []
         self.filename = os.path.basename(script)
@@ -14,6 +14,7 @@ class Script:
         self.quiet = quiet
         self.show_full = show_full
         self.appdir = os.path.dirname(os.path.abspath(sys.argv[0])) + "/"
+        self.tags = tags
         section=''
 
         f = open(script, 'r')

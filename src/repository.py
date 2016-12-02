@@ -4,6 +4,7 @@ repo_variables=['name','branch','configure','url','parent','tags']
 class Repository:
     def __init__(self, repo):
         self.reponame = repo
+        self.tags=[]
         f = open('repo/' + repo + '.repo', 'r')
         for line in f:
             if line.startswith("#"):
@@ -30,6 +31,9 @@ class Repository:
                     if attr.startswith('__') or attr == 'reponame':
                         continue
                     setattr(self,attr,getattr(parent,attr))
+            elif var == "tags":
+                self.tags += val.split(',')
+                continue
 
             if append:
                 setattr(self,var,getattr(self,var) + val)
