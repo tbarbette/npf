@@ -45,6 +45,13 @@ Optionnaly, variable can describe multiple values to try
  - LENGTH=\[64\*1024\] All values starting from 64 multiplied per 2 up to 1024
  - LENGTH={60,64,128,256,1024,1496} A list of values
 
+Variables can optionnaly be prefixed with a tag and a colon to be included only
+if a tag is given (by the repo, or the command line argument):
+ - cpu:CPU={0,1} If the tag cpu is given, $CPU will be expanded by 0 and 1
+ - -cpu:CPU=1    If the tag cpu is not given, $CPU will be expanded by 1
+
+This allows to do more extanded tests to grid-search some value, but do not include that in regression test
+
 TODO
 ----
 - Plot results using gnuplot :
