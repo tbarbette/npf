@@ -33,6 +33,8 @@ fi
 
 if [ -z "$uuid" ] ; then
 	uuid=$(git rev-parse --short HEAD)
+else
+	git reset --hard $uuid
 fi
 
 if [ -e "../.lastuuid" ] ; then
