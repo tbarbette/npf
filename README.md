@@ -52,12 +52,12 @@ if a tag is given (by the repo, or the command line argument):
 
 This allows to do more extanded tests to grid-search some value, but do not include that in regression test
 
+Graph
+-----
+Graph are automatically generated with all matrix variables expanded and comparing current results vs old results
+
+![alt tag](doc/sample_graph.png)
+
 TODO
 ----
-- Plot results using gnuplot :
-  - if no variable, just the result compared to last run in bars,
-  - if 1 variable : multiple dual bars comparing for each value of variable the result with the previous run
-  - if 2 variable : use variables as X/Y and make one line per run
-  - if more : Like 2 variables, but make more lines for each variables 
-
 WIP!!! Looking for collaborators !
