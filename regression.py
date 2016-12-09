@@ -40,7 +40,11 @@ class Regression:
         if force_test:
             prev_results = None
         else:
-            prev_results = build.readUuid(script)
+            try:
+                prev_results = build.readUuid(script)
+                print(prev_results)
+            except FileNotFoundError:
+                prev_results = None
         all_results = script.execute_all(build,prev_results)
         for run,result in all_results.items():
             v = run.variables
@@ -68,12 +72,20 @@ class Regression:
                 if not ok:
                     print("ERROR: Test " + script.filename + " is outside acceptable margin between " +build.uuid+ " and " + old_build.uuid + " : difference of " + str(diff*100) + "% !")
                     returncode += 1
-                else:
-                    print("Acceptable difference of %.2f%%" % (diff*100))
+                elif not script.quiet:
+                    print("Acceptable difference of %.2f%% for %s" % ((diff*100),run.format_variables()))
             elif old_build:
                 print("No old values for this test for uuid %s." % (old_build.uuid))
+                old_all_results[run] = [0]
 
-        build.writeUuid(script,all_results)
+#Finished regression comparison
+        if all_results:
+            if prev_results:
+                prev_results.update(all_results)
+                build.writeUuid(script,prev_results)
+            else:
+                build.writeUuid(script,all_results)
+
         if "title" in self.script.config:
             title = self.script.config["title"]
         elif hasattr(self.script,"info"):

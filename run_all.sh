@@ -10,6 +10,7 @@ url=$1
 name=$2
 branch=$3
 uuid=$4
+prevuuid=$5
 
 if [ -z "$branch" ] ; then
 	branch="master"
@@ -37,11 +38,10 @@ else
 	git reset --hard $uuid || exit 1
 fi
 
-if [ -e "../.lastuuid" ] ; then
+if [ -z "$prevuuid" -a -e "../.lastuuid" ] ; then
 	prevuuid=$(cat ../.lastuuid)
-else
-	prevuuid=""
 fi
+
 echo $uuid > ../.lastuuid
 
 if [ $build = True ] ; then

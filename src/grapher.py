@@ -165,7 +165,7 @@ class Grapher:
                 e=[]
                 for run in vars_all:
                     result = all_results.get(run,None)
-                    if results:
+                    if result:
                         y.append(np.mean(result))
                         e.append(np.std(result))
                     else:
