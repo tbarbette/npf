@@ -58,6 +58,12 @@ Graph are automatically generated with all matrix variables expanded and compari
 
 ![alt tag](doc/sample_graph.png)
 
+![alt tag](doc/sample_graph2.png)
+
+If a "previous uuid" is not given, the graph will use one variable as the sire :
+
+![alt tag](doc/sample_graph3.png)
+
 TODO
 ----
 WIP!!! Looking for collaborators !
