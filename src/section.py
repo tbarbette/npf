@@ -1,4 +1,4 @@
-from variable import *
+from .variable import *
 from collections import OrderedDict
 
 sections=['info','config','variables','script','file']
@@ -48,7 +48,7 @@ class BruteVariableExpander():
     matrix first."""
     def __init__(self,vlist):
         self.expanded = [OrderedDict()]
-        for k,v in vlist.iteritems():
+        for k,v in vlist.items():
             newList=[]
             for nvalue in v.makeValues():
                 for ovalue in self.expanded:
@@ -59,8 +59,8 @@ class BruteVariableExpander():
         self.it = self.expanded.__iter__()
 
 
-    def next(self):
-        return self.it.next()
+    def __next__(self):
+        return self.it.__next__()
 
 class SectionVariable(Section):
     def __init__(self):
@@ -68,21 +68,43 @@ class SectionVariable(Section):
         self.content = ''
         self.vlist=OrderedDict()
 
+    def replace_all(self, value):
+        """Return a list of all possible replacement in values for each combination of variables"""
+        statics = self.statics()
+        if len(statics):
+            pattern = re.compile("\$(" + "|".join(statics.keys())+ ")")
+            value = pattern.sub(lambda m: statics[re.escape(m.group(0))], value)
+
+        dynamics = self.dynamics()
+        pattern = re.compile("\$(" + "|".join(dynamics.keys())+ ")")
+        values=[]
+        for variables in BruteVariableExpander(dynamics).it:
+            nvalue = pattern.sub(lambda m: str(variables[re.escape(m.group(1))]), value)
+            values.append(nvalue)
+        return values
+
     def __iter__(self):
         return BruteVariableExpander(self.vlist)
 
     def dynamics(self):
         """List of non-constants variables"""
         dyn = OrderedDict()
-        for k,v in self.vlist.iteritems():
+        for k,v in self.vlist.items():
             if v.count()>1: dyn[k] = v
+        return dyn
+
+    def statics(self):
+        """List of constants variables"""
+        dyn = OrderedDict()
+        for k,v in self.vlist.items():
+            if v.count() <= 1: dyn[k] = v
         return dyn
 
     def finish(self, perf):
         for line in self.content.split("\n"):
             if not line:
                 continue
-            pair = line.split('=')
+            pair = line.split('=',1)
             var = pair[0].split(':')
 
             if len(var) == 1:
@@ -93,7 +115,7 @@ class SectionVariable(Section):
                 else:
                     continue
 
-            self.vlist[var] = VariableFactory.build(var,pair[1])
+            self.vlist[var] = VariableFactory.build(var,pair[1],self)
 
 
 class SectionConfig(SectionVariable):
@@ -105,18 +127,31 @@ class SectionConfig(SectionVariable):
         self.name = 'config'
         self.content = ''
         self.vlist={}
+        self.__add("accept_outliers_mult",1)
+        self.__add("accept_variance",1)
+        self.__add("timeout", 300)
         self.__add("acceptable", 0.01)
         self.__add("n_runs", 1)
         self.__add("unacceptable_n_runs", 3)
+        self.__add("var_names",{})
+        self.__add("var_unit",{"result":"BPS"})
+        self.__add("legend_loc","best")
+        self.__add("var_hide",{})
 
-    def varname(self,key):
-        if (key in self["varnames"]):
-            return self["varnames"][key]
+    def var_name(self,key):
+        if (key in self["var_names"]):
+            return self["var_names"][key]
         else:
             return key
 
+    def __contains__(self,key):
+        return key in self.vlist
+
     def __getitem__(self,key):
         var = self.vlist[key]
-        v = var.makeValues()[0]
-        return v
+        v = var.makeValues()
+        if type(v) is list and len(v) == 1:
+            return v[0]
+        else:
+            return v
 

@@ -1,4 +1,4 @@
-from script import *
+from .script import *
 
 repo_variables=['name','branch','configure','url','parent','tags']
 class Repository:

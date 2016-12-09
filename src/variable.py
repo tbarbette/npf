@@ -12,25 +12,60 @@ def is_numeric(s):
 
 class VariableFactory:
     @staticmethod
-    def build(name,valuedata):
+    def build(name,valuedata,vsection):
         if is_numeric(valuedata):
             v = float(valuedata)
             if (v.is_integer()):
                 v = int(v)
             return SimpleVariable(name,v)
-        result = re.match("\[(-?[0-9]+)([+]|[*])(-?[0-9]+)\]", valuedata)
+        result = re.match("\[(-?[0-9]+)([+-]|[*])(-?[0-9]+)\]", valuedata)
         if result:
             return RangeVariable(name,int(result.group(1)),int(result.group(3)),result.group(2) == "*")
         result = regex.match("\{([^,:]+:[^,:]+)(?:(?:,)([^,:]+:[^,:]+))*\}", valuedata)
         if result:
             return DictVariable(name,result.captures(1) + result.captures(2))
 
-        result = regex.match("\{([^,]+)(?:(?:,)([^,])+)*}", valuedata)
+        result = regex.match("\{([^,]+)(?:(?:,)([^,]+))*}", valuedata)
         if result:
             return ListVariable(name,result.captures(1) + result.captures(2))
+
+        result = regex.match("EXPAND\((.*)\)", valuedata)
+        if result:
+            return ExpandVariable(name,result.group(1),vsection)
+
+        result = regex.match("PRODUCT[ ]*\([ ]*\$([^,]+)[ ]*,[ ]*\$([^,]+)[ ]*\)", valuedata)
+        if result:
+            return ProductVariable(name,vsection.vlist[result.group(1)].makeValues(),vsection.vlist[result.group(2)].makeValues())
+
+
         return SimpleVariable(name,valuedata)
 
 #        raise Exception("Unkown variable type : " + valuedata)
+
+class ProductVariable:
+    def __init__(self,name,nums,values):
+        self.values=values
+        self.nums=nums
+        self.join="\n"
+
+    def makeValues(self):
+        vs=[]
+        for i in self.nums:
+            vs.append((self.join.join(self.values[:i]),i))
+        return vs
+
+    def count(self):
+        return sum(self.nums)
+
+class ExpandVariable:
+    def __init__(self,name,value,vsection):
+        self.values=vsection.replace_all(value)
+
+    def makeValues(self):
+        return self.values
+
+    def count(self):
+        return len(self.values)
 
 
 class SimpleVariable:
