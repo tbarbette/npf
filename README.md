@@ -56,11 +56,11 @@ Graph
 -----
 Graph are automatically generated with all matrix variables expanded and comparing current results vs old results
 
-![alt tag](doc/sample_graph.png)
-
 ![alt tag](doc/sample_graph2.png)
 
-If a "previous uuid" is not given, the graph will use one variable as the sire :
+![alt tag](doc/sample_graph.png)
+
+If a "previous uuid" is not given to regression.py (so it just run the test for the current master but do not compare the results), the graph will use one variable as the serie :
 
 ![alt tag](doc/sample_graph3.png)
 
