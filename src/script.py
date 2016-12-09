@@ -135,6 +135,8 @@ class Script:
                 print(run.format_variables(self.config["var_hide"]))
             if prev_results and run in prev_results:
                 results=prev_results[run]
+                if not results:
+                    results=[]
             else:
                 results=[]
             n_runs = self.config["n_runs"] - len(results)
@@ -146,7 +148,7 @@ class Script:
                         print(output)
                         print("stderr:")
                         print(err)
-                results += nresults
+                    results += nresults
             if results:
                 if not self.quiet:
                     print(results)

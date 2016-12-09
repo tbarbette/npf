@@ -95,7 +95,7 @@ def main():
     parser.add_argument('--show-full', help='Show full execution results', dest='show_full', action='store_true')
 
     parser.add_argument('--quiet', help='Quiet mode', dest='quiet', action='store_true')
-    parser.add_argument('--force-test', help='Force re-doing all tests even if data for the given uuid and variables is already known', dest='force_test', action='store_false')
+    parser.add_argument('--force-test', help='Force re-doing all tests even if data for the given uuid and variables is already known', dest='force_test', action='store_true')
     parser.add_argument('--tags', metavar='tag', type=str, nargs='+', help='list of tags');
     parser.add_argument('script', metavar='script path', type=str, nargs=1, help='path to script');
     parser.add_argument('repo', metavar='repo name', type=str, nargs=1, help='name of the repo/group of builds');
