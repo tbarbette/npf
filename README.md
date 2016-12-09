@@ -4,14 +4,14 @@ Click Performance Watcher
 Run performance test on click using configuration files much like 
 testies.
 
-Configuration files allows matrix parameters to try many different parameters for each test files.
+Configuration files allows matrix parameters to try many combinations of variables for each test files.
 
 regression.py
 -------------
 This python scripts takes a test file, parse it, and run the given command for each combination of variables.
 
 Example :
-	PATH=$(pwd)/fastclick/master/bin:$PATH python regression.py tests/0050-fastudpgen.conf fastclick master-ref old-master-ref
+	PATH=$(pwd)/fastclick/master/bin:$PATH python regression.py tests/0050-fastudpgen.conf reponame master-ref old-master-ref
 
 run\_all.sh
 -----------
