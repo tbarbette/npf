@@ -85,7 +85,6 @@ class Grapher:
                 key=dyns[0]
             dyns.remove(key)
             ndyn-=1
-
             series=[]
             uuids=[]
             values = list(vars_values[key])
@@ -134,7 +133,6 @@ class Grapher:
                     x.append(run.print_variable(key))
                     y.append(np.mean(result))
                     e.append(np.std(result))
-                    print(e[-1])
                 order=np.argsort(x)
                 data.append((np.array(x)[order],np.array(y)[order],np.array(e)[order]))
 

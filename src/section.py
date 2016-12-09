@@ -102,20 +102,24 @@ class SectionVariable(Section):
 
     def finish(self, perf):
         for line in self.content.split("\n"):
-            if not line:
-                continue
-            pair = line.split('=',1)
-            var = pair[0].split(':')
-
-            if len(var) == 1:
-                var = var[0]
-            else:
-                if ((var[0] in perf.tags) or (var[0].startswith('-') and not var[0][1:] in perf.tags)):
-                    var = var[1]
-                else:
+            try:
+                if not line:
                     continue
+                pair = line.split('=',1)
+                var = pair[0].split(':')
 
-            self.vlist[var] = VariableFactory.build(var,pair[1],self)
+                if len(var) == 1:
+                    var = var[0]
+                else:
+                    if ((var[0] in perf.tags) or (var[0].startswith('-') and not var[0][1:] in perf.tags)):
+                        var = var[1]
+                    else:
+                        continue
+                self.vlist[var] = VariableFactory.build(var,pair[1],self)
+            except:
+                print("Error parsing line %s" % line)
+                raise
+
 
 
 class SectionConfig(SectionVariable):

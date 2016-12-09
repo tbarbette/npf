@@ -1,4 +1,5 @@
 from subprocess import Popen,PIPE
+from subprocess import TimeoutExpired
 import os
 import sys
 
@@ -104,40 +105,51 @@ class Script:
         results=[]
         for i in range(n_runs):
             p=Popen(self.script.content,stdin=PIPE,stdout=PIPE,stderr=PIPE,shell=True,env={"PATH":self.appdir + build.repo.reponame+"/build/bin:" + os.environ["PATH"]})
+            try:
+                output, err = [x.decode() for x in p.communicate(self.stdin.content, timeout=self.config["timeout"])]
+                nr = re.search("RESULT ([0-9.]+)",output.strip())
 
-            output, err = [x.decode() for x in p.communicate(self.stdin.content, timeout=self.config["timeout"])]
-            nr = re.search("RESULT ([0-9.]+)",output.strip())
-
-            if (nr):
-                n = float(nr.group(1))
-                results.append(n)
-            else:
-                print("Could not find result !")
-                print("stdout:")
-                print(output)
-                print("stderr:")
-                print(err)
-                return False, output, err
+                if (nr):
+                    n = float(nr.group(1))
+                    results.append(n)
+                else:
+                    print("Could not find result !")
+                    print("stdout:")
+                    print(output)
+                    print("stderr:")
+                    print(err)
+                    return False, output, err
+            except TimeoutExpired:
+                print("Test expired")
+                return False,"Timeout expired.",""
 
         self.cleanup()
         return results, output, err
 
 
-    def execute_all(self, build):
+    def execute_all(self, build,prev_results=None):
         all_results={}
         for variables in self.variables:
             run = Run(variables)
             if not self.quiet:
                 print(run.format_variables(self.config["var_hide"]))
-            results,output,err = self.execute(build,variables,self.config["n_runs"])
-            if not self.quiet:
-                print(results)
-            if self.show_full:
-                print("stdout:")
-                print(output)
-                print("stderr:")
-                print(err)
+            if prev_results and run in prev_results:
+                results=prev_results[run]
+            else:
+                results=[]
+            n_runs = self.config["n_runs"] - len(results)
+            if n_runs > 0:
+                nresults,output,err = self.execute(build,variables,n_runs)
+                if nresults:
+                    if self.show_full:
+                        print("stdout:")
+                        print(output)
+                        print("stderr:")
+                        print(err)
+                results += nresults
             if results:
+                if not self.quiet:
+                    print(results)
                 all_results[run] = results
             else:
                 all_results[run] = None

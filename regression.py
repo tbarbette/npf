@@ -30,17 +30,18 @@ class Regression:
         accept += abs(result.std() * self.script.config["accept_variance"] / n)
         return diff <= accept, diff
 
-    def run(self, build, old_build = None, test=True):
+    def run(self, build, old_build = None, force_test=False):
         script = self.script
         returncode=0
         old_all_results=None
         if old_build:
             old_all_results = old_build.readUuid(script)
-        if test:
-            all_results = script.execute_all(build)
-        else:
-            all_results = build.readUuid(script)
 
+        if force_test:
+            prev_results = None
+        else:
+            prev_results = build.readUuid(script)
+        all_results = script.execute_all(build,prev_results)
         for run,result in all_results.items():
             v = run.variables
             #TODO : some config could implement acceptable range no matter the old value
@@ -94,7 +95,7 @@ def main():
     parser.add_argument('--show-full', help='Show full execution results', dest='show_full', action='store_true')
 
     parser.add_argument('--quiet', help='Quiet mode', dest='quiet', action='store_true')
-    parser.add_argument('--no-test', help='Use already computed data, do not launch tests', dest='test', action='store_false')
+    parser.add_argument('--force-test', help='Force re-doing all tests even if data for the given uuid and variables is already known', dest='force_test', action='store_false')
     parser.add_argument('--tags', metavar='tag', type=str, nargs='+', help='list of tags');
     parser.add_argument('script', metavar='script path', type=str, nargs=1, help='path to script');
     parser.add_argument('repo', metavar='repo name', type=str, nargs=1, help='name of the repo/group of builds');
@@ -102,7 +103,7 @@ def main():
     parser.add_argument('old_uuid', metavar='old_uuid', type=str, nargs='?', help='old build id to compare against');
     parser.set_defaults(show_full=False)
     parser.set_defaults(quiet=False)
-    parser.set_defaults(test=True)
+    parser.set_defaults(force_test=False)
     parser.set_defaults(tags=[])
     args = parser.parse_args();
 
@@ -125,7 +126,7 @@ def main():
 
     print(script.info.content.strip())
 
-    returncode = regression.run(build, old_build, test=args.test);
+    returncode = regression.run(build, old_build, force_test=args.force_test);
     sys.exit(returncode)
 
 

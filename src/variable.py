@@ -10,6 +10,13 @@ def is_numeric(s):
         return False
     return True
 
+def is_integer(s):
+    try:
+        int(s)
+        return True
+    except ValueError:
+        return False
+
 class VariableFactory:
     @staticmethod
     def build(name,valuedata,vsection):
@@ -80,7 +87,7 @@ class SimpleVariable:
 
 class ListVariable:
     def __init__(self,name,l):
-        self.lvalues = l
+        self.lvalues = [int(x) if is_integer(x) else float(x) if is_numeric(x) else x for x in l]
 
     def makeValues(self):
         vs=[]
