@@ -75,7 +75,8 @@ fi
 
 cd ../..
 exitcode=0
-for test in ./tests/* ; do
+#A list of tag
+for test in $(find ./tests/ -name "*.conf") ; do
 	echo "Running $(basename $test) for $uuid, compare against $prevuuid"
 
 	sudo python3 regression.py $test $name $uuid $prevuuid $tags
