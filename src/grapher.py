@@ -191,6 +191,10 @@ class Grapher:
             if (ndyn > 0):
                 plt.legend(loc=self.config("legend_loc"), title=legend_title)
 
+        if ("result" in script.config['var_log']):
+            plt.yscale('log')
+        if (key in script.config['var_log']):
+            plt.xscale('log')
         plt.xlabel(script.config.var_name(key))
 
         if ("result" in script.config["var_names"]):

@@ -141,6 +141,7 @@ class SectionConfig(SectionVariable):
         self.__add("var_unit",{"result":"BPS"})
         self.__add("legend_loc","best")
         self.__add("var_hide",{})
+        self.__add("var_log",[])
 
     def var_name(self,key):
         if (key in self["var_names"]):

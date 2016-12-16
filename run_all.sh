@@ -38,11 +38,12 @@ else
 	git reset --hard $uuid || exit 1
 fi
 
-if [ -z "$prevuuid" -a -e "../.lastuuid" ] ; then
-	prevuuid=$(cat ../.lastuuid)
-fi
+prevuuid=""
 
-echo $uuid > ../.lastuuid
+for i in $(seq 1 10);
+do
+    prevuuid="$(git rev-parse --short HEAD~$i) ${prevuuid}"
+done
 
 if [ $build = True ] ; then
 	./configure --enable-dpdk --disable-linuxmodule --enable-user-multithread CFLAGS="-O3" CXXFLAGS="-std=gnu++11 -O3" --enable-bound-port-transfer || exit 1

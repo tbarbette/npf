@@ -30,12 +30,16 @@ class Regression:
         accept += abs(result.std() * self.script.config["accept_variance"] / n)
         return diff <= accept, diff
 
-    def run(self, build, old_build = None, force_test=False):
+    def run(self, build, old_build = None, graph_build=[], force_test=False, allow_supplementary=True):
         script = self.script
         returncode=0
         old_all_results=None
         if old_build:
-            old_all_results = old_build.readUuid(script)
+            try:
+                old_all_results = old_build.readUuid(script)
+            except FileNotFoundError:
+                print("Previous build %s could not be found, we will not compare !")
+                old_build = None
 
         if force_test:
             prev_results = None
@@ -53,7 +57,7 @@ class Regression:
             if old_all_results and run in old_all_results:
                 old_result=old_all_results[run]
                 ok,diff = self.accept_diff(result, old_result)
-                if not ok and script.config["unacceptable_n_runs"] > 0:
+                if not ok and script.config["unacceptable_n_runs"] > 0 and allow_supplementary:
                         if not script.quiet:
                             print("Difference of %.2f%% is outside acceptable range for %s. Running supplementary tests..." % (diff*100, run.format_variables()))
                         for i in range(script.config["unacceptable_n_runs"]):
@@ -98,6 +102,13 @@ class Regression:
         series = [(script,build,all_results)]
         if (old_build):
             series.append((script,old_build,old_all_results))
+        for g_build in graph_build:
+            try:
+                g_all_results = old_build.readUuid(script)
+                series.append((script,g_build,g_all_results))
+            except FileNotFoundError:
+                print("Previous build %s could not be found, we will not graph it !" % g_build.uuid)
+            series.append((script,g_build,g_all_results))
         grapher.graph(series=series,title=title,filename=graphname)
         return returncode
 
@@ -107,15 +118,19 @@ def main():
     parser.add_argument('--show-full', help='Show full execution results', dest='show_full', action='store_true')
 
     parser.add_argument('--quiet', help='Quiet mode', dest='quiet', action='store_true')
+    parser.add_argument('--no-supplementary', help='Do not run supplementary tests if the new value is rejected', dest='allow_supplementary', action='store_false')
     parser.add_argument('--force-test', help='Force re-doing all tests even if data for the given uuid and variables is already known', dest='force_test', action='store_true')
+
     parser.add_argument('--tags', metavar='tag', type=str, nargs='+', help='list of tags');
     parser.add_argument('script', metavar='script path', type=str, nargs=1, help='path to script');
     parser.add_argument('repo', metavar='repo name', type=str, nargs=1, help='name of the repo/group of builds');
     parser.add_argument('uuid', metavar='uuid', type=str, nargs=1, help='build id');
     parser.add_argument('old_uuid', metavar='old_uuid', type=str, nargs='?', help='old build id to compare against');
+    parser.add_argument('graph_uuid', metavar='graph_uuid', type=str, nargs='*', help='build id to just graph');
     parser.set_defaults(show_full=False)
     parser.set_defaults(quiet=False)
     parser.set_defaults(force_test=False)
+    parser.set_defaults(allow_supplementary=True)
     parser.set_defaults(tags=[])
     args = parser.parse_args();
 
@@ -132,13 +147,18 @@ def main():
     else:
         old_build=None
 
+    graph_builds=[]
+    for g in args.graph_uuid:
+        graph_builds.append(Build(repo,g))
+
+
     script = Script(args.script[0],clickpath,quiet=args.quiet,tags=tags,show_full=args.show_full)
 
     regression = Regression(script)
 
     print(script.info.content.strip())
 
-    returncode = regression.run(build, old_build, force_test=args.force_test);
+    returncode = regression.run(build, old_build, graph_builds, force_test=args.force_test, allow_supplementary=args.allow_supplementary);
     sys.exit(returncode)
 
 
