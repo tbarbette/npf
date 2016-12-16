@@ -1,11 +1,26 @@
 #!/bin/bash
 
-if [ $1 = "--no-build" ] ; then
+build=True
+tags=""
+
+while [[ $# -gt 1 ]]
+do
+key="$1"
+case $key in
+    --no-build)
 	build=False
-	shift
-else
-	build=True
-fi
+    ;;
+    --tags)
+    tags=$2
+    shift
+    ;;
+    *)
+    break
+    ;;
+esac
+shift
+done
+
 url=$1
 name=$2
 branch=$3
@@ -51,15 +66,20 @@ if [ $build = True ] ; then
 	make -j 12 || exit 1
 fi
 
+if [ -n "$tags" ] ; then
+    tags="--tags $tags"
+fi
+if [ -z "$prevuuid" -o "$uuid" == "$prevuuid" ] ; then
+    $prevuuid = ""
+fi
+
 cd ../..
 exitcode=0
 for test in ./tests/* ; do
 	echo "Running $(basename $test) for $uuid, compare against $prevuuid"
-	if [ -n "$prevuuid" -a "$uuid" != "$prevuuid" ] ; then
-		sudo python3 regression.py $test $name $uuid $prevuuid
-	else
-		sudo python3 regression.py $test $name $uuid
-	fi
+
+	sudo python3 regression.py $test $name $uuid $prevuuid $tags
+
 	if [ ! $? -eq 0 ] ; then
 		echo "Error executing last test... Continuing anyway."
 		exitcode=1

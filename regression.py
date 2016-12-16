@@ -38,7 +38,7 @@ class Regression:
             try:
                 old_all_results = old_build.readUuid(script)
             except FileNotFoundError:
-                print("Previous build %s could not be found, we will not compare !")
+                print("Previous build %s could not be found, we will not compare !" % old_build.uuid)
                 old_build = None
 
         if force_test:
@@ -104,11 +104,10 @@ class Regression:
             series.append((script,old_build,old_all_results))
         for g_build in graph_build:
             try:
-                g_all_results = old_build.readUuid(script)
+                g_all_results = g_build.readUuid(script)
                 series.append((script,g_build,g_all_results))
             except FileNotFoundError:
                 print("Previous build %s could not be found, we will not graph it !" % g_build.uuid)
-            series.append((script,g_build,g_all_results))
         grapher.graph(series=series,title=title,filename=graphname)
         return returncode
 
