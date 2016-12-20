@@ -1,10 +1,21 @@
 Click Performance Watcher
 =========================
 
-Run performance test on click using configuration files much like 
-testies.
+Run performance test on the Click Modular Router or its variants using
+configuration files much like Click's testies.
 
-Configuration files allows matrix parameters to try many combinations of variables for each test files.
+Configuration files allows matrix parameters to try many combinations of
+variables for each test files and report performance results for each
+parameters.
+
+Finally, a graph will be made for each test showing the evolution of
+performances through commits.
+
+Dependencies
+------------
+This project needs python 3
+sudo pip3 install -r requirements.txt
+
 
 regression.py
 -------------
