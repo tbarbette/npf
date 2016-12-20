@@ -42,7 +42,7 @@ class Grapher:
         else:
             return "%.2f B/s" % (x)
 
-    def graph(self,filename, title=False, series=[]):
+    def graph(self,filename, title=False, series=[], graph_allvariables=False):
         """series is a list of triplet (script,build,results) where
         result is the output of a script.execute_all()"""
         vars_values = {}
@@ -52,16 +52,17 @@ class Grapher:
         ymin,ymax=(float('inf'),0)
 
         #Data transformation
-        for script,build,all_results in series:
+        for i,(script,build,all_results) in enumerate(series):
             uuids.append(build.uuid)
             self.scripts.add(script)
             for run,results in all_results.items():
                 if results:
                     ymax = max(ymax, max(results))
                     ymin = min(ymin, min(results))
-                vars_all.add(run)
-                for k,v in run.variables.items():
-                    vars_values.setdefault(k,set()).add(v)
+                if i == 0 or graph_allvariables:
+                    vars_all.add(run)
+                    for k,v in run.variables.items():
+                        vars_values.setdefault(k,set()).add(v)
         vars_all = list(vars_all)
         vars_all.sort()
         is_multiscript = len(self.scripts) > 1
@@ -110,13 +111,24 @@ class Grapher:
             formatter = FuncFormatter(self.bits)
             ax.yaxis.set_major_formatter(formatter)
 
+        reject_outliers = False
+
+        #If more than 20 bars, do not print bar edges
+        maxlen = max([len(serie[2]) for serie in series])
+        if nseries * maxlen > 20:
+            edgecolor = "none"
+            interbar = 0.05
+        else:
+            edgecolor = None
+            interbar = 0.1
+
         if ndyn == 0:
             """No dynamic variables : do a barplot X=uuid"""
             data=[]
             for a in [all_results for script,build,all_results in series]:
                 data.append(np.mean(list(a.values())[0]))
             i=0
-            plt.bar(np.arange(len(uuids)) + 0.1,data,label=uuids[i],color=graphcolor[i % len(graphcolor)],width=0.8)
+            plt.bar(np.arange(len(uuids)) + interbar,data,label=uuids[i],color=graphcolor[i % len(graphcolor)],width=1-(2*interbar))
             plt.xticks(np.arange(len(uuids)) + 0.5,uuids, rotation='vertical' if (len(uuids) > 10) else 'horizontal')
         elif ndyn==1:
             """One dynamic variable used as X, series are uuid line plots"""
@@ -129,10 +141,17 @@ class Grapher:
                 x=[]
                 y=[]
                 e=[]
-                for run,result in all_results.items():
+                for run in vars_all:
+                    result = all_results.get(run,None)
                     x.append(run.print_variable(key))
-                    y.append(np.mean(result))
-                    e.append(np.std(result))
+                    if result:
+                        if reject_outliers:
+                            result = self.reject_outliers(np.asarray(result))
+                        y.append(np.mean(result))
+                        e.append(np.std(result))
+                    else:
+                        y.append(0)
+                        e.append(0)
                 order=np.argsort(x)
                 data.append((np.array(x)[order],np.array(y)[order],np.array(e)[order]))
 
@@ -166,18 +185,20 @@ class Grapher:
                 for run in vars_all:
                     result = all_results.get(run,None)
                     if result:
+                        if reject_outliers:
+                            result = self.reject_outliers(np.asarray(result))
                         y.append(np.mean(result))
                         e.append(np.std(result))
                     else:
                         y.append(0)
                         e.append(0)
                 data.append((y,e))
-
-            width = (1-0.2) / len(uuids)
+            width = (1-(2*interbar)) / len(uuids)
             ind = np.arange(len(vars_all))
 
             for i,serie in enumerate(data):
-                plt.bar(0.1 + ind + (i * width),serie[0],width, label=str(uuids[i]),color=graphcolor[i], yerr=serie[1])
+                plt.bar(interbar + ind + (i * width),serie[0],width,
+                        label=str(uuids[i]),color=graphcolor[i % len(graphcolor)], yerr=serie[1],edgecolor=edgecolor)
             key = "Variables"
             ss = []
             for run in vars_all:
@@ -187,7 +208,7 @@ class Grapher:
                         s.append("%s = %s" % (self.var_name(k), str(v)))
                 ss.append(','.join(s))
 
-            plt.xticks(0.1 + ind + width, ss, rotation='vertical' if (len(ss) > 5) else 'horizontal')
+            plt.xticks(interbar + ind + width, ss, rotation='vertical' if (len(ss) > 5) else 'horizontal')
             if (ndyn > 0):
                 plt.legend(loc=self.config("legend_loc"), title=legend_title)
 
@@ -200,9 +221,16 @@ class Grapher:
         if ("result" in script.config["var_names"]):
             plt.ylabel(script.config["var_names"]["result"])
 
+        if (ymin >= 0 and plt.ylim()[0] < 0):
+            plt.ylim(0,plt.ylim()[1])
+
         if title:
             plt.title(title)
         plt.tight_layout()
         plt.savefig(filename)
         print("Graph of test written to %s" % filename)
+        plt.clf()
+
+    def reject_outliers(self, result):
+        return next(self.scripts.__iter__()).reject_outliers(result)
 

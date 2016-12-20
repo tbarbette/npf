@@ -1,7 +1,12 @@
-from .script import *
+from .testie import *
 
-repo_variables=['name','branch','configure','url','parent','tags']
+repo_variables=['name','branch','configure','url','parent','tags','make']
 class Repository:
+
+    configure = '--disable-linuxmodule'
+    branch = 'master'
+    make = 'make'
+
     def __init__(self, repo):
         self.reponame = repo
         self.tags=[]

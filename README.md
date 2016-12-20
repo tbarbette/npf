@@ -8,20 +8,20 @@ Configuration files allows matrix parameters to try many combinations of variabl
 
 regression.py
 -------------
-This python scripts takes a test file, parse it, and run the given command for each combination of variables.
+
+Checkout or update a given repository (described in the repo folder), build Click, and launch the tests discribed in the tests directory. If the script was previously ran on older commits, it will make a comparison with last commits, showing a regression (or improvement) and will graph 8 old data.
 
 Example :
-	PATH=$(pwd)/fastclick/master/bin:$PATH python regression.py tests/0050-fastudpgen.conf reponame master-ref old-master-ref
+	python3 regression.py click #Produce a graph for each tests with the result
+    [click master is updated]
+    python3 regression.py click #The graph now compares HEAD and the last commit, if major performances changes are found, the return code will be different than 0
+    [click master is updated again]
+    python3 regression.py click #The graph includes the older commit for reference, up to "--graph-num", default is 8
 
-run\_all.sh
------------
-Checkout or update a given repository, build click, and launch regression.py
-for all tests in the test folder. If the script was previously ran, it will
-pass the last branch HEAD to regression.py to make a comparison of last
-versions.
+Alternatively, you can force regression.py to re-build and compute the data for the old runs directly with the --allow-old-build option :
+    python3 regression.py click --allow-old-build
 
-Example :
-	./run_all.sh http://gitlab.run.montefiore.ulg.ac.be/sdn-pp/fastclick.git fastclick
+Use --help to print all options
 
 Writing configuration files
 ---------------------------
