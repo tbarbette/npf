@@ -42,18 +42,23 @@ class Build:
         return data.strip()
 
     def __write_file(self, fp, val):
-        with open(fp, 'w+') as myfile:
-            myfile.seek(0)
-            myfile.write(val)
+        f =  open(fp, 'w')
+        f.write(val)
+        f.close()
+
+    def is_build_needed(self):
+        gitrepo = git.Repo(self.click_path())
+        if gitrepo.head.commit.hexsha[:7] != self.uuid:
+            return True
+        if os.path.exists(self.click_path() + '/bin/click') and (self.__read_file(self.click_path() + '/.current_build') == self.uuid):
+            return False
+        else:
+            return True
 
     def build_if_needed(self):
         gitrepo = git.Repo(self.click_path())
         if gitrepo.head.commit.hexsha[:7] != self.uuid:
-            if not self.checkout():
-                return False
-            if not self.compile():
-                return False
-            return True
+            self.build()
         if not os.path.exists(self.click_path() + '/bin/click') or \
                 not (self.__read_file(self.click_path() + '/.current_build') == self.uuid):
             return self.compile()
@@ -66,30 +71,23 @@ class Build:
         """
         pwd = os.getcwd()
         os.chdir(self.click_path())
-        print("Configuring %s..." % self.uuid)
-        p = subprocess.Popen('./configure ' + self.repo.configure, shell=True, stdin=PIPE, stdout=PIPE, stderr=PIPE)
-        output, err = [x.decode() for x in p.communicate()]
-        p.wait()
-        if not p.returncode == 0:
-            print("Could not configure build (error code %d) !" % p.returncode)
-            print("stdout :")
-            print(output)
-            print("stderr :")
-            print(err)
-            self.__write_file(self.click_path() + '/.current_build', '')
-            return False
-        print("Building %s..." % self.uuid)
-        p = subprocess.Popen(self.repo.make, shell=True, stdin=PIPE, stdout=PIPE, stderr=PIPE)
-        output, err = [x.decode() for x in p.communicate()]
-        p.wait()
-        if not p.returncode == 0:
-            print("Could not compile build (error code %d) !" % p.returncode)
-            print("stdout :")
-            print(output)
-            print("stderr :")
-            print(err)
-            self.__write_file(self.click_path() + '/.current_build', '')
-            return False
+
+        for what,command in [("Configuring %s..." % self.uuid,'./configure ' + self.repo.configure),
+                             ("Cleaning %s..." % self.uuid,self.repo.make_clean),
+                             ("Building %s..." % self.uuid,self.repo.make)]:
+            print(what)
+            p = subprocess.Popen(command, shell=True, stdin=PIPE, stdout=PIPE, stderr=PIPE)
+            output, err = [x.decode() for x in p.communicate()]
+            p.wait()
+            if not p.returncode == 0:
+                print("Aborted (error code %d) !" % p.returncode)
+                print("stdout :")
+                print(output)
+                print("stderr :")
+                print(err)
+                self.__write_file(self.click_path() + '/.current_build', '')
+                return False
+
         os.chdir(pwd)
         self.__write_file(self.click_path() + '/.current_build', self.uuid)
         return True
@@ -105,10 +103,12 @@ class Build:
 
     def writeUuid(self, script, all_results):
         filename = self.__resultFilename(script)
+
         try:
-            os.makedirs(os.path.dirname(filename))
+            if not os.path.exists(os.path.dirname(filename)):
+                os.makedirs(os.path.dirname(filename))
         except OSError:
-            pass
+            print("Error : could not create %s" % os.path.dirname(filename))
         f = open(filename, 'w+')
         f.seek(0)
         for run, results in all_results.items():
@@ -158,5 +158,13 @@ class Build:
     def checkout(self):
         gitrepo = git.Repo(self.click_path())
         ref = gitrepo.commit(self.uuid)
-        gitrepo.git.checkout(ref)
+        gitrepo.git.checkout(ref, force=True)
+        self.__write_file(self.click_path() + '/.current_build', '')
+        return True
+
+    def build(self):
+        if not self.checkout():
+            return False
+        if not self.compile():
+            return False
         return True

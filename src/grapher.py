@@ -126,7 +126,12 @@ class Grapher:
             """No dynamic variables : do a barplot X=uuid"""
             data=[]
             for a in [all_results for script,build,all_results in series]:
-                data.append(np.mean(list(a.values())[0]))
+                v = list(a.values())[0]
+                if v:
+                    data.append(np.mean(v))
+                else:
+                    data.append(np.nan)
+
             i=0
             plt.bar(np.arange(len(uuids)) + interbar,data,label=uuids[i],color=graphcolor[i % len(graphcolor)],width=1-(2*interbar))
             plt.xticks(np.arange(len(uuids)) + 0.5,uuids, rotation='vertical' if (len(uuids) > 10) else 'horizontal')
@@ -150,8 +155,8 @@ class Grapher:
                         y.append(np.mean(result))
                         e.append(np.std(result))
                     else:
-                        y.append(0)
-                        e.append(0)
+                        y.append(np.nan)
+                        e.append(np.nan)
                 order=np.argsort(x)
                 data.append((np.array(x)[order],np.array(y)[order],np.array(e)[order]))
 
@@ -190,8 +195,8 @@ class Grapher:
                         y.append(np.mean(result))
                         e.append(np.std(result))
                     else:
-                        y.append(0)
-                        e.append(0)
+                        y.append(np.nan)
+                        e.append(np.nan)
                 data.append((y,e))
             width = (1-(2*interbar)) / len(uuids)
             ind = np.arange(len(vars_all))

@@ -5,7 +5,8 @@ class Repository:
 
     configure = '--disable-linuxmodule'
     branch = 'master'
-    make = 'make'
+    make = 'make -j12'
+    make_clean = 'make clean'
 
     def __init__(self, repo):
         self.reponame = repo

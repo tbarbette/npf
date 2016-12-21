@@ -3,6 +3,7 @@ from subprocess import TimeoutExpired
 import os
 import sys
 import numpy as np
+import signal
 
 from src.section import *
 
@@ -122,7 +123,7 @@ class Testie:
         for s in self.files:
             os.remove(s.filename)
 
-    def execute(self, build, v, n_runs=1):
+    def execute(self, build, v, n_runs=1, n_retry=0):
         self.create_files(v)
         results = []
         for i in range(n_runs):
@@ -132,15 +133,23 @@ class Testie:
                 if len(self.scripts) > 1:
                     output += "Output of script for %s" % script.slave
                     err += "Output of script for %s" % script.slave
-                p = Popen(script.content, stdin=PIPE, stdout=PIPE, stderr=PIPE, shell=True,
+
+                for i_try in range(n_retry + 1):
+                    p = Popen(script.content, stdin=PIPE, stdout=PIPE, stderr=PIPE, shell=True, preexec_fn=os.setsid,
                           env={"PATH": self.appdir + build.repo.reponame + "/build/bin:" + os.environ["PATH"]})
-                try:
-                    s_output, s_err = [x.decode() for x in p.communicate(self.stdin.content, timeout=self.config["timeout"])]
-                    output += s_output
-                    err += s_err
-                except TimeoutExpired:
-                    print("Test expired")
-                    return False, "Timeout expired.", ""
+                    pid = p.pid
+                    try:
+                        s_output, s_err = [x.decode() for x in p.communicate(self.stdin.content, timeout=self.config["timeout"])]
+                        output += s_output
+                        err += s_err
+                        break
+                    except TimeoutExpired:
+                        print("Test expired")
+                        p.terminate()
+                        p.kill()
+                        os.killpg(os.getpgid(pid), signal.SIGTERM)
+                        if (i_try == n_retry):
+                            return False, "Timeout expired.", ""
 
             nr = re.search("RESULT ([0-9.]+)", output.strip())
             if nr:
@@ -157,7 +166,7 @@ class Testie:
         self.cleanup()
         return results, output, err
 
-    def execute_all(self, build, prev_results=None):
+    def execute_all(self, build, prev_results=None,do_test=True):
         """Execute script for all variables combinations
         :param build: A build object
         :param prev_results: Previous set of result for the same build to update or retrieve
@@ -175,8 +184,8 @@ class Testie:
             else:
                 results = []
             n_runs = self.config["n_runs"] - len(results)
-            if n_runs > 0:
-                nresults, output, err = self.execute(build, variables, n_runs)
+            if n_runs > 0 and do_test:
+                nresults, output, err = self.execute(build, variables, n_runs, self.config["n_retry"])
                 if nresults:
                     if self.show_full:
                         print("stdout:")
