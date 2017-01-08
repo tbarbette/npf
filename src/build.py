@@ -41,8 +41,9 @@ class Build:
             return False
         return data.strip()
 
-    def __write_file(self, fp, val):
-        f =  open(fp, 'w')
+    @staticmethod
+    def __write_file(fp, val):
+        f = open(fp, 'w+')
         f.write(val)
         f.close()
 
@@ -85,7 +86,8 @@ class Build:
                 print(output)
                 print("stderr :")
                 print(err)
-                self.__write_file(self.click_path() + '/.current_build', '')
+                self.__write_file('.current_build', '')
+                os.chdir(pwd)
                 return False
 
         os.chdir(pwd)

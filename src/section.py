@@ -150,6 +150,9 @@ class SectionConfig(SectionVariable):
     def __add(self, var, val):
         self.vlist[var] = SimpleVariable(var, val)
 
+    def __add_list(self, var, list):
+        self.vlist[var] = ListVariable(var, list)
+
     def __init__(self):
         self.name = 'config'
         self.content = ''
@@ -166,12 +169,18 @@ class SectionConfig(SectionVariable):
         self.__add("legend_loc", "best")
         self.__add("var_hide", {})
         self.__add("var_log", [])
+        self.__add_list("require_tags", [])
 
     def var_name(self, key):
         if key in self["var_names"]:
             return self["var_names"][key]
         else:
             return key
+
+    def get_list(self,key):
+        var = self.vlist[key]
+        v = var.makeValues()
+        return v
 
     def __contains__(self, key):
         return key in self.vlist

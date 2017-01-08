@@ -1,3 +1,4 @@
+import io
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
@@ -42,7 +43,7 @@ class Grapher:
         else:
             return "%.2f B/s" % (x)
 
-    def graph(self,filename, title=False, series=[], graph_allvariables=False):
+    def graph(self,filename, title=False, series=[], graph_variables=None, graph_allvariables = False):
         """series is a list of triplet (script,build,results) where
         result is the output of a script.execute_all()"""
         vars_values = {}
@@ -59,7 +60,8 @@ class Grapher:
                 if results:
                     ymax = max(ymax, max(results))
                     ymin = min(ymin, min(results))
-                if i == 0 or graph_allvariables:
+                if (graph_variables==None and (i == 0 or graph_allvariables)) \
+                    or (graph_variables != None and run.variables in graph_variables):
                     vars_all.add(run)
                     for k,v in run.variables.items():
                         vars_values.setdefault(k,set()).add(v)
@@ -232,9 +234,17 @@ class Grapher:
         if title:
             plt.title(title)
         plt.tight_layout()
-        plt.savefig(filename)
-        print("Graph of test written to %s" % filename)
+        if (not filename):
+            buf = io.BytesIO()
+            plt.savefig(buf, format='png')
+            buf.seek(0)
+            ret = buf.read()
+        else:
+            plt.savefig(filename)
+            ret = None
+            print("Graph of test written to %s" % filename)
         plt.clf()
+        return ret
 
     def reject_outliers(self, result):
         return next(self.scripts.__iter__()).reject_outliers(result)

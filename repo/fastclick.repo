@@ -1,5 +1,5 @@
-name=FastClick
 parent=click
+name=FastClick
 url=http://gitlab.run.montefiore.ulg.ac.be/sdn-pp/fastclick.git
 configure+=--enable-dpdk CFLAGS="-O3" CXXFLAGS="-std=gnu++11 -O3"
-tags=fastclick,dpdk,batch
+tags=fastclick,batch

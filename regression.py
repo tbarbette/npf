@@ -1,9 +1,5 @@
 #!/usr/bin/python3
 
-import argparse
-import os
-
-import subprocess
 from src.regression import *
 import git
 
@@ -62,15 +58,15 @@ def main():
                         nargs='?', type=int, default=1)
     gf.add_argument('--uuid', metavar='uuid', type=str, nargs='*',
                         help='Uuid to checkout and test. Default is master''s HEAD uuid and its N "--redo-history" firsts parents.');
-    g.add_argument('--branch', help='Branch', type=str, nargs='?', default='')
+    g.add_argument('--branch', help='Branch', type=str, nargs='?', default=None)
 
-    g.add_argument('--compare-uuid', dest='last_uuid', metavar='uuid', type=str, nargs='?',
+    g.add_argument('--compare-uuid', dest='compare_uuid', metavar='uuid', type=str, nargs='?',
                         help='A uuid to compare against the last uuid. Default is the first parent of the last uuid containing some results.');
 
     a = parser.add_argument_group('Graphing options')
     af = a.add_mutually_exclusive_group()
     af.add_argument('--graph-uuid', metavar='uuid', type=str, nargs='*',
-                        help='Uuids to simply graph. If number, the last N master uuids with results.');
+                        help='Uuids to simply graph');
     af.add_argument('--graph-num', metavar='N', type=int, nargs='?', default=8,
                         help='Number of olds UUIDs to graph after --compare-uuid, unused if --graph-uuid is given');
     a.add_argument('--graph-allvariables', help='Graph only the latest variables (usefull when you restrict variables '
@@ -86,53 +82,37 @@ def main():
         parser.print_help()
         return 1
 
-    repo=Repository(args.repo[0])
+    repo = Repository(args.repo[0])
     tags = args.tags
     tags += repo.tags
 
-    if not os.path.exists(repo.reponame):
-        os.mkdir(repo.reponame)
-
-    clickpath=repo.reponame+"/build"
-
-    if args.branch:
-        branch = args.branch
-    else:
-        branch = repo.branch
-
-    if os.path.exists(clickpath):
-        gitrepo = git.Repo(clickpath)
-        o = gitrepo.remotes.origin
-        o.fetch()
-    else:
-        print("Cloning from repository %s" % repo.url)
-        gitrepo = git.Repo.clone_from(repo.url,clickpath)
-
-
+    gitrepo = repo.checkout(args.branch)
 
     if args.uuid:
         uuids = args.uuid
     else:
         uuids = []
-        for i,commit in enumerate(gitrepo.iter_commits('origin/'+branch)):
+        for i,commit in enumerate(gitrepo.iter_commits('origin/'+repo.branch)):
             if i >= args.history: break
             short = commit.hexsha[:7]
             uuids.append(short)
+
+    clickpath = repo.reponame + "/build"
 
     #Builds of the regression uuids
     builds = []
     for short in uuids:
         builds.append(Build(repo,short))
-        last_uuid = short
+        compare_uuid = short
 
     last_rebuilds=[]
 
-    if args.last_uuid and len(args.last_uuid):
-        last_uuid=args.last_uuid
-        last_build=Build(repo,last_uuid)
-    else:
-        last_build = None
-        for i,commit in enumerate(next(gitrepo.iter_commits(last_uuid)).iter_parents()):
+    last_build = None
+    if args.compare_uuid and len(args.compare_uuid):
+        compare_uuid=args.compare_uuid
+        last_build=Build(repo,compare_uuid)
+    elif args.history <= 1:
+        for i,commit in enumerate(next(gitrepo.iter_commits(compare_uuid)).iter_parents()):
             last_build=Build(repo,commit.hexsha[:7])
             if last_build.hasResults():
                 break
@@ -146,11 +126,11 @@ def main():
             print("Comparaison UUID is %s" % last_build.uuid)
 
     graph_builds=[]
-    if args.graph_uuid and len(args.graph_uuid):
+    if args.graph_uuid and len(args.graph_uuid) > 0:
         for g in args.graph_uuid:
             graph_builds.append(Build(repo,g))
     else:
-        if last_build:
+        if last_build and args.graph_num > 0:
             for commit in gitrepo.commit(last_build.uuid).iter_parents():
                 g_build = Build(repo, commit.hexsha[:7])
                 if g_build in builds or g_build == last_build:
@@ -166,28 +146,19 @@ def main():
                 if len(graph_builds) > args.graph_num:
                     break
 
-    scripts=[]
-    if os.path.isfile(args.testie):
-        scripts.append(args.testie)
-    else:
-        for root, dirs, files in os.walk(args.testie):
-            for file in files:
-                if file.endswith(".conf"):
-                    scripts.append(os.path.join(root, file))
+    testies=Testie.expandFolder(args.testie, quiet=args.quiet, tags=tags, show_full=args.show_full)
 
     for b in last_rebuilds:
         print("Last UUID %s had no result. Re-executing tests for it." % b.uuid)
         b.build_if_needed()
-        for script_path in scripts:
-            print("Executing script %s" % script_path)
-            testie = Testie(script_path, clickpath, quiet=args.quiet, tags=tags, show_full=args.show_full)
+        for testie in testies:
+            print("Executing script %s" % testie.filename)
             all_results = testie.execute_all(b)
             b.writeUuid(testie, all_results)
         b.writeResults()
 
     returncode=0
 
-    series = []
     for build in reversed(builds):
         print("Starting regression test for %s" % build.uuid)
         do_test = args.do_test
@@ -205,29 +176,55 @@ def main():
                 print("Warning : will not do test because build is not allowed")
                 do_test = False
                 need_rebuild = False
-        if need_rebuild:
-            if not build.build():
-                print("Could not build Click for UUID %s !", build.uuid)
-                return 1
-
-        for script_path in scripts:
-            print("Executing script %s" % script_path)
-            testie = Testie(script_path, clickpath, quiet=args.quiet, tags=tags, show_full=args.show_full)
-
+        nok = 0
+        ntests = 0
+        for testie in testies:
+            print("Executing testie %s" % testie.filename)
+            regression = Regression(testie)
             if args.n_runs != -1:
                 testie.config["n_runs"] = args.n_runs
 
             if args.n_supplementary_runs != -1:
                 testie.config["n_supplementary_runs"] = args.n_supplementary_runs
 
-            regression = Regression(testie)
-
             print(testie.info.content.strip())
 
-            returncode,all_results,old_all_results = regression.run(build, last_build, do_test=do_test, force_test=args.force_test);
-            build.writeResults()
+            force_test=args.force_test
+            old_all_results = None
+            if last_build:
+                try:
+                    old_all_results = last_build.readUuid(testie)
+                except FileNotFoundError:
+                    print("Previous build %s could not be found, we will not compare !" % last_build.uuid)
+                    last_build = None
 
-            series = [(testie, build, all_results)] + series
+            if force_test:
+                prev_results = None
+            else:
+                try:
+                    prev_results = build.readUuid(testie)
+                except FileNotFoundError:
+                    prev_results = None
+
+            if testie.has_all(prev_results):
+                all_results = prev_results
+            else:
+                all_results = testie.execute_all(build, prev_results, do_test=do_test)
+
+            if (regression.compare(testie.variables, all_results, build, old_all_results, last_build)) == 0:
+                nok += 1
+            else:
+                returncode += 1
+            ntests += 1
+            # Finished regression comparison
+            if all_results:
+                if prev_results:
+                    prev_results.update(all_results)
+                    build.writeUuid(testie, prev_results)
+                else:
+                    build.writeUuid(testie, all_results)
+
+            build.writeResults()
 
             grapher = Grapher()
             graphname = build.repo.reponame + '/results/' + build.uuid + '/'+ os.path.splitext(testie.filename)[0] + '.pdf'
@@ -242,7 +239,12 @@ def main():
                 except FileNotFoundError:
                     print("Previous build %s could not be found, we will not graph it !" % g_build.uuid)
 
-            grapher.graph(series=series + g_series, title=testie.get_title(), filename=graphname)
+            grapher.graph(series=[(testie, build, all_results)] + g_series, title=testie.get_title(), filename=graphname, graph_variables=testie.variables)
+        if last_build:
+            graph_builds = [last_build] + graph_builds
+        last_build = build
+        print("[%s] Finished run for %s, %d/%d tests passed" % (repo.name, build.uuid, nok, ntests))
+
 
     sys.exit(returncode)
 

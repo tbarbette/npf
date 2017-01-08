@@ -5,6 +5,7 @@ import sys
 import numpy as np
 import signal
 
+from src.repository import Repository
 from src.section import *
 
 
@@ -66,12 +67,11 @@ class Run:
 
 
 class Testie:
-    def __init__(self, testie_path, click_folder_path, quiet=False, show_full=False, tags=[]):
+    def __init__(self, testie_path, quiet=False, show_full=False, tags=[]):
         self.sections = []
         self.files = []
         self.scripts = []
         self.filename = os.path.basename(testie_path)
-        self.click_folder_path = click_folder_path
         self.quiet = quiet
         self.show_full = show_full
         self.appdir = os.path.dirname(os.path.abspath(sys.argv[0])) + "/"
@@ -106,6 +106,13 @@ class Testie:
 
         for section in self.sections:
             section.finish(self)
+
+    def test_tags(self):
+        missings=[]
+        for tag in self.config.get_list("require_tags"):
+            if not tag in self.tags:
+                missings.append(tag)
+        return missings
 
     def create_files(self, v):
         for s in self.files:
@@ -166,6 +173,21 @@ class Testie:
         self.cleanup()
         return results, output, err
 
+    def has_all(self,prev_results=None):
+        if prev_results is None:
+            return False
+        for variables in self.variables:
+            run = Run(variables)
+
+            if prev_results and run in prev_results:
+                results = prev_results[run]
+                if not results or results is None or (len(results) < self.config["n_runs"]):
+                    return False
+            else:
+                return False
+        return True
+
+
     def execute_all(self, build, prev_results=None,do_test=True):
         """Execute script for all variables combinations
         :param build: A build object
@@ -216,3 +238,22 @@ class Testie:
         std = np.std(data)
         data = data[abs(data - mean) <= m * std]
         return data
+
+    @staticmethod
+    def expandFolder(testie_path, quiet = True, tags = [], show_full=False):
+        testies = []
+        if os.path.isfile(testie_path):
+            testies.append(testie_path)
+        else:
+            for root, dirs, files in os.walk(testie_path):
+                for file in files:
+                    if file.endswith(".conf"):
+                        testie = Testie(os.path.join(root, file), quiet=quiet, show_full=show_full, tags=tags)
+                        missing_tags = testie.test_tags()
+                        if len(missing_tags) > 0:
+                            if not quiet:
+                                print("Passing testie %s as it lacks tags %s" % (testie.filename, ','.join(missing_tags)))
+                            continue
+                        testies.append(testie)
+
+        return testies

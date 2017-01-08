@@ -23,64 +23,56 @@ class Regression:
         accept += abs(result.std() * self.testie.config["accept_variance"] / n)
         return diff <= accept, diff
 
-    def run(self, build, old_build = None, force_test=False, allow_supplementary=True, do_test=True):
+    def compare(self, variable_list, all_results, build, old_all_results, last_build, allow_supplementary=True):
+        print(build)
+        print(last_build)
+        print(old_all_results)
+        """
+        Compare two sets of results for the given list of variables and returns the amount of failing test
+        :param variable_list:
+        :param all_results:
+        :param build:
+        :param old_all_results:
+        :param last_build:
+        :param allow_supplementary:
+        :return: the amount of failed tests (0 means all passed)
+        """
         testie = self.testie
         returncode=0
-        old_all_results=None
-        if old_build:
-            try:
-                old_all_results = old_build.readUuid(testie)
-            except FileNotFoundError:
-                print("Previous build %s could not be found, we will not compare !" % old_build.uuid)
-                old_build = None
-
-        if force_test:
-            prev_results = None
-        else:
-            try:
-                prev_results = build.readUuid(testie)
-            except FileNotFoundError:
-                prev_results = None
-        all_results = testie.execute_all(build,prev_results,do_test=do_test)
-        for run,result in all_results.items():
-            v = run.variables
-            #TODO : some config could implement acceptable range no matter the old value
+        for v in variable_list:
+            run = Run(v)
+            result = all_results[run]
+            # TODO : some config could implement acceptable range no matter the old value
             if result is None:
                 continue
             if old_all_results and run in old_all_results and not old_all_results[run] is None:
-                old_result=old_all_results[run]
-                ok,diff = self.accept_diff(result, old_result)
+                old_result = old_all_results[run]
+                ok, diff = self.accept_diff(result, old_result)
                 if not ok and testie.config["n_supplementary_runs"] > 0 and allow_supplementary:
-                        if not testie.quiet:
-                            print("Difference of %.2f%% is outside acceptable range for %s. Running supplementary tests..." % (diff*100, run.format_variables()))
-                        for i in range(testie.config["n_supplementary_runs"]):
-                            n,output,err = testie.execute(build, v)
-                            if n == False:
-                                result = False
-                                break
-                            result += n
+                    if not testie.quiet:
+                        print(
+                            "Difference of %.2f%% is outside acceptable margin for %s. Running supplementary tests..." % (
+                            diff * 100, run.format_variables()))
+                    for i in range(testie.config["n_supplementary_runs"]):
+                        n, output, err = testie.execute(build, v)
+                        if n == False:
+                            result = False
+                            break
+                        result += n
 
-                        if result:
-                            all_results[run] = result
-                            ok,diff = self.accept_diff(result, old_result)
-                        else:
-                            ok = True
+                    if result:
+                        all_results[run] = result
+                        ok, diff = self.accept_diff(result, old_result)
+                    else:
+                        ok = True
 
                 if not ok:
-                    print("ERROR: Test " + testie.filename + " is outside acceptable margin between " +build.uuid+ " and " + old_build.uuid + " : difference of " + str(diff*100) + "% !")
+                    print(
+                        "ERROR: Test %s is outside acceptable margin between %s and %s : difference of %.2f%% !" % (testie.filename,build.uuid,last_build.uuid,diff * 100)  )
                     returncode += 1
                 elif not testie.quiet:
-                    print("Acceptable difference of %.2f%% for %s" % ((diff*100),run.format_variables()))
-            elif old_build:
-                print("No old values for this test for uuid %s." % (old_build.uuid))
+                    print("Acceptable difference of %.2f%% for %s" % ((diff * 100), run.format_variables()))
+            elif last_build:
+                print("No old values for %s for uuid %s." % (run, last_build.uuid))
                 old_all_results[run] = [0]
-
-#Finished regression comparison
-        if all_results:
-            if prev_results:
-                prev_results.update(all_results)
-                build.writeUuid(testie,prev_results)
-            else:
-                build.writeUuid(testie,all_results)
-
-        return returncode,all_results,old_all_results
+        return returncode
