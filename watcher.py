@@ -36,7 +36,7 @@ def mail(mail_from, mail_to, subject, body, images=[], bodytype='text'):
 
 
 def check_all_repos(repo_list: List[Tuple[Repository, List[Testie]]], mail_to: List[str], mail_from: str, history: int,
-                    quiet: bool = False, graph_num: int = 8):
+                    quiet: bool = False, graph_num: int = 8, mail_always=True):
     for repo, testies in repo_list:
         gitrepo = repo.gitrepo()
         commit = next(gitrepo.iter_commits('origin/' + repo.branch))
@@ -104,7 +104,8 @@ def check_all_repos(repo_list: List[Tuple[Repository, List[Testie]]], mail_to: L
         build.writeResults()
         repo.last_build = build
         body += '</html>'
-        mail(subject="[%s] Finished run for %s, %d/%d tests passed" % (repo.name, build.uuid, nok, len(testies)),
+        if nok < len(testies) or mail_always:
+            mail(subject="[%s] Finished run for %s, %d/%d tests passed" % (repo.name, build.uuid, nok, len(testies)),
              body=body,
              bodytype='html',
              mail_from=mail_from,
@@ -132,6 +133,8 @@ def main():
                    default=['tom.barbette@ulg.ac.be']);
     m.add_argument('--mail-from', metavar='email', type=str, nargs=1, dest='mail_from', default='tom.barbette@ulg.ac.be',
                    help='list of e-mails for report');
+    m.add_argument('--mail-erroronly', default=True, dest='mail_always',  action='store_false',
+                   help='e-mail even if there is an error');
     parser.set_defaults(tags=[])
     args = parser.parse_args();
     history = args.history
@@ -154,7 +157,7 @@ def main():
     terminate = False
     while not terminate:
         check_all_repos(repo_list, history=history, quiet=args.quiet, graph_num=args.graph_num,
-                        mail_to=args.mail_to, mail_from=args.mail_from)
+                        mail_to=args.mail_to, mail_from=args.mail_from,mail_always = args.mail_always)
         time.sleep(args.interval)
 
 

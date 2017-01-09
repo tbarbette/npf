@@ -242,7 +242,8 @@ class Testie:
     def expandFolder(testie_path, quiet = True, tags = [], show_full=False):
         testies = []
         if os.path.isfile(testie_path):
-            testies.append(testie_path)
+            testie = Testie(testie_path, quiet=quiet, show_full=show_full, tags=tags)
+            testies.append(testie)
         else:
             for root, dirs, files in os.walk(testie_path):
                 for file in files:
