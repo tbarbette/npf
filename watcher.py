@@ -1,16 +1,20 @@
 #!/usr/bin/python3
+import argparse
 import time
+from email.mime.text import MIMEText
+from typing import Tuple, List
 
 from src.regression import *
 
 import smtplib
 
-
 from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 
+mail_to = ['tom.barbette@ulg.ac.be']
 
-def mail(subject,mail_to, body='',mail_from='tom.barbette@ulg.ac.be', images=[]):
+
+def mail(subject, mail_to, body='', mail_from='tom.barbette@ulg.ac.be', images=[], bodytype='text'):
     print(subject)
     COMMASPACE = ', '
 
@@ -21,16 +25,88 @@ def mail(subject,mail_to, body='',mail_from='tom.barbette@ulg.ac.be', images=[])
     if (mail_from):
         msg['From'] = mail_from
     msg['To'] = COMMASPACE.join(mail_to)
-    msg.preamble = body
+    msg.attach(MIMEText(body, bodytype))
 
-
-    for img in images:
+    for img, cid in images:
         img = MIMEImage(img)
+        img.add_header('Content-ID', '<' + cid + '>')
         msg.attach(img)
 
     s = smtplib.SMTP('localhost')
     s.send_message(msg)
     s.quit()
+
+
+def check_all_repos(repo_list: List[Tuple[Repository, List[Testie]]], history: int, quiet: bool = False, graph_num:int = 8):
+    for repo, testies in repo_list:
+        gitrepo = repo.gitrepo()
+        commit = next(gitrepo.iter_commits('origin/' + repo.branch))
+        uuid = commit.hexsha[:7]
+        if repo.last_build and uuid == repo.last_build.uuid:
+            if not quiet:
+                print("[%s] No new uuid !" % (repo.name))
+            continue
+
+        if (history > 0 and repo.last_build):
+            build = repo.last_build_before(repo.last_build)
+        else:
+            build = Build(repo, uuid)
+        print("[%s] New uuid %s !" % (repo.name, build.uuid))
+
+        graphs = []
+
+        if not build.build_if_needed():
+            mail("[%s] Could not compile %s !" % (repo.name, uuid), mail_to=mail_to)
+            # Pass if not last
+            if (build.uuid != uuid):
+                repo.last_build = build
+            continue
+        nok = 0
+        body = '<html>'
+        body += 'Detailed results for %s :<br />' % build.uuid
+        for testie in testies:
+            print("[%s] Running testie %s..." % (repo.name, testie.filename))
+            regression = Regression(testie)
+            if repo.last_build:
+                try:
+                    old_all_results = repo.last_build.readUuid(testie)
+                except FileNotFoundError:
+                    old_all_results = None
+            else:
+                old_all_results = None
+            all_results = testie.execute_all(build)
+            tests_failed, tests_total = regression.compare(testie.variables, all_results, build, old_all_results,
+                                                           repo.last_build)
+            body += '<b>%s</b> :' % build.uuid
+            if tests_failed == 0:
+                nok += 1
+                body += '<span style="color:green;">PASSED</span><br />'
+            else:
+                print("[%s] Testie %s FAILED !" % (repo.name, testie.filename))
+                body += '<span style="color:red;">FAILED</span> with %d/%d points out of constraints.<br />' % (
+                    tests_failed, tests_total)
+            build.writeUuid(testie, all_results)
+
+            grapher = Grapher()
+            graphs_series = [(testie, build, all_results)]
+
+            last_graph = build  # last graph is the oldest build in the series
+            if repo.last_build and old_all_results:
+                graphs_series.append((testie, repo.last_build, old_all_results))
+                last_graph = repo.last_build
+
+            graphs_series += repo.get_old_results(last_graph, graph_num - len(graphs_series), testie)
+            g = grapher.graph(series=graphs_series, title=testie.get_title(),
+                              filename=None, graph_variables=testie.variables)
+            graphs.append((g, testie.filename))
+            body += '<img src="cid:%s"><br/><br/>' % testie.filename
+
+        build.writeResults()
+        repo.last_build = build
+        body += '</html>'
+        mail("[%s] Finished run for %s, %d/%d tests passed" % (repo.name, build.uuid, nok, len(testies)), body=body,
+             bodytype='html',
+             mail_to=mail_to, images=graphs)
 
 
 def main():
@@ -44,30 +120,24 @@ def main():
     parser.add_argument('--testie', metavar='path or testie', type=str, nargs='?', default='tests',
                         help='script or script folder. Default is tests');
     parser.add_argument('--quiet', help='Quiet mode', dest='quiet', action='store_true', default=False)
+
+    a = parser.add_argument_group('Graphing options')
+    a.add_argument('--graph-num', metavar='N', type=int, nargs='?', default=8,
+                   help='Number of UUIDs to graph');
+
     parser.set_defaults(tags=[])
     args = parser.parse_args();
     history = args.history
 
-    mail_to = ['tom.barbette@ulg.ac.be']
-
+    # Parsing repo list and getting last_build
     repo_list = []
     for repo_name in args.repos:
         repo = Repository(repo_name)
         tags = args.tags
         tags += repo.tags
-        gitrepo = repo.checkout()
-        last_build = None
-        for i, commit in enumerate(gitrepo.iter_commits('origin/' + repo.branch)):
-            last_build = Build(repo, commit.hexsha[:7])
-            if last_build.hasResults():
-                if history == 0:
-                    break
-                else:
-                    history -= 1
-            if i > 100:
-                last_build = None
-                break
-        if last_build != None:
+
+        last_build = repo.get_last_build(history)
+        if last_build is not None:
             print("[%s] Last tested uuid is %s" % (repo.name, last_build.uuid))
         repo.last_build = last_build
 
@@ -76,51 +146,7 @@ def main():
 
     terminate = False
     while not terminate:
-        for repo, testies in repo_list:
-            gitrepo = repo.gitrepo()
-            commit = next(gitrepo.iter_commits('origin/' + repo.branch))
-            uuid = commit.hexsha[:7]
-            if repo.last_build and uuid == repo.last_build.uuid:
-                if not args.quiet:
-                    print("[%s] No new uuid !" % (repo.name))
-                continue
-
-            print("[%s] New uuid %s !" % (repo.name, uuid))
-            build = Build(repo, uuid)
-
-            graphs = []
-
-            if not build.build_if_needed():
-                mail("[%s] Could not compile %s !" % (repo.name, uuid),mail_to=mail_to)
-                continue
-            nok = 0
-            for testie in testies:
-                print("[%s] Running testie %s..." % (repo.name, testie.filename))
-                regression = Regression(testie)
-                if repo.last_build:
-                    old_all_results = repo.last_build.readUuid(testie)
-                else:
-                    old_all_results = None
-                all_results = testie.execute_all(build)
-                ok = regression.compare(testie.variables, all_results, build, old_all_results, repo.last_build) == 0
-                if ok:
-                    nok += 1
-                else:
-                    print("[%s] Testie %s FAILED !" % (repo.name, testie.filename))
-                build.writeUuid(testie, all_results)
-
-                grapher = Grapher()
-                graphs_series = [(testie, build, all_results)]
-                if repo.last_build:
-                    graphs_series.append((testie, repo.last_build, old_all_results))
-                g = grapher.graph(series=graphs_series, title=testie.get_title(),
-                              filename=None, graph_variables=testie.variables)
-                graphs.append(g)
-            build.writeResults()
-            repo.last_build = build
-            body = ''
-            mail("[%s] Finished run for %s, %d/%d tests passed" % (repo.name, uuid, nok, len(testies)), body=body,mail_to=mail_to, images=graphs)
-
+        check_all_repos(repo_list, history, quiet=args.quiet, graph_num=args.graph_num)
         time.sleep(args.interval)
 
 

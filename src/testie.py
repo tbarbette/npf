@@ -5,7 +5,6 @@ import sys
 import numpy as np
 import signal
 
-from src.repository import Repository
 from src.section import *
 
 

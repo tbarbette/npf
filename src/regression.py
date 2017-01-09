@@ -1,10 +1,3 @@
-import argparse
-import os
-import math
-import numpy as np
-
-from src.variable import *
-from src.testie import *
 from src.repository import *
 from src.build import *
 from src.grapher import *
@@ -23,10 +16,7 @@ class Regression:
         accept += abs(result.std() * self.testie.config["accept_variance"] / n)
         return diff <= accept, diff
 
-    def compare(self, variable_list, all_results, build, old_all_results, last_build, allow_supplementary=True):
-        print(build)
-        print(last_build)
-        print(old_all_results)
+    def compare(self, variable_list, all_results, build, old_all_results, last_build, allow_supplementary=True) -> tuple:
         """
         Compare two sets of results for the given list of variables and returns the amount of failing test
         :param variable_list:
@@ -38,8 +28,10 @@ class Regression:
         :return: the amount of failed tests (0 means all passed)
         """
         testie = self.testie
-        returncode=0
+        tests_failed = 0
+        tests_total = 0
         for v in variable_list:
+            tests_total += 1
             run = Run(v)
             result = all_results[run]
             # TODO : some config could implement acceptable range no matter the old value
@@ -69,10 +61,11 @@ class Regression:
                 if not ok:
                     print(
                         "ERROR: Test %s is outside acceptable margin between %s and %s : difference of %.2f%% !" % (testie.filename,build.uuid,last_build.uuid,diff * 100)  )
-                    returncode += 1
+                    tests_failed += 1
                 elif not testie.quiet:
                     print("Acceptable difference of %.2f%% for %s" % ((diff * 100), run.format_variables()))
             elif last_build:
                 print("No old values for %s for uuid %s." % (run, last_build.uuid))
-                old_all_results[run] = [0]
-        return returncode
+                if (old_all_results):
+                    old_all_results[run] = [0]
+        return tests_failed,tests_total

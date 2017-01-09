@@ -1,7 +1,8 @@
 #!/usr/bin/python3
+import argparse
 
 from src.regression import *
-import git
+
 
 def main():
     parser = argparse.ArgumentParser(description='Click performance regression test')
@@ -13,11 +14,11 @@ def main():
     b = parser.add_argument_group('Click building options')
     bf = b.add_mutually_exclusive_group()
     bf.add_argument('--no-build',
-                   help='Do not build the last master', dest='no_build', action='store_true', default=False)
+                    help='Do not build the last master', dest='no_build', action='store_true', default=False)
     bf.add_argument('--force-build',
-                   help='Force to rebuild Click even if the git current uuid is matching the regression uuids '
-                        '(see --uuid or --history).', dest='force_build',
-                   action='store_true', default=False)
+                    help='Force to rebuild Click even if the git current uuid is matching the regression uuids '
+                         '(see --uuid or --history).', dest='force_build',
+                    action='store_true', default=False)
     b.add_argument('--allow-old-build',
                    help='Re-build and run test for old UUIDs (compare-uuid and graph-uuid) without results. '
                         'By default, only building for the regression uuids (see --history or --uuid) is done',
@@ -29,48 +30,49 @@ def main():
     t = parser.add_argument_group('Testing options')
     tf = t.add_mutually_exclusive_group()
     tf.add_argument('--no-test',
-                   help='Do not run any', dest='do_test', action='store_false',
-                   default=True)
+                    help='Do not run any', dest='do_test', action='store_false',
+                    default=True)
     tf.add_argument('--force-test',
-                   help='Force re-doing all tests even if data for the given uuid and '
-                        'variables is already known', dest='force_test', action='store_true',
-                   default=False)
+                    help='Force re-doing all tests even if data for the given uuid and '
+                         'variables is already known', dest='force_test', action='store_true',
+                    default=False)
 
     t.add_argument('--n_runs', help='Override test n_runs', type=int, nargs='?', metavar='N', default=-1)
-    t.add_argument('--n_supplementary_runs', metavar='N', help='Override test n_supplementary_runs', type=int, nargs='?', default=-1)
+    t.add_argument('--n_supplementary_runs', metavar='N', help='Override test n_supplementary_runs', type=int,
+                   nargs='?', default=-1)
 
     t.add_argument('--tags', metavar='tag', type=str, nargs='+', help='list of tags');
     t.add_argument('--testie', metavar='path or testie', type=str, nargs='?', default='tests',
-                        help='script or script folder. Default is tests');
+                   help='script or script folder. Default is tests');
 
     g = parser.add_argument_group('Commit choice')
     gf = g.add_mutually_exclusive_group()
     gf.add_argument('--history',
-                        help='Number of commits in the history on which to excute the regression tests. By default, '
-                             'this is 1 meaning that the regression test is done on HEAD, and will be compared '
-                             'against HEAD~1. This parameter allows to '
-                             'start at commits HEAD~N as if it was HEAD, doing the regression test for each'
-                             'commits up to now. Difference with --allow-old-build is that the regression test '
-                             'will be done for each commit instead of just graphing the results, so error message and'
-                             'return code will concern any regression between HEAD and HEAD~N. '
-                             'Ignored if --uuid is given.',
-                        dest='history', metavar='N',
-                        nargs='?', type=int, default=1)
+                    help='Number of commits in the history on which to excute the regression tests. By default, '
+                         'this is 1 meaning that the regression test is done on HEAD, and will be compared '
+                         'against HEAD~1. This parameter allows to '
+                         'start at commits HEAD~N as if it was HEAD, doing the regression test for each'
+                         'commits up to now. Difference with --allow-old-build is that the regression test '
+                         'will be done for each commit instead of just graphing the results, so error message and'
+                         'return code will concern any regression between HEAD and HEAD~N. '
+                         'Ignored if --uuid is given.',
+                    dest='history', metavar='N',
+                    nargs='?', type=int, default=1)
     gf.add_argument('--uuid', metavar='uuid', type=str, nargs='*',
-                        help='Uuid to checkout and test. Default is master''s HEAD uuid and its N "--redo-history" firsts parents.');
+                    help='Uuid to checkout and test. Default is master''s HEAD uuid and its N "--redo-history" firsts parents.');
     g.add_argument('--branch', help='Branch', type=str, nargs='?', default=None)
 
     g.add_argument('--compare-uuid', dest='compare_uuid', metavar='uuid', type=str, nargs='?',
-                        help='A uuid to compare against the last uuid. Default is the first parent of the last uuid containing some results.');
+                   help='A uuid to compare against the last uuid. Default is the first parent of the last uuid containing some results.');
 
     a = parser.add_argument_group('Graphing options')
     af = a.add_mutually_exclusive_group()
     af.add_argument('--graph-uuid', metavar='uuid', type=str, nargs='*',
-                        help='Uuids to simply graph');
+                    help='Uuids to simply graph');
     af.add_argument('--graph-num', metavar='N', type=int, nargs='?', default=8,
-                        help='Number of olds UUIDs to graph after --compare-uuid, unused if --graph-uuid is given');
+                    help='Number of olds UUIDs to graph after --compare-uuid, unused if --graph-uuid is given');
     a.add_argument('--graph-allvariables', help='Graph only the latest variables (usefull when you restrict variables '
-                                                'with tags)', dest='graph_newonly', action='store_true',default=False)
+                                                'with tags)', dest='graph_newonly', action='store_true', default=False)
 
     parser.add_argument('repo', metavar='repo name', type=str, nargs=1, help='name of the repo/group of builds');
 
@@ -92,28 +94,28 @@ def main():
         uuids = args.uuid
     else:
         uuids = []
-        for i,commit in enumerate(gitrepo.iter_commits('origin/'+repo.branch)):
+        for i, commit in enumerate(gitrepo.iter_commits('origin/' + repo.branch)):
             if i >= args.history: break
             short = commit.hexsha[:7]
             uuids.append(short)
 
     clickpath = repo.reponame + "/build"
 
-    #Builds of the regression uuids
+    # Builds of the regression uuids
     builds = []
     for short in uuids:
-        builds.append(Build(repo,short))
+        builds.append(Build(repo, short))
         compare_uuid = short
 
-    last_rebuilds=[]
+    last_rebuilds = []
 
     last_build = None
     if args.compare_uuid and len(args.compare_uuid):
-        compare_uuid=args.compare_uuid
-        last_build=Build(repo,compare_uuid)
+        compare_uuid = args.compare_uuid
+        last_build = Build(repo, compare_uuid)
     elif args.history <= 1:
-        for i,commit in enumerate(next(gitrepo.iter_commits(compare_uuid)).iter_parents()):
-            last_build=Build(repo,commit.hexsha[:7])
+        for i, commit in enumerate(next(gitrepo.iter_commits(compare_uuid)).iter_parents()):
+            last_build = Build(repo, commit.hexsha[:7])
             if last_build.hasResults():
                 break
             elif args.allow_oldbuild:
@@ -125,17 +127,17 @@ def main():
         if last_build:
             print("Comparaison UUID is %s" % last_build.uuid)
 
-    graph_builds=[]
+    graph_builds = []
     if args.graph_uuid and len(args.graph_uuid) > 0:
         for g in args.graph_uuid:
-            graph_builds.append(Build(repo,g))
+            graph_builds.append(Build(repo, g))
     else:
         if last_build and args.graph_num > 0:
             for commit in gitrepo.commit(last_build.uuid).iter_parents():
                 g_build = Build(repo, commit.hexsha[:7])
                 if g_build in builds or g_build == last_build:
                     continue
-                i+=1
+                i += 1
                 if g_build.hasResults() and not args.force_oldbuild:
                     graph_builds.append(g_build)
                 elif args.allow_oldbuild:
@@ -146,7 +148,7 @@ def main():
                 if len(graph_builds) > args.graph_num:
                     break
 
-    testies=Testie.expandFolder(args.testie, quiet=args.quiet, tags=tags, show_full=args.show_full)
+    testies = Testie.expandFolder(args.testie, quiet=args.quiet, tags=tags, show_full=args.show_full)
 
     for b in last_rebuilds:
         print("Last UUID %s had no result. Re-executing tests for it." % b.uuid)
@@ -157,7 +159,7 @@ def main():
             b.writeUuid(testie, all_results)
         b.writeResults()
 
-    returncode=0
+    returncode = 0
 
     for build in reversed(builds):
         print("Starting regression test for %s" % build.uuid)
@@ -189,7 +191,7 @@ def main():
 
             print(testie.info.content.strip())
 
-            force_test=args.force_test
+            force_test = args.force_test
             old_all_results = None
             if last_build:
                 try:
@@ -210,8 +212,8 @@ def main():
                 all_results = prev_results
             else:
                 all_results = testie.execute_all(build, prev_results, do_test=do_test)
-
-            if (regression.compare(testie.variables, all_results, build, old_all_results, last_build)) == 0:
+            tests_failed,tests_total = regression.compare(testie.variables, all_results, build, old_all_results, last_build)
+            if tests_failed == 0:
                 nok += 1
             else:
                 returncode += 1
@@ -227,27 +229,27 @@ def main():
             build.writeResults()
 
             grapher = Grapher()
-            graphname = build.repo.reponame + '/results/' + build.uuid + '/'+ os.path.splitext(testie.filename)[0] + '.pdf'
+            graphname = build.repo.reponame + '/results/' + build.uuid + '/' + os.path.splitext(testie.filename)[
+                0] + '.pdf'
 
             g_series = []
             if last_build:
-                g_series.append((testie,last_build,old_all_results))
+                g_series.append((testie, last_build, old_all_results))
             for g_build in graph_builds:
                 try:
                     g_all_results = g_build.readUuid(testie)
-                    g_series.append((testie,g_build,g_all_results))
+                    g_series.append((testie, g_build, g_all_results))
                 except FileNotFoundError:
                     print("Previous build %s could not be found, we will not graph it !" % g_build.uuid)
 
-            grapher.graph(series=[(testie, build, all_results)] + g_series, title=testie.get_title(), filename=graphname, graph_variables=testie.variables)
+            grapher.graph(series=[(testie, build, all_results)] + g_series, title=testie.get_title(),
+                          filename=graphname, graph_variables=testie.variables)
         if last_build:
             graph_builds = [last_build] + graph_builds
         last_build = build
         print("[%s] Finished run for %s, %d/%d tests passed" % (repo.name, build.uuid, nok, ntests))
 
-
     sys.exit(returncode)
-
 
 
 if __name__ == "__main__":

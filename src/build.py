@@ -1,10 +1,8 @@
 import os
-import pickle
 import subprocess
 from collections import OrderedDict
 from subprocess import PIPE
 import git
-import numpy as np
 
 from src import variable
 from src.testie import Run

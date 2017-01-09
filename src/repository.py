@@ -1,3 +1,4 @@
+from src.build import Build
 from .testie import *
 from .variable import is_numeric
 
@@ -49,7 +50,7 @@ class Repository:
             else:
                 setattr(self,var,val)
 
-    def checkout(self, branch=None):
+    def checkout(self, branch=None) -> git.Repo:
         """
         Checkout the repo to its folder, fetch if it already exists
         :param branch: An optional branch
@@ -73,9 +74,45 @@ class Repository:
         self.__gitrepo = gitrepo
         return gitrepo
 
-    def gitrepo(self):
+    def gitrepo(self) -> git.Repo:
         if (self.__gitrepo):
             return self.__gitrepo
         else:
             return self.checkout()
 
+    def get_last_build(self, history: int = 0, stop_at: Build = None) -> Build:
+        last_build = None
+        for i, commit in enumerate(self.gitrepo().iter_commits('origin/' + self.branch)):
+            uuid = commit.hexsha[:7]
+            if stop_at and uuid == stop_at.uuid:
+                if i == 0:
+                    return None
+                break
+            last_build = Build(self, uuid)
+            if last_build.hasResults():
+                if history == 0:
+                    break
+                else:
+                    history -= 1
+            if i > 100:
+                last_build = None
+                break
+        return last_build
+
+    def last_build_before(self, old_build) -> Build:
+        return self.get_last_build(stop_at=old_build,history=-1)
+
+    def get_old_results(self, last_graph:Build, num_old:int, testie:Testie):
+        graphs_series = []
+        parents = self.gitrepo().iter_commits(last_graph.uuid)
+        next(parents)  # The first commit is last_graph itself
+
+        for i, commit in enumerate(parents):  # Get old results for graph
+            g_build = Build(self, commit.hexsha[:7])
+            if not g_build.hasResults(testie):
+                continue
+            g_all_results = g_build.readUuid(testie)
+            graphs_series.append((testie, g_build, g_all_results))
+            if (i > 100 or len(graphs_series) == num_old):
+                break
+        return graphs_series
