@@ -11,10 +11,8 @@ import smtplib
 from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 
-mail_to = ['tom.barbette@ulg.ac.be']
 
-
-def mail(subject, mail_to, body='', mail_from='tom.barbette@ulg.ac.be', images=[], bodytype='text'):
+def mail(mail_from, mail_to, subject, body, images=[], bodytype='text'):
     print(subject)
     COMMASPACE = ', '
 
@@ -22,7 +20,7 @@ def mail(subject, mail_to, body='', mail_from='tom.barbette@ulg.ac.be', images=[
     msg = MIMEMultipart()
     msg['Subject'] = subject
 
-    if (mail_from):
+    if mail_from:
         msg['From'] = mail_from
     msg['To'] = COMMASPACE.join(mail_to)
     msg.attach(MIMEText(body, bodytype))
@@ -37,7 +35,8 @@ def mail(subject, mail_to, body='', mail_from='tom.barbette@ulg.ac.be', images=[
     s.quit()
 
 
-def check_all_repos(repo_list: List[Tuple[Repository, List[Testie]]], history: int, quiet: bool = False, graph_num:int = 8):
+def check_all_repos(repo_list: List[Tuple[Repository, List[Testie]]], mail_to: List[str], mail_from: str, history: int,
+                    quiet: bool = False, graph_num: int = 8):
     for repo, testies in repo_list:
         gitrepo = repo.gitrepo()
         commit = next(gitrepo.iter_commits('origin/' + repo.branch))
@@ -56,7 +55,8 @@ def check_all_repos(repo_list: List[Tuple[Repository, List[Testie]]], history: i
         graphs = []
 
         if not build.build_if_needed():
-            mail("[%s] Could not compile %s !" % (repo.name, uuid), mail_to=mail_to)
+            mail(subject="[%s] Could not compile %s !" % (repo.name, uuid), mail_to=mail_to, body='',
+                 mail_from=mail_from)
             # Pass if not last
             if (build.uuid != uuid):
                 repo.last_build = build
@@ -104,8 +104,10 @@ def check_all_repos(repo_list: List[Tuple[Repository, List[Testie]]], history: i
         build.writeResults()
         repo.last_build = build
         body += '</html>'
-        mail("[%s] Finished run for %s, %d/%d tests passed" % (repo.name, build.uuid, nok, len(testies)), body=body,
+        mail(subject="[%s] Finished run for %s, %d/%d tests passed" % (repo.name, build.uuid, nok, len(testies)),
+             body=body,
              bodytype='html',
+             mail_from=mail_from,
              mail_to=mail_to, images=graphs)
 
 
@@ -125,6 +127,11 @@ def main():
     a.add_argument('--graph-num', metavar='N', type=int, nargs='?', default=8,
                    help='Number of UUIDs to graph');
 
+    m = parser.add_argument_group('Mail options')
+    m.add_argument('--mail-to', metavar='email', type=str, nargs='+', help='list of e-mails for report',
+                   default=['tom.barbette@ulg.ac.be']);
+    m.add_argument('--mail-from', metavar='email', type=str, nargs=1, dest='mail_from', default='tom.barbette@ulg.ac.be',
+                   help='list of e-mails for report');
     parser.set_defaults(tags=[])
     args = parser.parse_args();
     history = args.history
@@ -146,7 +153,8 @@ def main():
 
     terminate = False
     while not terminate:
-        check_all_repos(repo_list, history, quiet=args.quiet, graph_num=args.graph_num)
+        check_all_repos(repo_list, history=history, quiet=args.quiet, graph_num=args.graph_num,
+                        mail_to=args.mail_to, mail_from=args.mail_from)
         time.sleep(args.interval)
 
 
