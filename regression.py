@@ -248,9 +248,9 @@ def main():
                     g_series.append((testie, g_build, g_all_results))
                 except FileNotFoundError:
                     print("Previous build %s could not be found, we will not graph it !" % g_build.uuid)
-
             grapher.graph(series=[(testie, build, all_results)] + g_series, title=testie.get_title(),
-                          filename=graphname, graph_variables=testie.variables)
+                          filename=graphname,
+                          graph_variables=list(testie.variables))
         if last_build:
             graph_builds = [last_build] + graph_builds
         last_build = build

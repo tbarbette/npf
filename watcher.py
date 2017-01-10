@@ -97,7 +97,7 @@ def check_all_repos(repo_list: List[Tuple[Repository, List[Testie]]], mail_to: L
 
             graphs_series += repo.get_old_results(last_graph, graph_num - len(graphs_series), testie)
             g = grapher.graph(series=graphs_series, title=testie.get_title(),
-                              filename=None, graph_variables=testie.variables)
+                              filename=None, graph_variables=list(testie.variables))
             graphs.append((g, testie.filename))
             body += '<img src="cid:%s"><br/><br/>' % testie.filename
 
