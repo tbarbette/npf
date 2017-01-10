@@ -30,7 +30,7 @@ def main():
     t = parser.add_argument_group('Testing options')
     tf = t.add_mutually_exclusive_group()
     tf.add_argument('--no-test',
-                    help='Do not run any', dest='do_test', action='store_false',
+                    help='Do not run any tests, use previous results', dest='do_test', action='store_false',
                     default=True)
     tf.add_argument('--force-test',
                     help='Force re-doing all tests even if data for the given uuid and '
@@ -64,6 +64,9 @@ def main():
 
     g.add_argument('--compare-uuid', dest='compare_uuid', metavar='uuid', type=str, nargs='?',
                    help='A uuid to compare against the last uuid. Default is the first parent of the last uuid containing some results.');
+    g.add_argument('--no-compare',
+                    help='Do not run regression comparison, just do the tests', dest='compare', action='store_false',
+                    default=True)
 
     a = parser.add_argument_group('Graphing options')
     af = a.add_mutually_exclusive_group()
@@ -212,12 +215,15 @@ def main():
                 all_results = prev_results
             else:
                 all_results = testie.execute_all(build, prev_results, do_test=do_test)
-            tests_failed,tests_total = regression.compare(testie.variables, all_results, build, old_all_results, last_build)
-            if tests_failed == 0:
-                nok += 1
-            else:
-                returncode += 1
-            ntests += 1
+
+            if args.compare:
+                tests_failed,tests_total = regression.compare(testie.variables, all_results, build, old_all_results, last_build)
+                if tests_failed == 0:
+                    nok += 1
+                else:
+                    returncode += 1
+                ntests += 1
+
             # Finished regression comparison
             if all_results:
                 if prev_results:
@@ -233,8 +239,9 @@ def main():
                 0] + '.pdf'
 
             g_series = []
-            if last_build:
+            if last_build and args.compare:
                 g_series.append((testie, last_build, old_all_results))
+
             for g_build in graph_builds:
                 try:
                     g_all_results = g_build.readUuid(testie)
