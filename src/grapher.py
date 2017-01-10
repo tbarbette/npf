@@ -51,7 +51,6 @@ class Grapher:
         uuids=[]
 
         ymin,ymax=(float('inf'),0)
-
         #Data transformation
         for i,(script,build,all_results) in enumerate(series):
             uuids.append(build.uuid)
@@ -92,21 +91,29 @@ class Grapher:
             uuids=[]
             values = list(vars_values[key])
             values.sort()
+            new_varsall = set()
             for value in values:
                 newserie={}
                 for run,results in all_results.items():
                     if (run.variables[key] == value):
-                        newserie[run] = results
+                        newrun = run.copy()
+                        del newrun.variables[key]
+                        newserie[newrun] = results
+                        new_varsall.add(newrun)
                 series.append((script,build,newserie))
                 if type(value) is tuple:
                     value=value[1]
                 uuids.append(value)
                 legend_title=self.var_name(key)
             nseries=len(series)
-
+            vars_all = list(new_varsall)
+            vars_all.sort()
         else:
             key="uuid"
             legend_title=None
+
+        del vars_values #May not be good anymore
+
 
         ax = plt.gca()
         if (self.var_unit("result") == "BPS"):
@@ -200,6 +207,7 @@ class Grapher:
                         y.append(np.nan)
                         e.append(np.nan)
                 data.append((y,e))
+
             width = (1-(2*interbar)) / len(uuids)
             ind = np.arange(len(vars_all))
 

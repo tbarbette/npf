@@ -29,6 +29,10 @@ class Run:
         else:
             return v
 
+    def copy(self):
+        newrun = Run(self.variables.copy())
+        return newrun
+
     def __eq__(self, o):
         for k,v in self.variables.items():
             if not k in o.variables:
