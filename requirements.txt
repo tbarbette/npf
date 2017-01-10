@@ -3,3 +3,6 @@ regex
 matplotlib
 gitpython
 typing
+pydotplus
+scipy
+sklearn
