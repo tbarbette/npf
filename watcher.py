@@ -151,7 +151,7 @@ def main():
             print("[%s] Last tested uuid is %s" % (repo.name, last_build.uuid))
         repo.last_build = last_build
 
-        testies = Testie.expandFolder(args.testie, tags=tags, quiet=args.quiet)
+        testies = Testie.expand_folder(args.testie, tags=tags, quiet=args.quiet)
         repo_list.append((repo, testies))
 
     terminate = False

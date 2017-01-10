@@ -2,6 +2,7 @@
 import argparse
 
 from src.regression import *
+from src.statistics import Statistics
 
 
 def main():
@@ -36,7 +37,6 @@ def main():
                     help='Force re-doing all tests even if data for the given uuid and '
                          'variables is already known', dest='force_test', action='store_true',
                     default=False)
-
     t.add_argument('--n_runs', help='Override test n_runs', type=int, nargs='?', metavar='N', default=-1)
     t.add_argument('--n_supplementary_runs', metavar='N', help='Override test n_supplementary_runs', type=int,
                    nargs='?', default=-1)
@@ -67,6 +67,13 @@ def main():
     g.add_argument('--no-compare',
                     help='Do not run regression comparison, just do the tests', dest='compare', action='store_false',
                     default=True)
+
+    s = parser.add_argument_group('Statistics options')
+    s.add_argument('--statistics',
+                   help='Give some statistics output', dest='statistics', action='store_true',
+                   default=False)
+    s.add_argument('--statistics-maxdepth',
+                   help='Max depth of learning tree', dest='statistics_maxdepth', type=int, default=None)
 
     a = parser.add_argument_group('Graphing options')
     af = a.add_mutually_exclusive_group()
@@ -151,7 +158,7 @@ def main():
                 if len(graph_builds) > args.graph_num:
                     break
 
-    testies = Testie.expandFolder(args.testie, quiet=args.quiet, tags=tags, show_full=args.show_full)
+    testies = Testie.expand_folder(testie_path=args.testie, quiet=args.quiet, tags=tags, show_full=args.show_full)
 
     for b in last_rebuilds:
         print("Last UUID %s had no result. Re-executing tests for it." % b.uuid)
@@ -234,9 +241,12 @@ def main():
 
             build.writeResults()
 
+            if args.statistics:
+                Statistics.run(build, all_results, testie, max_depth=args.statistics_maxdepth)
+
             grapher = Grapher()
-            graphname = build.repo.reponame + '/results/' + build.uuid + '/' + os.path.splitext(testie.filename)[
-                0] + '.pdf'
+
+            graphname = build.result_path(testie,'pdf')
 
             g_series = []
             if last_build and args.compare:

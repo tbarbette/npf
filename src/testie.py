@@ -5,6 +5,8 @@ import sys
 import numpy as np
 import signal
 
+from typing import Dict, List
+
 from src.section import *
 
 
@@ -34,7 +36,7 @@ class Run:
         return newrun
 
     def __eq__(self, o):
-        for k,v in self.variables.items():
+        for k, v in self.variables.items():
             if not k in o.variables:
                 return False
             ov = o.variables[k]
@@ -67,6 +69,9 @@ class Run:
             if v > o.variables[k]:
                 return False
         return False
+
+
+Dataset = Dict[Run, List]
 
 
 class Testie:
@@ -111,7 +116,7 @@ class Testie:
             section.finish(self)
 
     def test_tags(self):
-        missings=[]
+        missings = []
         for tag in self.config.get_list("require_tags"):
             if not tag in self.tags:
                 missings.append(tag)
@@ -146,10 +151,11 @@ class Testie:
 
                 for i_try in range(n_retry + 1):
                     p = Popen(script.content, stdin=PIPE, stdout=PIPE, stderr=PIPE, shell=True, preexec_fn=os.setsid,
-                          env={"PATH": self.appdir + build.repo.reponame + "/build/bin:" + os.environ["PATH"]})
+                              env={"PATH": self.appdir + build.repo.reponame + "/build/bin:" + os.environ["PATH"]})
                     pid = p.pid
                     try:
-                        s_output, s_err = [x.decode() for x in p.communicate(self.stdin.content, timeout=self.config["timeout"])]
+                        s_output, s_err = [x.decode() for x in
+                                           p.communicate(self.stdin.content, timeout=self.config["timeout"])]
                         output += s_output
                         err += s_err
                         break
@@ -176,7 +182,7 @@ class Testie:
         self.cleanup()
         return results, output, err
 
-    def has_all(self,prev_results=None):
+    def has_all(self, prev_results=None):
         if prev_results is None:
             return False
         for variables in self.variables:
@@ -190,12 +196,11 @@ class Testie:
                 return False
         return True
 
-
-    def execute_all(self, build, prev_results=None,do_test=True):
+    def execute_all(self, build, prev_results:Dataset=None, do_test=True) -> Dataset:
         """Execute script for all variables combinations
         :param build: A build object
         :param prev_results: Previous set of result for the same build to update or retrieve
-        :return: Dict of variables as key and arrays of results as value
+        :return: Dataset(Dict of variables as key and arrays of results as value)
         """
         all_results = {}
         for variables in self.variables:
@@ -242,8 +247,7 @@ class Testie:
         data = data[abs(data - mean) <= m * std]
         return data
 
-    @staticmethod
-    def expandFolder(testie_path, quiet = True, tags = [], show_full=False):
+    def expand_folder(testie_path, quiet=True, tags=[], show_full=False) -> List:
         testies = []
         if os.path.isfile(testie_path):
             testie = Testie(testie_path, quiet=quiet, show_full=show_full, tags=tags)
@@ -256,7 +260,8 @@ class Testie:
                         missing_tags = testie.test_tags()
                         if len(missing_tags) > 0:
                             if not quiet:
-                                print("Passing testie %s as it lacks tags %s" % (testie.filename, ','.join(missing_tags)))
+                                print(
+                                    "Passing testie %s as it lacks tags %s" % (testie.filename, ','.join(missing_tags)))
                             continue
                         testies.append(testie)
 

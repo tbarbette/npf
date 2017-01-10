@@ -39,6 +39,10 @@ class Build:
             return False
         return data.strip()
 
+    def result_path(self, testie, type,suffix=''):
+        return self.repo.reponame + '/results/' + self.uuid + '/' + os.path.splitext(testie.filename)[
+            0] + suffix + '.' + type
+
     @staticmethod
     def __write_file(fp, val):
         f = open(fp, 'w+')

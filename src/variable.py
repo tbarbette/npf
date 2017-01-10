@@ -29,6 +29,12 @@ def get_numeric(data):
     else:
         return data
 
+def dtype(v):
+    if is_numeric(v):
+        return int if is_integer(v) else float
+    else:
+        return str
+
 class VariableFactory:
     @staticmethod
     def build(name, valuedata, vsection):
@@ -77,6 +83,9 @@ class ProductVariable:
     def count(self):
         return sum(self.nums)
 
+    def format(self):
+        return str
+
 
 class ExpandVariable:
     def __init__(self, name, value, vsection):
@@ -88,6 +97,9 @@ class ExpandVariable:
     def count(self):
         return len(self.values)
 
+    def format(self):
+        return str
+
 
 class SimpleVariable:
     def __init__(self, name, value):
@@ -98,6 +110,10 @@ class SimpleVariable:
 
     def count(self):
         return 1
+
+    def format(self):
+        return dtype(self.value)
+
 
 
 class ListVariable:
@@ -115,6 +131,9 @@ class ListVariable:
     def count(self):
         return len(self.lvalues)
 
+    def format(self):
+        return dtype(self.lvalues[0])
+
 
 class DictVariable:
     def __init__(self, name, data):
@@ -128,6 +147,10 @@ class DictVariable:
 
     def count(self):
         return len(self.vdict)
+
+    def format(self):
+        k,v = next(self.vdict.items())
+        return dtype(v)
 
 
 class RangeVariable:
@@ -158,3 +181,6 @@ class RangeVariable:
             for i in range(self.a, self.b + 1):
                 vs.append(i)
         return vs
+
+    def format(self):
+        return int

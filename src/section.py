@@ -145,6 +145,15 @@ class SectionVariable(Section):
                 print("Error parsing line %s" % line)
                 raise
 
+    def dtype(self):
+        formats=[]
+        names=[]
+        for k, v in self.vlist.items():
+            formats.append(v.format())
+            names.append(k)
+        return dict(names = names, formats = formats)
+
+
 
 class SectionConfig(SectionVariable):
     def __add(self, var, val):
