@@ -2,3 +2,4 @@ numpy
 regex
 matplotlib
 gitpython
+typing
