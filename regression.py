@@ -175,6 +175,7 @@ def main():
         print("Starting regression test for %s" % build.uuid)
         do_test = args.do_test
         need_rebuild = build.is_build_needed()
+
         if args.force_build:
             need_rebuild = True
         if not os.path.exists(clickpath + '/bin/click'):
@@ -188,6 +189,7 @@ def main():
                 print("Warning : will not do test because build is not allowed")
                 do_test = False
                 need_rebuild = False
+
         nok = 0
         ntests = 0
         for testie in testies:
@@ -221,6 +223,8 @@ def main():
             if testie.has_all(prev_results):
                 all_results = prev_results
             else:
+                if need_rebuild:
+                    build.compile()
                 all_results = testie.execute_all(build, prev_results, do_test=do_test)
 
             if args.compare:
