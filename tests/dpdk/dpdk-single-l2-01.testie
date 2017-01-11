@@ -12,7 +12,7 @@ timeout=15
 varnames={LENGTH:Length,result:Throughput,TXCPU:Transmit CPU,RXCPU:Receive CPU}
 n_retry=3
 acceptable=0.01
-n_runs=1
+n_runs=3
 var_serie=LENGTH
 
 %variables
