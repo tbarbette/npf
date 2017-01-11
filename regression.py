@@ -231,14 +231,6 @@ def main():
                     returncode += 1
                 ntests += 1
 
-            # Finished regression comparison
-            if all_results:
-                if prev_results:
-                    prev_results.update(all_results)
-                    build.writeUuid(testie, prev_results)
-                else:
-                    build.writeUuid(testie, all_results)
-
             build.writeResults()
 
             if args.statistics:

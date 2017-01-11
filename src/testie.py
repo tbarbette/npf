@@ -196,7 +196,7 @@ class Testie:
                 return False
         return True
 
-    def execute_all(self, build, prev_results:Dataset=None, do_test=True) -> Dataset:
+    def execute_all(self, build, prev_results:Dataset=None, do_test:bool=True) -> Dataset:
         """Execute script for all variables combinations
         :param build: A build object
         :param prev_results: Previous set of result for the same build to update or retrieve
@@ -213,6 +213,7 @@ class Testie:
                     results = []
             else:
                 results = []
+            new_results = False
             n_runs = self.config["n_runs"] - len(results)
             if n_runs > 0 and do_test:
                 nresults, output, err = self.execute(build, variables, n_runs, self.config["n_retry"])
@@ -223,12 +224,22 @@ class Testie:
                         print("stderr:")
                         print(err)
                     results += nresults
+                    new_results = True
             if results:
                 if not self.quiet:
                     print(results)
                 all_results[run] = results
             else:
                 all_results[run] = None
+
+            #Save results
+            if all_results and new_results:
+                if prev_results:
+                    prev_results[run] = all_results[run]
+                    build.writeUuid(self, prev_results)
+                else:
+                    build.writeUuid(self, all_results)
+
         return all_results
 
     def get_title(self):
