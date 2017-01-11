@@ -224,7 +224,7 @@ def main():
                 all_results = prev_results
             else:
                 if need_rebuild:
-                    build.compile()
+                    build.build()
                 all_results = testie.execute_all(build, prev_results, do_test=do_test)
 
             if args.compare:
