@@ -4,6 +4,7 @@ import os
 import sys
 import numpy as np
 import signal
+import random
 
 from typing import Dict, List
 
@@ -75,6 +76,18 @@ Dataset = Dict[Run, List]
 
 
 class Testie:
+
+    @staticmethod
+    def _addr_gen():
+        mac = [ 0xAE, 0xAA, 0xAA,
+        random.randint(0x01, 0x7f),
+        random.randint(0x01, 0xff),
+        random.randint(0x01, 0xfe) ]
+        macaddr =  ':'.join(map(lambda x: "%02x" % x, mac))
+        ip = [ 10, mac[3], mac[4], mac[5]]
+        ipaddr =  '.'.join(map(lambda x: "%d" % x, ip))
+        return macaddr,ipaddr
+
     def __init__(self, testie_path, quiet=False, show_full=False, tags=[]):
         self.sections = []
         self.files = []
@@ -84,6 +97,11 @@ class Testie:
         self.show_full = show_full
         self.appdir = os.path.dirname(os.path.abspath(sys.argv[0])) + "/"
         self.tags = tags
+        self.network = {}
+        for i in range(32):
+            mac,ip = Testie._addr_gen()
+            self.network['MAC%d' % i ] = mac
+            self.network['IP%d' % i ] = ip
         section = ''
 
         f = open(testie_path, 'r')
@@ -120,7 +138,6 @@ class Testie:
             section.finish(self)
 
 
-
     def test_tags(self):
         missings = []
         for tag in self.config.get_list("require_tags"):
@@ -130,7 +147,8 @@ class Testie:
 
     def _replace_all(self, v, content):
         p = content
-        for k, v in v.items():
+        for d in [v,self.network]:
+          for k, v in d.items():
             if type(v) is tuple:
                 p = p.replace("$" + k, str(v[0]))
             else:

@@ -44,24 +44,20 @@ fastregression:TEST_TIME=2
 click -n 4 -c 0xf -- CONFIG || click --dpdk -n 4 -c 0xf -- CONFIG
 
 %file CONFIG
-define ($mac0 aa:bb:cc:dd:ee:f0)
-define ($mac1 aa:bb:cc:dd:ee:f1)
-define ($ip0 10.19.0.1)
-define ($ip1 10.19.0.2)
 
 //fd0 :: FromDPDKDevice(0);
 td0 :: ToDPDKDevice(0, BLOCKING $BLOCK);
 fd1 :: FromDPDKDevice(1);
 td1 :: ToDPDKDevice(1);
 
-fu0 :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH $LENGTH, SRCETH $mac0, DSTETH $mac1,
-SRCIP $ip0, DSTIP $ip1, FLOWS 1, FLOWSIZE $FLOWSIZE, ACTIVE false)
+fu0 :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH $LENGTH, SRCETH $MAC0, DSTETH $MAC1,
+SRCIP $IP0, DSTIP $IP1, FLOWS 1, FLOWSIZE $FLOWSIZE, ACTIVE false)
     -> uq :: Unqueue(32)
     -> td0;
 StaticThreadSched(fu0 0)
 StaticThreadSched(uq $TXCPU)
 
-fu1 :: FastUDPFlows(RATE 0, LIMIT 1, LENGTH 64, SRCETH $mac1, DSTETH $mac0, SRCIP $ip1, DSTIP $ip0, FLOWS 1, FLOWSIZE 1)
+fu1 :: FastUDPFlows(RATE 0, LIMIT 1, LENGTH 64, SRCETH $MAC1, DSTETH $MAC0, SRCIP $IP1, DSTIP $IP0, FLOWS 1, FLOWSIZE 1)
     -> Unqueue(1)
     -> td1;
 
