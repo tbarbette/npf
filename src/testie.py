@@ -112,8 +112,14 @@ class Testie:
             self.variables = SectionVariable()
             self.sections.append(self.variables)
 
+        if not hasattr(self, "require"):
+            self.require = SectionRequire()
+            self.sections.append(self.require)
+
         for section in self.sections:
             section.finish(self)
+
+
 
     def test_tags(self):
         missings = []
@@ -122,21 +128,58 @@ class Testie:
                 missings.append(tag)
         return missings
 
+    def _replace_all(self, v, content):
+        p = content
+        for k, v in v.items():
+            if type(v) is tuple:
+                p = p.replace("$" + k, str(v[0]))
+            else:
+                p = p.replace("$" + k, str(v))
+        return p
+
     def create_files(self, v):
         for s in self.files:
             f = open(s.filename, "w")
-            p = s.content
-            for k, v in v.items():
-                if type(v) is tuple:
-                    p = p.replace("$" + k, str(v[0]))
-                else:
-                    p = p.replace("$" + k, str(v))
+            p = self._replace_all(v,s.content)
             f.write(p)
             f.close()
+
+    def test_require(self, v, build):
+        if self.require.content:
+            p = self._replace_all(v, self.require.content)
+            pid,output,err,returncode = self._exec(p,build)
+            if returncode != 0:
+                if not self.quiet:
+                    print("Requirement not met :")
+                    print(output)
+                    print(err)
+                return False
+            return True
+        return True
 
     def cleanup(self):
         for s in self.files:
             os.remove(s.filename)
+
+    def _exec(self, cmd, build):
+        p = Popen(cmd,
+                    stdin=PIPE, stdout=PIPE, stderr=PIPE,
+                    shell=True, preexec_fn=os.setsid,
+                    env={"PATH": self.appdir + build.repo.reponame + "/build/bin:" + os.environ["PATH"]})
+        pid = p.pid
+        pgpid = os.getpgid(pid)
+        try:
+            s_output, s_err = [x.decode() for x in
+                               p.communicate(self.stdin.content, timeout=self.config["timeout"])]
+            return pid,s_output,s_err,p.returncode
+        except TimeoutExpired:
+            print("Test expired")
+            p.terminate()
+            p.kill()
+            os.killpg(pgpid, signal.SIGTERM)
+            p.close()
+            return 0,None,None,p.returncode
+
 
     def execute(self, build, v, n_runs=1, n_retry=0):
         self.create_files(v)
@@ -150,21 +193,11 @@ class Testie:
                     err += "Output of script for %s" % script.slave
 
                 for i_try in range(n_retry + 1):
-                    p = Popen(script.content, stdin=PIPE, stdout=PIPE, stderr=PIPE, shell=True, preexec_fn=os.setsid,
-                              env={"PATH": self.appdir + build.repo.reponame + "/build/bin:" + os.environ["PATH"]})
-                    pid = p.pid
-                    try:
-                        s_output, s_err = [x.decode() for x in
-                                           p.communicate(self.stdin.content, timeout=self.config["timeout"])]
-                        output += s_output
-                        err += s_err
-                        break
-                    except TimeoutExpired:
-                        print("Test expired")
-                        p.terminate()
-                        p.kill()
-                        os.killpg(os.getpgid(pid), signal.SIGTERM)
-                        if (i_try == n_retry):
+                    pid,o,e,c = self._exec(script.content, build)
+                    output += o
+                    err += e
+                    if (pid == 0):
+                        if i_try == n_retry:
                             return False, "Timeout expired.", ""
 
             nr = re.search("RESULT ([0-9.]+)", output.strip())
@@ -182,10 +215,13 @@ class Testie:
         self.cleanup()
         return results, output, err
 
-    def has_all(self, prev_results=None):
+    def has_all(self, prev_results, build):
         if prev_results is None:
             return False
         for variables in self.variables:
+            if not self.test_require(variables, build):
+                continue
+
             run = Run(variables)
 
             if prev_results and run in prev_results:
@@ -207,6 +243,8 @@ class Testie:
             run = Run(variables)
             if not self.quiet:
                 print(run.format_variables(self.config["var_hide"]))
+            if not self.test_require(variables, build):
+                continue
             if prev_results and run in prev_results:
                 results = prev_results[run]
                 if not results:
@@ -268,12 +306,14 @@ class Testie:
                 for file in files:
                     if file.endswith(".conf"):
                         testie = Testie(os.path.join(root, file), quiet=quiet, show_full=show_full, tags=tags)
-                        missing_tags = testie.test_tags()
-                        if len(missing_tags) > 0:
-                            if not quiet:
-                                print(
-                                    "Passing testie %s as it lacks tags %s" % (testie.filename, ','.join(missing_tags)))
-                            continue
                         testies.append(testie)
 
+        for testie in testies:
+            missing_tags = testie.test_tags()
+            if len(missing_tags) > 0:
+                testies.remove(testie)
+                if not quiet:
+                    print(
+                        "Passing testie %s as it lacks tags %s" % (testie.filename, ','.join(missing_tags)))
+                continue
         return testies

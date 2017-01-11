@@ -220,7 +220,7 @@ def main():
                 except FileNotFoundError:
                     prev_results = None
 
-            if testie.has_all(prev_results):
+            if testie.has_all(prev_results, build):
                 all_results = prev_results
             else:
                 if need_rebuild:
@@ -241,7 +241,8 @@ def main():
                 filtered_results={}
                 for v in testie.variables:
                     run = Run(v)
-                    filtered_results[run] = all_results[run]
+                    if run in all_results:
+                        filtered_results[run] = all_results[run]
                 Statistics.run(build,filtered_results, testie, max_depth=args.statistics_maxdepth)
 
             grapher = Grapher()

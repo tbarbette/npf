@@ -1,7 +1,7 @@
 from .variable import *
 from collections import OrderedDict
 
-sections = ['info', 'config', 'variables', 'script', 'file']
+sections = ['info', 'config', 'variables', 'script', 'file', 'require']
 
 
 class SectionFactory:
@@ -31,6 +31,9 @@ class SectionFactory:
             setattr(testie, s.name, s)
         elif sectionName == 'config':
             s = SectionConfig()
+            setattr(testie, s.name, s)
+        elif sectionName == 'require':
+            s = SectionRequire()
             setattr(testie, s.name, s)
         else:
             s = Section(sectionName)
@@ -66,6 +69,13 @@ class SectionFile(Section):
     def finish(self, testie):
         testie.files.append(self)
 
+class SectionRequire(Section):
+    def __init__(self):
+        self.name = 'require'
+        self.content = ''
+
+    def finish(self, testie):
+        pass
 
 class BruteVariableExpander:
     """Expand all variables building the full
