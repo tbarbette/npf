@@ -2,3 +2,5 @@ results/
 *.log
 *.pyc
 .vimhistory
+CONFIG
+CONFIG2

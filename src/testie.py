@@ -177,7 +177,7 @@ class Testie:
             p.terminate()
             p.kill()
             os.killpg(pgpid, signal.SIGTERM)
-            p.close()
+            os.killpg(pgpid, signal.SIGTERM)
             return 0,None,None,p.returncode
 
 
@@ -194,11 +194,12 @@ class Testie:
 
                 for i_try in range(n_retry + 1):
                     pid,o,e,c = self._exec(script.content, build)
-                    output += o
-                    err += e
                     if (pid == 0):
                         if i_try == n_retry:
                             return False, "Timeout expired.", ""
+                else:
+                    output += o
+                    err += e
 
             nr = re.search("RESULT ([0-9.]+)", output.strip())
             if nr:
