@@ -82,6 +82,8 @@ class Repository:
 
     def get_last_build(self, history: int = 0, stop_at: Build = None) -> Build:
         last_build = None
+        origin = self.gitrepo().remotes.origin
+        origin.fetch()
         for i, commit in enumerate(self.gitrepo().iter_commits('origin/' + self.branch)):
             uuid = commit.hexsha[:7]
             if stop_at and uuid == stop_at.uuid:
