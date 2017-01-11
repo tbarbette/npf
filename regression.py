@@ -234,7 +234,11 @@ def main():
             build.writeResults()
 
             if args.statistics:
-                Statistics.run(build, all_results, testie, max_depth=args.statistics_maxdepth)
+                filtered_results={}
+                for v in testie.variables:
+                    run = Run(v)
+                    filtered_results[run] = all_results[run]
+                Statistics.run(build,filtered_results, testie, max_depth=args.statistics_maxdepth)
 
             grapher = Grapher()
 

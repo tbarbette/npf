@@ -19,6 +19,13 @@ def is_integer(s):
     except ValueError:
         return False
 
+def is_bool(s):
+    try:
+        bool(s)
+        return True
+    except ValueError:
+        return False
+
 
 def get_numeric(data):
     if is_numeric(data):
@@ -31,7 +38,10 @@ def get_numeric(data):
 
 def dtype(v):
     if is_numeric(v):
-        return int if is_integer(v) else float
+        if is_integer(v):
+            return int
+        else:
+            return float
     else:
         return str
 
@@ -132,7 +142,14 @@ class ListVariable:
         return len(self.lvalues)
 
     def format(self):
-        return dtype(self.lvalues[0])
+        t =  dtype(self.lvalues[0])
+        if t is int and is_bool(self.lvalues[0]):
+            unique = list(set(self.lvalues))
+            if len(unique) == 2 and all([int(u) in (0,1) for u in unique]):
+                return bool
+            elif len(unique) == 1 and (unique[0] == 'true' or unique[0]=='false'):
+                return bool
+        return t
 
 
 class DictVariable:

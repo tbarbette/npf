@@ -6,3 +6,4 @@ typing
 pydotplus
 scipy
 sklearn
+orderedset

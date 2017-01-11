@@ -144,12 +144,14 @@ class SectionVariable(Section):
             except:
                 print("Error parsing line %s" % line)
                 raise
+        self.vlist = OrderedDict(sorted(self.vlist.items()))
 
     def dtype(self):
         formats=[]
         names=[]
         for k, v in self.vlist.items():
-            formats.append(v.format())
+            f = v.format()
+            formats.append(f)
             names.append(k)
         return dict(names = names, formats = formats)
 
