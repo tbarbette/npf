@@ -1,0 +1,55 @@
+%info
+Test throughput of Replay element
+
+%config
+require_tags={dpdk}
+
+#Grapg title
+title=Replay throughput
+timeout=10
+
+#Axis name
+varnames={LENGTH:Length,result:Throughput,TXCPU:Transmit CPU,RXCPU:Receive CPU}
+n_retry=3
+acceptable=0.01
+n_runs=3
+var_serie=LENGTH
+require_tags={fastclick}
+
+%variables
+BURST=[1*256]
+fastregression:BURST=32
+
+LENGTH=[64*1500]
+fastregression:LENGTH={64,256,1024}
+
+QUICK_CLONE={0,1}
+
+STOP={400000}
+full:STOP=[100000*1000000000]
+
+%script
+click CONFIG
+
+%require
+test $(($STOP * $BURST)) -le 1000000000
+
+
+%file CONFIG
+is:: FastTCPFlows(0, $BURST, $LENGTH,
+90:e2:ba:8b:6f:94, 10.0.0.1,
+90:e2:ba:84:4e:a6, 10.0.0.2,
+5, 20)
+-> MarkMACHeader
+-> r :: MultiReplayUnqueue(STOP $STOP, QUICK_CLONE $QUICK_CLONE, ACTIVE false)
+-> ac :: AverageCounter
+-> Discard;
+
+finish :: DriverManager(
+                        wait 50ms,
+                        print "Launching test !",
+                        write r.active true,
+                        write ac.reset,
+                        wait,
+                        print "RESULT $(add $(mul $(ac.byte_rate) 8) $(mul $(ac.count) 24))",
+                        stop);
