@@ -1,3 +1,4 @@
+require-python-3
 numpy
 regex
 matplotlib
