@@ -327,7 +327,7 @@ class Testie:
         else:
             for root, dirs, files in os.walk(testie_path):
                 for file in files:
-                    if file.endswith(".conf"):
+                    if file.endswith(".testie"):
                         testie = Testie(os.path.join(root, file), quiet=quiet, show_full=show_full, tags=tags)
                         testies.append(testie)
 
