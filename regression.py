@@ -280,7 +280,8 @@ def main():
         if last_build:
             graph_builds = [last_build] + graph_builds
         last_build = build
-        print("[%s] Finished run for %s, %d/%d tests passed" % (repo.name, build.uuid, nok, ntests))
+        if args.compare:
+            print("[%s] Finished run for %s, %d/%d tests passed" % (repo.name, build.uuid, nok, ntests))
 
     sys.exit(returncode)
 
