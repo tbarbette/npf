@@ -1,4 +1,4 @@
 parent=fastclick
 name=FastClick - Without batching
 configure+=--disable-batch
-tags=fastclick,dpdk,nobatch
+tags=fastclick,nobatch
