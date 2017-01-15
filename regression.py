@@ -42,6 +42,8 @@ def main():
                    nargs='?', default=-1)
 
     t.add_argument('--tags', metavar='tag', type=str, nargs='+', help='list of tags');
+
+    t.add_argument('--variables', metavar='variable=value', type=str, nargs='+', help='list of variables values to override', default=[]);
     t.add_argument('--testie', metavar='path or testie', type=str, nargs='?', default='tests',
                    help='script or script folder. Default is tests');
 
@@ -83,6 +85,8 @@ def main():
                     help='Number of olds UUIDs to graph after --compare-uuid, unused if --graph-uuid is given');
     a.add_argument('--graph-allvariables', help='Graph only the latest variables (usefull when you restrict variables '
                                                 'with tags)', dest='graph_newonly', action='store_true', default=False)
+    a.add_argument('--graph-serie', dest='graph_serie', metavar='variable', type=str, nargs=1, default=[None],
+                    help='Set which variable will be used as serie when compating graph');
 
     parser.add_argument('repo', metavar='repo name', type=str, nargs=1, help='name of the repo/group of builds');
 
@@ -157,8 +161,15 @@ def main():
                     break
                 if len(graph_builds) > args.graph_num:
                     break
+    variables = {}
+    for variable in args.variables:
+        var, val = variable.split('=',1)
+        variables[var] = val
 
     testies = Testie.expand_folder(testie_path=args.testie, quiet=args.quiet, tags=tags, show_full=args.show_full)
+    for testie in testies:
+        for var,val in variables.items():
+            testie.variables.override(var,val)
 
     for b in last_rebuilds:
         print("Last UUID %s had no result. Re-executing tests for it." % b.uuid)
@@ -194,6 +205,7 @@ def main():
         ntests = 0
         for testie in testies:
             print("Executing testie %s" % testie.filename)
+
             regression = Regression(testie)
             if args.n_runs != -1:
                 testie.config["n_runs"] = args.n_runs
@@ -237,17 +249,19 @@ def main():
 
             build.writeResults()
 
+            #Filtered results are results only for the given current variables
+            filtered_results = {}
+            for v in testie.variables:
+                run = Run(v)
+                if run in all_results:
+                    filtered_results[run] = all_results[run]
+
             if args.statistics:
-                filtered_results={}
-                for v in testie.variables:
-                    run = Run(v)
-                    if run in all_results:
-                        filtered_results[run] = all_results[run]
                 Statistics.run(build,filtered_results, testie, max_depth=args.statistics_maxdepth)
 
             grapher = Grapher()
 
-            graphname = build.result_path(testie,'pdf')
+            graphname = build.result_path(testie,'pdf','_'.join(["%s=%s" % (k,v.makeValues()[0]) for k,v in testie.variables.statics().items()]))
 
             g_series = []
             if last_build and args.compare:
@@ -261,7 +275,8 @@ def main():
                     print("Previous build %s could not be found, we will not graph it !" % g_build.uuid)
             grapher.graph(series=[(testie, build, all_results)] + g_series, title=testie.get_title(),
                           filename=graphname,
-                          graph_variables=list(testie.variables))
+                          graph_variables=list(testie.variables),
+                          graph_serie=args.graph_serie[0])
         if last_build:
             graph_builds = [last_build] + graph_builds
         last_build = build

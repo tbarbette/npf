@@ -43,7 +43,7 @@ class Grapher:
         else:
             return "%.2f B/s" % (x)
 
-    def graph(self,filename, title=False, series=[], graph_variables=None, graph_allvariables = False):
+    def graph(self,filename, title=False, series=[], graph_variables=None, graph_allvariables = False, graph_serie=None):
         """series is a list of triplet (script,build,results) where
         result is the output of a script.execute_all()"""
         vars_values = {}
@@ -85,6 +85,8 @@ class Grapher:
                 key=script.config["var_serie"]
             else:
                 key=dyns[0]
+            if graph_serie:
+                key=graph_serie
             dyns.remove(key)
             ndyn-=1
             series=[]
@@ -95,11 +97,14 @@ class Grapher:
             for value in values:
                 newserie={}
                 for run,results in all_results.items():
+                    if (graph_variables and not run.variables in graph_variables):
+                        continue
                     if (run.variables[key] == value):
                         newrun = run.copy()
                         del newrun.variables[key]
                         newserie[newrun] = results
                         new_varsall.add(newrun)
+
                 series.append((script,build,newserie))
                 if type(value) is tuple:
                     value=value[1]

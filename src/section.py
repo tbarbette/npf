@@ -135,25 +135,33 @@ class SectionVariable(Section):
             if v.count() <= 1: dyn[k] = v
         return dyn
 
+    def override(self, var, val):
+        self.vlist[var] = SimpleVariable(var,val)
+
+    def parse_variable(self, line, tags):
+        try:
+            if not line:
+                return None,None
+            pair = line.split('=', 1)
+            var = pair[0].split(':')
+
+            if len(var) == 1:
+                var = var[0]
+            else:
+                if (var[0] in tags) or (var[0].startswith('-') and not var[0][1:] in tags):
+                    var = var[1]
+                else:
+                    return None,None
+            return var,VariableFactory.build(var, pair[1], self)
+        except:
+            print("Error parsing line %s" % line)
+            raise
+
     def finish(self, testie):
         for line in self.content.split("\n"):
-            try:
-                if not line:
-                    continue
-                pair = line.split('=', 1)
-                var = pair[0].split(':')
-
-                if len(var) == 1:
-                    var = var[0]
-                else:
-                    if (var[0] in testie.tags) or (var[0].startswith('-') and not var[0][1:] in testie.tags):
-                        var = var[1]
-                    else:
-                        continue
-                self.vlist[var] = VariableFactory.build(var, pair[1], self)
-            except:
-                print("Error parsing line %s" % line)
-                raise
+            var,val = self.parse_variable(line,testie.tags)
+            if not var is None:
+                self.vlist[var] = val
         self.vlist = OrderedDict(sorted(self.vlist.items()))
 
     def dtype(self):

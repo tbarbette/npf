@@ -48,11 +48,6 @@ def dtype(v):
 class VariableFactory:
     @staticmethod
     def build(name, valuedata, vsection):
-        if is_numeric(valuedata):
-            v = float(valuedata)
-            if (v.is_integer()):
-                v = int(v)
-            return SimpleVariable(name, v)
         result = re.match("\[(-?[0-9]+)([+-]|[*])(-?[0-9]+)\]", valuedata)
         if result:
             return RangeVariable(name, int(result.group(1)), int(result.group(3)), result.group(2) == "*")
@@ -113,7 +108,7 @@ class ExpandVariable:
 
 class SimpleVariable:
     def __init__(self, name, value):
-        self.value = value
+        self.value = get_numeric(value)
 
     def makeValues(self):
         return [self.value]

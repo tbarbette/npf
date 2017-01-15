@@ -36,7 +36,7 @@ class Run:
         newrun = Run(self.variables.copy())
         return newrun
 
-    def __eq__(self, o):
+    def inside(self, o):
         for k, v in self.variables.items():
             if not k in o.variables:
                 return False
@@ -48,6 +48,9 @@ class Run:
             if not v == ov:
                 return False
         return True
+
+    def __eq__(self, o):
+        return self.inside(o) and o.inside(self)
 
     def __hash__(self):
         n = 0
@@ -270,6 +273,7 @@ class Testie:
                     results = []
             else:
                 results = []
+
             new_results = False
             n_runs = self.config["n_runs"] - len(results)
             if n_runs > 0 and do_test:

@@ -27,6 +27,7 @@ class Statistics:
             graph.write_pdf(f)
             print("Decision tree visualization written to %s" % f)
 
+        print("")
         print("Feature importances :")
         for key,f in zip(testie.variables.dtype()['names'],clf.feature_importances_):
             print("  %s : %0.2f" % (key,f))
@@ -37,14 +38,20 @@ class Statistics:
             for k,v in run.variables.items():
                 vars_values.setdefault(k,set()).add(v)
 
+        print('')
         print("Better :")
-        print("  %s" % str(X([y.argmax()])))
+        best=X[y['result'].argmax()]
+        print("  ",end='')
+        f = next(iter(all_results.items()))
+        for i,(k,v) in enumerate(f[0].variables.items()):
+            print("%s = %s, " % (k,best[i]),end='')
+        print(' : %.02f')
 
-        print("Means and std per variables :")
+        print('')
+        print("Means and std/mean per variables :")
         for k,vals in vars_values.items():
             print("%s :" % k)
-            print("  ",end='')
-            for v in vals:
+            for v in sorted(vals):
                 tot = 0
                 std = 0
                 n = 0
@@ -53,7 +60,7 @@ class Statistics:
                         tot+=np.mean(results)
                         std+=np.std(results)
                         n+=1
-                print("%s : (%0.2f,%0.2f), " % (v,tot/n,std/n),end='')
+                print("  %s : (%.02f,%.02f), " % (v,tot/n,std/n / (tot/n)))
             print("")
 
     @classmethod
@@ -63,8 +70,9 @@ class Statistics:
         dataset = []
         for i,(run,results) in enumerate(all_results.items()):
             vars = list(run.variables.values())
-            dataset.append(vars)
-            y.append(np.mean(results))
+            if not results is None:
+                dataset.append(vars)
+                y.append(np.mean(results))
         dtype['formats'] = dtype['formats']
         dtype['names'] = dtype['names']
 
