@@ -6,11 +6,11 @@ require_tags={dpdk}
 
 #Grapg title
 title=DPDK L2 FastUDPGen + Fwd test
-timeout=15
+timeout=10
 
 #Axis name
 varnames={LENGTH:Length,result:Throughput,TXCPU:Transmit CPU,RXCPU:Receive CPU}
-n_retry=3
+n_retry=1
 acceptable=0.01
 n_runs=3
 var_serie=LENGTH
@@ -27,17 +27,19 @@ TXCPU=0
 #Use 0 and 2 to avoid NUMA node change
 full:TXCPU={0,2}
 
-FLOWSIZE=32
+FLOWSIZE=1024
+BURST=32
 BLOCK=false
 
-full:FLOWSIZE=[1*256]
+full:FLOWSIZE=[1*65536]
+full:BURST=[1*65536]
 full:BLOCK={true,false}
 
-INIT_TIME=[4-7]
 FULL_TIME=1
-TEST_TIME={1,2,3}
+full:FULL_TIME={0,1}
+TEST_TIME=2
+full:TEST_TIME={1,2,3}
 
-fastregression:INIT_TIME=5
 fastregression:TEST_TIME=2
 
 %script
@@ -52,21 +54,36 @@ td1 :: ToDPDKDevice(1);
 
 fu0 :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH $LENGTH, SRCETH $MAC0, DSTETH $MAC1,
 SRCIP $IP0, DSTIP $IP1, FLOWS 1, FLOWSIZE $FLOWSIZE, ACTIVE false)
-    -> uq :: Unqueue(32)
+    -> uq :: Unqueue($BURST)
     -> td0;
 StaticThreadSched(fu0 0)
 StaticThreadSched(uq $TXCPU)
 
-fu1 :: FastUDPFlows(RATE 0, LIMIT 1, LENGTH 64, SRCETH $MAC1, DSTETH $MAC0, SRCIP $IP1, DSTIP $IP0, FLOWS 1, FLOWSIZE 1)
+adv0 :: FastUDPFlows(RATE 1, LIMIT -1, LENGTH 64, SRCETH $MAC0, DSTETH $MAC1, SRCIP $IP0, DSTIP $IP1, FLOWS 1, FLOWSIZE 1)
+    -> Unqueue(1)
+    -> td0;
+adv1 :: FastUDPFlows(RATE 1, LIMIT -1, LENGTH 64, SRCETH $MAC1, DSTETH $MAC0, SRCIP $IP1, DSTIP $IP0, FLOWS 1, FLOWSIZE 1)
     -> Unqueue(1)
     -> td1;
 
-fd1 -> ac :: AverageCounter
+fd1
+    -> s :: Switch(0) [0]
+    -> c :: Classifier(0/$RAW_MAC1 6/$RAW_MAC0)
+s[1]
+    -> ac :: AverageCounter
     -> Discard;
+
 StaticThreadSched(fd1 $RXCPU)
 
-finish :: Script(       print "Waiting for link initialization...",
-                        wait $INIT_TIMEs,
+Script(     print "Waiting for link initialization...")
+
+c[0]
+-> link_established :: Script(TYPE PACKET,
+                        print "Link established !",
+                        write adv0.active false,
+                        write adv1.active false,
+                        wait 50ms,
+                        write s.switch 1,
                         print "Launching test !",
                         write fu0.active true,
                         wait $FULL_TIMEs,

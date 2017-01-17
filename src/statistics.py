@@ -50,6 +50,8 @@ class Statistics:
         print('')
         print("Means and std/mean per variables :")
         for k,vals in vars_values.items():
+            if len(vals) is 1:
+                continue
             print("%s :" % k)
             for v in sorted(vals):
                 tot = 0
@@ -57,10 +59,14 @@ class Statistics:
                 n = 0
                 for run,results in all_results.items():
                     if run.variables[k] == v:
-                        tot+=np.mean(results)
-                        std+=np.std(results)
-                        n+=1
-                print("  %s : (%.02f,%.02f), " % (v,tot/n,std/n / (tot/n)))
+                        if not results is None:
+                            tot+=np.mean(results)
+                            std+=np.std(results)
+                            n+=1
+                if n == 0:
+                    print("  %s : None" % v)
+                else:
+                    print("  %s : (%.02f,%.02f), " % (v,tot/n,std/n / (tot/n)))
             print("")
 
     @classmethod

@@ -104,6 +104,7 @@ class Testie:
         for i in range(32):
             mac,ip = Testie._addr_gen()
             self.network['MAC%d' % i ] = mac
+            self.network['RAW_MAC%d' % i ] = ''.join(mac.split(':'))
             self.network['IP%d' % i ] = ip
         section = ''
 
