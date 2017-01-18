@@ -30,7 +30,7 @@ class Regression:
         :return: the amount of failed tests (0 means all passed)
         """
 
-        tests_failed = 0
+        tests_passed = 0
         tests_total = 0
         for v in variable_list:
             tests_total += 1
@@ -63,14 +63,15 @@ class Regression:
                 if not ok:
                     print(
                         "ERROR: Test %s is outside acceptable margin between %s and %s : difference of %.2f%% !" % (testie.filename,build.uuid,last_build.uuid,diff * 100)  )
-                    tests_failed += 1
-                elif not testie.quiet:
-                    print("Acceptable difference of %.2f%% for %s" % ((diff * 100), run.format_variables()))
+                else:
+                    tests_passed += 1
+                    if not testie.quiet:
+                        print("Acceptable difference of %.2f%% for %s" % ((diff * 100), run.format_variables()))
             elif last_build:
                 print("No old values for %s for uuid %s." % (run, last_build.uuid))
                 if (old_all_results):
                     old_all_results[run] = [0]
-        return tests_failed,tests_total
+        return tests_passed,tests_total
 
     def regress_all_testies(self, testies:List[Testie], quiet:bool, history:int = 0, force_test:bool = True) -> Tuple[Build,Dataset]:
         repo = self.repo
@@ -108,12 +109,14 @@ class Regression:
             else:
                 old_all_results = None
             all_results = testie.execute_all(build, prev_results=(None if force_test else build.readUuid(testie)))
-            tests_failed, tests_total = regression.compare(testie, testie.variables, all_results, build, old_all_results,
+            variables_passed, variables_total = regression.compare(testie, testie.variables, all_results, build, old_all_results,
                                                            repo.last_build)
-            if tests_failed == 0:
+            if variables_passed == variables_total:
                 nok += 1
             build.writeUuid(testie, all_results)
             datasets.append(all_results)
+            testie.n_variables_passed = variables_passed
+            testie.n_variables = variables_total
 
         build.writeResults()
         repo.last_build = build

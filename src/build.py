@@ -32,6 +32,13 @@ class Build:
         self.repo = repo
         self.uuid = uuid
         self.path = self.repo.reponame + "/build/"
+        self._pretty_name = None
+
+    def pretty_name(self):
+        if self._pretty_name:
+            return self._pretty_name
+        else:
+            return self.uuid
 
     def __read_file(self, fp):
         try:

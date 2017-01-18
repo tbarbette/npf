@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 import argparse
 
+from src import npf
 from src.regression import *
 from src.statistics import Statistics
 
@@ -28,29 +29,12 @@ def main():
                    help='Force to rebuild the old uuids. Ignored if allow-old-build is not set', dest='force_oldbuild',
                    action='store_true', default=False)
 
-    t = parser.add_argument_group('Testing options')
-    tf = t.add_mutually_exclusive_group()
-    tf.add_argument('--no-test',
-                    help='Do not run any tests, use previous results', dest='do_test', action='store_false',
-                    default=True)
-    tf.add_argument('--force-test',
-                    help='Force re-doing all tests even if data for the given uuid and '
-                         'variables is already known', dest='force_test', action='store_true',
-                    default=False)
-    t.add_argument('--n_runs', help='Override test n_runs', type=int, nargs='?', metavar='N', default=-1)
-    t.add_argument('--n_supplementary_runs', metavar='N', help='Override test n_supplementary_runs', type=int,
-                   nargs='?', default=-1)
-
-    t.add_argument('--tags', metavar='tag', type=str, nargs='+', help='list of tags');
-
-    t.add_argument('--variables', metavar='variable=value', type=str, nargs='+', help='list of variables values to override', default=[]);
-    t.add_argument('--testie', metavar='path or testie', type=str, nargs='?', default='tests',
-                   help='script or script folder. Default is tests');
+    t = npf.add_testing_options(parser, True)
 
     g = parser.add_argument_group('Commit choice')
     gf = g.add_mutually_exclusive_group()
     gf.add_argument('--history',
-                    help='Number of commits in the history on which to excute the regression tests. By default, '
+                    help='Number of commits in the history on which to execute the regression tests. By default, '
                          'this is 1 meaning that the regression test is done on HEAD, and will be compared '
                          'against HEAD~1. This parameter allows to '
                          'start at commits HEAD~N as if it was HEAD, doing the regression test for each'
@@ -90,7 +74,6 @@ def main():
 
     parser.add_argument('repo', metavar='repo name', type=str, nargs=1, help='name of the repo/group of builds');
 
-    parser.set_defaults(tags=[])
     args = parser.parse_args();
 
     if args.force_oldbuild and not args.allow_oldbuild:
@@ -161,15 +144,12 @@ def main():
                     break
                 if len(graph_builds) > args.graph_num:
                     break
-    variables = {}
-    for variable in args.variables:
-        var, val = variable.split('=',1)
-        variables[var] = val
 
     testies = Testie.expand_folder(testie_path=args.testie, quiet=args.quiet, tags=tags, show_full=args.show_full)
+
+    overriden_variables = npf.parse_variables(args.variables)
     for testie in testies:
-        for var,val in variables.items():
-            testie.variables.override(var,val)
+        testie.variables.override_all(overriden_variables)
 
     for b in last_rebuilds:
         print("Last UUID %s had no result. Re-executing tests for it." % b.uuid)
@@ -240,8 +220,8 @@ def main():
                 all_results = testie.execute_all(build, prev_results, do_test=do_test)
 
             if args.compare:
-                tests_failed,tests_total = regression.compare(testie, testie.variables, all_results, build, old_all_results, last_build)
-                if tests_failed == 0:
+                variables_passed,variables_passed = regression.compare(testie, testie.variables, all_results, build, old_all_results, last_build)
+                if variables_passed == variables_passed:
                     nok += 1
                 else:
                     returncode += 1

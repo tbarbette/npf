@@ -102,6 +102,7 @@ class Testie:
         self.appdir = os.path.dirname(os.path.abspath(sys.argv[0])) + "/"
         self.tags = tags
         self.network = {}
+
         for i in range(32):
             mac,ip = Testie._addr_gen()
             self.network['MAC%d' % i ] = mac

@@ -1,7 +1,7 @@
-Click Performance Watcher
-=========================
+Network Performance Framework
+=============================
 
-Run performance test on the Click Modular Router or its variants using
+Run performance tests on the Click Modular Router or its variants using
 configuration files much like Click's testies.
 
 Configuration files allows matrix parameters to try many combinations of
@@ -16,12 +16,14 @@ This project needs python 3
 sudo pip3 install -r requirements.txt
 
 ##Tools
-Two main tools come with this performance framework, regression.py for
-advance regression tests on one repository, and watcher.py to watch one
-or multiple repositories for any new commit and e-mail output in case
-of change in performances due to the last commits.
+Three tools come with this performance framework :
+  * regression.py for advance regression tests on one repository
+  * watcher.py to watch one or multiple repositories for any new commit and e-mail output in case
+of change in performances due to the last commits
+  * compare.py to compare one testie but accross multiple repository, mainly to compare
+how different branches/implementations behaves against each others
 
-###regression.py
+###NPF Regressor
 
 Checkout or update a given repository (described in the repo
 folder), build Click, and launch the tests discribed in the
@@ -38,29 +40,56 @@ Example :
     python3 regression.py click #The graph includes the older commit for reference, up to "--graph-num", default is 8
 ```
 
+Example of a generated graph, just when IPFilter compilation process was re-worked :
+![alt tag](doc/sample_graph2.png)
+
 Alternatively, you can force regression.py to re-build and compute the data for the old runs directly with the --allow-old-build option :
     python3 regression.py click --allow-old-build
 
 Use --help to print all options
 
-###watcher.py
+###NPF Watcher
 
 Watcher is a stripped down version of regression.py, but allowing to
 loop through a given list of repositories watching for changes. When
 a new commit is seen, it will run all testies and e-mail the results
 to a given list of addresses.
 
-###Common options
-here are the main common options of the tools
+```bash
+python3 watcher.py click fastclick --mail-to tom.barbette@ulg.ac.be --tags fastregression --history 1
+```
+ * click fastclick : List of repos to watch, as described in the repos folder
+ * --history N allows to re-do the tests for the last N commits, you will receive
+ an e-mail for each commits of each repos. This arguments is also available in regression.py
+ * --tags TAG1 TAG2 [...] allows to set flags which change variables in the tests, see below.
 
-####--tags
-Both program have the --tags argument, allowing to give a set of tags
-that trigger changes in the testies. The dpdk flags tells that a DPDK
-environment is setted up with at least two NICs, allowing DPDK-based
-tests to run. The fastregression tag allows to only try important
-variable combination and not search for performance points, while full
-is the contrary and will run a very big set of variables combinations
-to get statistics out of results.
+###NPF Comparator
+
+Compare allows to do the contrary of regression.py : instead of
+ testing multiple testies on one repository, you test one testie across
+ multiple repositories.
+ 
+This example allows to compare click against fastclick for the infinitesource
+  test case :
+
+```bash
+python3 compare.py click fastclick --testie tests/pktgen/infinitesource-01.testie --variables LENGTH=64
+```
+ * click fastclick : List of repos to compare
+ * --testie FILENAME : Testie to test. This argument is available in all tools.
+ * --variables  VAR=VAL [...] : Fix the value of one variable.
+ By default in this testie, the test is redone with packet length 64,256 and 1024. This
+ allows to have one less "dynamic" variables so the grapher can
+ use a lineplot instead of a barplot (see below).
+ 
+Result :
+![alt tag](doc/sample_compare.png)
+Just for relevance, batching is what makes this difference.
+
+This tool has also less options than Regressor, you should use this
+last one to create your tests and tune parameters on one repository
+and then only use compare.py. Comparator has no options for statistics.
+
 
 ###Which one to use
 Use regression.py for development, trying big matrices of configuration,
@@ -69,9 +98,36 @@ get extended graph and customized tests for each testies.
 Use watcher.py with the fastregression tags to send you an e-mail automatically
 when some new commits introduce performances problems.
 
+Use compare.py to compare multiple Click
+instances, typically in research paper or to asser that an
+idea of you is good, showing the generated graphs to assert
+your sayings.
+
+
+## Dataset
+
+All results of tests are saved per-commit and per-repo to avoid re-computing the next time
+you launch either of the tools. However the set of variables must be exactly the
+same.
+
+To force re-computing the tests, use the --force-test option. The --force-rebuild
+may also be something you want.
+
+
+## Tags
+All programs have the --tags argument, allowing to give a set of tags
+that trigger changes in the testies. The dpdk flags tells that a DPDK
+environment is setted up with at least two NICs, allowing DPDK-based
+tests to run. The fastregression tag allows to only try important
+variable combination and not search for performance points, while full
+is the contrary and will run a very big set of variables combinations
+to get statistics out of results.
+
 ##Writing configuration files
 
-The file is made of multiple sections, starting with a % like "%file CONFIG" which means that a file named CONFIG should be created.
+The file is made of multiple sections, starting with a % like
+ "%file CONFIG" which means that a file named CONFIG should be
+  created.
 
 
 ### Config
@@ -98,15 +154,23 @@ if a tag is given (by the repo, or the command line argument):
 This allows to do more extanded tests to grid-search some value, but do not include that in regression test
 
 ### Graph
-Graph are automatically generated with all matrix variables expanded and comparing current results vs old results
+Graph are automatically generated for all tested variables
+combinations.
 
-![alt tag](doc/sample_graph2.png)
+To choose the type of graph, the number of dynamic variables is taken into account.
+
+Below, regression.py gave two series to the Grapher (current and last commit), while the testie
+generate a matrix of Burst and Lengths, that is 2 dynamic variables and only a barplot can render that correctly
+as lines would be uncomparable.
 
 ![alt tag](doc/sample_graph.png)
 
-If a "previous uuid" is not given to regression.py (so it just run the test for the current master but do not compare the results), the graph will use one variable as the serie :
-
+If a "previous uuid" is not given to regression.py (so it just runs the test for the current master but do not compare 
+the results), the graph will use one variable as the serie as having only one
+line would be a loss of space, leaving only one dybamic variable :
 ![alt tag](doc/sample_graph3.png)
+
+The Comparator uses the repositories as series.
 
 TODO
 ----

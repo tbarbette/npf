@@ -135,6 +135,10 @@ class SectionVariable(Section):
             if v.count() <= 1: dyn[k] = v
         return dyn
 
+    def override_all(self, dict):
+        for k,v in dict.items():
+            self.override(k,v)
+
     def override(self, var, val):
         self.vlist[var] = SimpleVariable(var,val)
 
@@ -172,7 +176,6 @@ class SectionVariable(Section):
             formats.append(f)
             names.append(k)
         return dict(names = names, formats = formats)
-
 
 
 class SectionConfig(SectionVariable):

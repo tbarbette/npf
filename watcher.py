@@ -4,6 +4,7 @@ import time
 from email.mime.text import MIMEText
 from typing import Tuple, List
 
+from src import npf
 from src.regression import *
 
 import smtplib
@@ -12,7 +13,8 @@ from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 
 class Watcher():
-    def __init__(self, repo_list:List[Tuple[Repository,List[Testie]]], mail_to: List[str], mail_from: str, interval: int,mail_always: bool, history: int, quiet:bool):
+    def __init__(self, repo_list:List[Tuple[Repository,List[Testie]]], mail_to: List[str], mail_from: str, interval: int,
+                 mail_always: bool, history: int, quiet:bool, force_test:bool):
         self.interval = interval
         self.repo_list = repo_list
         self.mail_to = mail_to
@@ -20,6 +22,7 @@ class Watcher():
         self.mail_always = mail_always
         self.history = history
         self.quiet = quiet
+        self.force_test = force_test
 
     def mail(self,subject, body, images=[], bodytype='text'):
         print(subject)
@@ -54,12 +57,12 @@ class Watcher():
         graphs = []
         for testie,all_results in zip(testies,datasets):
             body += '<b>%s</b> :' % build.uuid
-            if build.n_passed == build.n_tests:
+            if testie.n_variables_passed == testie.n_variables:
                 body += '<span style="color:green;">PASSED</span><br />'
             else:
                 print("[%s] Testie %s FAILED !" % (repo.name, testie.filename))
                 body += '<span style="color:red;">FAILED</span> with %d/%d points out of constraints.<br />' % (
-                    build.n_passed, build.n_tests)
+                    testie.n_variables_passed, testie.n_variables)
             body += '<img src="cid:%s"><br/><br/>' % testie.filename
             grapher = Grapher()
             graphs_series = [(testie, build, all_results)]
@@ -83,7 +86,7 @@ class Watcher():
         while not terminate:
             for repo, testies in self.repo_list:
                 regressor = Regression(repo)
-                build,datasets = regressor.regress_all_testies(testies=testies, quiet= self.quiet, history = self.history)
+                build,datasets = regressor.regress_all_testies(testies=testies, quiet= self.quiet, history = self.history,force_test = self.force_test)
 
                 if (build is None):
                     continue
@@ -101,9 +104,9 @@ def main():
                         help='interval in seconds between polling of repositories');
     parser.add_argument('--history', dest='history', metavar='N', type=int, default=0,
                         help='assume last N commits as untested (default 0)');
-    parser.add_argument('--tags', metavar='tag', type=str, nargs='+', help='list of tags');
-    parser.add_argument('--testie', metavar='path or testie', type=str, nargs='?', default='tests',
-                        help='script or script folder. Default is tests');
+
+    t = npf.add_testing_options(parser)
+
     parser.add_argument('--quiet', help='Quiet mode', dest='quiet', action='store_true', default=False)
 
     a = parser.add_argument_group('Graphing options')
@@ -117,7 +120,7 @@ def main():
                    help='list of e-mails for report');
     m.add_argument('--mail-erroronly', default=True, dest='mail_always',  action='store_false',
                    help='e-mail even if there is an error');
-    parser.set_defaults(tags=[])
+
     args = parser.parse_args();
     history = args.history
 
@@ -142,7 +145,8 @@ def main():
                       interval = args.interval,
                       mail_always = args.mail_always,
                       history = history,
-                      quiet = args.quiet)
+                      quiet = args.quiet,
+                      force_test = args.force_test)
     watcher.run()
 
 

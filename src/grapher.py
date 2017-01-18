@@ -53,15 +53,16 @@ class Grapher:
         vars_all = set()
         uuids=[]
 
-        for i, gv in enumerate(graph_variables):
-            for k,v in gv.items():
-                if type(v) is tuple:
-                    graph_variables[i][k] = v[1]
+        if graph_variables:
+            for i, gv in enumerate(graph_variables):
+                for k,v in gv.items():
+                    if type(v) is tuple:
+                        graph_variables[i][k] = v[1]
 
         ymin,ymax=(float('inf'),0)
         #Data transformation
         for i,(script,build,all_results) in enumerate(series):
-            uuids.append(build.uuid)
+            uuids.append(build.pretty_name())
             self.scripts.add(script)
             for run,results in all_results.items():
                 if results:
@@ -255,7 +256,7 @@ class Grapher:
                             s.append("%s = %s" % (self.var_name(k), str(v[1] if v is tuple else v)))
                     ss.append(','.join(s))
 
-            plt.xticks(interbar + ind + width, ss, rotation='vertical' if (len(ss) > 5) else 'horizontal')
+            plt.xticks(interbar + ind + (width * len(uuids) / 2.0)  , ss, rotation='vertical' if (sum([len(s) for s in ss]) > 80) else 'horizontal')
 
         if (ndyn > 0):
             plt.legend(loc=self.config("legend_loc"), title=legend_title)
