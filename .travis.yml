@@ -1,0 +1,11 @@
+python:
+  - "3.2"
+  - "3.4"
+sudo: true
+install:
+    - sudo apt-get install libblas-dev liblapack-dev libatlas-base-dev gfortran
+    - sudo pip install --upgrade pip
+    - pip install --user numpy
+    - pip install --user SciPy
+    - pip install --user -r requirements.txt
+script: integration/integration.sh

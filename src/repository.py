@@ -29,7 +29,7 @@ class Repository:
                 var = var[:-1]
                 append=True
 
-            if is_numeric(val):
+            if is_numeric(val) and var != 'branch':
                 val = float(val)
                 if val.is_integer():
                     val = int(val)

@@ -1,8 +1,6 @@
-Comparaison UUID is 750dbd9
-Starting regression test for e80adc6
+Starting regression test for bbec36c
 Executing testie integration-01.testie
 Integration Test
-Previous build 750dbd9 could not be found, we will not compare !
 BURST = 1, LENGTH = 1
 [1.0, 1.0, 1.0]
 BURST = 2, LENGTH = 1
@@ -245,5 +243,5 @@ BURST = 512, LENGTH = 1024
 [512.0, 512.0, 512.0]
 BURST = 1024, LENGTH = 1024
 [1024.0, 1024.0, 1024.0]
-Graph of test written to fastclick/results/e80adc6/integration-01.pdf
-[FastClick] Finished run for e80adc6, 1/1 tests passed
+Graph of test written to click-2017/results/bbec36c/integration-01.pdf
+[Click 2017] Finished run for bbec36c, 1/1 tests passed
