@@ -1,4 +1,7 @@
 import io
+from collections import OrderedDict
+from typing import List
+
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
@@ -43,12 +46,17 @@ class Grapher:
         else:
             return "%.2f B/s" % (x)
 
-    def graph(self,filename, title=False, series=[], graph_variables=None, graph_allvariables = False, graph_serie=None):
+    def graph(self,filename, title=False, series=[], graph_variables:List[OrderedDict]=None, graph_allvariables = False, graph_serie=None):
         """series is a list of triplet (script,build,results) where
         result is the output of a script.execute_all()"""
         vars_values = {}
         vars_all = set()
         uuids=[]
+
+        for i, gv in enumerate(graph_variables):
+            for k,v in gv.items():
+                if type(v) is tuple:
+                    graph_variables[i][k] = v[1]
 
         ymin,ymax=(float('inf'),0)
         #Data transformation
@@ -59,11 +67,13 @@ class Grapher:
                 if results:
                     ymax = max(ymax, max(results))
                     ymin = min(ymin, min(results))
+
                 if (graph_variables==None and (i == 0 or graph_allvariables)) \
                     or (graph_variables != None and run.variables in graph_variables):
                     vars_all.add(run)
                     for k,v in run.variables.items():
                         vars_values.setdefault(k,set()).add(v)
+
         vars_all = list(vars_all)
         vars_all.sort()
         is_multiscript = len(self.scripts) > 1
@@ -149,7 +159,7 @@ class Grapher:
             i=0
             plt.bar(np.arange(len(uuids)) + interbar,data,label=uuids[i],color=graphcolor[i % len(graphcolor)],width=1-(2*interbar))
             plt.xticks(np.arange(len(uuids)) + 0.5,uuids, rotation='vertical' if (len(uuids) > 10) else 'horizontal')
-        elif ndyn==1:
+        elif ndyn==1 and len(series[0][2]) > 2:
             """One dynamic variable used as X, series are uuid line plots"""
             key = dyns[0]
 
@@ -186,11 +196,17 @@ class Grapher:
             if var_lim and var_lim is not key:
                 xmin,xmax = (float(x) for x in var_lim.split('-'))
             else:
-                base = float(max(10,math.ceil((xmax - xmin) / 10)))
-                if (xmin > 0):
-                    xmin = int(math.floor(xmin / base)) * base
-                if (xmax > 0):
-                    xmax = int(math.ceil(xmax / base)) * base
+                if abs(xmin) < 10 and abs(xmax) < 10:
+                    xmin -= 1
+                    xmax += 1
+                    pass
+                else:
+                    base = float(max(10,math.ceil((xmax - xmin) / 10)))
+                    if (xmin > 0):
+                        xmin = int(math.floor(xmin / base)) * base
+                    if (xmax > 0):
+                        xmax = int(math.ceil(xmax / base)) * base
+
 
             plt.gca().set_xlim(xmin,xmax)
 
@@ -219,18 +235,30 @@ class Grapher:
             for i,serie in enumerate(data):
                 plt.bar(interbar + ind + (i * width),serie[0],width,
                         label=str(uuids[i]),color=graphcolor[i % len(graphcolor)], yerr=serie[1],edgecolor=edgecolor)
-            key = "Variables"
+
             ss = []
-            for run in vars_all:
-                s = []
-                for k,v in run.variables.items():
-                    if k in dyns:
-                        s.append("%s = %s" % (self.var_name(k), str(v)))
-                ss.append(','.join(s))
+            if ndyn==1:
+                key = dyns[0]
+                for run in vars_all:
+                    s = []
+                    for k,v in run.variables.items():
+                        if k in dyns:
+                            s.append("%s" % str(v[1] if v is tuple else v))
+                    ss.append(','.join(s))
+            else:
+                key = "Variables"
+
+                for run in vars_all:
+                    s = []
+                    for k,v in run.variables.items():
+                        if k in dyns:
+                            s.append("%s = %s" % (self.var_name(k), str(v[1] if v is tuple else v)))
+                    ss.append(','.join(s))
 
             plt.xticks(interbar + ind + width, ss, rotation='vertical' if (len(ss) > 5) else 'horizontal')
-            if (ndyn > 0):
-                plt.legend(loc=self.config("legend_loc"), title=legend_title)
+
+        if (ndyn > 0):
+            plt.legend(loc=self.config("legend_loc"), title=legend_title)
 
         if ("result" in script.config['var_log']):
             plt.yscale('log')

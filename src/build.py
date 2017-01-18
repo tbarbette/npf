@@ -5,7 +5,7 @@ from subprocess import PIPE
 import git
 
 from src import variable
-from src.testie import Run
+from src.testie import Run, Testie
 
 renametable = {
     'src.script': 'src.testie',
@@ -27,6 +27,8 @@ def mapped_load_global(self):
 
 class Build:
     def __init__(self, repo, uuid):
+        self.n_tests = 0
+        self.n_passed = 0
         self.repo = repo
         self.uuid = uuid
         self.path = self.repo.reponame + "/build/"
@@ -107,7 +109,6 @@ class Build:
 
     def writeUuid(self, script, all_results):
         filename = self.__resultFilename(script)
-
         try:
             if not os.path.exists(os.path.dirname(filename)):
                 os.makedirs(os.path.dirname(filename))
@@ -130,8 +131,8 @@ class Build:
             f.write(','.join(v) + "=" + ','.join(str_results) + "\n")
         f.close
 
-    def readUuid(self, script):
-        filename = self.__resultFilename(script)
+    def readUuid(self, testie: Testie):
+        filename = self.__resultFilename(testie)
         f = open(filename, 'r')
         all_results = {}
         for line in f:

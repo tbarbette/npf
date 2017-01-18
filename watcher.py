@@ -11,109 +11,91 @@ import smtplib
 from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 
+class Watcher():
+    def __init__(self, repo_list:List[Tuple[Repository,List[Testie]]], mail_to: List[str], mail_from: str, interval: int,mail_always: bool, history: int, quiet:bool):
+        self.interval = interval
+        self.repo_list = repo_list
+        self.mail_to = mail_to
+        self.mail_from = mail_from
+        self.mail_always = mail_always
+        self.history = history
+        self.quiet = quiet
 
-def mail(mail_from, mail_to, subject, body, images=[], bodytype='text'):
-    print(subject)
-    COMMASPACE = ', '
+    def mail(self,subject, body, images=[], bodytype='text'):
+        print(subject)
+        COMMASPACE = ', '
 
-    # Create the container (outer) email message.
-    msg = MIMEMultipart()
-    msg['Subject'] = subject
+        # Create the container (outer) email message.
+        msg = MIMEMultipart()
+        msg['Subject'] = subject
 
-    if mail_from:
-        msg['From'] = mail_from
-    msg['To'] = COMMASPACE.join(mail_to)
-    msg.attach(MIMEText(body, bodytype))
+        if self.mail_from:
+            msg['From'] = self.mail_from
+        msg['To'] = COMMASPACE.join(self.mail_to)
+        msg.attach(MIMEText(body, bodytype))
 
-    for img, cid in images:
-        img = MIMEImage(img)
-        img.add_header('Content-ID', '<' + cid + '>')
-        msg.attach(img)
+        for img, cid in images:
+            img = MIMEImage(img)
+            img.add_header('Content-ID', '<' + cid + '>')
+            msg.attach(img)
 
-    s = smtplib.SMTP('localhost')
-    s.send_message(msg)
-    s.quit()
+        s = smtplib.SMTP('localhost')
+        s.send_message(msg)
+        s.quit()
 
-
-def check_all_repos(repo_list: List[Tuple[Repository, List[Testie]]], mail_to: List[str], mail_from: str, history: int,
-                    quiet: bool = False, graph_num: int = 8, mail_always=True):
-    for repo, testies in repo_list:
-        gitrepo = repo.gitrepo()
-        commit = next(gitrepo.iter_commits('origin/' + repo.branch))
-        uuid = commit.hexsha[:7]
-        if repo.last_build and uuid == repo.last_build.uuid:
-            if not quiet:
-                print("[%s] No new uuid !" % (repo.name))
-            continue
-
-        if (history > 0 and repo.last_build):
-            build = repo.last_build_before(repo.last_build)
-        else:
-            build = Build(repo, uuid)
-        print("[%s] New uuid %s !" % (repo.name, build.uuid))
-
-        graphs = []
-
-        if not build.build_if_needed():
-            mail(subject="[%s] Could not compile %s !" % (repo.name, uuid), mail_to=mail_to, body='',
-                 mail_from=mail_from)
-            # Pass if not last
-            if (build.uuid != uuid):
-                repo.last_build = build
-            continue
-        nok = 0
+    def mail_results(self, repo: Repository, build: Build, testies: List[Testie], datasets: List[Dataset],
+                     graph_num: int = 0):
         body = '<html>'
         body += 'Detailed results for %s :<br />' % build.uuid
-        for testie in testies:
-            print("[%s] Running testie %s..." % (repo.name, testie.filename))
-            regression = Regression(testie)
-            if repo.last_build:
-                try:
-                    old_all_results = repo.last_build.readUuid(testie)
-                except FileNotFoundError:
-                    old_all_results = None
-            else:
-                old_all_results = None
-            all_results = testie.execute_all(build)
-            tests_failed, tests_total = regression.compare(testie.variables, all_results, build, old_all_results,
-                                                           repo.last_build)
+
+        if not build.build_if_needed():
+            self.mail(subject="[%s] Could not compile %s !" % (repo.name, build.uuid), body='')
+
+        graphs = []
+        for testie,all_results in zip(testies,datasets):
             body += '<b>%s</b> :' % build.uuid
-            if tests_failed == 0:
-                nok += 1
+            if build.n_passed == build.n_tests:
                 body += '<span style="color:green;">PASSED</span><br />'
             else:
                 print("[%s] Testie %s FAILED !" % (repo.name, testie.filename))
                 body += '<span style="color:red;">FAILED</span> with %d/%d points out of constraints.<br />' % (
-                    tests_failed, tests_total)
-            build.writeUuid(testie, all_results)
-
+                    build.n_passed, build.n_tests)
+            body += '<img src="cid:%s"><br/><br/>' % testie.filename
             grapher = Grapher()
             graphs_series = [(testie, build, all_results)]
 
-            last_graph = build  # last graph is the oldest build in the series
-            if repo.last_build and old_all_results:
-                graphs_series.append((testie, repo.last_build, old_all_results))
-                last_graph = repo.last_build
+            graphs_series += repo.get_old_results(build, graph_num - len(graphs_series), testie)
 
-            graphs_series += repo.get_old_results(last_graph, graph_num - len(graphs_series), testie)
             g = grapher.graph(series=graphs_series, title=testie.get_title(),
                               filename=None, graph_variables=list(testie.variables))
             graphs.append((g, testie.filename))
-            body += '<img src="cid:%s"><br/><br/>' % testie.filename
 
-        build.writeResults()
-        repo.last_build = build
         body += '</html>'
-        if nok < len(testies) or mail_always:
-            mail(subject="[%s] Finished run for %s, %d/%d tests passed" % (repo.name, build.uuid, nok, len(testies)),
-             body=body,
-             bodytype='html',
-             mail_from=mail_from,
-             mail_to=mail_to, images=graphs)
+
+        self.mail(
+            subject="[%s] Finished run for %s, %d/%d tests passed" % (
+            repo.name, build.uuid, build.n_passed, build.n_tests),
+            body=body,
+            bodytype='html', images=graphs)
+
+    def run(self):
+        terminate = False
+        while not terminate:
+            for repo, testies in self.repo_list:
+                regressor = Regression(repo)
+                build,datasets = regressor.regress_all_testies(testies=testies, quiet= self.quiet, history = self.history)
+
+                if (build is None):
+                    continue
+
+                if build.n_passed < build.n_tests or self.mail_always:
+                    self.mail_results(repo, build, testies, datasets)
+
+            time.sleep(self.interval)
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Click Watcher')
+    parser = argparse.ArgumentParser(description='NPF Watcher')
     parser.add_argument('repos', metavar='repo name', type=str, nargs='+', help='names of the repositories to watch');
     parser.add_argument('--interval', metavar='secs', type=int, nargs=1, default=60,
                         help='interval in seconds between polling of repositories');
@@ -154,11 +136,14 @@ def main():
         testies = Testie.expand_folder(args.testie, tags=tags, quiet=args.quiet)
         repo_list.append((repo, testies))
 
-    terminate = False
-    while not terminate:
-        check_all_repos(repo_list, history=history, quiet=args.quiet, graph_num=args.graph_num,
-                        mail_to=args.mail_to, mail_from=args.mail_from,mail_always = args.mail_always)
-        time.sleep(args.interval)
+    watcher = Watcher(repo_list,
+                      mail_from=args.mail_from,
+                      mail_to=args.mail_to,
+                      interval = args.interval,
+                      mail_always = args.mail_always,
+                      history = history,
+                      quiet = args.quiet)
+    watcher.run()
 
 
 if __name__ == "__main__":

@@ -188,7 +188,7 @@ class SectionConfig(SectionVariable):
         self.vlist = {}
         self.__add("accept_outliers_mult", 1)
         self.__add("accept_variance", 1)
-        self.__add("timeout", 300)
+        self.__add("timeout", 30)
         self.__add("acceptable", 0.01)
         self.__add("n_runs", 1)
         self.__add("n_retry", 0)

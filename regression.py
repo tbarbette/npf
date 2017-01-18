@@ -6,7 +6,7 @@ from src.statistics import Statistics
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Click performance regression test')
+    parser = argparse.ArgumentParser(description='NPF Regression test')
     v = parser.add_argument_group('Verbosity options')
     v.add_argument('--show-full', help='Show full execution results', dest='show_full', action='store_true',
                    default=False)
@@ -175,7 +175,7 @@ def main():
         print("Last UUID %s had no result. Re-executing tests for it." % b.uuid)
         b.build_if_needed()
         for testie in testies:
-            print("Executing script %s" % testie.filename)
+            print("Executing testie %s" % testie.filename)
             all_results = testie.execute_all(b)
             b.writeUuid(testie, all_results)
         b.writeResults()
@@ -240,7 +240,7 @@ def main():
                 all_results = testie.execute_all(build, prev_results, do_test=do_test)
 
             if args.compare:
-                tests_failed,tests_total = regression.compare(testie.variables, all_results, build, old_all_results, last_build)
+                tests_failed,tests_total = regression.compare(testie, testie.variables, all_results, build, old_all_results, last_build)
                 if tests_failed == 0:
                     nok += 1
                 else:
@@ -253,6 +253,7 @@ def main():
             filtered_results = {}
             for v in testie.variables:
                 run = Run(v)
+
                 if run in all_results:
                     filtered_results[run] = all_results[run]
 
@@ -261,7 +262,12 @@ def main():
 
             grapher = Grapher()
 
-            graphname = build.result_path(testie,'pdf','_'.join(["%s=%s" % (k,v.makeValues()[0]) for k,v in testie.variables.statics().items()]))
+            graph_variables_names=[]
+            for k,v in testie.variables.statics().items():
+                val = v.makeValues()[0]
+                if k and v and val != '':
+                    graph_variables_names.append((k,val))
+            graphname = build.result_path(testie,'pdf','_'.join(["%s=%s" % (k,val) for k,val in graph_variables_names]))
 
             g_series = []
             if last_build and args.compare:
@@ -273,6 +279,7 @@ def main():
                     g_series.append((testie, g_build, g_all_results))
                 except FileNotFoundError:
                     print("Previous build %s could not be found, we will not graph it !" % g_build.uuid)
+
             grapher.graph(series=[(testie, build, all_results)] + g_series, title=testie.get_title(),
                           filename=graphname,
                           graph_variables=list(testie.variables),

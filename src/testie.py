@@ -1,3 +1,4 @@
+from pathlib import Path
 from subprocess import Popen, PIPE
 from subprocess import TimeoutExpired
 import os
@@ -181,7 +182,9 @@ class Testie:
 
     def cleanup(self):
         for s in self.files:
-            os.remove(s.filename)
+            path = Path(s.filename)
+            if path.is_file():
+                path.unlink()
 
     def _exec(self, cmd, build):
         p = Popen(cmd,
@@ -340,4 +343,5 @@ class Testie:
                     print(
                         "Passing testie %s as it lacks tags %s" % (testie.filename, ','.join(missing_tags)))
                 continue
+
         return testies
