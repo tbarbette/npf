@@ -1,4 +1,3 @@
-from pathlib import Path
 from subprocess import Popen, PIPE
 from subprocess import TimeoutExpired
 import os
@@ -6,8 +5,9 @@ import sys
 import numpy as np
 import signal
 import random
-
+import multiprocessing
 from typing import Dict, List
+from pathlib import Path
 
 from src.section import *
 
@@ -111,15 +111,16 @@ class Testie:
         section = ''
 
         f = open(testie_path, 'r')
-        for line in f:
+        for i,line in enumerate(f):
             if line.startswith("#"):
                 continue
             elif line.startswith("%"):
                 result = line[1:].split(' ')
                 section = SectionFactory.build(self, result)
-                self.sections.append(section)
+                if not section is SectionNull:
+                    self.sections.append(section)
             elif not section:
-                raise Exception("Bad syntax, file must start by a section");
+                raise Exception("Bad syntax, file must start by a section. Line %d :\n%s" % (i,line));
             else:
                 section.content += line
 
@@ -187,25 +188,42 @@ class Testie:
             if path.is_file():
                 path.unlink()
 
-    def _exec(self, cmd, build):
+    @staticmethod
+    def _exec(testie, cmd, build):
+        env = os.environ.copy()
+        env["PATH"] = testie.appdir + build.repo.reponame + "/build/bin:" + env["PATH"]
+
         p = Popen(cmd,
                     stdin=PIPE, stdout=PIPE, stderr=PIPE,
                     shell=True, preexec_fn=os.setsid,
-                    env={"PATH": self.appdir + build.repo.reponame + "/build/bin:" + os.environ["PATH"]})
+                    env=env)
         pid = p.pid
         pgpid = os.getpgid(pid)
         try:
             s_output, s_err = [x.decode() for x in
-                               p.communicate(self.stdin.content, timeout=self.config["timeout"])]
+                               p.communicate(testie.stdin.content, timeout=testie.config["timeout"])]
             return pid,s_output,s_err,p.returncode
         except TimeoutExpired:
             print("Test expired")
             p.terminate()
             p.kill()
+            os.killpg(pgpid, signal.SIGKILL)
             os.killpg(pgpid, signal.SIGTERM)
-            os.killpg(pgpid, signal.SIGTERM)
-            return 0,None,None,p.returncode
+            s_output, s_err = p.communicate()
+            print(s_output)
+            print(s_err)
+            return 0,s_output,s_err,p.returncode
 
+    @staticmethod
+    def _parallel_exec(args):
+        (testie, script, commands, n_retry, build) = args
+        for i_try in range(n_retry + 1):
+            pid,o,e,c = testie._exec(testie, commands, build)
+            if (pid == 0):
+                continue
+            else:
+                return True, o, e, script
+        return False, "Timeout expired" + o, e, script
 
     def execute(self, build, v, n_runs=1, n_retry=0):
         self.create_files(v)
@@ -213,19 +231,22 @@ class Testie:
         for i in range(n_runs):
             output = ''
             err = ''
-            for script in self.scripts:
-                if len(self.scripts) > 1:
-                    output += "Output of script for %s" % script.slave
-                    err += "Output of script for %s" % script.slave
+            p = multiprocessing.Pool(len(self.scripts))
 
-                for i_try in range(n_retry + 1):
-                    pid,o,e,c = self._exec(script.content, build)
-                    if (pid == 0):
-                        if i_try == n_retry:
-                            return False, "Timeout expired.", ""
-                else:
+            parallel_execs = p.map(self._parallel_exec, [(self,script,self._replace_all(v,script.content),n_retry,build) for script in self.scripts])
+
+            worked=False
+            for i,(r,o,e,script) in enumerate(parallel_execs):
+                if len(self.scripts) > 1:
+                    output += "Output of script %d for %s :\n" % (i,script.slave)
+                    err += "Output of script %d for %s :\n" % (i,script.slave)
+
+                if r:
+                    worked = True
                     output += o
                     err += e
+            if not worked:
+                return False,output,err
 
             nr = re.search("RESULT ([0-9.]+)", output.strip())
             if nr:

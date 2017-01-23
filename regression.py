@@ -85,16 +85,24 @@ def main():
     tags = args.tags
     tags += repo.tags
 
-    gitrepo = repo.checkout(args.branch)
+    #If there is no URL, it is a false repo, like IPTables test with no buiilding
+    if repo.url:
+        gitrepo = repo.checkout(args.branch)
+    else:
+        gitrepo = None
+        args.compare = False
 
     if args.uuid:
         uuids = args.uuid
     else:
         uuids = []
-        for i, commit in enumerate(gitrepo.iter_commits('origin/' + repo.branch)):
-            if i >= args.history: break
-            short = commit.hexsha[:7]
-            uuids.append(short)
+        if gitrepo:
+            for i, commit in enumerate(gitrepo.iter_commits('origin/' + repo.branch)):
+                if i >= args.history: break
+                short = commit.hexsha[:7]
+                uuids.append(short)
+        else:
+            uuids.append(repo.reponame)
 
     clickpath = repo.reponame + "/build"
 
@@ -107,22 +115,23 @@ def main():
     last_rebuilds = []
 
     last_build = None
-    if args.compare_uuid and len(args.compare_uuid):
-        compare_uuid = args.compare_uuid
-        last_build = Build(repo, compare_uuid)
-    elif args.history <= 1:
-        for i, commit in enumerate(next(gitrepo.iter_commits(compare_uuid)).iter_parents()):
-            last_build = Build(repo, commit.hexsha[:7])
-            if last_build.hasResults():
-                break
-            elif args.allow_oldbuild:
-                last_rebuilds.append(last_build)
-                break
-            if i > 100:
-                last_build = None
-                break
-        if last_build:
-            print("Comparaison UUID is %s" % last_build.uuid)
+    if args.compare:
+        if args.compare_uuid and len(args.compare_uuid):
+            compare_uuid = args.compare_uuid
+            last_build = Build(repo, compare_uuid)
+        elif args.history <= 1:
+            for i, commit in enumerate(next(gitrepo.iter_commits(compare_uuid)).iter_parents()):
+                last_build = Build(repo, commit.hexsha[:7])
+                if last_build.hasResults():
+                    break
+                elif args.allow_oldbuild:
+                    last_rebuilds.append(last_build)
+                    break
+                if i > 100:
+                    last_build = None
+                    break
+            if last_build:
+                print("Comparaison UUID is %s" % last_build.uuid)
 
     graph_builds = []
     if args.graph_uuid and len(args.graph_uuid) > 0:
@@ -227,7 +236,8 @@ def main():
                     returncode += 1
                 ntests += 1
 
-            build.writeResults()
+            if all_results and len(all_results) > 0:
+                build.writeResults()
 
             #Filtered results are results only for the given current variables
             filtered_results = {}

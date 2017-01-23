@@ -8,6 +8,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter
 import math
+import os
 graphcolor = ['b','g','r','c','m','y']
 
 class Grapher:
@@ -282,6 +283,8 @@ class Grapher:
             buf.seek(0)
             ret = buf.read()
         else:
+            if not os.path.exists(os.path.dirname(filename)):
+                os.makedirs(os.path.dirname(filename))
             plt.savefig(filename)
             ret = None
             print("Graph of test written to %s" % filename)

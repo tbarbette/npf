@@ -3,6 +3,7 @@ import subprocess
 from collections import OrderedDict
 from subprocess import PIPE
 import git
+from pathlib import Path
 
 from src import variable
 from src.testie import Run, Testie
@@ -59,6 +60,8 @@ class Build:
         f.close()
 
     def is_build_needed(self):
+        if not self.repo.url:
+            return False
         gitrepo = git.Repo(self.click_path())
         if gitrepo.head.commit.hexsha[:7] != self.uuid:
             return True
@@ -81,6 +84,8 @@ class Build:
         Compile the currently checked out repo, assuming it is currently at self.uuid
         :return: True upon success, False if not
         """
+        if not self.repo.url:
+            return True
         pwd = os.getcwd()
         os.chdir(self.click_path())
 
@@ -140,14 +145,17 @@ class Build:
 
     def readUuid(self, testie: Testie):
         filename = self.__resultFilename(testie)
+        if not Path(filename).exists():
+            return None
         f = open(filename, 'r')
         all_results = {}
         for line in f:
             variables_data, results_data = [x.split(',') for x in line.split('=')]
             variables = OrderedDict()
             for v_data in variables_data:
-                k, v = v_data.split(':')
-                variables[k] = variable.get_numeric(v)
+                if v_data:
+                    k, v = v_data.split(':')
+                    variables[k] = variable.get_numeric(v)
             results = []
             if len(results_data) == 1 and results_data[0].strip() == '':
                 results = None
@@ -162,12 +170,17 @@ class Build:
         return os.path.exists(self.__resultFilename(script))
 
     def writeResults(self):
-        open(self.__resultFilename(), 'a').close()
+        filename = self.__resultFilename()
+        if not os.path.exists(os.path.dirname(filename)):
+            os.makedirs(os.path.dirname(filename))
+        open(filename, 'a').close()
 
     def click_path(self):
         return self.repo.reponame + "/build"
 
     def checkout(self):
+        if not self.repo.url:
+            return True
         gitrepo = git.Repo(self.click_path())
         ref = gitrepo.commit(self.uuid)
         gitrepo.git.checkout(ref, force=True)

@@ -3,6 +3,7 @@ import argparse
 
 from src import npf
 from src.regression import *
+from pathlib import Path
 
 
 class Comparator():
@@ -20,8 +21,9 @@ class Comparator():
             for testie in testies:
                 testie.variables.override_all(self.overriden_variables)
                 build, datasets = regressor.regress_all_testies(testies=[testie], quiet=self.quiet, force_test = self.force_test)
-                build._pretty_name = repo.reponame
-                graphs_series.append((testie, build, datasets[0]))
+                if not build is None:
+                    build._pretty_name = repo.reponame
+                    graphs_series.append((testie, build, datasets[0]))
 
         if len(graphs_series) == 0:
             print("No valid tags/testie/repo combination.")
@@ -69,7 +71,8 @@ def main():
 
     grapher = Grapher()
     g = grapher.graph(series=series,
-                      filename=filename)
+                      filename=filename,
+                      graph_allvariables=True)
 
 
 if __name__ == "__main__":

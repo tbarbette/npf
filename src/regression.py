@@ -75,27 +75,32 @@ class Regression:
 
     def regress_all_testies(self, testies:List[Testie], quiet:bool, history:int = 0, force_test:bool = True) -> Tuple[Build,Dataset]:
         repo = self.repo
-        gitrepo = repo.gitrepo()
         datasets = []
-        commit = next(gitrepo.iter_commits('origin/' + repo.branch))
-        uuid = commit.hexsha[:7]
-        if repo.last_build and uuid == repo.last_build.uuid:
-            if not quiet:
-                print("[%s] No new uuid !" % (repo.name))
-            return None,None
 
-        if (history > 0 and repo.last_build):
-            build = repo.last_build_before(repo.last_build)
+        if repo.url:
+            gitrepo = repo.gitrepo()
+            commit = next(gitrepo.iter_commits('origin/' + repo.branch))
+            uuid = commit.hexsha[:7]
+            if repo.last_build and uuid == repo.last_build.uuid:
+                if not quiet:
+                    print("[%s] No new uuid !" % (repo.name))
+                return None,None
+
+            if (history > 0 and repo.last_build):
+                build = repo.last_build_before(repo.last_build)
+            else:
+                build = Build(repo, uuid)
+
+            if repo.last_build:
+                print("[%s] New uuid %s !" % (repo.name, build.uuid))
+
+            if not build.build_if_needed():
+                if (build.uuid != uuid):
+                    repo.last_build = build
+                return None,None
         else:
-            build = Build(repo, uuid)
+            build = Build(repo, repo.reponame)
 
-        if repo.last_build:
-            print("[%s] New uuid %s !" % (repo.name, build.uuid))
-
-        if not build.build_if_needed():
-            if (build.uuid != uuid):
-                repo.last_build = build
-            return None,None
         nok = 0
 
         for testie in testies:

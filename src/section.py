@@ -14,6 +14,17 @@ class SectionFactory:
         :return: A Section object
         """
         sectionName = data[0].rstrip()
+        testTags = sectionName.split(':',1)
+        if len(testTags) > 1:
+            tags = testTags[0].split(',')
+            sectionName = testTags[1]
+        else:
+            tags=[]
+
+        for tag in tags:
+            if not tag in testie.tags:
+                return SectionNull()
+
         if not sectionName in sections:
             raise Exception("Unknown section %s" % sectionName);
         if sectionName == 'file':
@@ -48,6 +59,11 @@ class Section:
 
     def finish(self, testie):
         pass
+
+class SectionNull(Section):
+    def __init__(self):
+        self.content = ''
+
 
 
 class SectionScript(Section):
