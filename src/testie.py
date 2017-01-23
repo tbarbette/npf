@@ -209,7 +209,7 @@ class Testie:
             p.kill()
             os.killpg(pgpid, signal.SIGKILL)
             os.killpg(pgpid, signal.SIGTERM)
-            s_output, s_err = p.communicate()
+            s_output, s_err = [x.decode() for x in p.communicate()]
             print(s_output)
             print(s_err)
             return 0,s_output,s_err,p.returncode
