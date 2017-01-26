@@ -69,10 +69,17 @@ class Run:
     def __lt__(self, o):
         for k, v in self.variables.items():
             if not k in o.variables: return False
-            if v < o.variables[k]:
-                return True
-            if v > o.variables[k]:
-                return False
+            ov =  o.variables[k]
+            if type(v) is str or type(ov) is str:
+                if str(v) < str(ov):
+                    return True
+                if str(v) > str(ov):
+                    return False
+            else:
+                if v < ov:
+                    return True
+                if v > ov:
+                    return False
         return False
 
 
@@ -172,7 +179,7 @@ class Testie:
     def test_require(self, v, build):
         if self.require.content:
             p = self._replace_all(v, self.require.content)
-            pid,output,err,returncode = self._exec(p,build)
+            pid,output,err,returncode = self._exec(self, p, build)
             if returncode != 0:
                 if not self.quiet:
                     print("Requirement not met :")
@@ -248,10 +255,28 @@ class Testie:
             if not worked:
                 return False,output,err
 
-            nr = re.search("RESULT ([0-9.]+)", output.strip())
+            nr = re.search("RESULT[ \t]+([0-9.]+)([gmk]?)(b|byte|bits)?", output.strip(), re.IGNORECASE)
             if nr:
                 n = float(nr.group(1))
-                results.append(n)
+                mult = nr.group(2).lower()
+                if mult == "k":
+                    n*=1000
+                elif mult == "m":
+                    n*=1000000
+                elif mult == "g":
+                    n*=1000000000
+
+                if not (n == 0 and self.config["zero_is_error"]):
+                    results.append(n)
+                else:
+                    print("Result is 0 !")
+                    print("stdout:")
+                    print(output)
+                    print("stderr:")
+                    print(err)
+
+                    return False,output,err
+
             else:
                 print("Could not find result !")
                 print("stdout:")
@@ -280,7 +305,7 @@ class Testie:
                 return False
         return True
 
-    def execute_all(self, build, prev_results:Dataset=None, do_test:bool=True) -> Dataset:
+    def execute_all(self, build, prev_results:Dataset=None, force_test:bool=False, do_test:bool=True) -> Dataset:
         """Execute script for all variables combinations
         :param build: A build object
         :param prev_results: Previous set of result for the same build to update or retrieve
@@ -293,7 +318,7 @@ class Testie:
                 print(run.format_variables(self.config["var_hide"]))
             if not self.test_require(variables, build):
                 continue
-            if prev_results and run in prev_results:
+            if prev_results and not force_test and run in prev_results:
                 results = prev_results[run]
                 if not results:
                     results = []
@@ -301,7 +326,7 @@ class Testie:
                 results = []
 
             new_results = False
-            n_runs = self.config["n_runs"] - len(results)
+            n_runs = self.config["n_runs"] - (0 if force_test else len(results))
             if n_runs > 0 and do_test:
                 nresults, output, err = self.execute(build, variables, n_runs, self.config["n_retry"])
                 if nresults:
@@ -345,7 +370,7 @@ class Testie:
         data = data[abs(data - mean) <= m * std]
         return data
 
-    def expand_folder(testie_path, quiet=True, tags=[], show_full=False) -> List:
+    def expand_folder(testie_path, quiet:bool, tags=[], show_full=False) -> List:
         testies = []
         if os.path.isfile(testie_path):
             testie = Testie(testie_path, quiet=quiet, show_full=show_full, tags=tags)

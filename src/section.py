@@ -211,6 +211,7 @@ class SectionConfig(SectionVariable):
         self.__add("acceptable", 0.01)
         self.__add("n_runs", 1)
         self.__add("n_retry", 0)
+        self.__add("zero_is_error", True)
         self.__add("n_supplementary_runs", 3)
         self.__add("var_names", {})
         self.__add("var_unit", {"result": "BPS"})

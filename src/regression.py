@@ -35,7 +35,7 @@ class Regression:
         for v in variable_list:
             tests_total += 1
             run = Run(v)
-            result = all_results[run]
+            result = all_results.get(run)
             # TODO : some config could implement acceptable range no matter the old value
             if result is None:
                 continue

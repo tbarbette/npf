@@ -204,7 +204,6 @@ def main():
 
             print(testie.info.content.strip())
 
-            force_test = args.force_test
             old_all_results = None
             if last_build:
                 try:
@@ -213,20 +212,17 @@ def main():
                     print("Previous build %s could not be found, we will not compare !" % last_build.uuid)
                     last_build = None
 
-            if force_test:
+            try:
+                prev_results = build.readUuid(testie)
+            except FileNotFoundError:
                 prev_results = None
-            else:
-                try:
-                    prev_results = build.readUuid(testie)
-                except FileNotFoundError:
-                    prev_results = None
 
-            if testie.has_all(prev_results, build):
+            if testie.has_all(prev_results, build) and not args.force_test:
                 all_results = prev_results
             else:
                 if need_rebuild:
                     build.build()
-                all_results = testie.execute_all(build, prev_results, do_test=do_test)
+                all_results = testie.execute_all(build, prev_results=prev_results, do_test=do_test, force_test=args.force_test)
 
             if args.compare:
                 variables_passed,variables_passed = regression.compare(testie, testie.variables, all_results, build, old_all_results, last_build)

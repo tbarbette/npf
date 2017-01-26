@@ -17,7 +17,7 @@ class Comparator():
         graphs_series = []
         for repo in self.repo_list:
             regressor = Regression(repo)
-            testies = Testie.expand_folder(testie_name, tags=repo.tags + tags)
+            testies = Testie.expand_folder(testie_name, quiet=self.quiet, tags=repo.tags + tags)
             for testie in testies:
                 testie.variables.override_all(self.overriden_variables)
                 build, datasets = regressor.regress_all_testies(testies=[testie], quiet=self.quiet, force_test = self.force_test)
