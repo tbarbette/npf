@@ -91,6 +91,9 @@ class ProductVariable:
     def format(self):
         return str
 
+    def is_numeric(self):
+        return False
+
 
 class ExpandVariable:
     def __init__(self, name, value, vsection):
@@ -104,6 +107,9 @@ class ExpandVariable:
 
     def format(self):
         return str
+
+    def is_numeric(self):
+        return False
 
 
 class SimpleVariable:
@@ -119,11 +125,22 @@ class SimpleVariable:
     def format(self):
         return dtype(self.value)
 
+    def is_numeric(self):
+        return self.format() != str
 
 
 class ListVariable:
     def __init__(self, name, l):
-        self.lvalues = [int(x) if is_integer(x) else float(x) if is_numeric(x) else x for x in l]
+        all_num = True
+        for x in l:
+            if not is_numeric(x):
+                all_num = False
+                break
+        if all_num:
+            self.lvalues = [int(x) if is_integer(x) else float(x) if is_numeric(x) else x for x in l]
+        else:
+            self.lvalues = [str(x) for x in l]
+        self.all_num = all_num
 
     def makeValues(self):
         vs = []
@@ -146,6 +163,9 @@ class ListVariable:
                 return bool
         return t
 
+    def is_numeric(self):
+        return self.all_num
+
 
 class DictVariable:
     def __init__(self, name, data):
@@ -163,6 +183,9 @@ class DictVariable:
     def format(self):
         k,v = next(self.vdict.items())
         return dtype(v)
+
+    def is_numeric(self):
+        return dtype(v) != str
 
 
 class RangeVariable:
@@ -196,3 +219,6 @@ class RangeVariable:
 
     def format(self):
         return int
+
+    def is_numeric(self):
+        return True

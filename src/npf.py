@@ -2,6 +2,10 @@ from argparse import ArgumentParser
 
 from typing import Dict
 
+def add_graph_options(parser: ArgumentParser):
+    g = parser.add_argument_group('Graph options')
+    g.add_argument('--graph-size', metavar='INCH', type=int, nargs=2, default=[],
+                   help='Size of graph', dest="graph_size");
 
 def add_testing_options(parser: ArgumentParser, regression : bool = False):
     t = parser.add_argument_group('Testing options')

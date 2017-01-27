@@ -42,7 +42,10 @@ class Repository:
                         continue
                     setattr(self,attr,getattr(parent,attr))
             elif var == "tags":
-                self.tags += val.split(',')
+                if append:
+                    self.tags += val.split(',')
+                else:
+                    self.tags = val.split(',')
                 continue
 
             if append:

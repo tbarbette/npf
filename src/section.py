@@ -144,6 +144,12 @@ class SectionVariable(Section):
             if v.count() > 1: dyn[k] = v
         return dyn
 
+    def is_numeric(self, k):
+        v = self.vlist.get(k,None)
+        if v is None:
+            return True
+        return v.is_numeric()
+
     def statics(self):
         """List of constants variables"""
         dyn = OrderedDict()
@@ -221,6 +227,7 @@ class SectionConfig(SectionVariable):
         self.__add_list("require_tags", [])
 
     def var_name(self, key):
+        print(key,self["var_names"])
         if key in self["var_names"]:
             return self["var_names"][key]
         else:

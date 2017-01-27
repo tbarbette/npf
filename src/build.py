@@ -155,7 +155,7 @@ class Build:
             for v_data in variables_data:
                 if v_data:
                     k, v = v_data.split(':')
-                    variables[k] = variable.get_numeric(v)
+                    variables[k] = variable.get_numeric(v) if testie.variables.is_numeric(k) else str(v)
             results = []
             if len(results_data) == 1 and results_data[0].strip() == '':
                 results = None

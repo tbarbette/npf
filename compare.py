@@ -17,12 +17,13 @@ class Comparator():
         graphs_series = []
         for repo in self.repo_list:
             regressor = Regression(repo)
+            print("Tag list : ",repo.tags, tags)
             testies = Testie.expand_folder(testie_name, quiet=self.quiet, tags=repo.tags + tags)
             for testie in testies:
                 testie.variables.override_all(self.overriden_variables)
                 build, datasets = regressor.regress_all_testies(testies=[testie], quiet=self.quiet, force_test = self.force_test)
                 if not build is None:
-                    build._pretty_name = repo.reponame
+                    build._pretty_name = repo.name
                     graphs_series.append((testie, build, datasets[0]))
 
         if len(graphs_series) == 0:
@@ -40,7 +41,7 @@ def main():
                         help='path to the file to output the graph');
 
     t = npf.add_testing_options(parser)
-
+    g = npf.add_graph_options(parser)
     args = parser.parse_args();
 
     # Parsing repo list and getting last_build
@@ -49,6 +50,7 @@ def main():
         repo = Repository(repo_name)
         repo.last_build = None
         repo_list.append(repo)
+        print(repo.tags)
 
     comparator = Comparator(repo_list,
                             quiet=args.quiet,
@@ -72,7 +74,8 @@ def main():
     grapher = Grapher()
     g = grapher.graph(series=series,
                       filename=filename,
-                      graph_allvariables=True)
+                      graph_allvariables=True,
+                      graph_size=args.graph_size)
 
 
 if __name__ == "__main__":

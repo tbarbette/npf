@@ -6,10 +6,16 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from matplotlib.ticker import FuncFormatter
+from matplotlib.ticker import FuncFormatter,ScalarFormatter
 import math
 import os
 graphcolor = ['b','g','r','c','m','y']
+
+def all_num(l):
+    for x in l:
+        if type(x) is str:
+            return False
+    return True
 
 class Grapher:
     def __init__(self):
@@ -38,16 +44,21 @@ class Grapher:
         return self.scriptconfig("var_unit",key,default=None);
 
     def bits(self, x, pos):
-        if (x > 1000000000):
-            return "%.2f GB/s" % (x/1000000000)
-        elif (x > 1000000):
-            return "%.2f MB/s" % (x/1000000)
-        elif (x > 1000):
-            return "%.2f KB/s" % (x/1000)
-        else:
-            return "%.2f B/s" % (x)
+        return self.formatb(x,pos,"Bits")
+    def bytes(self, x, pos):
+        return self.formatb(x,pos,"Bytes")
 
-    def graph(self,filename, title=False, series=[], graph_variables:List[OrderedDict]=None, graph_allvariables = False, graph_serie=None):
+    def formatb(self,x, pos,unit):
+        if (x >= 1000000000):
+            return "%.2f G%s/s" % (x/1000000000,unit)
+        elif (x >= 1000000):
+            return "%.2f M%s/s" % (x/1000000,unit)
+        elif (x >= 1000):
+            return "%.2f K%s/s" % (x/1000,unit)
+        else:
+            return "%.2f %s/s" % (x,unit)
+
+    def graph(self,filename, title=False, series=[], graph_variables:List[OrderedDict]=None, graph_allvariables = False, graph_serie=None, graph_size=None):
         """series is a list of triplet (script,build,results) where
         result is the output of a script.execute_all()"""
         vars_values = {}
@@ -96,7 +107,13 @@ class Grapher:
             if ("var_serie" in script.config and script.config["var_serie"] in dyns):
                 key=script.config["var_serie"]
             else:
-                key=dyns[0]
+                key = dyns[0]
+                for i in range(ndyn):
+                    k=dyns[i]
+                    if not all_num(vars_values[k]):
+                        key = k
+                        break
+                print("key is ", key)
             if graph_serie:
                 key=graph_serie
             dyns.remove(key)
@@ -133,9 +150,6 @@ class Grapher:
 
 
         ax = plt.gca()
-        if (self.var_unit("result") == "BPS"):
-            formatter = FuncFormatter(self.bits)
-            ax.yaxis.set_major_formatter(formatter)
 
         reject_outliers = False
 
@@ -147,6 +161,22 @@ class Grapher:
         else:
             edgecolor = None
             interbar = 0.1
+
+        xlog = False
+        ax = plt.gca()
+        yunit = self.var_unit("result").lower()
+        if yunit and yunit[0] == '/':
+            ydiv = 1000000000
+        else:
+            ydiv = 1
+
+        if (yunit == "bps" or yunit == "byteps"):
+            formatter = FuncFormatter(self.bits if self.var_unit("result").lower() == "bps" else self.bytes)
+            ax.yaxis.set_major_formatter(formatter)
+        else:
+            ax.get_yaxis().get_major_formatter().set_useOffset(False)
+
+
 
         if ndyn == 0:
             """No dynamic variables : do a barplot X=uuid"""
@@ -176,6 +206,7 @@ class Grapher:
                     result = all_results.get(run,None)
                     x.append(run.print_variable(key))
                     if result:
+                        result = np.asarray(result) / ydiv
                         if reject_outliers:
                             result = self.reject_outliers(np.asarray(result))
                         y.append(np.mean(result))
@@ -193,24 +224,27 @@ class Grapher:
                 xmin = min(xmin , min(ax[0]))
                 xmax = max(xmax , max(ax[0]))
 
+            if key in script.config['var_log']:
+                xlog=True
             #Arrange the x limits
-            var_lim = self.scriptconfig("var_lim",key,key)
-            if var_lim and var_lim is not key:
-                xmin,xmax = (float(x) for x in var_lim.split('-'))
-            else:
-                if abs(xmin) < 10 and abs(xmax) < 10:
-                    xmin -= 1
-                    xmax += 1
-                    pass
+            if not xlog:
+                var_lim = self.scriptconfig("var_lim",key,key)
+                if var_lim and var_lim is not key:
+                    xmin,xmax = (float(x) for x in var_lim.split('-'))
                 else:
-                    base = float(max(10,math.ceil((xmax - xmin) / 10)))
-                    if (xmin > 0):
-                        xmin = int(math.floor(xmin / base)) * base
-                    if (xmax > 0):
-                        xmax = int(math.ceil(xmax / base)) * base
+                    if abs(xmin) < 10 and abs(xmax) < 10:
+                        xmin -= 1
+                        xmax += 1
+                        pass
+                    else:
+                        base = float(max(10,math.ceil((xmax - xmin) / 10)))
+                        if (xmin > 0):
+                            xmin = int(math.floor(xmin / base)) * base
+                        if (xmax > 0):
+                            xmax = int(math.ceil(xmax / base)) * base
 
 
-            plt.gca().set_xlim(xmin,xmax)
+                plt.gca().set_xlim(xmin,xmax)
 
             plt.legend(loc=self.config("legend_loc"), title=legend_title)
         else:
@@ -264,8 +298,11 @@ class Grapher:
 
         if ("result" in script.config['var_log']):
             plt.yscale('log')
-        if (key in script.config['var_log']):
+
+        if xlog:
             plt.xscale('log')
+
+        print(key)
         plt.xlabel(script.config.var_name(key))
 
         if ("result" in script.config["var_names"]):
@@ -273,6 +310,14 @@ class Grapher:
 
         if (ymin >= 0 and plt.ylim()[0] < 0):
             plt.ylim(0,plt.ylim()[1])
+
+        if (ymin < ymax/5):
+            plt.ylim(ymin=0)
+
+
+        if graph_size:
+            fig = plt.gcf()
+            fig.set_size_inches(graph_size[0], graph_size[1])
 
         if title:
             plt.title(title)

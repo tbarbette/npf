@@ -199,7 +199,6 @@ class Testie:
     def _exec(testie, cmd, build):
         env = os.environ.copy()
         env["PATH"] = testie.appdir + build.repo.reponame + "/build/bin:" + env["PATH"]
-
         p = Popen(cmd,
                     stdin=PIPE, stdout=PIPE, stderr=PIPE,
                     shell=True, preexec_fn=os.setsid,
@@ -318,9 +317,9 @@ class Testie:
                 print(run.format_variables(self.config["var_hide"]))
             if not self.test_require(variables, build):
                 continue
-            if prev_results and not force_test and run in prev_results:
-                results = prev_results[run]
-                if not results:
+            if prev_results and not force_test:
+                results = prev_results.get(run,[])
+                if results is None:
                     results = []
             else:
                 results = []
