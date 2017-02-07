@@ -14,15 +14,14 @@ from email.mime.multipart import MIMEMultipart
 
 class Watcher():
     def __init__(self, repo_list:List[Tuple[Repository,List[Testie]]], mail_to: List[str], mail_from: str, interval: int,
-                 mail_always: bool, history: int, quiet:bool, force_test:bool):
+                 mail_always: bool, history: int):
         self.interval = interval
         self.repo_list = repo_list
         self.mail_to = mail_to
         self.mail_from = mail_from
         self.mail_always = mail_always
         self.history = history
-        self.quiet = quiet
-        self.force_test = force_test
+
 
     def mail(self,subject, body, images=[], bodytype='text'):
         print(subject)
@@ -81,12 +80,12 @@ class Watcher():
             body=body,
             bodytype='html', images=graphs)
 
-    def run(self):
+    def run(self,options):
         terminate = False
         while not terminate:
             for repo, testies in self.repo_list:
                 regressor = Regression(repo)
-                build,datasets = regressor.regress_all_testies(testies=testies, quiet= self.quiet, history = self.history,force_test = self.force_test)
+                build,datasets = regressor.regress_all_testies(testies=testies, options=options, history = self.history)
 
                 if (build is None):
                     continue
@@ -105,11 +104,11 @@ def main():
     parser.add_argument('--history', dest='history', metavar='N', type=int, default=0,
                         help='assume last N commits as untested (default 0)');
 
+    v = npf.add_verbosity_options(parser)
+
     t = npf.add_testing_options(parser)
 
-    parser.add_argument('--quiet', help='Quiet mode', dest='quiet', action='store_true', default=False)
-
-    a = parser.add_argument_group('Graphing options')
+    a = npf.add_graph_options(parser)
     a.add_argument('--graph-num', metavar='N', type=int, nargs='?', default=8,
                    help='Number of UUIDs to graph');
 
@@ -128,7 +127,7 @@ def main():
     repo_list = []
     for repo_name in args.repos:
         repo = Repository(repo_name)
-        tags = args.tags
+        tags = args.tags.copy()
         tags += repo.tags
 
         last_build = repo.get_last_build(history)
@@ -136,7 +135,7 @@ def main():
             print("[%s] Last tested uuid is %s" % (repo.name, last_build.uuid))
         repo.last_build = last_build
 
-        testies = Testie.expand_folder(args.testie, tags=tags, quiet=args.quiet)
+        testies = Testie.expand_folder(args.testie, tags=tags,options=args)
         repo_list.append((repo, testies))
 
     watcher = Watcher(repo_list,
@@ -144,10 +143,8 @@ def main():
                       mail_to=args.mail_to,
                       interval = args.interval,
                       mail_always = args.mail_always,
-                      history = history,
-                      quiet = args.quiet,
-                      force_test = args.force_test)
-    watcher.run()
+                      history = history)
+    watcher.run(args)
 
 
 if __name__ == "__main__":

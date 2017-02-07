@@ -310,7 +310,7 @@ class Testie:
                 return False
         return True
 
-    def execute_all(self, build, prev_results:Dataset=None, force_test:bool=False, do_test:bool=True) -> Dataset:
+    def execute_all(self, build, options, prev_results:Dataset=None) -> Dataset:
         """Execute script for all variables combinations
         :param build: A build object
         :param prev_results: Previous set of result for the same build to update or retrieve
@@ -323,7 +323,7 @@ class Testie:
                 print(run.format_variables(self.config["var_hide"]))
             if not self.test_require(variables, build):
                 continue
-            if prev_results and not force_test:
+            if prev_results and not options.force_test:
                 results = prev_results.get(run,[])
                 if results is None:
                     results = []
@@ -331,8 +331,8 @@ class Testie:
                 results = []
 
             new_results = False
-            n_runs = self.config["n_runs"] - (0 if force_test else len(results))
-            if n_runs > 0 and do_test:
+            n_runs = self.config["n_runs"] - (0 if options.force_test else len(results))
+            if n_runs > 0 and options.do_test:
                 nresults, output, err = self.execute(build, variables, n_runs, self.config["n_retry"])
                 if nresults:
                     if self.options.show_full:

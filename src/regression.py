@@ -73,7 +73,7 @@ class Regression:
                     old_all_results[run] = [0]
         return tests_passed,tests_total
 
-    def regress_all_testies(self, testies:List[Testie], quiet:bool, history:int = 0, force_test:bool = True) -> Tuple[Build,Dataset]:
+    def regress_all_testies(self, testies:List[Testie], options, history:int = 0) -> Tuple[Build,Dataset]:
         repo = self.repo
         datasets = []
 
@@ -82,7 +82,7 @@ class Regression:
             commit = next(gitrepo.iter_commits('origin/' + repo.branch))
             uuid = commit.hexsha[:7]
             if repo.last_build and uuid == repo.last_build.uuid:
-                if not quiet:
+                if not options.quiet:
                     print("[%s] No new uuid !" % (repo.name))
                 return None,None
 
@@ -113,7 +113,7 @@ class Regression:
                     old_all_results = None
             else:
                 old_all_results = None
-            all_results = testie.execute_all(build, prev_results=build.readUuid(testie),force_test=force_test)
+            all_results = testie.execute_all(build, prev_results=build.readUuid(testie),options=options)
             variables_passed, variables_total = regression.compare(testie, testie.variables, all_results, build, old_all_results,
                                                            repo.last_build)
             if variables_passed == variables_total:
