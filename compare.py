@@ -19,7 +19,7 @@ class Comparator():
             testies = Testie.expand_folder(testie_name, options=options, tags=repo.tags + tags)
             for testie in testies:
                 testie.variables.override_all(self.overriden_variables)
-                build, datasets = regressor.regress_all_testies(testies=[testie], options=options, force_test = self.force_test)
+                build, datasets = regressor.regress_all_testies(testies=[testie], options=options)
                 if not build is None:
                     build._pretty_name = repo.name
                     graphs_series.append((testie, build, datasets[0]))
@@ -55,7 +55,7 @@ def main():
     comparator = Comparator(repo_list,
                             overriden_variables = npf.parse_variables(args.variables))
 
-    series = comparator.run(testie_name=args.testie, tags=args.tags)
+    series = comparator.run(testie_name=args.testie, tags=args.tags, options=args)
 
     if series is None:
         return

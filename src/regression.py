@@ -43,7 +43,7 @@ class Regression:
                 old_result = old_all_results[run]
                 ok, diff = self.accept_diff(testie, result, old_result)
                 if not ok and testie.config["n_supplementary_runs"] > 0 and allow_supplementary:
-                    if not testie.quiet:
+                    if not testie.options.quiet:
                         print(
                             "Difference of %.2f%% is outside acceptable margin for %s. Running supplementary tests..." % (
                             diff * 100, run.format_variables()))
@@ -65,7 +65,7 @@ class Regression:
                         "ERROR: Test %s is outside acceptable margin between %s and %s : difference of %.2f%% !" % (testie.filename,build.uuid,last_build.uuid,diff * 100)  )
                 else:
                     tests_passed += 1
-                    if not testie.quiet:
+                    if not testie.options.quiet:
                         print("Acceptable difference of %.2f%% for %s" % ((diff * 100), run.format_variables()))
             elif last_build:
                 print("No old values for %s for uuid %s." % (run, last_build.uuid))
