@@ -1,0 +1,11 @@
+%info
+IPerf test
+
+Compute the speed between two iperf local instances
+
+%script
+iperf -s
+
+%script
+iperf -c localhost
+killall iperf
