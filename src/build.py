@@ -32,7 +32,6 @@ class Build:
         self.n_passed = 0
         self.repo = repo
         self.uuid = uuid
-        self.path = self.repo.reponame + "/build/"
         self._pretty_name = None
 
     def pretty_name(self):

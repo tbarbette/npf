@@ -162,7 +162,10 @@ class SectionVariable(Section):
             self.override(k,v)
 
     def override(self, var, val):
-        self.vlist[var] = SimpleVariable(var,val)
+        if isinstance(val, Variable) :
+            self.vlist[var] = val
+        else:
+            self.vlist[var] = SimpleVariable(var,val)
 
     def parse_variable(self, line, tags):
         try:

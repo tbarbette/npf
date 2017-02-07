@@ -8,13 +8,12 @@ from src.statistics import Statistics
 
 def main():
     parser = argparse.ArgumentParser(description='NPF Regression test')
-    v = parser.add_argument_group('Verbosity options')
-    v.add_argument('--show-full', help='Show full execution results', dest='show_full', action='store_true',
-                   default=False)
-    v.add_argument('--quiet', help='Quiet mode', dest='quiet', action='store_true', default=False)
+    v = npf.add_verbosity_options(parser)
 
     b = parser.add_argument_group('Click building options')
     bf = b.add_mutually_exclusive_group()
+    bf.add_argument('--build-folder',
+                    help='Overwrite build folder to use a local version of the program',dest='build_folder',default=None)
     bf.add_argument('--no-build',
                     help='Do not build the last master', dest='no_build', action='store_true', default=False)
     bf.add_argument('--force-build',
@@ -85,6 +84,12 @@ def main():
     tags = args.tags
     tags += repo.tags
 
+
+    #Overwrite config if a build folder is given
+    if args.build_folder:
+        repo.url = None
+        repo._build_path = args.build_folder + '/'
+
     #If there is no URL, it is a false repo, like IPTables test with no buiilding
     if repo.url:
         gitrepo = repo.checkout(args.branch)
@@ -103,8 +108,6 @@ def main():
                 uuids.append(short)
         else:
             uuids.append(repo.reponame)
-
-    clickpath = repo.reponame + "/build"
 
     # Builds of the regression uuids
     builds = []
@@ -154,7 +157,7 @@ def main():
                 if len(graph_builds) > args.graph_num:
                     break
 
-    testies = Testie.expand_folder(testie_path=args.testie, quiet=args.quiet, tags=tags, show_full=args.show_full)
+    testies = Testie.expand_folder(testie_path=args.testie, options=args, tags=tags)
 
     overriden_variables = npf.parse_variables(args.variables)
     for testie in testies:
@@ -178,11 +181,11 @@ def main():
 
         if args.force_build:
             need_rebuild = True
-        if not os.path.exists(clickpath + '/bin/click'):
+        if not os.path.exists(repo.get_bin_path()):
             need_rebuild = True
             if args.no_build:
                 print(
-                    "%s does not exist but --no-build provided. Cannot continue without Click !" % clickpath + '/bin/click')
+                    "%s does not exist but --no-build provided. Cannot continue without Click !" % repo.get_bin_path())
                 return 1
         if args.no_build:
             if need_rebuild:

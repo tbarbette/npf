@@ -7,21 +7,19 @@ from pathlib import Path
 
 
 class Comparator():
-    def __init__(self, repo_list: List[Repository], quiet: bool, force_test:bool, overriden_variables:Dict = {}):
+    def __init__(self, repo_list: List[Repository], overriden_variables:Dict = {}):
         self.repo_list = repo_list
-        self.quiet = quiet
-        self.force_test = force_test
         self.overriden_variables = overriden_variables
 
-    def run(self, testie_name, tags):
+    def run(self, testie_name, options, tags):
         graphs_series = []
         for repo in self.repo_list:
             regressor = Regression(repo)
             print("Tag list : ",repo.tags, tags)
-            testies = Testie.expand_folder(testie_name, quiet=self.quiet, tags=repo.tags + tags)
+            testies = Testie.expand_folder(testie_name, options=options, tags=repo.tags + tags)
             for testie in testies:
                 testie.variables.override_all(self.overriden_variables)
-                build, datasets = regressor.regress_all_testies(testies=[testie], quiet=self.quiet, force_test = self.force_test)
+                build, datasets = regressor.regress_all_testies(testies=[testie], options=options, force_test = self.force_test)
                 if not build is None:
                     build._pretty_name = repo.name
                     graphs_series.append((testie, build, datasets[0]))
@@ -35,8 +33,10 @@ class Comparator():
 
 def main():
     parser = argparse.ArgumentParser(description='NPF cross-repository comparator')
+
+    npf.add_verbosity_options(parser)
+
     parser.add_argument('repos', metavar='repo', type=str, nargs='+', help='names of the repositories to watch');
-    parser.add_argument('--quiet', help='Quiet mode', dest='quiet', action='store_true', default=False)
     parser.add_argument('--output', metavar='filename', type=str, nargs=1, default=None,
                         help='path to the file to output the graph');
 
@@ -53,8 +53,6 @@ def main():
         print(repo.tags)
 
     comparator = Comparator(repo_list,
-                            quiet=args.quiet,
-                            force_test=args.force_test,
                             overriden_variables = npf.parse_variables(args.variables))
 
     series = comparator.run(testie_name=args.testie, tags=args.tags)

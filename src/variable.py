@@ -47,7 +47,7 @@ def dtype(v):
 
 class VariableFactory:
     @staticmethod
-    def build(name, valuedata, vsection):
+    def build(name, valuedata, vsection = None):
         result = re.match("\[(-?[0-9]+)([+-]|[*])(-?[0-9]+)\]", valuedata)
         if result:
             return RangeVariable(name, int(result.group(1)), int(result.group(3)), result.group(2) == "*")
@@ -64,7 +64,7 @@ class VariableFactory:
             return ExpandVariable(name, result.group(1), vsection)
 
         result = regex.match("PRODUCT[ ]*\([ ]*\$([^,]+)[ ]*,[ ]*\$([^,]+)[ ]*\)", valuedata)
-        if result:
+        if result and vsection:
             return ProductVariable(name, vsection.vlist[result.group(1)].makeValues(),
                                    vsection.vlist[result.group(2)].makeValues())
 
@@ -73,7 +73,10 @@ class VariableFactory:
 
 # raise Exception("Unkown variable type : " + valuedata)
 
-class ProductVariable:
+class Variable:
+    pass
+
+class ProductVariable(Variable):
     def __init__(self, name, nums, values):
         self.values = values
         self.nums = nums
@@ -95,7 +98,7 @@ class ProductVariable:
         return False
 
 
-class ExpandVariable:
+class ExpandVariable(Variable):
     def __init__(self, name, value, vsection):
         self.values = vsection.replace_all(value)
 
@@ -112,7 +115,7 @@ class ExpandVariable:
         return False
 
 
-class SimpleVariable:
+class SimpleVariable(Variable):
     def __init__(self, name, value):
         self.value = get_numeric(value)
 
@@ -129,7 +132,7 @@ class SimpleVariable:
         return self.format() != str
 
 
-class ListVariable:
+class ListVariable(Variable):
     def __init__(self, name, l):
         all_num = True
         for x in l:
@@ -167,7 +170,7 @@ class ListVariable:
         return self.all_num
 
 
-class DictVariable:
+class DictVariable(Variable):
     def __init__(self, name, data):
         self.vdict = {}
         for g in data:
@@ -188,7 +191,7 @@ class DictVariable:
         return dtype(v) != str
 
 
-class RangeVariable:
+class RangeVariable(Variable):
     def __init__(self, name, valuestart, valueend, log):
         if (valuestart > valueend):
             self.a = valueend

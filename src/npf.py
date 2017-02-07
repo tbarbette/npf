@@ -1,11 +1,29 @@
 from argparse import ArgumentParser
 
+from .variable import VariableFactory,Variable
+
 from typing import Dict
+
+
+def add_verbosity_options(parser: ArgumentParser):
+    v = parser.add_argument_group('Verbosity options')
+    v.add_argument( '--show-full', help='Show full execution results',
+                    dest='show_full', action='store_true',
+                    default=False)
+
+    v.add_argument( '--show-cmd', help='Show the executed script',
+                    dest='show_cmd', action='store_true',
+                    default=False)
+
+    v.add_argument('--quiet', help='Quiet mode', dest='quiet', action='store_true', default=False)
+    return v
+
 
 def add_graph_options(parser: ArgumentParser):
     g = parser.add_argument_group('Graph options')
     g.add_argument('--graph-size', metavar='INCH', type=int, nargs=2, default=[],
                    help='Size of graph', dest="graph_size");
+    return g
 
 def add_testing_options(parser: ArgumentParser, regression : bool = False):
     t = parser.add_argument_group('Testing options')
@@ -36,5 +54,5 @@ def parse_variables(args_variables) -> Dict:
     variables = {}
     for variable in args_variables:
         var, val = variable.split('=',1)
-        variables[var] = val
+        variables[var] = VariableFactory.build(var,val)
     return variables

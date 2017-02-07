@@ -99,14 +99,12 @@ class Testie:
         ipaddr =  '.'.join(map(lambda x: "%d" % x, ip))
         return macaddr,ipaddr
 
-    def __init__(self, testie_path, quiet=False, show_full=False, tags=[]):
+    def __init__(self, testie_path, options, tags=[]):
         self.sections = []
         self.files = []
         self.scripts = []
         self.filename = os.path.basename(testie_path)
-        self.quiet = quiet
-        self.show_full = show_full
-        self.appdir = os.path.dirname(os.path.abspath(sys.argv[0])) + "/"
+        self.options = options
         self.tags = tags
         self.network = {}
 
@@ -148,6 +146,11 @@ class Testie:
             self.require = SectionRequire()
             self.sections.append(self.require)
 
+        if not hasattr(self, "config"):
+            self.config = SectionConfig()
+            self.sections.append(self.config)
+
+
         for section in self.sections:
             section.finish(self)
 
@@ -181,7 +184,7 @@ class Testie:
             p = self._replace_all(v, self.require.content)
             pid,output,err,returncode = self._exec(self, p, build)
             if returncode != 0:
-                if not self.quiet:
+                if not self.options.quiet:
                     print("Requirement not met :")
                     print(output)
                     print(err)
@@ -198,7 +201,10 @@ class Testie:
     @staticmethod
     def _exec(testie, cmd, build):
         env = os.environ.copy()
-        env["PATH"] = testie.appdir + build.repo.reponame + "/build/bin:" + env["PATH"]
+        env["PATH"] = build.repo.get_bin_folder() + ":" + env["PATH"]
+        if testie.options.show_cmd:
+            print("Executing (PATH=%s) :\n%s" % (env['PATH'],cmd))
+
         p = Popen(cmd,
                     stdin=PIPE, stdout=PIPE, stderr=PIPE,
                     shell=True, preexec_fn=os.setsid,
@@ -313,7 +319,7 @@ class Testie:
         all_results = {}
         for variables in self.variables:
             run = Run(variables)
-            if not self.quiet:
+            if not self.options.quiet:
                 print(run.format_variables(self.config["var_hide"]))
             if not self.test_require(variables, build):
                 continue
@@ -329,7 +335,7 @@ class Testie:
             if n_runs > 0 and do_test:
                 nresults, output, err = self.execute(build, variables, n_runs, self.config["n_retry"])
                 if nresults:
-                    if self.show_full:
+                    if self.options.show_full:
                         print("stdout:")
                         print(output)
                         print("stderr:")
@@ -337,7 +343,7 @@ class Testie:
                     results += nresults
                     new_results = True
             if results:
-                if not self.quiet:
+                if not self.options.quiet:
                     print(results)
                 all_results[run] = results
             else:
@@ -369,23 +375,23 @@ class Testie:
         data = data[abs(data - mean) <= m * std]
         return data
 
-    def expand_folder(testie_path, quiet:bool, tags=[], show_full=False) -> List:
+    def expand_folder(testie_path, options, tags=[]) -> List:
         testies = []
         if os.path.isfile(testie_path):
-            testie = Testie(testie_path, quiet=quiet, show_full=show_full, tags=tags)
+            testie = Testie(testie_path, options=options, tags=tags)
             testies.append(testie)
         else:
             for root, dirs, files in os.walk(testie_path):
                 for file in files:
                     if file.endswith(".testie"):
-                        testie = Testie(os.path.join(root, file), quiet=quiet, show_full=show_full, tags=tags)
+                        testie = Testie(os.path.join(root, file), options=options, tags=tags)
                         testies.append(testie)
 
         for testie in testies:
             missing_tags = testie.test_tags()
             if len(missing_tags) > 0:
                 testies.remove(testie)
-                if not quiet:
+                if not options.quiet:
                     print(
                         "Passing testie %s as it lacks tags %s" % (testie.filename, ','.join(missing_tags)))
                 continue

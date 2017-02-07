@@ -4,12 +4,15 @@ from .variable import is_numeric
 
 import git
 
-repo_variables=['name','branch','configure','url','parent','tags','make']
+repo_variables=['name','branch','configure','url','parent','tags','make','bin_folder','bin_name']
 class Repository:
     configure = '--disable-linuxmodule'
     branch = 'master'
     make = 'make -j12'
     make_clean = 'make clean'
+    bin_folder = 'bin'
+    bin_name = 'click'
+
     __gitrepo = None
 
     def __init__(self, repo):
@@ -52,6 +55,17 @@ class Repository:
                 setattr(self,var,getattr(self,var) + " " +val)
             else:
                 setattr(self,var,val)
+        self._build_path = os.path.dirname(os.path.abspath(sys.argv[0])) + '/' + self.reponame + '/build/'
+
+
+    def get_build_path(self):
+        return self._build_path
+
+    def get_bin_folder(self):
+        return self.get_build_path() + self.bin_folder + '/'
+
+    def get_bin_path(self):
+        return self.get_bin_folder() + self.bin_name
 
     def checkout(self, branch=None) -> git.Repo:
         """
@@ -63,17 +77,15 @@ class Repository:
         if not os.path.exists(repo.reponame):
             os.mkdir(repo.reponame)
 
-        clickpath = repo.reponame + "/build"
-
         if not branch is None:
             self.branch = branch
 
-        if os.path.exists(clickpath):
-            gitrepo = git.Repo(clickpath)
+        if os.path.exists(self.get_build_path()):
+            gitrepo = git.Repo(self.get_build_path())
             o = gitrepo.remotes.origin
             o.fetch()
         else:
-            gitrepo = git.Repo.clone_from(repo.url, clickpath)
+            gitrepo = git.Repo.clone_from(repo.url, self.get_build_path())
         self.__gitrepo = gitrepo
         return gitrepo
 
