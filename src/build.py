@@ -27,18 +27,18 @@ def mapped_load_global(self):
 
 
 class Build:
-    def __init__(self, repo, uuid):
+    def __init__(self, repo, version):
         self.n_tests = 0
         self.n_passed = 0
         self.repo = repo
-        self.uuid = uuid
+        self.version = version
         self._pretty_name = None
 
     def pretty_name(self):
         if self._pretty_name:
             return self._pretty_name
         else:
-            return self.uuid
+            return self.version
 
     def __read_file(self, fp):
         try:
@@ -49,7 +49,7 @@ class Build:
         return data.strip()
 
     def result_path(self, testie, type,suffix=''):
-        return self.repo.reponame + '/results/' + self.uuid + '/' + os.path.splitext(testie.filename)[
+        return self.repo.reponame + '/results/' + self.version + '/' + os.path.splitext(testie.filename)[
             0] + suffix + '.' + type
 
     @staticmethod
@@ -62,25 +62,25 @@ class Build:
         if not self.repo.url:
             return False
         gitrepo = git.Repo(self.click_path())
-        if gitrepo.head.commit.hexsha[:7] != self.uuid:
+        if gitrepo.head.commit.hexsha[:7] != self.version:
             return True
-        if os.path.exists(self.click_path() + '/bin/click') and (self.__read_file(self.click_path() + '/.current_build') == self.uuid):
+        if os.path.exists(self.click_path() + '/bin/click') and (self.__read_file(self.click_path() + '/.current_build') == self.version):
             return False
         else:
             return True
 
     def build_if_needed(self):
         gitrepo = git.Repo(self.click_path())
-        if gitrepo.head.commit.hexsha[:7] != self.uuid:
+        if gitrepo.head.commit.hexsha[:7] != self.version:
             self.build()
         if not os.path.exists(self.click_path() + '/bin/click') or \
-                not (self.__read_file(self.click_path() + '/.current_build') == self.uuid):
+                not (self.__read_file(self.click_path() + '/.current_build') == self.version):
             return self.compile()
         return True
 
     def compile(self):
         """
-        Compile the currently checked out repo, assuming it is currently at self.uuid
+        Compile the currently checked out repo, assuming it is currently at self.version
         :return: True upon success, False if not
         """
         if not self.repo.url:
@@ -88,9 +88,9 @@ class Build:
         pwd = os.getcwd()
         os.chdir(self.click_path())
 
-        for what,command in [("Configuring %s..." % self.uuid,'./configure ' + self.repo.configure),
-                             ("Cleaning %s..." % self.uuid,self.repo.make_clean),
-                             ("Building %s..." % self.uuid,self.repo.make)]:
+        for what,command in [("Configuring %s..." % self.version,'./configure ' + self.repo.configure),
+                             ("Cleaning %s..." % self.version,self.repo.make_clean),
+                             ("Building %s..." % self.version,self.repo.make)]:
             print(what)
             p = subprocess.Popen(command, shell=True, stdin=PIPE, stdout=PIPE, stderr=PIPE)
             output, err = [x.decode() for x in p.communicate()]
@@ -106,19 +106,19 @@ class Build:
                 return False
 
         os.chdir(pwd)
-        self.__write_file(self.click_path() + '/.current_build', self.uuid)
+        self.__write_file(self.click_path() + '/.current_build', self.version)
         return True
 
     def __repr__(self):
-        return "Build(repo=" + str(self.repo) + ", uuid=" + self.uuid + ")"
+        return "Build(repo=" + str(self.repo) + ", version=" + self.version + ")"
 
     def __resultFilename(self, script=None):
         if script:
-            return self.repo.reponame + '/results/' + self.uuid + '/' + script.filename + ".results";
+            return self.repo.reponame + '/results/' + self.version + '/' + script.filename + ".results";
         else:
-            return self.repo.reponame + '/results/' + self.uuid + '.results';
+            return self.repo.reponame + '/results/' + self.version + '.results';
 
-    def writeUuid(self, script, all_results):
+    def writeversion(self, script, all_results):
         filename = self.__resultFilename(script)
         try:
             if not os.path.exists(os.path.dirname(filename)):
@@ -142,7 +142,7 @@ class Build:
             f.write(','.join(v) + "=" + ','.join(str_results) + "\n")
         f.close()
 
-    def readUuid(self, testie: Testie):
+    def readversion(self, testie: Testie):
         filename = self.__resultFilename(testie)
         if not Path(filename).exists():
             return None
@@ -181,7 +181,7 @@ class Build:
         if not self.repo.url:
             return True
         gitrepo = git.Repo(self.click_path())
-        ref = gitrepo.commit(self.uuid)
+        ref = gitrepo.commit(self.version)
         gitrepo.git.checkout(ref, force=True)
         self.__write_file(self.click_path() + '/.current_build', '')
         return True

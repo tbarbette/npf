@@ -32,7 +32,7 @@ def add_testing_options(parser: ArgumentParser, regression : bool = False):
                     help='Do not run any tests, use previous results', dest='do_test', action='store_false',
                     default=True)
     tf.add_argument('--force-test',
-                    help='Force re-doing all tests even if data for the given uuid and '
+                    help='Force re-doing all tests even if data for the given version and '
                          'variables is already known', dest='force_test', action='store_true',
                     default=False)
     t.add_argument('--n_runs', help='Override test n_runs', type=int, nargs='?', metavar='N', default=-1)

@@ -62,13 +62,13 @@ class Regression:
 
                 if not ok:
                     print(
-                        "ERROR: Test %s is outside acceptable margin between %s and %s : difference of %.2f%% !" % (testie.filename,build.uuid,last_build.uuid,diff * 100)  )
+                        "ERROR: Test %s is outside acceptable margin between %s and %s : difference of %.2f%% !" % (testie.filename,build.version,last_build.version,diff * 100)  )
                 else:
                     tests_passed += 1
                     if not testie.options.quiet:
                         print("Acceptable difference of %.2f%% for %s" % ((diff * 100), run.format_variables()))
             elif last_build:
-                print("No old values for %s for uuid %s." % (run, last_build.uuid))
+                print("No old values for %s for version %s." % (run, last_build.version))
                 if (old_all_results):
                     old_all_results[run] = [0]
         return tests_passed,tests_total
@@ -80,22 +80,22 @@ class Regression:
         if repo.url:
             gitrepo = repo.gitrepo()
             commit = next(gitrepo.iter_commits('origin/' + repo.branch))
-            uuid = commit.hexsha[:7]
-            if repo.last_build and uuid == repo.last_build.uuid:
+            version = commit.hexsha[:7]
+            if repo.last_build and version == repo.last_build.version:
                 if not options.quiet:
-                    print("[%s] No new uuid !" % (repo.name))
+                    print("[%s] No new version !" % (repo.name))
                 return None,None
 
             if (history > 0 and repo.last_build):
                 build = repo.last_build_before(repo.last_build)
             else:
-                build = Build(repo, uuid)
+                build = Build(repo, version)
 
             if repo.last_build:
-                print("[%s] New uuid %s !" % (repo.name, build.uuid))
+                print("[%s] New version %s !" % (repo.name, build.version))
 
             if not build.build_if_needed():
-                if (build.uuid != uuid):
+                if (build.version != version):
                     repo.last_build = build
                 return None,None
         else:
@@ -108,17 +108,17 @@ class Regression:
             regression = self
             if repo.last_build:
                 try:
-                    old_all_results = repo.last_build.readUuid(testie)
+                    old_all_results = repo.last_build.readversion(testie)
                 except FileNotFoundError:
                     old_all_results = None
             else:
                 old_all_results = None
-            all_results = testie.execute_all(build, prev_results=build.readUuid(testie),options=options,do_test=True)
+            all_results = testie.execute_all(build, prev_results=build.readversion(testie),options=options,do_test=True)
             variables_passed, variables_total = regression.compare(testie, testie.variables, all_results, build, old_all_results,
                                                            repo.last_build)
             if variables_passed == variables_total:
                 nok += 1
-            build.writeUuid(testie, all_results)
+            build.writeversion(testie, all_results)
             datasets.append(all_results)
             testie.n_variables_passed = variables_passed
             testie.n_variables = variables_total

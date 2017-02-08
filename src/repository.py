@@ -100,12 +100,12 @@ class Repository:
         origin = self.gitrepo().remotes.origin
         origin.fetch()
         for i, commit in enumerate(self.gitrepo().iter_commits('origin/' + self.branch)):
-            uuid = commit.hexsha[:7]
-            if stop_at and uuid == stop_at.uuid:
+            version = commit.hexsha[:7]
+            if stop_at and version == stop_at.version:
                 if i == 0:
                     return None
                 break
-            last_build = Build(self, uuid)
+            last_build = Build(self, version)
             if last_build.hasResults():
                 if history == 0:
                     break
@@ -121,14 +121,14 @@ class Repository:
 
     def get_old_results(self, last_graph:Build, num_old:int, testie:Testie):
         graphs_series = []
-        parents = self.gitrepo().iter_commits(last_graph.uuid)
+        parents = self.gitrepo().iter_commits(last_graph.version)
         next(parents)  # The first commit is last_graph itself
 
         for i, commit in enumerate(parents):  # Get old results for graph
             g_build = Build(self, commit.hexsha[:7])
             if not g_build.hasResults(testie):
                 continue
-            g_all_results = g_build.readUuid(testie)
+            g_all_results = g_build.readversion(testie)
             graphs_series.append((testie, g_build, g_all_results))
             if (i > 100 or len(graphs_series) == num_old):
                 break

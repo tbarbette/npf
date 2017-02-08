@@ -360,9 +360,9 @@ class Testie:
             if all_results and new_results:
                 if prev_results:
                     prev_results[run] = all_results[run]
-                    build.writeUuid(self, prev_results)
+                    build.writeversion(self, prev_results)
                 else:
-                    build.writeUuid(self, all_results)
+                    build.writeversion(self, all_results)
 
         return all_results
 

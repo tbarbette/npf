@@ -17,15 +17,15 @@ def main():
     bf.add_argument('--no-build',
                     help='Do not build the last master', dest='no_build', action='store_true', default=False)
     bf.add_argument('--force-build',
-                    help='Force to rebuild Click even if the git current uuid is matching the regression uuids '
-                         '(see --uuid or --history).', dest='force_build',
+                    help='Force to rebuild Click even if the git current version is matching the regression versions '
+                         '(see --version or --history).', dest='force_build',
                     action='store_true', default=False)
     b.add_argument('--allow-old-build',
-                   help='Re-build and run test for old UUIDs (compare-uuid and graph-uuid) without results. '
-                        'By default, only building for the regression uuids (see --history or --uuid) is done',
+                   help='Re-build and run test for old versions (compare-version and graph-version) without results. '
+                        'By default, only building for the regression versions (see --history or --version) is done',
                    dest='allow_oldbuild', action='store_true', default=False)
     b.add_argument('--force-old-build',
-                   help='Force to rebuild the old uuids. Ignored if allow-old-build is not set', dest='force_oldbuild',
+                   help='Force to rebuild the old versions. Ignored if allow-old-build is not set', dest='force_oldbuild',
                    action='store_true', default=False)
 
     t = npf.add_testing_options(parser, True)
@@ -40,15 +40,15 @@ def main():
                          'commits up to now. Difference with --allow-old-build is that the regression test '
                          'will be done for each commit instead of just graphing the results, so error message and'
                          'return code will concern any regression between HEAD and HEAD~N. '
-                         'Ignored if --uuid is given.',
+                         'Ignored if --version is given.',
                     dest='history', metavar='N',
                     nargs='?', type=int, default=1)
-    gf.add_argument('--uuid', metavar='uuid', type=str, nargs='*',
-                    help='Uuid to checkout and test. Default is master''s HEAD uuid and its N "--redo-history" firsts parents.');
+    gf.add_argument('--version', metavar='version', type=str, nargs='*',
+                    help='version to checkout and test. Default is master''s HEAD version and its N "--redo-history" firsts parents.');
     g.add_argument('--branch', help='Branch', type=str, nargs='?', default=None)
 
-    g.add_argument('--compare-uuid', dest='compare_uuid', metavar='uuid', type=str, nargs='?',
-                   help='A uuid to compare against the last uuid. Default is the first parent of the last uuid containing some results.');
+    g.add_argument('--compare-version', dest='compare_version', metavar='version', type=str, nargs='?',
+                   help='A version to compare against the last version. Default is the first parent of the last version containing some results.');
     g.add_argument('--no-compare',
                     help='Do not run regression comparison, just do the tests', dest='compare', action='store_false',
                     default=True)
@@ -62,10 +62,10 @@ def main():
 
     a = parser.add_argument_group('Graphing options')
     af = a.add_mutually_exclusive_group()
-    af.add_argument('--graph-uuid', metavar='uuid', type=str, nargs='*',
-                    help='Uuids to simply graph');
+    af.add_argument('--graph-version', metavar='version', type=str, nargs='*',
+                    help='versions to simply graph');
     af.add_argument('--graph-num', metavar='N', type=int, nargs='?', default=8,
-                    help='Number of olds UUIDs to graph after --compare-uuid, unused if --graph-uuid is given');
+                    help='Number of olds versions to graph after --compare-version, unused if --graph-version is given');
     a.add_argument('--graph-allvariables', help='Graph only the latest variables (usefull when you restrict variables '
                                                 'with tags)', dest='graph_newonly', action='store_true', default=False)
     a.add_argument('--graph-serie', dest='graph_serie', metavar='variable', type=str, nargs=1, default=[None],
@@ -97,33 +97,33 @@ def main():
         gitrepo = None
         args.compare = False
 
-    if args.uuid:
-        uuids = args.uuid
+    if args.version:
+        versions = args.version
     else:
-        uuids = []
+        versions = []
         if gitrepo:
             for i, commit in enumerate(gitrepo.iter_commits('origin/' + repo.branch)):
                 if i >= args.history: break
                 short = commit.hexsha[:7]
-                uuids.append(short)
+                versions.append(short)
         else:
-            uuids.append(repo.reponame)
+            versions.append(repo.reponame)
 
-    # Builds of the regression uuids
+    # Builds of the regression versions
     builds = []
-    for short in uuids:
+    for short in versions:
         builds.append(Build(repo, short))
-        compare_uuid = short
+        compare_version = short
 
     last_rebuilds = []
 
     last_build = None
     if args.compare:
-        if args.compare_uuid and len(args.compare_uuid):
-            compare_uuid = args.compare_uuid
-            last_build = Build(repo, compare_uuid)
+        if args.compare_version and len(args.compare_version):
+            compare_version = args.compare_version
+            last_build = Build(repo, compare_version)
         elif args.history <= 1:
-            for i, commit in enumerate(next(gitrepo.iter_commits(compare_uuid)).iter_parents()):
+            for i, commit in enumerate(next(gitrepo.iter_commits(compare_version)).iter_parents()):
                 last_build = Build(repo, commit.hexsha[:7])
                 if last_build.hasResults():
                     break
@@ -134,15 +134,15 @@ def main():
                     last_build = None
                     break
             if last_build:
-                print("Comparaison UUID is %s" % last_build.uuid)
+                print("Comparaison version is %s" % last_build.version)
 
     graph_builds = []
-    if args.graph_uuid and len(args.graph_uuid) > 0:
-        for g in args.graph_uuid:
+    if args.graph_version and len(args.graph_version) > 0:
+        for g in args.graph_version:
             graph_builds.append(Build(repo, g))
     else:
         if last_build and args.graph_num > 0:
-            for commit in gitrepo.commit(last_build.uuid).iter_parents():
+            for commit in gitrepo.commit(last_build.version).iter_parents():
                 g_build = Build(repo, commit.hexsha[:7])
                 if g_build in builds or g_build == last_build:
                     continue
@@ -164,18 +164,18 @@ def main():
         testie.variables.override_all(overriden_variables)
 
     for b in last_rebuilds:
-        print("Last UUID %s had no result. Re-executing tests for it." % b.uuid)
+        print("Last version %s had no result. Re-executing tests for it." % b.version)
         b.build_if_needed()
         for testie in testies:
             print("Executing testie %s" % testie.filename)
             all_results = testie.execute_all(b)
-            b.writeUuid(testie, all_results)
+            b.writeversion(testie, all_results)
         b.writeResults()
 
     returncode = 0
 
     for build in reversed(builds):
-        print("Starting regression test for %s" % build.uuid)
+        print("Starting regression test for %s" % build.version)
         do_test = args.do_test
         need_rebuild = build.is_build_needed()
 
@@ -210,13 +210,13 @@ def main():
             old_all_results = None
             if last_build:
                 try:
-                    old_all_results = last_build.readUuid(testie)
+                    old_all_results = last_build.readversion(testie)
                 except FileNotFoundError:
-                    print("Previous build %s could not be found, we will not compare !" % last_build.uuid)
+                    print("Previous build %s could not be found, we will not compare !" % last_build.version)
                     last_build = None
 
             try:
-                prev_results = build.readUuid(testie)
+                prev_results = build.readversion(testie)
             except FileNotFoundError:
                 prev_results = None
 
@@ -264,10 +264,10 @@ def main():
 
             for g_build in graph_builds:
                 try:
-                    g_all_results = g_build.readUuid(testie)
+                    g_all_results = g_build.readversion(testie)
                     g_series.append((testie, g_build, g_all_results))
                 except FileNotFoundError:
-                    print("Previous build %s could not be found, we will not graph it !" % g_build.uuid)
+                    print("Previous build %s could not be found, we will not graph it !" % g_build.version)
 
             grapher.graph(series=[(testie, build, all_results)] + g_series, title=testie.get_title(),
                           filename=graphname,
@@ -277,7 +277,7 @@ def main():
             graph_builds = [last_build] + graph_builds
         last_build = build
         if args.compare:
-            print("[%s] Finished run for %s, %d/%d tests passed" % (repo.name, build.uuid, nok, ntests))
+            print("[%s] Finished run for %s, %d/%d tests passed" % (repo.name, build.version, nok, ntests))
 
     sys.exit(returncode)
 

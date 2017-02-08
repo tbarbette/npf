@@ -48,14 +48,14 @@ class Watcher():
     def mail_results(self, repo: Repository, build: Build, testies: List[Testie], datasets: List[Dataset],
                      graph_num: int = 0):
         body = '<html>'
-        body += 'Detailed results for %s :<br />' % build.uuid
+        body += 'Detailed results for %s :<br />' % build.version
 
         if not build.build_if_needed():
-            self.mail(subject="[%s] Could not compile %s !" % (repo.name, build.uuid), body='')
+            self.mail(subject="[%s] Could not compile %s !" % (repo.name, build.version), body='')
 
         graphs = []
         for testie,all_results in zip(testies,datasets):
-            body += '<b>%s</b> :' % build.uuid
+            body += '<b>%s</b> :' % build.version
             if testie.n_variables_passed == testie.n_variables:
                 body += '<span style="color:green;">PASSED</span><br />'
             else:
@@ -76,7 +76,7 @@ class Watcher():
 
         self.mail(
             subject="[%s] Finished run for %s, %d/%d tests passed" % (
-            repo.name, build.uuid, build.n_passed, build.n_tests),
+            repo.name, build.version, build.n_passed, build.n_tests),
             body=body,
             bodytype='html', images=graphs)
 
@@ -110,7 +110,7 @@ def main():
 
     a = npf.add_graph_options(parser)
     a.add_argument('--graph-num', metavar='N', type=int, nargs='?', default=8,
-                   help='Number of UUIDs to graph');
+                   help='Number of versions to graph');
 
     m = parser.add_argument_group('Mail options')
     m.add_argument('--mail-to', metavar='email', type=str, nargs='+', help='list of e-mails for report',
@@ -132,7 +132,7 @@ def main():
 
         last_build = repo.get_last_build(history)
         if last_build is not None:
-            print("[%s] Last tested uuid is %s" % (repo.name, last_build.uuid))
+            print("[%s] Last tested version is %s" % (repo.name, last_build.version))
         repo.last_build = last_build
 
         testies = Testie.expand_folder(args.testie, tags=tags,options=args)

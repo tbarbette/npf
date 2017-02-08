@@ -63,7 +63,7 @@ class Grapher:
         result is the output of a script.execute_all()"""
         vars_values = {}
         vars_all = set()
-        uuids=[]
+        versions=[]
 
         if graph_variables:
             for i, gv in enumerate(graph_variables):
@@ -74,7 +74,7 @@ class Grapher:
         ymin,ymax=(float('inf'),0)
         #Data transformation
         for i,(script,build,all_results) in enumerate(series):
-            uuids.append(build.pretty_name())
+            versions.append(build.pretty_name())
             self.scripts.add(script)
             for run,results in all_results.items():
                 if results:
@@ -118,7 +118,7 @@ class Grapher:
             dyns.remove(key)
             ndyn-=1
             series=[]
-            uuids=[]
+            versions=[]
             values = list(vars_values[key])
             values.sort()
             new_varsall = set()
@@ -136,13 +136,13 @@ class Grapher:
                 series.append((script,build,newserie))
                 if type(value) is tuple:
                     value=value[1]
-                uuids.append(value)
+                versions.append(value)
                 legend_title=self.var_name(key)
             nseries=len(series)
             vars_all = list(new_varsall)
             vars_all.sort()
         else:
-            key="uuid"
+            key="version"
             legend_title=None
 
         del vars_values #May not be good anymore
@@ -178,7 +178,7 @@ class Grapher:
 
 
         if ndyn == 0:
-            """No dynamic variables : do a barplot X=uuid"""
+            """No dynamic variables : do a barplot X=version"""
             data=[]
             for a in [all_results for script,build,all_results in series]:
                 v = list(a.values())[0]
@@ -188,10 +188,10 @@ class Grapher:
                     data.append(np.nan)
 
             i=0
-            plt.bar(np.arange(len(uuids)) + interbar,data,label=uuids[i],color=graphcolor[i % len(graphcolor)],width=1-(2*interbar))
-            plt.xticks(np.arange(len(uuids)) + 0.5,uuids, rotation='vertical' if (len(uuids) > 10) else 'horizontal')
+            plt.bar(np.arange(len(versions)) + interbar,data,label=versions[i],color=graphcolor[i % len(graphcolor)],width=1-(2*interbar))
+            plt.xticks(np.arange(len(versions)) + 0.5,versions, rotation='vertical' if (len(versions) > 10) else 'horizontal')
         elif ndyn==1 and len(series[0][2]) > 2:
-            """One dynamic variable used as X, series are uuid line plots"""
+            """One dynamic variable used as X, series are version line plots"""
             key = dyns[0]
 
             xmin,xmax = (float('inf'),0)
@@ -218,7 +218,7 @@ class Grapher:
 
             for i,ax in enumerate(data):
                 c = graphcolor[i % len(graphcolor)]
-                plt.plot(ax[0],ax[1],label=uuids[i],color=c)
+                plt.plot(ax[0],ax[1],label=versions[i],color=c)
                 plt.errorbar(ax[0],ax[1],yerr=ax[2], fmt='o',label=None,color=c)
                 xmin = min(xmin , min(ax[0]))
                 xmax = max(xmax , max(ax[0]))
@@ -247,7 +247,7 @@ class Grapher:
 
             plt.legend(loc=self.config("legend_loc"), title=legend_title)
         else:
-            """Barplot. X is all seen variables combination, series are UUID"""
+            """Barplot. X is all seen variables combination, series are version"""
             data=[]
             for all_results in [all_results for script,build,all_results in series]:
                 y=[]
@@ -264,12 +264,12 @@ class Grapher:
                         e.append(np.nan)
                 data.append((y,e))
 
-            width = (1-(2*interbar)) / len(uuids)
+            width = (1-(2*interbar)) / len(versions)
             ind = np.arange(len(vars_all))
 
             for i,serie in enumerate(data):
                 plt.bar(interbar + ind + (i * width),serie[0],width,
-                        label=str(uuids[i]),color=graphcolor[i % len(graphcolor)], yerr=serie[1],edgecolor=edgecolor)
+                        label=str(versions[i]),color=graphcolor[i % len(graphcolor)], yerr=serie[1],edgecolor=edgecolor)
 
             ss = []
             if ndyn==1:
@@ -290,7 +290,7 @@ class Grapher:
                             s.append("%s = %s" % (self.var_name(k), str(v[1] if v is tuple else v)))
                     ss.append(','.join(s))
 
-            plt.xticks(interbar + ind + (width * len(uuids) / 2.0)  , ss, rotation='vertical' if (sum([len(s) for s in ss]) > 80) else 'horizontal')
+            plt.xticks(interbar + ind + (width * len(versions) / 2.0)  , ss, rotation='vertical' if (sum([len(s) for s in ss]) > 80) else 'horizontal')
 
         if (ndyn > 0):
             plt.legend(loc=self.config("legend_loc"), title=legend_title)
