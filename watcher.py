@@ -60,7 +60,7 @@ class Watcher():
                 body += '<span style="color:green;">PASSED</span><br />'
             else:
                 print("[%s] Testie %s FAILED !" % (repo.name, testie.filename))
-                body += '<span style="color:red;">FAILED</span> with %d/%d points out of constraints.<br />' % (
+                body += '<span style="color:red;">FAILED</span> with %d/%d points in constraints.<br />' % (
                     testie.n_variables_passed, testie.n_variables)
             body += '<img src="cid:%s"><br/><br/>' % testie.filename
             grapher = Grapher()

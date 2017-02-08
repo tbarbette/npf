@@ -140,7 +140,7 @@ class Build:
                 for r in results:
                     str_results.append(str(r))
             f.write(','.join(v) + "=" + ','.join(str_results) + "\n")
-        f.close
+        f.close()
 
     def readUuid(self, testie: Testie):
         filename = self.__resultFilename(testie)
@@ -162,7 +162,7 @@ class Build:
                 for result in results_data:
                     results.append(float(result.strip()))
             all_results[Run(variables)] = results
-        f.close
+        f.close()
         return all_results
 
     def hasResults(self, script=None):

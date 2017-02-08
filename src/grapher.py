@@ -113,7 +113,6 @@ class Grapher:
                     if not all_num(vars_values[k]):
                         key = k
                         break
-                print("key is ", key)
             if graph_serie:
                 key=graph_serie
             dyns.remove(key)
@@ -302,7 +301,6 @@ class Grapher:
         if xlog:
             plt.xscale('log')
 
-        print(key)
         plt.xlabel(script.config.var_name(key))
 
         if ("result" in script.config["var_names"]):

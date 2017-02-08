@@ -128,6 +128,7 @@ class Testie:
                 raise Exception("Bad syntax, file must start by a section. Line %d :\n%s" % (i,line));
             else:
                 section.content += line
+        f.close()
 
         if not hasattr(self, "info"):
             self.info = Section("info")
@@ -214,6 +215,9 @@ class Testie:
         try:
             s_output, s_err = [x.decode() for x in
                                p.communicate(testie.stdin.content, timeout=testie.config["timeout"])]
+            p.stdin.close()
+            p.stderr.close()
+            p.stdout.close()
             return pid,s_output,s_err,p.returncode
         except TimeoutExpired:
             print("Test expired")
@@ -224,6 +228,9 @@ class Testie:
             s_output, s_err = [x.decode() for x in p.communicate()]
             print(s_output)
             print(s_err)
+            p.stdin.close()
+            p.stderr.close()
+            p.stdout.close()
             return 0,s_output,s_err,p.returncode
 
     @staticmethod
@@ -246,7 +253,7 @@ class Testie:
             p = multiprocessing.Pool(len(self.scripts))
 
             parallel_execs = p.map(self._parallel_exec, [(self,script,self._replace_all(v,script.content),n_retry,build) for script in self.scripts])
-
+            p.close()
             worked=False
             for i,(r,o,e,script) in enumerate(parallel_execs):
                 if len(self.scripts) > 1:
@@ -310,7 +317,7 @@ class Testie:
                 return False
         return True
 
-    def execute_all(self, build, options, prev_results:Dataset=None) -> Dataset:
+    def execute_all(self, build, options, prev_results:Dataset=None, do_test=True) -> Dataset:
         """Execute script for all variables combinations
         :param build: A build object
         :param prev_results: Previous set of result for the same build to update or retrieve
@@ -332,7 +339,7 @@ class Testie:
 
             new_results = False
             n_runs = self.config["n_runs"] - (0 if options.force_test else len(results))
-            if n_runs > 0 and options.do_test:
+            if n_runs > 0 and do_test:
                 nresults, output, err = self.execute(build, variables, n_runs, self.config["n_retry"])
                 if nresults:
                     if self.options.show_full:

@@ -113,7 +113,7 @@ class Regression:
                     old_all_results = None
             else:
                 old_all_results = None
-            all_results = testie.execute_all(build, prev_results=build.readUuid(testie),options=options)
+            all_results = testie.execute_all(build, prev_results=build.readUuid(testie),options=options,do_test=True)
             variables_passed, variables_total = regression.compare(testie, testie.variables, all_results, build, old_all_results,
                                                            repo.last_build)
             if variables_passed == variables_total:

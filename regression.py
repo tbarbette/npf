@@ -225,7 +225,7 @@ def main():
             else:
                 if need_rebuild:
                     build.build()
-                all_results = testie.execute_all(build, prev_results=prev_results, do_test=do_test, force_test=args.force_test)
+                all_results = testie.execute_all(build, prev_results=prev_results, do_test=do_test, options=args)
 
             if args.compare:
                 variables_passed,variables_passed = regression.compare(testie, testie.variables, all_results, build, old_all_results, last_build)
