@@ -9,7 +9,7 @@ title=Replay throughput
 timeout=10
 
 #Axis name
-varnames={LENGTH:Length,result:Throughput,TXCPU:Transmit CPU,RXCPU:Receive CPU}
+var_names={LENGTH:Length,result:Throughput,TXCPU:Transmit CPU,RXCPU:Receive CPU}
 n_retry=3
 acceptable=0.01
 accept_variance=2

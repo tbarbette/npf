@@ -37,8 +37,6 @@ def main():
     npf.add_verbosity_options(parser)
 
     parser.add_argument('repos', metavar='repo', type=str, nargs='+', help='names of the repositories to watch');
-    parser.add_argument('--output', metavar='filename', type=str, nargs=1, default=None,
-                        help='path to the file to output the graph');
 
     t = npf.add_testing_options(parser)
     g = npf.add_graph_options(parser)
@@ -50,7 +48,6 @@ def main():
         repo = Repository(repo_name)
         repo.last_build = None
         repo_list.append(repo)
-        print(repo.tags)
 
     comparator = Comparator(repo_list,
                             overriden_variables = npf.parse_variables(args.variables))
@@ -60,19 +57,33 @@ def main():
     if series is None:
         return
 
-    if args.output is None:
+    if args.graph_filename is None:
         filename = 'compare/' + os.path.splitext(os.path.basename(args.testie))[0] + '_' +  '_'.join(["%s" % repo.reponame for repo in repo_list]) + '.pdf';
     else:
-        filename = args.output[0]
+        filename = args.graph_filename[0]
 
     dir = Path(os.path.dirname(filename))
     if not dir.exists():
         os.makedirs(dir.as_posix())
 
+    #We must find the common variables to all repo, and change dataset to reflect only those
+    all_variables=[]
+    for testie,build,dataset in series:
+        v_list = set()
+        for name,variable in testie.variables.vlist.items():
+            v_list.add(name)
+        all_variables.append(v_list)
+    common_variables = set.intersection(*map(set, all_variables))
+
+    for i,(testie,build,dataset) in enumerate(series):
+        ndataset={}
+        for run,results in dataset.items():
+            ndataset[run.intersect(common_variables)] = results
+        series[i]=(testie,build,ndataset)
+
     grapher = Grapher()
     g = grapher.graph(series=series,
                       filename=filename,
-                      graph_allvariables=True,
                       graph_size=args.graph_size)
 
 

@@ -51,11 +51,11 @@ class VariableFactory:
         result = re.match("\[(-?[0-9]+)([+-]|[*])(-?[0-9]+)\]", valuedata)
         if result:
             return RangeVariable(name, int(result.group(1)), int(result.group(3)), result.group(2) == "*")
-        result = regex.match("\{([^,:]+:[^,:]+)(?:(?:,)([^,:]+:[^,:]+))*\}", valuedata)
+        result = regex.match("\{([^:]*:[^,:]+)(?:(?:,)([^,:]+:[^,:]+))*\}", valuedata)
         if result:
             return DictVariable(name, result.captures(1) + result.captures(2))
 
-        result = regex.match("\{([^,]+)(?:(?:,)([^,]+))*}", valuedata)
+        result = regex.match("\{([^,]*)(?:(?:,)([^,]+))*}", valuedata)
         if result:
             return ListVariable(name, result.captures(1) + result.captures(2))
 
@@ -172,22 +172,26 @@ class ListVariable(Variable):
 
 class DictVariable(Variable):
     def __init__(self, name, data):
-        self.vdict = {}
-        for g in data:
-            d = g.split(':')
-            self.vdict[d[0]] = d[1]
+        if type(data) is dict:
+            self.vdict = data
+        else:
+            self.vdict = {}
+            for g in data:
+                d = g.split(':')
+                self.vdict[d[0]] = d[1]
 
     def makeValues(self):
-        return [self.vdict]
+        return [(k,v) for k,v in self.vdict.items()]
 
     def count(self):
         return len(self.vdict)
 
     def format(self):
-        k,v = next(self.vdict.items())
+        k,v = next(self.vdict.items().__iter__())
         return dtype(v)
 
     def is_numeric(self):
+        k, v = next(self.vdict.items().__iter__())
         return dtype(v) != str
 
 

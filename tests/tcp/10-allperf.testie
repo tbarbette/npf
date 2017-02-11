@@ -1,0 +1,33 @@
+%info
+Netperf test
+
+%config
+n_runs=5
+var_names={PARALLEL:Number of parallel connexions,KEEPALIVE:so_keepalive}
+var_lim={result:0}
+
+%variables
+PARALLEL=[1*8]
+
+TIME=2
+
+netperf:KEEPALIVE={-S:with}
+iperf:ZEROCOPY={-Z:with}
+
+%netperf:script
+killall -9 netserver
+netserver -D -4 &> /dev/null
+
+%netperf:script
+sleep 1
+result=$(netperf -f kbits -l $TIME -n $PARALLEL $KEEPALIVE -v 0 -P 0)
+echo "RESULT ${result}kbits"
+killall netserver &> /dev/null
+
+%iperf:script
+iperf3 -s &> /dev/null
+
+%iperf:script
+result=$(iperf3 -f k -t $TIME -P $PARALLEL $ZEROCOPY -c localhost | tail -n 3 | grep -ioE "[0-9.]+ [kmg]bits")
+echo "RESULT $result"
+killall iperf3 &> /dev/null

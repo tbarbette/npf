@@ -210,6 +210,9 @@ class SectionConfig(SectionVariable):
     def __add_list(self, var, list):
         self.vlist[var] = ListVariable(var, list)
 
+    def __add_dict(self, var, dict):
+        self.vlist[var] = DictVariable(var, dict)
+
     def __init__(self):
         self.name = 'config'
         self.content = ''
@@ -222,15 +225,15 @@ class SectionConfig(SectionVariable):
         self.__add("n_retry", 0)
         self.__add("zero_is_error", True)
         self.__add("n_supplementary_runs", 3)
-        self.__add("var_names", {})
-        self.__add("var_unit", {"result": "BPS"})
+        self.__add_dict("var_names", {})
+        self.__add_dict("var_unit", {"result": "BPS"})
         self.__add("legend_loc", "best")
         self.__add("var_hide", {})
         self.__add("var_log", [])
+        self.__add("autokill", True)
         self.__add_list("require_tags", [])
 
     def var_name(self, key):
-        print(key,self["var_names"])
         if key in self["var_names"]:
             return self["var_names"][key]
         else:
@@ -239,6 +242,15 @@ class SectionConfig(SectionVariable):
     def get_list(self,key):
         var = self.vlist[key]
         v = var.makeValues()
+        return v
+
+    def get_dict(self,key):
+        var = self.vlist[key]
+        try:
+            v = var.vdict
+        except AttributeError:
+            print("WARNING : Error in configuration of %s" % key)
+            return {key:var.makeValues()[0]}
         return v
 
     def __contains__(self, key):

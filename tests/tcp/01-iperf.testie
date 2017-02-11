@@ -1,0 +1,20 @@
+%info
+IPerf 3 test
+
+%config
+n_runs=5
+var_names={PARALLEL:Number of parallel connexions,ZEROCOPY:Zero-Copy}
+timeout=25
+
+%variables
+PARALLEL=[1*64]
+ZEROCOPY={:without,-Z:with}
+TIME=2
+
+%script
+iperf3 -s &> /dev/null
+
+%script
+sleep 1
+result=$(iperf3 -f k -t $TIME -P $PARALLEL $ZEROCOPY -c localhost | tail -n 3 | grep -ioE "[0-9.]+ [kmg]bits")
+echo "RESULT $result"

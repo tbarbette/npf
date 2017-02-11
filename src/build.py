@@ -2,7 +2,6 @@ import os
 import subprocess
 from collections import OrderedDict
 from subprocess import PIPE
-import git
 from pathlib import Path
 
 from src import variable
@@ -40,7 +39,8 @@ class Build:
         else:
             return self.version
 
-    def __read_file(self, fp):
+    @staticmethod
+    def __read_file(fp):
         try:
             with open(fp, 'r') as myfile:
                 data = myfile.read().replace('\n', '')
@@ -57,57 +57,6 @@ class Build:
         f = open(fp, 'w+')
         f.write(val)
         f.close()
-
-    def is_build_needed(self):
-        if not self.repo.url:
-            return False
-        gitrepo = git.Repo(self.click_path())
-        if gitrepo.head.commit.hexsha[:7] != self.version:
-            return True
-        if os.path.exists(self.click_path() + '/bin/click') and (self.__read_file(self.click_path() + '/.current_build') == self.version):
-            return False
-        else:
-            return True
-
-    def build_if_needed(self):
-        gitrepo = git.Repo(self.click_path())
-        if gitrepo.head.commit.hexsha[:7] != self.version:
-            self.build()
-        if not os.path.exists(self.click_path() + '/bin/click') or \
-                not (self.__read_file(self.click_path() + '/.current_build') == self.version):
-            return self.compile()
-        return True
-
-    def compile(self):
-        """
-        Compile the currently checked out repo, assuming it is currently at self.version
-        :return: True upon success, False if not
-        """
-        if not self.repo.url:
-            return True
-        pwd = os.getcwd()
-        os.chdir(self.click_path())
-
-        for what,command in [("Configuring %s..." % self.version,'./configure ' + self.repo.configure),
-                             ("Cleaning %s..." % self.version,self.repo.make_clean),
-                             ("Building %s..." % self.version,self.repo.make)]:
-            print(what)
-            p = subprocess.Popen(command, shell=True, stdin=PIPE, stdout=PIPE, stderr=PIPE)
-            output, err = [x.decode() for x in p.communicate()]
-            p.wait()
-            if not p.returncode == 0:
-                print("Aborted (error code %d) !" % p.returncode)
-                print("stdout :")
-                print(output)
-                print("stderr :")
-                print(err)
-                self.__write_file('.current_build', '')
-                os.chdir(pwd)
-                return False
-
-        os.chdir(pwd)
-        self.__write_file(self.click_path() + '/.current_build', self.version)
-        return True
 
     def __repr__(self):
         return "Build(repo=" + str(self.repo) + ", version=" + self.version + ")"
@@ -142,7 +91,7 @@ class Build:
             f.write(','.join(v) + "=" + ','.join(str_results) + "\n")
         f.close()
 
-    def readversion(self, testie: Testie):
+    def load_results(self, testie: Testie):
         filename = self.__resultFilename(testie)
         if not Path(filename).exists():
             return None
@@ -174,21 +123,78 @@ class Build:
             os.makedirs(os.path.dirname(filename))
         open(filename, 'a').close()
 
-    def click_path(self):
-        return self.repo.reponame + "/build"
+    def build_path(self):
+        return self.repo.get_build_path()
 
     def checkout(self):
         if not self.repo.url:
             return True
-        gitrepo = git.Repo(self.click_path())
-        ref = gitrepo.commit(self.version)
-        gitrepo.git.checkout(ref, force=True)
-        self.__write_file(self.click_path() + '/.current_build', '')
+        if not self.repo.method.checkout(self.version):
+            return False
+        self.__write_file(self.build_path() + '/.checkout_version', self.version)
         return True
 
-    def build(self):
-        if not self.checkout():
+
+    def is_checkout_needed(self):
+        if Build.__read_file(self.repo.get_build_path() + '/.checkout_version') == self.version:
             return False
-        if not self.compile():
+        else:
+            return True
+
+    def is_compile_needed(self):
+        if os.path.exists(self.repo.get_bin_path(self.version)) and (
+                    Build.__read_file(self.repo.get_build_path() + '/.build_version') == self.version):
             return False
+        else:
+            return True
+
+    def compile(self):
+        """
+        Compile the currently checked out repo, assuming it is currently at self.version
+        :return: True upon success, False if not
+        """
+        if not self.repo.url:
+            return True
+        pwd = os.getcwd()
+        os.chdir(self.build_path())
+
+        for what,command in [("Configuring %s..." % self.version,self.repo.configure.replace('$version',self.version)),
+                             ("Cleaning %s..." % self.version,self.repo.clean.replace('$version',self.version)),
+                             ("Building %s..." % self.version,self.repo.make.replace('$version',self.version))]:
+            print(what)
+            p = subprocess.Popen(command, shell=True, stdin=PIPE, stdout=PIPE, stderr=PIPE)
+            output, err = [x.decode() for x in p.communicate()]
+            p.wait()
+            if not p.returncode == 0:
+                print("Aborted (error code %d) !" % p.returncode)
+                print("stdout :")
+                print(output)
+                print("stderr :")
+                print(err)
+                self.__write_file('.current_build', '')
+                os.chdir(pwd)
+                return False
+
+        os.chdir(pwd)
+        self.__write_file(self.repo.get_build_path()  + '/.build_version', self.version)
         return True
+
+    def build(self, force_build : bool, never_build : bool = False):
+        if force_build or self.is_checkout_needed():
+            force_build = True
+            if never_build:
+                print("Warning : will not do test because you disallowed build")
+                return False
+            print("Checking out %s" % (self.repo.name))
+            if not self.checkout():
+                return False
+        if force_build or self.is_compile_needed():
+            if never_build:
+                print("Warning : will not do test because you disallowed build")
+            print("Building %s" % (self.repo.name))
+            if not self.compile():
+                return False
+        return True
+
+    def get_bin_folder(self):
+        return self.repo.get_bin_folder(self.version)

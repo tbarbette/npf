@@ -5,7 +5,7 @@ from src.build import *
 from src.grapher import *
 
 class Regression:
-    def __init__(self, repo):
+    def __init__(self, repo : Repository):
         self.repo = repo
 
     def accept_diff(self, testie, result, old_result):
@@ -77,29 +77,7 @@ class Regression:
         repo = self.repo
         datasets = []
 
-        if repo.url:
-            gitrepo = repo.gitrepo()
-            commit = next(gitrepo.iter_commits('origin/' + repo.branch))
-            version = commit.hexsha[:7]
-            if repo.last_build and version == repo.last_build.version:
-                if not options.quiet:
-                    print("[%s] No new version !" % (repo.name))
-                return None,None
-
-            if (history > 0 and repo.last_build):
-                build = repo.last_build_before(repo.last_build)
-            else:
-                build = Build(repo, version)
-
-            if repo.last_build:
-                print("[%s] New version %s !" % (repo.name, build.version))
-
-            if not build.build_if_needed():
-                if (build.version != version):
-                    repo.last_build = build
-                return None,None
-        else:
-            build = Build(repo, repo.reponame)
+        build = repo.get_last_build()
 
         nok = 0
 
@@ -108,12 +86,12 @@ class Regression:
             regression = self
             if repo.last_build:
                 try:
-                    old_all_results = repo.last_build.readversion(testie)
+                    old_all_results = repo.last_build.load_results(testie)
                 except FileNotFoundError:
                     old_all_results = None
             else:
                 old_all_results = None
-            all_results = testie.execute_all(build, prev_results=build.readversion(testie),options=options,do_test=True)
+            all_results = testie.execute_all(build, prev_results=build.load_results(testie),options=options,do_test=True)
             variables_passed, variables_total = regression.compare(testie, testie.variables, all_results, build, old_all_results,
                                                            repo.last_build)
             if variables_passed == variables_total:

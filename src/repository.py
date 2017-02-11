@@ -1,25 +1,120 @@
+import tarfile
+import urllib
+from abc import ABCMeta
+
 from src.build import Build
 from .testie import *
 from .variable import is_numeric
 
 import git
 
-repo_variables=['name','branch','configure','url','parent','tags','make','bin_folder','bin_name']
+repo_variables=['name','branch','configure','url','method','parent','tags','make','version','clean','bin_folder','bin_name']
+
+class Method(metaclass=ABCMeta):
+    def __init__(self, repo):
+        self.repo = repo
+
+class MethodGit(Method):
+    __gitrepo = None
+
+    def gitrepo(self) -> git.Repo:
+        if (self.__gitrepo):
+            return self.__gitrepo
+        else:
+            return self.checkout()
+
+    def get_last_versions(self,limit=100,branch=None):
+        versions = []
+        origin = self.gitrepo().remotes.origin
+        origin.fetch()
+        for i, commit in enumerate(self.gitrepo().iter_commits('origin/' + branch if branch else self.repo.branch)):
+            versions.append(commit.hexsha[:7])
+            if (i >= limit):
+                break;
+        return versions
+
+    def get_history(self, version, limit = 1):
+        versions = []
+        for commit in next(self.gitrepo().iter_commits(version)).iter_parents():
+            versions.append(commit.hexsha[:7])
+            if len(versions) == limit:
+                break
+        return versions
+
+    def is_checkout_needed(self,version):
+        gitrepo = self.gitrepo()
+        if gitrepo.head.commit.hexsha[:7] != version:
+            return True
+        return False
+
+    def checkout(self, branch=None) -> git.Repo:
+        """
+        Checkout the repo to its folder, fetch if it already exists
+        :param branch: An optional branch
+        :return:
+        """
+        repo = self.repo
+        if not os.path.exists(repo.reponame):
+            os.mkdir(repo.reponame)
+
+        if not branch is None:
+            self.repo.branch = branch
+
+        if os.path.exists(self.repo.get_build_path()):
+            gitrepo = git.Repo(self.repo.get_build_path())
+            o = gitrepo.remotes.origin
+            o.fetch()
+        else:
+            gitrepo = git.Repo.clone_from(self.repo.url, self.repo.get_build_path())
+        self.__gitrepo = gitrepo
+        return gitrepo
+
+class UnversionedMethod(Method,metaclass=ABCMeta):
+    def __init__(self,repo):
+        super().__init__(repo)
+        if not repo.version:
+            raise Exception("This method require a version")
+
+    def get_last_versions(self,limit=None, branch=None):
+        return [self.repo.version]
+
+
+
+class MethodGet(UnversionedMethod):
+    def checkout(self, branch=None):
+        if branch is None:
+            branch = self.repo.version
+        url = self.repo.url.replace('$version',branch)
+        if not Path(self.repo.get_build_path()).exists():
+            os.makedirs(self.repo.get_build_path())
+        filename, headers = urllib.request.urlretrieve(url,self.repo.get_build_path() + os.path.basename(url))
+        t = tarfile.open(filename)
+        t.extractall(self.repo.get_build_path())
+        return True
+
+class MethodPackage(UnversionedMethod):
+    def checkout(self, branch=None):
+        pass
+
+repo_methods = {'git' : MethodGit,'get':MethodGet,'package':MethodPackage}
+
+
 class Repository:
     configure = '--disable-linuxmodule'
     branch = 'master'
     make = 'make -j12'
-    make_clean = 'make clean'
+    clean = 'make clean'
     bin_folder = 'bin'
     bin_name = 'click'
+    method = repo_methods['git']
 
-    __gitrepo = None
 
     def __init__(self, repo):
         self.reponame = repo
         self.tags=[]
         f = open('repo/' + repo + '.repo', 'r')
         for line in f:
+            line = line.strip()
             if line.startswith("#"):
                 continue
             if not line:
@@ -37,13 +132,25 @@ class Repository:
                 if val.is_integer():
                     val = int(val)
             if not var in repo_variables:
-                raise Exception("Unknown variable %s " % var)
+                raise Exception("Unknown variable %s" % var)
             elif var == "parent":
                 parent = Repository(val)
                 for attr in repo_variables:
                     if not hasattr(parent,attr):
                         continue
-                    setattr(self,attr,getattr(parent,attr))
+                    pval = getattr(parent,attr)
+                    if attr == "method":
+                        for m,c in repo_methods.items():
+                            if c == type(pval):
+                                method=m
+                                break
+                    else:
+                        setattr(self,attr,pval)
+            elif var == "method":
+                val = val.lower()
+                if not val in repo_methods:
+                    raise Exception("Unknown method %s" % val)
+                val = repo_methods[val]
             elif var == "tags":
                 if append:
                     self.tags += val.split(',')
@@ -55,62 +162,35 @@ class Repository:
                 setattr(self,var,getattr(self,var) + " " +val)
             else:
                 setattr(self,var,val)
+
+        self.method = self.method(self) #Instanciate the method
         self._build_path = os.path.dirname(os.path.abspath(sys.argv[0])) + '/' + self.reponame + '/build/'
 
 
     def get_build_path(self):
         return self._build_path
 
-    def get_bin_folder(self):
-        return self.get_build_path() + self.bin_folder + '/'
+    def get_bin_folder(self,version):
+        return self.get_build_path() + self.bin_folder.replace('$version',version) + '/'
 
-    def get_bin_path(self):
-        return self.get_bin_folder() + self.bin_name
+    def get_bin_path(self,version):
+        return self.get_bin_folder(version) + self.bin_name.replace('$version',version)
 
-    def checkout(self, branch=None) -> git.Repo:
-        """
-        Checkout the repo to its folder, fetch if it already exists
-        :param branch: An optional branch
-        :return:
-        """
-        repo = self
-        if not os.path.exists(repo.reponame):
-            os.mkdir(repo.reponame)
+    def get_last_build(self, history: int = 0, stop_at: Build = None, with_results = False) -> Build:
+        versions = self.method.get_last_versions(history)
 
-        if not branch is None:
-            self.branch = branch
-
-        if os.path.exists(self.get_build_path()):
-            gitrepo = git.Repo(self.get_build_path())
-            o = gitrepo.remotes.origin
-            o.fetch()
-        else:
-            gitrepo = git.Repo.clone_from(repo.url, self.get_build_path())
-        self.__gitrepo = gitrepo
-        return gitrepo
-
-    def gitrepo(self) -> git.Repo:
-        if (self.__gitrepo):
-            return self.__gitrepo
-        else:
-            return self.checkout()
-
-    def get_last_build(self, history: int = 0, stop_at: Build = None) -> Build:
         last_build = None
-        origin = self.gitrepo().remotes.origin
-        origin.fetch()
-        for i, commit in enumerate(self.gitrepo().iter_commits('origin/' + self.branch)):
-            version = commit.hexsha[:7]
+        for i, version in enumerate(versions):
             if stop_at and version == stop_at.version:
                 if i == 0:
                     return None
                 break
             last_build = Build(self, version)
-            if last_build.hasResults():
+            if  not with_results or last_build.hasResults():
                 if history == 0:
                     break
                 else:
-                    history -= 1
+                    history-=1
             if i > 100:
                 last_build = None
                 break
@@ -128,7 +208,7 @@ class Repository:
             g_build = Build(self, commit.hexsha[:7])
             if not g_build.hasResults(testie):
                 continue
-            g_all_results = g_build.readversion(testie)
+            g_all_results = g_build.load_results(testie)
             graphs_series.append((testie, g_build, g_all_results))
             if (i > 100 or len(graphs_series) == num_old):
                 break

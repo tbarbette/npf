@@ -23,6 +23,9 @@ def add_graph_options(parser: ArgumentParser):
     g = parser.add_argument_group('Graph options')
     g.add_argument('--graph-size', metavar='INCH', type=int, nargs=2, default=[],
                    help='Size of graph', dest="graph_size");
+    g.add_argument('--graph-filename', metavar='graph_filename', type=str, nargs=1, default=None,
+                        help='path to the file to output the graph');
+
     return g
 
 def add_testing_options(parser: ArgumentParser, regression : bool = False):

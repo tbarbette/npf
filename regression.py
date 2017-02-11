@@ -1,6 +1,8 @@
 #!/usr/bin/python3
 import argparse
 
+import errno
+
 from src import npf
 from src.regression import *
 from src.statistics import Statistics
@@ -30,7 +32,7 @@ def main():
 
     t = npf.add_testing_options(parser, True)
 
-    g = parser.add_argument_group('Commit choice')
+    g = parser.add_argument_group('Versioning options')
     gf = g.add_mutually_exclusive_group()
     gf.add_argument('--history',
                     help='Number of commits in the history on which to execute the regression tests. By default, '
@@ -43,8 +45,6 @@ def main():
                          'Ignored if --version is given.',
                     dest='history', metavar='N',
                     nargs='?', type=int, default=1)
-    gf.add_argument('--version', metavar='version', type=str, nargs='*',
-                    help='version to checkout and test. Default is master''s HEAD version and its N "--redo-history" firsts parents.');
     g.add_argument('--branch', help='Branch', type=str, nargs='?', default=None)
 
     g.add_argument('--compare-version', dest='compare_version', metavar='version', type=str, nargs='?',
@@ -60,16 +60,16 @@ def main():
     s.add_argument('--statistics-maxdepth',
                    help='Max depth of learning tree', dest='statistics_maxdepth', type=int, default=None)
 
-    a = parser.add_argument_group('Graphing options')
+    a = npf.add_graph_options(parser)
     af = a.add_mutually_exclusive_group()
     af.add_argument('--graph-version', metavar='version', type=str, nargs='*',
                     help='versions to simply graph');
     af.add_argument('--graph-num', metavar='N', type=int, nargs='?', default=8,
                     help='Number of olds versions to graph after --compare-version, unused if --graph-version is given');
-    a.add_argument('--graph-allvariables', help='Graph only the latest variables (usefull when you restrict variables '
-                                                'with tags)', dest='graph_newonly', action='store_true', default=False)
-    a.add_argument('--graph-serie', dest='graph_serie', metavar='variable', type=str, nargs=1, default=[None],
-                    help='Set which variable will be used as serie when compating graph');
+    # a.add_argument('--graph-allvariables', help='Graph only the latest variables (usefull when you restrict variables '
+    #                                             'with tags)', dest='graph_newonly', action='store_true', default=False)
+    # a.add_argument('--graph-serie', dest='graph_serie', metavar='variable', type=str, nargs=1, default=[None],
+    #                 help='Set which variable will be used as serie when creating graph');
 
     parser.add_argument('repo', metavar='repo name', type=str, nargs=1, help='name of the repo/group of builds');
 
@@ -90,30 +90,13 @@ def main():
         repo.url = None
         repo._build_path = args.build_folder + '/'
 
-    #If there is no URL, it is a false repo, like IPTables test with no buiilding
-    if repo.url:
-        gitrepo = repo.checkout(args.branch)
-    else:
-        gitrepo = None
-        args.compare = False
-
-    if args.version:
-        versions = args.version
-    else:
-        versions = []
-        if gitrepo:
-            for i, commit in enumerate(gitrepo.iter_commits('origin/' + repo.branch)):
-                if i >= args.history: break
-                short = commit.hexsha[:7]
-                versions.append(short)
-        else:
-            versions.append(repo.reponame)
+    versions = repo.method.get_last_versions(limit=args.history,branch=args.branch)
 
     # Builds of the regression versions
     builds = []
-    for short in versions:
-        builds.append(Build(repo, short))
-        compare_version = short
+
+    for version in versions:
+        builds.append(Build(repo, version))
 
     last_rebuilds = []
 
@@ -122,9 +105,10 @@ def main():
         if args.compare_version and len(args.compare_version):
             compare_version = args.compare_version
             last_build = Build(repo, compare_version)
-        elif args.history <= 1:
-            for i, commit in enumerate(next(gitrepo.iter_commits(compare_version)).iter_parents()):
-                last_build = Build(repo, commit.hexsha[:7])
+        elif args.history > 1:
+            old_versions = repo.method.get_history(versions[-1],100)
+            for i, version in enumerate(old_versions):
+                last_build = Build(repo, version)
                 if last_build.hasResults():
                     break
                 elif args.allow_oldbuild:
@@ -142,8 +126,9 @@ def main():
             graph_builds.append(Build(repo, g))
     else:
         if last_build and args.graph_num > 0:
-            for commit in gitrepo.commit(last_build.version).iter_parents():
-                g_build = Build(repo, commit.hexsha[:7])
+            old_versions = repo.method.get_history(last_build.version, 100)
+            for i, version in enumerate(old_versions):
+                g_build = Build(repo, version)
                 if g_build in builds or g_build == last_build:
                     continue
                 i += 1
@@ -152,12 +137,12 @@ def main():
                 elif args.allow_oldbuild:
                     last_rebuilds.append(g_build)
                     graph_builds.append(g_build)
-                if i > 100:
-                    break
                 if len(graph_builds) > args.graph_num:
                     break
 
     testies = Testie.expand_folder(testie_path=args.testie, options=args, tags=tags)
+    if not testies:
+        sys.exit(errno.ENOENT)
 
     overriden_variables = npf.parse_variables(args.variables)
     for testie in testies:
@@ -176,22 +161,6 @@ def main():
 
     for build in reversed(builds):
         print("Starting regression test for %s" % build.version)
-        do_test = args.do_test
-        need_rebuild = build.is_build_needed()
-
-        if args.force_build:
-            need_rebuild = True
-        if not os.path.exists(repo.get_bin_path()):
-            need_rebuild = True
-            if args.no_build:
-                print(
-                    "%s does not exist but --no-build provided. Cannot continue without Click !" % repo.get_bin_path())
-                return 1
-        if args.no_build:
-            if need_rebuild:
-                print("Warning : will not do test because build is not allowed")
-                do_test = False
-                need_rebuild = False
 
         nok = 0
         ntests = 0
@@ -210,22 +179,22 @@ def main():
             old_all_results = None
             if last_build:
                 try:
-                    old_all_results = last_build.readversion(testie)
+                    old_all_results = last_build.load_results(testie)
                 except FileNotFoundError:
                     print("Previous build %s could not be found, we will not compare !" % last_build.version)
                     last_build = None
 
             try:
-                prev_results = build.readversion(testie)
+                prev_results = build.load_results(testie)
             except FileNotFoundError:
                 prev_results = None
 
             if testie.has_all(prev_results, build) and not args.force_test:
                 all_results = prev_results
             else:
-                if need_rebuild:
-                    build.build()
-                all_results = testie.execute_all(build, prev_results=prev_results, do_test=do_test, options=args)
+                if not build.build(args.force_build,args.no_build):
+                    continue
+                all_results = testie.execute_all(build, prev_results=prev_results, do_test=args.do_test, options=args)
 
             if args.compare:
                 variables_passed,variables_passed = regression.compare(testie, testie.variables, all_results, build, old_all_results, last_build)
@@ -254,25 +223,30 @@ def main():
             graph_variables_names=[]
             for k,v in testie.variables.statics().items():
                 val = v.makeValues()[0]
+                if type(val) is tuple:
+                    val = val[1]
                 if k and v and val != '':
                     graph_variables_names.append((k,val))
-            graphname = build.result_path(testie,'pdf','_'.join(["%s=%s" % (k,val) for k,val in graph_variables_names]))
+
+            if args.graph_filename is None:
+                filename = build.result_path(testie,'pdf','_'.join(["%s=%s" % (k,val) for k,val in graph_variables_names]))
+            else:
+                filename = args.graph_filename[0]
 
             g_series = []
-            if last_build and args.compare:
+            if last_build and old_all_results and args.compare:
                 g_series.append((testie, last_build, old_all_results))
 
             for g_build in graph_builds:
                 try:
-                    g_all_results = g_build.readversion(testie)
-                    g_series.append((testie, g_build, g_all_results))
+                    g_all_results = g_build.load_results(testie)
+                    if (g_all_results):
+                        g_series.append((testie, g_build, g_all_results))
                 except FileNotFoundError:
                     print("Previous build %s could not be found, we will not graph it !" % g_build.version)
-
             grapher.graph(series=[(testie, build, all_results)] + g_series, title=testie.get_title(),
-                          filename=graphname,
-                          graph_variables=list(testie.variables),
-                          graph_serie=args.graph_serie[0])
+                          filename=filename,
+                          graph_variables=[Run(x) for x in testie.variables])
         if last_build:
             graph_builds = [last_build] + graph_builds
         last_build = build

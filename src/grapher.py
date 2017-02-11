@@ -4,6 +4,9 @@ from typing import List
 
 import numpy as np
 import matplotlib
+
+from src.testie import Run
+
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter,ScalarFormatter
@@ -30,10 +33,7 @@ class Grapher:
     def scriptconfig(self, var, key, default):
         for script in self.scripts:
             if var in script.config:
-                if key in script.config[var]:
-                    return script.config[var][key]
-                else:
-                    return default
+                return script.config.get_dict(var).get(key,default)
         return None
 
 
@@ -58,18 +58,18 @@ class Grapher:
         else:
             return "%.2f %s/s" % (x,unit)
 
-    def graph(self,filename, title=False, series=[], graph_variables:List[OrderedDict]=None, graph_allvariables = False, graph_serie=None, graph_size=None):
+    def graph(self,filename, graph_variables:List[Run] = None, title=False, series=[], graph_size=None):
         """series is a list of triplet (script,build,results) where
         result is the output of a script.execute_all()"""
         vars_values = {}
         vars_all = set()
         versions=[]
 
-        if graph_variables:
-            for i, gv in enumerate(graph_variables):
-                for k,v in gv.items():
-                    if type(v) is tuple:
-                        graph_variables[i][k] = v[1]
+        # if graph_variables:
+        #     for i, gv in enumerate(graph_variables):
+        #         for k,v in gv.variables.items():
+        #             if type(v) is tuple:
+        #                 graph_variables[i][k] = v[1]
 
         ymin,ymax=(float('inf'),0)
         #Data transformation
@@ -77,19 +77,20 @@ class Grapher:
             versions.append(build.pretty_name())
             self.scripts.add(script)
             for run,results in all_results.items():
-                if results:
-                    ymax = max(ymax, max(results))
-                    ymin = min(ymin, min(results))
-
-                if (graph_variables==None and (i == 0 or graph_allvariables)) \
-                    or (graph_variables != None and run.variables in graph_variables):
+                if (graph_variables==None and (i == 0)) \
+                    or (graph_variables != None and run in graph_variables):
+                    if results:
+                        ymax = max(ymax, max(results))
+                        ymin = min(ymin, min(results))
                     vars_all.add(run)
                     for k,v in run.variables.items():
                         vars_values.setdefault(k,set()).add(v)
 
         vars_all = list(vars_all)
         vars_all.sort()
+
         is_multiscript = len(self.scripts) > 1
+
 
         #self.ydiv = math.exp(math.log(ymax,10),10)
 
@@ -101,7 +102,7 @@ class Grapher:
 
         ndyn = len(dyns)
         nseries = len(series)
-        if (nseries == 1 and ndyn > 0):
+        if nseries == 1 and ndyn > 0 and not (ndyn == 1 and all_num(vars_values[dyns[0]])):
             """Only one serie: expand one dynamic variable as serie"""
             script,build,all_results = series[0]
             if ("var_serie" in script.config and script.config["var_serie"] in dyns):
@@ -113,8 +114,8 @@ class Grapher:
                     if not all_num(vars_values[k]):
                         key = k
                         break
-            if graph_serie:
-                key=graph_serie
+            # if graph_serie:
+            #     key=graph_serie
             dyns.remove(key)
             ndyn-=1
             series=[]
@@ -125,7 +126,7 @@ class Grapher:
             for value in values:
                 newserie={}
                 for run,results in all_results.items():
-                    if (graph_variables and not run.variables in graph_variables):
+                    if (graph_variables and not run in graph_variables):
                         continue
                     if (run.variables[key] == value):
                         newrun = run.copy()
@@ -145,21 +146,10 @@ class Grapher:
             key="version"
             legend_title=None
 
-        del vars_values #May not be good anymore
-
 
         ax = plt.gca()
 
         reject_outliers = False
-
-        #If more than 20 bars, do not print bar edges
-        maxlen = max([len(serie[2]) for serie in series])
-        if nseries * maxlen > 20:
-            edgecolor = "none"
-            interbar = 0.05
-        else:
-            edgecolor = None
-            interbar = 0.1
 
         xlog = False
         ax = plt.gca()
@@ -175,24 +165,40 @@ class Grapher:
         else:
             ax.get_yaxis().get_major_formatter().set_useOffset(False)
 
-
-
         if ndyn == 0:
             """No dynamic variables : do a barplot X=version"""
+
+            # If more than 20 bars, do not print bar edges
+            if nseries > 20:
+                edgecolor = "none"
+                interbar = 0.05
+            else:
+                edgecolor = None
+                interbar = 0.1
+
             data=[]
             for a in [all_results for script,build,all_results in series]:
-                v = list(a.values())[0]
+                v = a[vars_all[0]]
                 if v:
                     data.append(np.mean(v))
                 else:
                     data.append(np.nan)
 
             i=0
-            plt.bar(np.arange(len(versions)) + interbar,data,label=versions[i],color=graphcolor[i % len(graphcolor)],width=1-(2*interbar))
-            plt.xticks(np.arange(len(versions)) + 0.5,versions, rotation='vertical' if (len(versions) > 10) else 'horizontal')
-        elif ndyn==1 and len(series[0][2]) > 2:
+
+            width = (1 - (2 * interbar)) / len(versions)
+
+            xpos = np.arange(len(versions)) + interbar
+            ticks = np.arange(len(versions)) + 0.5
+
+            plt.bar(xpos,data,label=versions[i],color=graphcolor[i % len(graphcolor)],width=width)
+            plt.xticks(ticks,versions, rotation='vertical' if (len(versions) > 10) else 'horizontal')
+            plt.gca().set_xlim(0, len(versions))
+        elif ndyn==1 and len(vars_all) > 2:
             """One dynamic variable used as X, series are version line plots"""
-            key = dyns[0]
+            if (ndyn > 0):
+                key = dyns[0]
+
 
             xmin,xmax = (float('inf'),0)
 
@@ -202,7 +208,8 @@ class Grapher:
                 y=[]
                 e=[]
                 for run in vars_all:
-                    result = all_results.get(run,None)
+                    result = all_results.get(run, None)
+
                     x.append(run.print_variable(key))
                     if result:
                         result = np.asarray(result) / ydiv
@@ -248,6 +255,17 @@ class Grapher:
             plt.legend(loc=self.config("legend_loc"), title=legend_title)
         else:
             """Barplot. X is all seen variables combination, series are version"""
+
+            # If more than 20 bars, do not print bar edges
+            maxlen = max([len(all_results) for (script, build, all_results) in series])
+
+            if nseries * maxlen > 20:
+                edgecolor = "none"
+                interbar = 0.05
+            else:
+                edgecolor = None
+                interbar = 0.1
+
             data=[]
             for all_results in [all_results for script,build,all_results in series]:
                 y=[]
@@ -272,6 +290,7 @@ class Grapher:
                         label=str(versions[i]),color=graphcolor[i % len(graphcolor)], yerr=serie[1],edgecolor=edgecolor)
 
             ss = []
+
             if ndyn==1:
                 key = dyns[0]
                 for run in vars_all:
@@ -281,7 +300,10 @@ class Grapher:
                             s.append("%s" % str(v[1] if v is tuple else v))
                     ss.append(','.join(s))
             else:
-                key = "Variables"
+                if ndyn == 0:
+                    key = "version"
+                else:
+                    key = "Variables"
 
                 for run in vars_all:
                     s = []
@@ -301,16 +323,25 @@ class Grapher:
         if xlog:
             plt.xscale('log')
 
-        plt.xlabel(script.config.var_name(key))
+        plt.xlabel(self.var_name(key))
 
-        if ("result" in script.config["var_names"]):
+        if "result" in script.config["var_names"]:
             plt.ylabel(script.config["var_names"]["result"])
 
-        if (ymin >= 0 and plt.ylim()[0] < 0):
-            plt.ylim(0,plt.ylim()[1])
+        var_lim = self.scriptconfig("var_lim", "result", None)
+        if var_lim:
+            n = var_lim.split('-')
+            if len(n) == 2:
+                ymin, ymax = (float(x) for x in n)
+                plt.ylim(ymin=ymin, ymax = ymax)
+            else:
+                plt.ylim(ymin=float(n[0]))
+        else:
+            if (ymin >= 0 and plt.ylim()[0] < 0):
+                plt.ylim(0,plt.ylim()[1])
 
-        if (ymin < ymax/5):
-            plt.ylim(ymin=0)
+            if (ymin < ymax/5):
+                plt.ylim(ymin=0)
 
 
         if graph_size:
@@ -326,7 +357,7 @@ class Grapher:
             buf.seek(0)
             ret = buf.read()
         else:
-            if not os.path.exists(os.path.dirname(filename)):
+            if os.path.dirname(filename) and not os.path.exists(os.path.dirname(filename)):
                 os.makedirs(os.path.dirname(filename))
             plt.savefig(filename)
             ret = None

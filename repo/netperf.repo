@@ -1,0 +1,11 @@
+name=Netperf
+method=get
+url=ftp://ftp.netperf.org/netperf/netperf-$version.tar.gz
+version=2.7.0
+tags=netperf
+
+bin_folder=netperf-$version/src/
+bin_name=netperf
+configure=cd netperf-$version && ./autogen.sh && ./configure
+make=cd netperf-$version && make
+clean=cd netperf-$version && make clean

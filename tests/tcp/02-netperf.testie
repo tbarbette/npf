@@ -1,0 +1,25 @@
+%info
+Netperf test
+
+%config
+n_runs=5
+var_names={PARALLEL:Number of parallel connexions,KEEPALIVE:so_keepalive}
+
+%variables
+PARALLEL=[1*8]
+KEEPALIVE={-S:with}
+TIME=2
+
+extended:TIME={2,10}
+extended:KEEPALIVE={:without,-S:with}
+
+
+%script
+killall -9 netserver
+netserver -D -4 &> /dev/null
+
+%script
+sleep 1
+result=$(netperf -f kbits -l $TIME -n $PARALLEL $KEEPALIVE -v 0 -P 0)
+echo "RESULT ${result}kbits"
+killall netserver &> /dev/null

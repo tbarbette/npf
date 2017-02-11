@@ -6,8 +6,10 @@ import numpy as np
 import signal
 import random
 import multiprocessing
-from typing import Dict, List
+from typing import Dict, List, Set
 from pathlib import Path
+
+from multiprocessing import Queue
 
 from src.section import *
 
@@ -50,6 +52,13 @@ class Run:
                 return False
         return True
 
+    def intersect(self, common):
+        difs = set.difference(set(self.variables.keys()),common)
+        for dif in difs:
+            del self.variables[dif]
+        return self
+
+
     def __eq__(self, o):
         return self.inside(o) and o.inside(self)
 
@@ -66,21 +75,24 @@ class Run:
     def __repr__(self):
         return "Run(" + self.format_variables() + ")"
 
-    def __lt__(self, o):
+    def __cmp__(self, o):
         for k, v in self.variables.items():
-            if not k in o.variables: return False
-            ov =  o.variables[k]
+            if not k in o.variables: return 1
+            ov = o.variables[k]
             if type(v) is str or type(ov) is str:
                 if str(v) < str(ov):
-                    return True
+                    return -1
                 if str(v) > str(ov):
-                    return False
+                    return 1
             else:
                 if v < ov:
-                    return True
+                    return -1
                 if v > ov:
-                    return False
-        return False
+                    return 1
+        return 0
+
+    def __lt__(self, o):
+        return self.__cmp__(o) < 0
 
 
 Dataset = Dict[Run, List]
@@ -200,9 +212,9 @@ class Testie:
                 path.unlink()
 
     @staticmethod
-    def _exec(testie, cmd, build):
+    def _exec(testie, cmd, build, queue:Queue=None):
         env = os.environ.copy()
-        env["PATH"] = build.repo.get_bin_folder() + ":" + env["PATH"]
+        env["PATH"] = build.get_bin_folder() + ":" + env["PATH"]
         if testie.options.show_cmd:
             print("Executing (PATH=%s) :\n%s" % (env['PATH'],cmd))
 
@@ -212,6 +224,8 @@ class Testie:
                     env=env)
         pid = p.pid
         pgpid = os.getpgid(pid)
+        if queue:
+            queue.put(pgpid)
         try:
             s_output, s_err = [x.decode() for x in
                                p.communicate(testie.stdin.content, timeout=testie.config["timeout"])]
@@ -232,70 +246,104 @@ class Testie:
             p.stderr.close()
             p.stdout.close()
             return 0,s_output,s_err,p.returncode
+        except KeyboardInterrupt:
+            os.killpg(pgpid, signal.SIGKILL)
+            return -1, s_output, s_err, p.returncode
+
+    @staticmethod
+    def killall(queue):
+        while not queue.empty():
+            pid = queue.get()
+            try:
+                os.killpg(pid, signal.SIGKILL)
+            except OSError:
+                pass
 
     @staticmethod
     def _parallel_exec(args):
-        (testie, script, commands, n_retry, build) = args
-        for i_try in range(n_retry + 1):
-            pid,o,e,c = testie._exec(testie, commands, build)
-            if (pid == 0):
-                continue
-            else:
-                return True, o, e, script
-        return False, "Timeout expired" + o, e, script
+        (testie, script, commands, n_retry, build, queue) = args
+
+        pid,o,e,c = testie._exec(testie, commands, build, queue)
+        if pid == 0:
+            return False, "Timeout expired" + o, e, script
+        else:
+            if testie.config["autokill"] or pid == -1:
+                Testie.killall(queue)
+            if pid == -1:
+                return -1, o, e, script
+            return True, o, e, script
+
+
 
     def execute(self, build, v, n_runs=1, n_retry=0):
         self.create_files(v)
         results = []
         for i in range(n_runs):
-            output = ''
-            err = ''
-            p = multiprocessing.Pool(len(self.scripts))
+            for i_try in range(n_retry + 1):
+                output = ''
+                err = ''
+                n = len(self.scripts)
+                p = multiprocessing.Pool(n)
+                m = multiprocessing.Manager()
+                queue = m.Queue()
 
-            parallel_execs = p.map(self._parallel_exec, [(self,script,self._replace_all(v,script.content),n_retry,build) for script in self.scripts])
-            p.close()
-            worked=False
-            for i,(r,o,e,script) in enumerate(parallel_execs):
-                if len(self.scripts) > 1:
-                    output += "Output of script %d for %s :\n" % (i,script.slave)
-                    err += "Output of script %d for %s :\n" % (i,script.slave)
+                try:
+                    parallel_execs = p.map(self._parallel_exec, [(self,script,self._replace_all(v,script.content),n_retry,build,queue) for script in self.scripts])
+                except KeyboardInterrupt:
+                    p.close()
+                    p.terminate()
+                    sys.exit(1)
+                p.close()
+                p.terminate()
+                worked=False
+                for i, (r, o, e, script) in enumerate(parallel_execs):
+                    if r == 0:
+                        continue
+                    if r == -1:
+                        sys.exit(1)
 
-                if r:
-                    worked = True
-                    output += o
-                    err += e
-            if not worked:
-                return False,output,err
+                for i,(r,o,e,script) in enumerate(parallel_execs):
+                    if len(self.scripts) > 1:
+                        output += "Output of script %d for %s :\n" % (i,script.slave)
+                        err += "Output of script %d for %s :\n" % (i,script.slave)
 
-            nr = re.search("RESULT[ \t]+([0-9.]+)([gmk]?)(b|byte|bits)?", output.strip(), re.IGNORECASE)
-            if nr:
-                n = float(nr.group(1))
-                mult = nr.group(2).lower()
-                if mult == "k":
-                    n*=1000
-                elif mult == "m":
-                    n*=1000000
-                elif mult == "g":
-                    n*=1000000000
+                    if r:
+                        worked = True
+                        output += o
+                        err += e
+                if not worked:
+                    return False,output,err
 
-                if not (n == 0 and self.config["zero_is_error"]):
-                    results.append(n)
+                nr = re.search("RESULT[ \t]+([0-9.]+)[ ]*([gmk]?)(b|byte|bits)?", output.strip(), re.IGNORECASE)
+                if nr:
+                    n = float(nr.group(1))
+                    mult = nr.group(2).lower()
+                    if mult == "k":
+                        n*=1000
+                    elif mult == "m":
+                        n*=1000000
+                    elif mult == "g":
+                        n*=1000000000
+
+                    if not (n == 0 and self.config["zero_is_error"]):
+                        results.append(n)
+                    else:
+                        print("Result is 0 !")
+                        print("stdout:")
+                        print(output)
+                        print("stderr:")
+                        print(err)
+
+                        return False,output,err
+
                 else:
-                    print("Result is 0 !")
+                    print("Could not find result !")
                     print("stdout:")
                     print(output)
                     print("stderr:")
                     print(err)
+                    return False, output, err
 
-                    return False,output,err
-
-            else:
-                print("Could not find result !")
-                print("stdout:")
-                print(output)
-                print("stderr:")
-                print(err)
-                return False, output, err
 
         self.cleanup()
         return results, output, err
@@ -384,6 +432,9 @@ class Testie:
 
     def expand_folder(testie_path, options, tags=[]) -> List:
         testies = []
+        if not os.path.exists(testie_path):
+            print("The testie path %s does not exist" % testie_path)
+            return testies
         if os.path.isfile(testie_path):
             testie = Testie(testie_path, options=options, tags=tags)
             testies.append(testie)
