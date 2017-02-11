@@ -29,7 +29,7 @@ class MethodGit(Method):
         origin.fetch()
         for i, commit in enumerate(self.gitrepo().iter_commits('origin/' + branch if branch else self.repo.branch)):
             versions.append(commit.hexsha[:7])
-            if (i >= limit):
+            if (len(versions) >= limit):
                 break;
         return versions
 

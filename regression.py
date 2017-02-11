@@ -105,7 +105,7 @@ def main():
         if args.compare_version and len(args.compare_version):
             compare_version = args.compare_version
             last_build = Build(repo, compare_version)
-        elif args.history > 1:
+        else:
             old_versions = repo.method.get_history(versions[-1],100)
             for i, version in enumerate(old_versions):
                 last_build = Build(repo, version)
@@ -150,10 +150,10 @@ def main():
 
     for b in last_rebuilds:
         print("Last version %s had no result. Re-executing tests for it." % b.version)
-        b.build_if_needed()
+        b.build(args.force_build,args.no_build)
         for testie in testies:
             print("Executing testie %s" % testie.filename)
-            all_results = testie.execute_all(b)
+            all_results = testie.execute_all(b,options=args)
             b.writeversion(testie, all_results)
         b.writeResults()
 
