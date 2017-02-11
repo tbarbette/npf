@@ -125,8 +125,8 @@ def main():
         for g in args.graph_version:
             graph_builds.append(Build(repo, g))
     else:
-        if last_build and args.graph_num > 0:
-            old_versions = repo.method.get_history(last_build.version, 100)
+        if args.graph_num > 0:
+            old_versions = repo.method.get_history(last_build.version if last_build else builds[-1].version, 100)
             for i, version in enumerate(old_versions):
                 g_build = Build(repo, version)
                 if g_build in builds or g_build == last_build:
@@ -147,6 +147,11 @@ def main():
     overriden_variables = npf.parse_variables(args.variables)
     for testie in testies:
         testie.variables.override_all(overriden_variables)
+        if args.n_runs != -1:
+            testie.config["n_runs"] = args.n_runs
+
+        if args.n_supplementary_runs != -1:
+            testie.config["n_supplementary_runs"] = args.n_supplementary_runs
 
     for b in last_rebuilds:
         print("Last version %s had no result. Re-executing tests for it." % b.version)
@@ -168,11 +173,6 @@ def main():
             print("Executing testie %s" % testie.filename)
 
             regression = Regression(testie)
-            if args.n_runs != -1:
-                testie.config["n_runs"] = args.n_runs
-
-            if args.n_supplementary_runs != -1:
-                testie.config["n_supplementary_runs"] = args.n_supplementary_runs
 
             print(testie.info.content.strip())
 
@@ -248,7 +248,7 @@ def main():
                           filename=filename,
                           graph_variables=[Run(x) for x in testie.variables])
         if last_build:
-            graph_builds = [last_build] + graph_builds
+            graph_builds = [last_build] + graph_builds[:-1]
         last_build = build
         if args.compare:
             print("[%s] Finished run for %s, %d/%d tests passed" % (repo.name, build.version, nok, ntests))

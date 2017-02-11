@@ -9,7 +9,7 @@ title=DPDK L2 FastUDPGen + Fwd test
 timeout=10
 
 #Axis name
-varnames={LENGTH:Length,result:Throughput,TXCPU:Transmit CPU,RXCPU:Receive CPU}
+var_names={LENGTH:Length,result:Throughput,TXCPU:Transmit CPU,RXCPU:Receive CPU}
 n_retry=1
 acceptable=0.01
 n_runs=3

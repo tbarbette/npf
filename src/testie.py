@@ -97,6 +97,20 @@ class Run:
 
 Dataset = Dict[Run, List]
 
+def _parallel_exec(args):
+    (testie, script, commands, n_retry, build, queue) = args
+
+    pid,o,e,c = testie._exec(testie, commands, build, queue)
+    if pid == 0:
+        return False, "Timeout expired" + o, e, script
+    else:
+        if testie.config["autokill"] or pid == -1:
+            Testie.killall(queue)
+        if pid == -1:
+            return -1, o, e, script
+        return True, o, e, script
+
+
 
 class Testie:
 
@@ -259,22 +273,6 @@ class Testie:
             except OSError:
                 pass
 
-    @staticmethod
-    def _parallel_exec(args):
-        (testie, script, commands, n_retry, build, queue) = args
-
-        pid,o,e,c = testie._exec(testie, commands, build, queue)
-        if pid == 0:
-            return False, "Timeout expired" + o, e, script
-        else:
-            if testie.config["autokill"] or pid == -1:
-                Testie.killall(queue)
-            if pid == -1:
-                return -1, o, e, script
-            return True, o, e, script
-
-
-
     def execute(self, build, v, n_runs=1, n_retry=0):
         self.create_files(v)
         results = []
@@ -288,7 +286,7 @@ class Testie:
                 queue = m.Queue()
 
                 try:
-                    parallel_execs = p.map(self._parallel_exec, [(self,script,self._replace_all(v,script.content),n_retry,build,queue) for script in self.scripts])
+                    parallel_execs = p.map(_parallel_exec, [(self,script,self._replace_all(v,script.content),n_retry,build,queue) for script in self.scripts])
                 except KeyboardInterrupt:
                     p.close()
                     p.terminate()
@@ -319,14 +317,15 @@ class Testie:
                     n = float(nr.group(1))
                     mult = nr.group(2).lower()
                     if mult == "k":
-                        n*=1000
+                        n*=1024
                     elif mult == "m":
-                        n*=1000000
+                        n*=1024 * 1024
                     elif mult == "g":
-                        n*=1000000000
+                        n*=1024 * 1024 * 1024
 
                     if not (n == 0 and self.config["zero_is_error"]):
                         results.append(n)
+                        break
                     else:
                         print("Result is 0 !")
                         print("stdout:")
@@ -343,7 +342,6 @@ class Testie:
                     print("stderr:")
                     print(err)
                     return False, output, err
-
 
         self.cleanup()
         return results, output, err
