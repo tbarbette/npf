@@ -3,5 +3,5 @@ branch=master
 url=https://github.com/kohler/click.git
 bin_folder=bin
 bin_name=click
-configure=./configure --disable-linuxmodule --enable-userlevel --enable-user-multithread --enable-dpdk
+configure=./configure --disable-linuxmodule --enable-userlevel --enable-user-multithread
 tags=click,vanilla

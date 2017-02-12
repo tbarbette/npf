@@ -48,8 +48,12 @@ class Run:
                 v = v[1]
             if type(ov) is tuple:
                 ov = ov[1]
-            if not v == ov:
-                return False
+            if is_numeric(v) and is_numeric(ov):
+                if not get_numeric(v) == get_numeric(ov):
+                    return False
+            else:
+                if not v == ov:
+                    return False
         return True
 
     def intersect(self, common):
@@ -66,9 +70,8 @@ class Run:
         n = 0
         for k, v in self.variables.items():
             if type(v) is tuple:
-                n += v[1].__hash__()
-            else:
-                n += v.__hash__()
+                v = v[1]
+            n += str(v).__hash__()
             n += k.__hash__()
         return n
 
