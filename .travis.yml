@@ -9,4 +9,5 @@ install:
     - pip install --user numpy
     - pip install --user SciPy
     - pip install --user -r requirements.txt
+    - python --version
 script: integration/integration.sh
