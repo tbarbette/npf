@@ -27,7 +27,9 @@ class MethodGit(Method):
         versions = []
         origin = self.gitrepo().remotes.origin
         origin.fetch()
-        for i, commit in enumerate(self.gitrepo().iter_commits('origin/' + branch if branch else self.repo.branch)):
+        if not branch:
+            branch = self.repo.branch
+        for i, commit in enumerate(self.gitrepo().iter_commits('origin/' + branch)):
             versions.append(commit.hexsha[:7])
             if (len(versions) >= limit):
                 break;
@@ -57,8 +59,8 @@ class MethodGit(Method):
         if not os.path.exists(repo.reponame):
             os.mkdir(repo.reponame)
 
-        if not branch is None:
-            self.repo.branch = branch
+        if not branch:
+            branch = self.repo.branch
 
         if os.path.exists(self.repo.get_build_path()):
             gitrepo = git.Repo(self.repo.get_build_path())
@@ -66,6 +68,12 @@ class MethodGit(Method):
             o.fetch()
         else:
             gitrepo = git.Repo.clone_from(self.repo.url, self.repo.get_build_path())
+        if branch in gitrepo.remotes.origin.refs:
+            c = gitrepo.remotes.origin.refs[branch]
+        else:
+            c = branch
+        gitrepo.head.reset(commit=c,index=True,working_tree=True)
+        print("Checked out version %s" % gitrepo.head.commit.hexsha[:7])
         self.__gitrepo = gitrepo
         return gitrepo
 
@@ -201,7 +209,8 @@ class Repository:
 
     def get_old_results(self, last_graph:Build, num_old:int, testie:Testie):
         graphs_series = []
-        parents = self.gitrepo().iter_commits(last_graph.version)
+#Todo
+        parents = self.method.gitrepo().iter_commits(last_graph.version)
         next(parents)  # The first commit is last_graph itself
 
         for i, commit in enumerate(parents):  # Get old results for graph

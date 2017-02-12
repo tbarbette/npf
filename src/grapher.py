@@ -304,7 +304,7 @@ class Grapher:
                     s = []
                     for k,v in run.variables.items():
                         if k in dyns:
-                            s.append("%s" % str(v[1] if v is tuple else v))
+                            s.append("%s" % str(v[1] if type(v) is tuple else v))
                     ss.append(','.join(s))
             else:
                 if ndyn == 0:
@@ -316,7 +316,7 @@ class Grapher:
                     s = []
                     for k,v in run.variables.items():
                         if k in dyns:
-                            s.append("%s = %s" % (self.var_name(k), str(v[1] if v is tuple else v)))
+                            s.append("%s = %s" % (self.var_name(k), str(v[1] if type(v) is tuple else v)))
                     ss.append(','.join(s))
 
             plt.xticks(interbar + ind + (width * len(versions) / 2.0)  , ss, rotation='vertical' if (sum([len(s) for s in ss]) > 80) else 'horizontal')
@@ -357,7 +357,15 @@ class Grapher:
 
         if title:
             plt.title(title)
-        plt.tight_layout()
+        try:
+            plt.tight_layout()
+        except ValueError:
+            print("WARNING: Too many points or variables to graph")
+            print("Try reducing the number of dynamic variables : ")
+            for dyn in dyns:
+                print(dyn)
+            return None
+
         if (not filename):
             buf = io.BytesIO()
             plt.savefig(buf, format='png')

@@ -50,7 +50,7 @@ class Watcher():
         body = '<html>'
         body += 'Detailed results for %s :<br />' % build.version
 
-        if not build.build_if_needed():
+        if not build.build():
             self.mail(subject="[%s] Could not compile %s !" % (repo.name, build.version), body='')
 
         graphs = []
@@ -69,7 +69,7 @@ class Watcher():
             graphs_series += repo.get_old_results(build, graph_num - len(graphs_series), testie)
 
             g = grapher.graph(series=graphs_series, title=testie.get_title(),
-                              filename=None, graph_variables=list(testie.variables))
+                              filename=None, graph_variables=[Run(x) for x in testie.variables])
             graphs.append((g, testie.filename))
 
         body += '</html>'
