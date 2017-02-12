@@ -6,8 +6,7 @@ sudo: true
 install:
     - sudo apt-get install libblas-dev liblapack-dev libatlas-base-dev gfortran
     - sudo pip install --upgrade pip
-    - pip install --user numpy
-    - pip install --user SciPy
-    - pip install --user -r requirements.txt
-    - python --version
+    - pip install numpy
+    - pip install SciPy
+    - pip install -r requirements.txt
 script: integration/integration.sh
