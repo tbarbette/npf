@@ -450,7 +450,6 @@ class Testie:
                         testies.append(testie)
 
         for testie in testies:
-            print(testie.config.get_list("require_tags"))
             missing_tags = testie.test_tags()
             if len(missing_tags) > 0:
                 testies.remove(testie)
