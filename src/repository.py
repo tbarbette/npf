@@ -72,8 +72,9 @@ class MethodGit(Method):
             c = gitrepo.remotes.origin.refs[branch]
         else:
             c = branch
+            print("Checked out version %s" % c)
         gitrepo.head.reset(commit=c,index=True,working_tree=True)
-        print("Checked out version %s" % gitrepo.head.commit.hexsha[:7])
+
         self.__gitrepo = gitrepo
         return gitrepo
 
@@ -184,8 +185,8 @@ class Repository:
     def get_bin_path(self,version):
         return self.get_bin_folder(version) + self.bin_name.replace('$version',version)
 
-    def get_last_build(self, history: int = 0, stop_at: Build = None, with_results = False) -> Build:
-        versions = self.method.get_last_versions(history)
+    def get_last_build(self, history: int = 1, stop_at: Build = None, with_results = False) -> Build:
+        versions = self.method.get_last_versions(100)
 
         last_build = None
         for i, version in enumerate(versions):
@@ -195,7 +196,7 @@ class Repository:
                 break
             last_build = Build(self, version)
             if  not with_results or last_build.hasResults():
-                if history == 0:
+                if history <= 1:
                     break
                 else:
                     history-=1

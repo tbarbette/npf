@@ -2,7 +2,6 @@
 Test throughput of Replay element
 
 %config
-require_tags={dpdk}
 
 #Grapg title
 title=Replay throughput

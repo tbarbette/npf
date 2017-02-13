@@ -2,7 +2,6 @@
 Test throughput through two NICs using DPDK
 
 %config
-require_tags={dpdk}
 
 #Grapg title
 title=DPDK L2 FastUDPGen + Fwd test
@@ -14,6 +13,8 @@ n_retry=1
 acceptable=0.01
 n_runs=3
 var_serie=LENGTH
+require_tags={dpdk}
+
 
 %variables
 RXCPU={0,2}

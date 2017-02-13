@@ -266,3 +266,10 @@ class SectionConfig(SectionVariable):
 
     def __setitem__(self, key, val):
         self.__add(key, val)
+
+
+    def finish(self, testie):
+        super().finish(testie)
+        # for k,v in self.vlist.items():
+        #     print("config %s is %s" %(k,v.makeValues()))
+        #     print("config %s is %s" % (k, self.get_list(k)))

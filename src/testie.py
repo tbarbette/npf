@@ -57,11 +57,10 @@ class Run:
         return True
 
     def intersect(self, common):
-        difs = set.difference(set(self.variables.keys()),common)
+        difs = set.difference(set(self.variables.keys()), common)
         for dif in difs:
             del self.variables[dif]
         return self
-
 
     def __eq__(self, o):
         return self.inside(o) and o.inside(self)
@@ -100,10 +99,11 @@ class Run:
 
 Dataset = Dict[Run, List]
 
+
 def _parallel_exec(args):
     (testie, script, commands, n_retry, build, queue) = args
 
-    pid,o,e,c = testie._exec(testie, commands, build, queue)
+    pid, o, e, c = testie._exec(testie, commands, build, queue)
     if pid == 0:
         return False, "Timeout expired" + o, e, script
     else:
@@ -114,38 +114,39 @@ def _parallel_exec(args):
         return True, o, e, script
 
 
-
 class Testie:
-
     @staticmethod
     def _addr_gen():
-        mac = [ 0xAE, 0xAA, 0xAA,
-        random.randint(0x01, 0x7f),
-        random.randint(0x01, 0xff),
-        random.randint(0x01, 0xfe) ]
-        macaddr =  ':'.join(map(lambda x: "%02x" % x, mac))
-        ip = [ 10, mac[3], mac[4], mac[5]]
-        ipaddr =  '.'.join(map(lambda x: "%d" % x, ip))
-        return macaddr,ipaddr
+        mac = [0xAE, 0xAA, 0xAA,
+               random.randint(0x01, 0x7f),
+               random.randint(0x01, 0xff),
+               random.randint(0x01, 0xfe)]
+        macaddr = ':'.join(map(lambda x: "%02x" % x, mac))
+        ip = [10, mac[3], mac[4], mac[5]]
+        ipaddr = '.'.join(map(lambda x: "%d" % x, ip))
+        return macaddr, ipaddr
 
-    def __init__(self, testie_path, options, tags=[]):
+    def get_name(self):
+        return self.filename
+
+    def __init__(self, testie_path, options, tags=None):
         self.sections = []
         self.files = []
         self.scripts = []
         self.filename = os.path.basename(testie_path)
         self.options = options
-        self.tags = tags
+        self.tags = tags if tags else []
         self.network = {}
 
         for i in range(32):
-            mac,ip = Testie._addr_gen()
-            self.network['MAC%d' % i ] = mac
-            self.network['RAW_MAC%d' % i ] = ''.join(mac.split(':'))
-            self.network['IP%d' % i ] = ip
+            mac, ip = Testie._addr_gen()
+            self.network['MAC%d' % i] = mac
+            self.network['RAW_MAC%d' % i] = ''.join(mac.split(':'))
+            self.network['IP%d' % i] = ip
         section = ''
 
         f = open(testie_path, 'r')
-        for i,line in enumerate(f):
+        for i, line in enumerate(f):
             if line.startswith("#"):
                 continue
             elif line.startswith("%"):
@@ -154,7 +155,7 @@ class Testie:
                 if not section is SectionNull:
                     self.sections.append(section)
             elif not section:
-                raise Exception("Bad syntax, file must start by a section. Line %d :\n%s" % (i,line));
+                raise Exception("Bad syntax, file must start by a section. Line %d :\n%s" % (i, line));
             else:
                 section.content += line
         f.close()
@@ -177,16 +178,16 @@ class Testie:
             self.sections.append(self.require)
 
         if not hasattr(self, "config"):
+            print("no config")
             self.config = SectionConfig()
             self.sections.append(self.config)
-
 
         for section in self.sections:
             section.finish(self)
 
-
     def test_tags(self):
         missings = []
+        print("%s requires " % self.get_name(), self.config.get_list("require_tags"))
         for tag in self.config.get_list("require_tags"):
             if not tag in self.tags:
                 missings.append(tag)
@@ -194,25 +195,25 @@ class Testie:
 
     def _replace_all(self, v, content):
         p = content
-        for d in [v,self.network]:
-          for k, v in d.items():
-            if type(v) is tuple:
-                p = p.replace("$" + k, str(v[0]))
-            else:
-                p = p.replace("$" + k, str(v))
+        for d in [v, self.network]:
+            for k, v in d.items():
+                if type(v) is tuple:
+                    p = p.replace("$" + k, str(v[0]))
+                else:
+                    p = p.replace("$" + k, str(v))
         return p
 
     def create_files(self, v):
         for s in self.files:
             f = open(s.filename, "w")
-            p = self._replace_all(v,s.content)
+            p = self._replace_all(v, s.content)
             f.write(p)
             f.close()
 
     def test_require(self, v, build):
         if self.require.content:
             p = self._replace_all(v, self.require.content)
-            pid,output,err,returncode = self._exec(self, p, build)
+            pid, output, err, returncode = self._exec(self, p, build)
             if returncode != 0:
                 if not self.options.quiet:
                     print("Requirement not met :")
@@ -229,16 +230,16 @@ class Testie:
                 path.unlink()
 
     @staticmethod
-    def _exec(testie, cmd, build, queue:Queue=None):
+    def _exec(testie, cmd, build, queue: Queue = None):
         env = os.environ.copy()
         env["PATH"] = build.get_bin_folder() + ":" + env["PATH"]
         if testie.options.show_cmd:
-            print("Executing (PATH=%s) :\n%s" % (env['PATH'],cmd))
+            print("Executing (PATH=%s) :\n%s" % (env['PATH'], cmd))
 
         p = Popen(cmd,
-                    stdin=PIPE, stdout=PIPE, stderr=PIPE,
-                    shell=True, preexec_fn=os.setsid,
-                    env=env)
+                  stdin=PIPE, stdout=PIPE, stderr=PIPE,
+                  shell=True, preexec_fn=os.setsid,
+                  env=env)
         pid = p.pid
         pgpid = os.getpgid(pid)
         if queue:
@@ -249,7 +250,7 @@ class Testie:
             p.stdin.close()
             p.stderr.close()
             p.stdout.close()
-            return pid,s_output,s_err,p.returncode
+            return pid, s_output, s_err, p.returncode
         except TimeoutExpired:
             print("Test expired")
             p.terminate()
@@ -262,7 +263,7 @@ class Testie:
             p.stdin.close()
             p.stderr.close()
             p.stdout.close()
-            return 0,s_output,s_err,p.returncode
+            return 0, s_output, s_err, p.returncode
         except KeyboardInterrupt:
             os.killpg(pgpid, signal.SIGKILL)
             return -1, s_output, s_err, p.returncode
@@ -289,42 +290,44 @@ class Testie:
                 queue = m.Queue()
 
                 try:
-                    parallel_execs = p.map(_parallel_exec, [(self,script,self._replace_all(v,script.content),n_retry,build,queue) for script in self.scripts])
+                    parallel_execs = p.map(_parallel_exec,
+                                           [(self, script, self._replace_all(v, script.content), n_retry, build, queue)
+                                            for script in self.scripts])
                 except KeyboardInterrupt:
                     p.close()
                     p.terminate()
                     sys.exit(1)
                 p.close()
                 p.terminate()
-                worked=False
+                worked = False
                 for i, (r, o, e, script) in enumerate(parallel_execs):
                     if r == 0:
                         continue
                     if r == -1:
                         sys.exit(1)
 
-                for i,(r,o,e,script) in enumerate(parallel_execs):
+                for i, (r, o, e, script) in enumerate(parallel_execs):
                     if len(self.scripts) > 1:
-                        output += "Output of script %d for %s :\n" % (i,script.slave)
-                        err += "Output of script %d for %s :\n" % (i,script.slave)
+                        output += "Output of script %d for %s :\n" % (i, script.slave)
+                        err += "Output of script %d for %s :\n" % (i, script.slave)
 
                     if r:
                         worked = True
                         output += o
                         err += e
                 if not worked:
-                    return False,output,err
+                    return False, output, err
 
                 nr = re.search("RESULT[ \t]+([0-9.]+)[ ]*([gmk]?)(b|byte|bits)?", output.strip(), re.IGNORECASE)
                 if nr:
                     n = float(nr.group(1))
                     mult = nr.group(2).lower()
                     if mult == "k":
-                        n*=1024
+                        n *= 1024
                     elif mult == "m":
-                        n*=1024 * 1024
+                        n *= 1024 * 1024
                     elif mult == "g":
-                        n*=1024 * 1024 * 1024
+                        n *= 1024 * 1024 * 1024
 
                     if not (n == 0 and self.config["zero_is_error"]):
                         results.append(n)
@@ -336,7 +339,7 @@ class Testie:
                         print("stderr:")
                         print(err)
 
-                        return False,output,err
+                        return False, output, err
 
                 else:
                     print("Could not find result !")
@@ -366,7 +369,7 @@ class Testie:
                 return False
         return True
 
-    def execute_all(self, build, options, prev_results:Dataset=None, do_test=True) -> Dataset:
+    def execute_all(self, build, options, prev_results: Dataset = None, do_test=True) -> Dataset:
         """Execute script for all variables combinations
         :param build: A build object
         :param prev_results: Previous set of result for the same build to update or retrieve
@@ -380,7 +383,7 @@ class Testie:
             if not self.test_require(variables, build):
                 continue
             if prev_results and not options.force_test:
-                results = prev_results.get(run,[])
+                results = prev_results.get(run, [])
                 if results is None:
                     results = []
             else:
@@ -405,7 +408,7 @@ class Testie:
             else:
                 all_results[run] = None
 
-            #Save results
+            # Save results
             if all_results and new_results:
                 if prev_results:
                     prev_results[run] = all_results[run]
@@ -431,7 +434,7 @@ class Testie:
         data = data[abs(data - mean) <= m * std]
         return data
 
-    def expand_folder(testie_path, options, tags=[]) -> List:
+    def expand_folder(testie_path, options, tags=None) -> List:
         testies = []
         if not os.path.exists(testie_path):
             print("The testie path %s does not exist" % testie_path)
@@ -447,6 +450,7 @@ class Testie:
                         testies.append(testie)
 
         for testie in testies:
+            print(testie.config.get_list("require_tags"))
             missing_tags = testie.test_tags()
             if len(missing_tags) > 0:
                 testies.remove(testie)

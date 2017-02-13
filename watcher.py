@@ -84,6 +84,12 @@ class Watcher():
         terminate = False
         while not terminate:
             for repo, testies in self.repo_list:
+                build = repo.get_last_build(with_results=False)
+                if (repo.last_build.version == build.version):
+                    if not options.quiet:
+                        print("[%s] Last version is %s, no changes." % (repo.name,build.version))
+                    continue
+
                 regressor = Regression(repo)
                 build,datasets = regressor.regress_all_testies(testies=testies, options=options, history = self.history)
 
@@ -130,13 +136,20 @@ def main():
         tags = args.tags.copy()
         tags += repo.tags
 
-        last_build = repo.get_last_build(history)
+        last_build = repo.get_last_build(history, with_results=True)
         if last_build is not None:
             print("[%s] Last tested version is %s" % (repo.name, last_build.version))
         repo.last_build = last_build
 
         testies = Testie.expand_folder(args.testie, tags=tags,options=args)
-        repo_list.append((repo, testies))
+        if len(testies) == 0:
+            print("[%s] No valid testies. Ignoring this repo." % (repo.name))
+        else:
+            repo_list.append((repo, testies))
+
+    if len(repo_list) == 0:
+        print("ERROR : No valid repositories to use !")
+        sys.exit(-1)
 
     watcher = Watcher(repo_list,
                       mail_from=args.mail_from,
