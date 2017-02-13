@@ -1,0 +1,3 @@
+parent=click
+configure+=--enable-dpdk
+tags=click,dpdk,vanilla
