@@ -1,7 +1,8 @@
 #/bin/bash
-function compare() {
+compare() {
     test=$1
-    python regression.py click-2017 --force-test --testie integration/$test.testie &> int_res
+    python=$2
+    $python regression.py click-2017 --force-test --testie integration/$test.testie &> int_res
     if [ $? -ne 0 ] ; then
         echo "regression.py returned an error for test $test !"
         cat int_res
@@ -16,5 +17,9 @@ function compare() {
     fi
 
 }
-
-compare integration-01
+if [ $# -eq 1 ] ; then
+    python=$1
+else
+    python=python
+fi
+compare integration-01 $python
