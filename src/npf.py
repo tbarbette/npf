@@ -25,6 +25,7 @@ def add_graph_options(parser: ArgumentParser):
                    help='Size of graph', dest="graph_size");
     g.add_argument('--graph-filename', metavar='graph_filename', type=str, nargs=1, default=None,
                         help='path to the file to output the graph');
+    g.add_argument('--graph-reject-outliers',dest='graph_reject_outliers', action='store_true', default=False)
 
     return g
 

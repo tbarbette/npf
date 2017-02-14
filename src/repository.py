@@ -88,6 +88,10 @@ class UnversionedMethod(Method,metaclass=ABCMeta):
         return [self.repo.version]
 
 
+    def get_history(self, version, limit):
+        return []
+
+
 
 class MethodGet(UnversionedMethod):
     def checkout(self, branch=None):

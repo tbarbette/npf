@@ -3,6 +3,7 @@ from typing import List, Dict
 import pydotplus as pydotplus
 from sklearn import tree,preprocessing
 import numpy as np
+import os
 
 from src.build import Build
 from src.testie import Run, Testie, Dataset
@@ -10,7 +11,7 @@ from orderedset import OrderedSet
 
 class Statistics:
     @staticmethod
-    def run(build:Build, all_results:Dataset, testie:Testie,max_depth=3):
+    def run(build:Build, all_results:Dataset, testie:Testie,max_depth=3,filename=None):
         print("Building dataset...")
         X,y = Statistics.buildDataset(all_results,testie)
         print("Learning dataset built with %d samples and %d features..." % (X.shape[0],X.shape[1]))
@@ -23,8 +24,11 @@ class Statistics:
             dot_data = tree.export_graphviz(clf, out_file=None, filled=True,rounded=True,special_characters=True,
                                         feature_names=testie.variables.dtype()['names'])
             graph = pydotplus.graph_from_dot_data(dot_data)
-            f = build.result_path(testie,'pdf',suffix='_clf')
-            graph.write_pdf(f)
+            if filename:
+                f = filename
+            else:
+                f = build.result_path(testie,'pdf',suffix='_clf')
+            graph.write(f,format=os.path.splitext(f)[1][1:])
             print("Decision tree visualization written to %s" % f)
 
         print("")
@@ -45,7 +49,7 @@ class Statistics:
         f = next(iter(all_results.items()))
         for i,(k,v) in enumerate(f[0].variables.items()):
             print("%s = %s, " % (k,best[i]),end='')
-        print(' : %.02f')
+        print(' : %.02f' % y['result'].max())
 
         print('')
         print("Means and std/mean per variables :")

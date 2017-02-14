@@ -5,6 +5,7 @@ IPerf 3 test
 n_runs=5
 var_names={PARALLEL:Number of parallel connexions,ZEROCOPY:Zero-Copy}
 timeout=25
+default_repo=iperf
 
 %variables
 PARALLEL=[1*64]

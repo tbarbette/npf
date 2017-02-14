@@ -59,6 +59,8 @@ def main():
                    default=False)
     s.add_argument('--statistics-maxdepth',
                    help='Max depth of learning tree', dest='statistics_maxdepth', type=int, default=None)
+    s.add_argument('--statistics-filename',
+                   help='Output of learning tree', dest='statistics_filename', type=str, default=None)
 
     a = npf.add_graph_options(parser)
     af = a.add_mutually_exclusive_group()
@@ -71,7 +73,7 @@ def main():
     # a.add_argument('--graph-serie', dest='graph_serie', metavar='variable', type=str, nargs=1, default=[None],
     #                 help='Set which variable will be used as serie when creating graph');
 
-    parser.add_argument('repo', metavar='repo name', type=str, nargs=1, help='name of the repo/group of builds');
+    parser.add_argument('repo', metavar='repo name', type=str, nargs='?', help='name of the repo/group of builds', default=None);
 
     args = parser.parse_args();
 
@@ -80,10 +82,23 @@ def main():
         parser.print_help()
         return 1
 
-    repo = Repository(args.repo[0])
+
+    if args.repo:
+        repo = Repository(args.repo)
+    else:
+        if os.path.exists(args.testie) and os.path.isfile(args.testie):
+            tmptestie = Testie(args.testie,options=args)
+            if "default_repo" in tmptestie.config:
+                repo = Repository(tmptestie.config["default_repo"])
+            else:
+                print("This testie has no default repository")
+                sys.exit(1)
+        else:
+            print("Please specify a repository to use to the command line or only a single testie with a default_repo")
+            sys.exit(1)
+
     tags = args.tags
     tags += repo.tags
-
 
     #Overwrite config if a build folder is given
     if args.build_folder:
@@ -140,6 +155,7 @@ def main():
                     graph_builds.append(g_build)
                 if len(graph_builds) > args.graph_num:
                     break
+
 
     testies = Testie.expand_folder(testie_path=args.testie, options=args, tags=tags)
     if not testies:
@@ -209,7 +225,7 @@ def main():
                     filtered_results[run] = all_results[run]
 
             if args.statistics:
-                Statistics.run(build,filtered_results, testie, max_depth=args.statistics_maxdepth)
+                Statistics.run(build,filtered_results, testie, max_depth=args.statistics_maxdepth, filename=args.statistics_filename)
 
             grapher = Grapher()
 
@@ -237,9 +253,11 @@ def main():
                         g_series.append((testie, g_build, g_all_results))
                 except FileNotFoundError:
                     print("Previous build %s could not be found, we will not graph it !" % g_build.version)
-            grapher.graph(series=[(testie, build, all_results)] + g_series, title=testie.get_title(),
+            grapher.graph(series=[(testie, build, all_results)] + g_series,
+                          title=testie.get_title(),
                           filename=filename,
-                          graph_variables=[Run(x) for x in testie.variables])
+                          graph_variables=[Run(x) for x in testie.variables],
+                          options = args)
         if last_build:
             graph_builds = [last_build] + graph_builds[:-1]
         last_build = build

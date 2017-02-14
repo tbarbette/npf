@@ -14,13 +14,14 @@ from email.mime.multipart import MIMEMultipart
 
 class Watcher():
     def __init__(self, repo_list:List[Tuple[Repository,List[Testie]]], mail_to: List[str], mail_from: str, interval: int,
-                 mail_always: bool, history: int):
+                 mail_always: bool, history: int, options):
         self.interval = interval
         self.repo_list = repo_list
         self.mail_to = mail_to
         self.mail_from = mail_from
         self.mail_always = mail_always
         self.history = history
+        self.options = options
 
 
     def mail(self,subject, body, images=[], bodytype='text'):
@@ -69,7 +70,8 @@ class Watcher():
             graphs_series += repo.get_old_results(build, graph_num - len(graphs_series), testie)
 
             g = grapher.graph(series=graphs_series, title=testie.get_title(),
-                              filename=None, graph_variables=[Run(x) for x in testie.variables])
+                              filename=None, graph_variables=[Run(x) for x in testie.variables],
+                              options=self.options)
             graphs.append((g, testie.filename))
 
         body += '</html>'
@@ -156,7 +158,8 @@ def main():
                       mail_to=args.mail_to,
                       interval = args.interval,
                       mail_always = args.mail_always,
-                      history = history)
+                      history = history,
+                      options=args)
     watcher.run(args)
 
 

@@ -83,7 +83,7 @@ def main():
     grapher = Grapher()
     g = grapher.graph(series=series,
                       filename=filename,
-                      graph_size=args.graph_size)
+                      options=args)
 
 
 if __name__ == "__main__":

@@ -65,7 +65,7 @@ class Grapher:
         else:
             return "%.2f %s/s" % (x,unit)
 
-    def graph(self,filename, graph_variables:List[Run] = None, title=False, series=[], graph_size=None):
+    def graph(self,filename, options, graph_variables:List[Run] = None, title=False, series=[]):
         """series is a list of triplet (script,build,results) where
         result is the output of a script.execute_all()"""
         vars_values = {}
@@ -87,31 +87,31 @@ class Grapher:
             for run,results in series[0][2].items():
                  graph_variables.append(run)
 
-
-
         #Data transformation
-        for i,(script,build,all_results) in enumerate(series):
+        for i,(testie,build,all_results) in enumerate(series):
             versions.append(build.pretty_name())
-            self.scripts.add(script)
+            self.scripts.add(testie)
             new_results = {}
             for run,results in all_results.items():
                 if run in graph_variables:
                     if results:
+                        if options.graph_reject_outliers:
+                            results = self.reject_outliers(np.asarray(results), testie)
+                        else:
+                            results = np.asarray(results)
                         ymax = max(ymax, max(results))
                         ymin = min(ymin, min(results))
-                        if not script.config['zero_is_error'] or \
+                        if not self.config('zero_is_error') or \
                             (ymax != 0 and ymin != 0) :
                             new_results[run] = results
                     vars_all.add(run)
                     for k,v in run.variables.items():
                         vars_values.setdefault(k,set()).add(v)
-                else:
-                    print("Useless data %s" % run)
 
             if new_results:
-                filtered_series.append((script,build,new_results))
+                filtered_series.append((testie,build,new_results))
             else:
-                print("No valid date for %s" % build)
+                print("No valid data for %s" % build)
         series=filtered_series
         vars_all = list(vars_all)
         vars_all.sort()
@@ -129,11 +129,12 @@ class Grapher:
 
         ndyn = len(dyns)
         nseries = len(series)
+
         if nseries == 1 and ndyn > 0 and not (ndyn == 1 and all_num(vars_values[dyns[0]]) and len(vars_values[dyns[0]]) > 2):
             """Only one serie: expand one dynamic variable as serie, but not if it was plotable as a line"""
             script,build,all_results = series[0]
-            if ("var_serie" in script.config and script.config["var_serie"] in dyns):
-                key=script.config["var_serie"]
+            if self.config("var_series") and self.config("var_series") in dyns:
+                key=self.config("var_series")
             else:
                 key=None
                 #First pass : use the non-numerical variable with the most points
@@ -187,7 +188,6 @@ class Grapher:
 
         ax = plt.gca()
 
-        reject_outliers = False
 
         xlog = False
         ax = plt.gca()
@@ -217,22 +217,21 @@ class Grapher:
             data=[]
             for a in [all_results for script,build,all_results in series]:
                 v = a[vars_all[0]]
-                if v:
+                if v is not None:
                     data.append(np.mean(v))
                 else:
                     data.append(np.nan)
 
             i=0
 
-
             nbars=len(versions)
-            width = (1 - (2 * interbar)) / 1
+            width = (1 - (2 * interbar)) / len(versions)
 
-            xpos = np.arange(nbars) + interbar
-            ticks = np.arange(nbars) + 0.5
+            xpos = np.arange(len(versions)) + interbar
+            ticks = np.arange(len(versions)) + 0.5
 
             plt.bar(xpos,data,label=versions[i],color=graphcolor[i % len(graphcolor)],width=width)
-            plt.xticks(ticks,versions, rotation='vertical' if (nbars > 10) else 'horizontal')
+            plt.xticks(ticks,versions, rotation='vertical' if (len(versions) > 10) else 'horizontal')
             plt.gca().set_xlim(0, len(versions))
         elif ndyn==1 and len(vars_all) > 2:
             """One dynamic variable used as X, series are version line plots"""
@@ -251,10 +250,8 @@ class Grapher:
                     result = all_results.get(run, None)
 
                     x.append(run.print_variable(key))
-                    if result:
+                    if result is not None:
                         result = np.asarray(result) / ydiv
-                        if reject_outliers:
-                            result = self.reject_outliers(np.asarray(result))
                         y.append(np.mean(result))
                         e.append(np.std(result))
                     else:
@@ -270,7 +267,7 @@ class Grapher:
                 xmin = min(xmin , min(ax[0]))
                 xmax = max(xmax , max(ax[0]))
 
-            if key in script.config['var_log']:
+            if key in self.config('var_log',{}):
                 xlog=True
             #Arrange the x limits
             if not xlog:
@@ -291,8 +288,8 @@ class Grapher:
 
 
                 plt.gca().set_xlim(xmin,xmax)
-            if self.config('graph_legend',True):
-                plt.legend(loc=self.config("legend_loc"), title=legend_title)
+
+            plt.legend(loc=self.config("legend_loc"), title=legend_title)
         else:
             """Barplot. X is all seen variables combination, series are version"""
 
@@ -312,9 +309,7 @@ class Grapher:
                 e=[]
                 for run in vars_all:
                     result = all_results.get(run,None)
-                    if result:
-                        if reject_outliers:
-                            result = self.reject_outliers(np.asarray(result))
+                    if result is not None:
                         y.append(np.mean(result))
                         e.append(np.std(result))
                     else:
@@ -368,7 +363,7 @@ class Grapher:
         if ndyn > 0 and self.config('graph_legend',True):
             plt.legend(loc=self.config("legend_loc"), title=legend_title)
 
-        if ("result" in script.config['var_log']):
+        if "result" in self.config('var_log',{}):
             plt.yscale('log')
 
         if xlog:
@@ -376,8 +371,8 @@ class Grapher:
 
         plt.xlabel(self.var_name(key))
 
-        if "result" in script.config["var_names"]:
-            plt.ylabel(script.config["var_names"]["result"])
+        if "result" in self.config("var_names",{}):
+            plt.ylabel(self.config("var_names")["result"])
 
         var_lim = self.scriptconfig("var_lim", "result", None)
         if var_lim:
@@ -395,9 +390,9 @@ class Grapher:
                 plt.ylim(ymin=0)
 
 
-        if graph_size:
+        if options.graph_size:
             fig = plt.gcf()
-            fig.set_size_inches(graph_size[0], graph_size[1])
+            fig.set_size_inches(options.graph_size[0], options.graph_size[1])
 
         if title:
             plt.title(title)
@@ -424,6 +419,6 @@ class Grapher:
         plt.clf()
         return ret
 
-    def reject_outliers(self, result):
-        return next(self.scripts.__iter__()).reject_outliers(result)
+    def reject_outliers(self, result, testie):
+        return testie.reject_outliers(result)
 

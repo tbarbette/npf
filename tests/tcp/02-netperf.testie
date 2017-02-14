@@ -4,6 +4,7 @@ Netperf test
 %config
 n_runs=5
 var_names={PARALLEL:Number of parallel connexions,KEEPALIVE:so_keepalive}
+default_repo=netperf
 
 %variables
 PARALLEL=[1*8]
