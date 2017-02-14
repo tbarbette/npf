@@ -316,7 +316,7 @@ class Testie:
                         output += o
                         err += e
                 if not worked:
-                    return False, output, err
+                   continue
 
                 nr = re.search("RESULT[ \t]+([0-9.]+)[ ]*([gmk]?)(b|byte|bits)?", output.strip(), re.IGNORECASE)
                 if nr:
@@ -338,8 +338,7 @@ class Testie:
                         print(output)
                         print("stderr:")
                         print(err)
-
-                        return False, output, err
+                        continue
 
                 else:
                     print("Could not find result !")
@@ -347,7 +346,7 @@ class Testie:
                     print(output)
                     print("stderr:")
                     print(err)
-                    return False, output, err
+                    continue
 
         self.cleanup()
         return results, output, err
