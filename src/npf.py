@@ -16,6 +16,7 @@ def add_verbosity_options(parser: ArgumentParser):
                     default=False)
 
     v.add_argument('--quiet', help='Quiet mode', dest='quiet', action='store_true', default=False)
+    v.add_argument('--quiet-build', help='Quiet build mode', dest='quiet_build', action='store_true', default=False)
     return v
 
 

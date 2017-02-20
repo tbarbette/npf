@@ -187,7 +187,7 @@ class Testie:
 
     def test_tags(self):
         missings = []
-        #print("%s requires " % self.get_name(), self.config.get_list("require_tags"))
+#        print("%s requires " % self.get_name(), self.config.get_list("require_tags"))
         for tag in self.config.get_list("require_tags"):
             if not tag in self.tags:
                 missings.append(tag)

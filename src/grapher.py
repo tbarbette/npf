@@ -72,12 +72,6 @@ class Grapher:
         vars_all = set()
         versions=[]
 
-        # if graph_variables:
-        #     for i, gv in enumerate(graph_variables):
-        #         for k,v in gv.variables.items():
-        #             if type(v) is tuple:
-        #                 graph_variables[i][k] = v[1]
-
         ymin,ymax=(float('inf'),0)
         filtered_series=[]
 

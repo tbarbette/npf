@@ -126,7 +126,7 @@ class Build:
     def build_path(self):
         return self.repo.get_build_path()
 
-    def checkout(self):
+    def checkout(self,quiet = False):
         if not self.repo.url:
             return True
         if not self.repo.method.checkout(self.version):
@@ -148,7 +148,7 @@ class Build:
         else:
             return True
 
-    def compile(self):
+    def compile(self, quiet = False):
         """
         Compile the currently checked out repo, assuming it is currently at self.version
         :return: True upon success, False if not
@@ -161,7 +161,8 @@ class Build:
         for what,command in [("Configuring %s..." % self.version,self.repo.configure.replace('$version',self.version)),
                              ("Cleaning %s..." % self.version,self.repo.clean.replace('$version',self.version)),
                              ("Building %s..." % self.version,self.repo.make.replace('$version',self.version))]:
-            print(what)
+            if not quiet:
+                print(what)
             p = subprocess.Popen(command, shell=True, stdin=PIPE, stdout=PIPE, stderr=PIPE)
             output, err = [x.decode() for x in p.communicate()]
             p.wait()
@@ -179,20 +180,23 @@ class Build:
         self.__write_file(self.repo.get_build_path()  + '/.build_version', self.version)
         return True
 
-    def build(self, force_build : bool = False, never_build : bool = False):
+    def build(self, force_build : bool = False, never_build : bool = False, quiet_build : bool = False):
         if force_build or self.is_checkout_needed():
             force_build = True
             if never_build:
-                print("Warning : will not do test because you disallowed build")
+                if not quiet_build:
+                    print("Warning : will not do test because you disallowed build")
                 return False
-            print("Checking out %s" % (self.repo.name))
-            if not self.checkout():
+            if not quiet_build:
+                print("Checking out %s" % (self.repo.name))
+            if not self.checkout(quiet_build):
                 return False
         if force_build or self.is_compile_needed():
             if never_build:
                 print("Warning : will not do test because you disallowed build")
-            print("Building %s" % (self.repo.name))
-            if not self.compile():
+            if not quiet_build:
+                print("Building %s" % (self.repo.name))
+            if not self.compile(quiet_build):
                 return False
         return True
 

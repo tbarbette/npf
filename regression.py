@@ -165,7 +165,7 @@ def main():
 
     for b in last_rebuilds:
         print("Last version %s had no result. Re-executing tests for it." % b.version)
-        b.build(args.force_build,args.no_build)
+        b.build(args.force_build,args.no_build,args.quiet_build)
         for testie in testies:
             print("Executing testie %s" % testie.filename)
             all_results = testie.execute_all(b,options=args)
@@ -202,7 +202,7 @@ def main():
             if testie.has_all(prev_results, build) and not args.force_test:
                 all_results = prev_results
             else:
-                if not build.build(args.force_build,args.no_build):
+                if not build.build(args.force_build,args.no_build,args.quiet_build):
                     continue
                 all_results = testie.execute_all(build, prev_results=prev_results, do_test=args.do_test, options=args)
 

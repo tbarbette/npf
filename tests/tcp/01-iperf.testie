@@ -8,9 +8,11 @@ timeout=25
 default_repo=iperf
 
 %variables
-PARALLEL=[1*64]
+PARALLEL=[1-8]
 ZEROCOPY={:without,-Z:with}
 TIME=2
+
+fastregression:PARALLEL={1,8}
 
 %script
 iperf3 -s &> /dev/null
