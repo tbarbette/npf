@@ -79,20 +79,28 @@ class Grapher:
         #                 graph_variables[i][k] = v[1]
 
         ymin,ymax=(float('inf'),0)
+        filtered_series=[]
         #Data transformation
         for i,(script,build,all_results) in enumerate(series):
             versions.append(build.pretty_name())
             self.scripts.add(script)
+            new_results = {}
             for run,results in all_results.items():
                 if (graph_variables==None and (i == 0)) \
                     or (graph_variables != None and run in graph_variables):
                     if results:
                         ymax = max(ymax, max(results))
                         ymin = min(ymin, min(results))
+                        if not script.config['zero_is_error'] or \
+                            (ymax != 0 and ymin != 0) :
+                            new_results[run] = results
                     vars_all.add(run)
                     for k,v in run.variables.items():
                         vars_values.setdefault(k,set()).add(v)
 
+            if new_results:
+                filtered_series.append((script,build,new_results))
+        series=filtered_series
         vars_all = list(vars_all)
         vars_all.sort()
 
@@ -109,8 +117,8 @@ class Grapher:
 
         ndyn = len(dyns)
         nseries = len(series)
-        if nseries == 1 and ndyn > 0 and not (ndyn == 1 and all_num(vars_values[dyns[0]])):
-            """Only one serie: expand one dynamic variable as serie"""
+        if nseries == 1 and ndyn > 0 and not (ndyn == 1 and all_num(vars_values[dyns[0]]) and len(vars_values[dyns[0]]) > 2):
+            """Only one serie: expand one dynamic variable as serie, but not if it was plotable as a line"""
             script,build,all_results = series[0]
             if ("var_serie" in script.config and script.config["var_serie"] in dyns):
                 key=script.config["var_serie"]
@@ -193,13 +201,15 @@ class Grapher:
 
             i=0
 
-            width = (1 - (2 * interbar)) / len(versions)
 
-            xpos = np.arange(len(versions)) + interbar
-            ticks = np.arange(len(versions)) + 0.5
+            nbars=len(versions)
+            width = (1 - (2 * interbar)) / 1
+
+            xpos = np.arange(nbars) + interbar
+            ticks = np.arange(nbars) + 0.5
 
             plt.bar(xpos,data,label=versions[i],color=graphcolor[i % len(graphcolor)],width=width)
-            plt.xticks(ticks,versions, rotation='vertical' if (len(versions) > 10) else 'horizontal')
+            plt.xticks(ticks,versions, rotation='vertical' if (nbars > 10) else 'horizontal')
             plt.gca().set_xlim(0, len(versions))
         elif ndyn==1 and len(vars_all) > 2:
             """One dynamic variable used as X, series are version line plots"""

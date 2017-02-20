@@ -198,9 +198,9 @@ class Testie:
         for d in [v, self.network]:
             for k, v in d.items():
                 if type(v) is tuple:
-                    p = p.replace("$" + k, str(v[0]))
-                else:
-                    p = p.replace("$" + k, str(v))
+                    v = v[0]
+                p = re.sub(r'(?=[^\\])[$]([{]' + k +'[}]|'+ k + '(?=}|[^a-zA-Z0-9_]))', str(v), p)
+
         return p
 
     def create_files(self, v):

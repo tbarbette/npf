@@ -175,7 +175,7 @@ def main():
 
             regression = Regression(testie)
 
-            print(testie.info.content.strip())
+            print(testie.get_title())
 
             old_all_results = None
             if last_build:
@@ -241,7 +241,7 @@ def main():
             for g_build in graph_builds:
                 try:
                     g_all_results = g_build.load_results(testie)
-                    if (g_all_results):
+                    if (g_all_results and len(g_all_results) > 0):
                         g_series.append((testie, g_build, g_all_results))
                 except FileNotFoundError:
                     print("Previous build %s could not be found, we will not graph it !" % g_build.version)
