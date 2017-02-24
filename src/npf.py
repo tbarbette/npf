@@ -38,15 +38,14 @@ def add_testing_options(parser: ArgumentParser, regression : bool = False):
                     help='Force re-doing all tests even if data for the given version and '
                          'variables is already known', dest='force_test', action='store_true',
                     default=False)
-    t.add_argument('--n_runs', help='Override test n_runs', type=int, nargs='?', metavar='N', default=-1)
 
-    if regression:
-        t.add_argument('--n_supplementary_runs', metavar='N', help='Override test n_supplementary_runs', type=int,
-                   nargs='?', default=-1)
 
     t.add_argument('--tags', metavar='tag', type=str, nargs='+', help='list of tags', default=[]);
     t.add_argument('--variables', metavar='variable=value', type=str, nargs='+',
                    help='list of variables values to override', default=[]);
+    t.add_argument('--config', metavar='config=value', type=str, nargs='+',
+                   help='list of config values to override', default=[]);
+
     t.add_argument('--testie', metavar='path or testie', type=str, nargs='?', default='tests',
                    help='script or script folder. Default is tests');
 
@@ -59,3 +58,11 @@ def parse_variables(args_variables) -> Dict:
         var, val = variable.split('=',1)
         variables[var] = VariableFactory.build(var,val)
     return variables
+
+def override(args, testies):
+    overriden_variables = parse_variables(args.variables)
+    overriden_config = parse_variables(args.config)
+    for testie in testies:
+        testie.variables.override_all(overriden_variables)
+        testie.config.override_all(overriden_config)
+    return testies

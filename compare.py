@@ -7,9 +7,8 @@ from pathlib import Path
 
 
 class Comparator():
-    def __init__(self, repo_list: List[Repository], overriden_variables:Dict = {}):
+    def __init__(self, repo_list: List[Repository]):
         self.repo_list = repo_list
-        self.overriden_variables = overriden_variables
 
     def run(self, testie_name, options, tags):
         graphs_series = []
@@ -17,8 +16,8 @@ class Comparator():
             regressor = Regression(repo)
             print("Tag list : ",repo.tags, tags)
             testies = Testie.expand_folder(testie_name, options=options, tags=repo.tags + tags)
+            testies = npf.override(options,testies)
             for testie in testies:
-                testie.variables.override_all(self.overriden_variables)
                 build, datasets = regressor.regress_all_testies(testies=[testie], options=options)
                 if not build is None:
                     build._pretty_name = repo.name
@@ -49,8 +48,8 @@ def main():
         repo.last_build = None
         repo_list.append(repo)
 
-    comparator = Comparator(repo_list,
-                            overriden_variables = npf.parse_variables(args.variables))
+    comparator = Comparator(repo_list)
+
 
     series = comparator.run(testie_name=args.testie, tags=args.tags, options=args)
 

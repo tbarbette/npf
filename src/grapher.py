@@ -80,14 +80,22 @@ class Grapher:
 
         ymin,ymax=(float('inf'),0)
         filtered_series=[]
+
+        #If no graph variables, use the first serie
+        if graph_variables==None:
+            graph_variables=[]
+            for run,results in series[0][2].items():
+                 graph_variables.append(run)
+
+
+
         #Data transformation
         for i,(script,build,all_results) in enumerate(series):
             versions.append(build.pretty_name())
             self.scripts.add(script)
             new_results = {}
             for run,results in all_results.items():
-                if (graph_variables==None and (i == 0)) \
-                    or (graph_variables != None and run in graph_variables):
+                if run in graph_variables:
                     if results:
                         ymax = max(ymax, max(results))
                         ymin = min(ymin, min(results))
@@ -97,9 +105,13 @@ class Grapher:
                     vars_all.add(run)
                     for k,v in run.variables.items():
                         vars_values.setdefault(k,set()).add(v)
+                else:
+                    print("Useless data %s" % run)
 
             if new_results:
                 filtered_series.append((script,build,new_results))
+            else:
+                print("No valid date for %s" % build)
         series=filtered_series
         vars_all = list(vars_all)
         vars_all.sort()
@@ -123,12 +135,23 @@ class Grapher:
             if ("var_serie" in script.config and script.config["var_serie"] in dyns):
                 key=script.config["var_serie"]
             else:
-                key = dyns[0]
+                key=None
+                #First pass : use the non-numerical variable with the most points
+                n_val=0
                 for i in range(ndyn):
                     k=dyns[i]
                     if not all_num(vars_values[k]):
+                        if (len(vars_values[k]) > n_val):
+                            key = k
+                            n_val = len(vars_values[k])
+                #Second pass if that missed, use the numerical variable with the less point if dyn=2 or the most points
+                n_val=0 if ndyn > 2 else 999
+                for i in range(ndyn):
+                    k=dyns[i]
+                    if (ndyn > 2 and len(vars_values[k]) > n_val) or (ndyn <= 2 and len(vars_values[k]) < n_val):
                         key = k
-                        break
+                        n_val = len(vars_values[k])
+
             # if graph_serie:
             #     key=graph_serie
             dyns.remove(key)
@@ -268,8 +291,8 @@ class Grapher:
 
 
                 plt.gca().set_xlim(xmin,xmax)
-
-            plt.legend(loc=self.config("legend_loc"), title=legend_title)
+            if self.config('graph_legend',True):
+                plt.legend(loc=self.config("legend_loc"), title=legend_title)
         else:
             """Barplot. X is all seen variables combination, series are version"""
 
@@ -322,16 +345,27 @@ class Grapher:
                 else:
                     key = "Variables"
 
+                use_short=False
+                short_ss=[]
                 for run in vars_all:
                     s = []
+                    short_s = []
                     for k,v in run.variables.items():
                         if k in dyns:
-                            s.append("%s = %s" % (self.var_name(k), str(v[1] if type(v) is tuple else v)))
-                    ss.append(','.join(s))
+                            v = str(v[1] if type(v) is tuple else v)
+                            s.append("%s = %s" % (self.var_name(k),v))
+                            short_s.append("%s = %s" % (k if len(k) < 6 else k[:3], v))
+                    vs = ','.join(s)
+                    ss.append(vs)
+                    if len(vs) > 30:
+                        use_short = True
+                    short_ss.append(','.join(short_s))
+                if use_short:
+                    ss=short_ss
 
             plt.xticks(interbar + ind + (width * len(versions) / 2.0)  , ss, rotation='vertical' if (sum([len(s) for s in ss]) > 80) else 'horizontal')
 
-        if (ndyn > 0):
+        if ndyn > 0 and self.config('graph_legend',True):
             plt.legend(loc=self.config("legend_loc"), title=legend_title)
 
         if ("result" in script.config['var_log']):

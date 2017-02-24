@@ -145,14 +145,7 @@ def main():
     if not testies:
         sys.exit(errno.ENOENT)
 
-    overriden_variables = npf.parse_variables(args.variables)
-    for testie in testies:
-        testie.variables.override_all(overriden_variables)
-        if args.n_runs != -1:
-            testie.config["n_runs"] = args.n_runs
-
-        if args.n_supplementary_runs != -1:
-            testie.config["n_supplementary_runs"] = args.n_supplementary_runs
+    npf.override(args,testies)
 
     for b in last_rebuilds:
         print("Last version %s had no result. Re-executing tests for it." % b.version)
@@ -212,7 +205,6 @@ def main():
             filtered_results = {}
             for v in testie.variables:
                 run = Run(v)
-
                 if run in all_results:
                     filtered_results[run] = all_results[run]
 

@@ -96,7 +96,6 @@ class Regression:
                                                            repo.last_build)
             if variables_passed == variables_total:
                 nok += 1
-            build.writeversion(testie, all_results)
             datasets.append(all_results)
             testie.n_variables_passed = variables_passed
             testie.n_variables = variables_total
