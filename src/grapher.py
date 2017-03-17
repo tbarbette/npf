@@ -95,7 +95,7 @@ class Grapher:
                             results = np.asarray(results)
                         ymax = max(ymax, max(results))
                         ymin = min(ymin, min(results))
-                        if not self.config('zero_is_error') or \
+                        if not testie.config('zero_is_error') or \
                             (ymax != 0 and ymin != 0) :
                             new_results[run] = results
                     vars_all.add(run)
