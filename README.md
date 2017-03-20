@@ -1,35 +1,44 @@
 Network Performance Framework
 =============================
 
-Run performance tests on the Click Modular Router or its variants using
-configuration files much like Click's testies.
+Run performance tests on Network software 
+using
+configuration files much like Click Modular Router's testies.
 
-Configuration files allows matrix parameters to try many combinations of
-variables for each test files and report performance results for each
-parameters.
+Testie files allow to define a matrix of parameters 
+to try many combinations of
+variables for each test and report performance results and evolution for each
+line of the matrix.
 
-Finally, a graph will be made for each test showing the evolution of
-performances through commits.
+Finally, a graph will be built and statistical results computed for each test 
+showing the evolution of performances through commits.
+
+Testie files are simple to write, and easy to share, as such we encourage
+users to make pull requests, especially to support more software
+through repo files and give a few examples testie for each of them.
 
 ###Dependencies
 This project needs python 3
+sudo pip3 install numpy
 sudo pip3 install -r requirements.txt
 
 ##Tools
 Three tools come with this performance framework :
-  * regression.py for advance regression tests on one repository
-  * watcher.py to watch one or multiple repositories for any new commit and e-mail output in case
-of change in performances due to the last commits
+  * regression.py for advance regression tests on one repository.
+  * watcher.py to watch one or multiple repositories for any new commit and e-mail 
+  results in case
+of change in performances due to the last commits.
   * compare.py to compare one testie but accross multiple repository, mainly to compare
-how different branches/implementations behaves against each others
+how different branches/implementations or even completely different software behave
+against each others.
 
 ###NPF Regressor
 
 Checkout or update a given repository (described in the repo
-folder), build Click, and launch the tests discribed in the
+folder), build the software, and launch the tests discribed in the
 tests directory. If the script was previously ran on older
 commits, it will make a comparison with last commits, showing
- a regression (or improvement) and will graph 8 old data.
+  regression (or improvement) and will graph 8 old data.
 
 Example :
 ```bash
@@ -40,19 +49,19 @@ Example :
     python3 regression.py click #The graph includes the older commit for reference, up to "--graph-num", default is 8
 ```
 
-Example of a generated graph, just when IPFilter compilation process was re-worked :
+Example of a generated graph for the Click Modular Router, just when IPFilter compilation process was re-worked :
 ![alt tag](doc/sample_graph2.png)
 
-Alternatively, you can force regression.py to re-build and compute the data for the old runs directly with the --allow-old-build option :
-    python3 regression.py click --allow-old-build
-
+Alternatively, you can force regression.py to re-build and compute the data for the old runs directly with the --history option :
+    python3 regression.py click --history 10
+    
 Use --help to print all options
 
 ###NPF Watcher
 
-Watcher is a stripped down version of regression.py, but allowing to
+Watcher is a stripped down version of regression.py (without statistics support mostly), but allowing to
 loop through a given list of repositories watching for changes. When
-a new commit is seen, it will run all testies and e-mail the results
+a new commit is seen, it will run all given testies and e-mail the results
 to a given list of addresses.
 
 ```bash
@@ -60,13 +69,13 @@ python3 watcher.py click fastclick --mail-to tom.barbette@ulg.ac.be --tags fastr
 ```
  * click fastclick : List of repos to watch, as described in the repos folder
  * --history N allows to re-do the tests for the last N commits, you will receive
- an e-mail for each commits of each repos. This arguments is also available in regression.py
+ an e-mail for each commits of each repos.
  * --tags TAG1 TAG2 [...] allows to set flags which change variables in the tests, see below.
 
 ###NPF Comparator
 
 Compare allows to do the contrary of regression.py : instead of
- testing multiple testies on one repository, you test one testie across
+ testing multiple testies on one repository, it tests one testie across
  multiple repositories.
  
 This example allows to compare click against fastclick for the infinitesource
@@ -196,6 +205,12 @@ line would be a loss of space, leaving only one dybamic variable :
 ![alt tag](doc/sample_graph3.png)
 
 The Comparator uses the repositories as series.
+
+### Statistics
+TODO
+
+### Where to continue?
+Read the testie files in tests/click mostly, then write your owns !
 
 TODO
 ----
