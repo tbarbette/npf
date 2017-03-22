@@ -15,19 +15,15 @@ netperf:KEEPALIVE={-S:with}
 iperf:ZEROCOPY={-Z:with}
 
 %netperf:script
-killall -9 netserver
 netserver -D -4 &> /dev/null
 
-%netperf:script
-sleep 1
+%netperf:script delay=1
 result=$(netperf -f kbits -l $TIME -n $PARALLEL $KEEPALIVE -v 0 -P 0)
-echo "RESULT ${result}kbits"
-killall netserver &> /dev/null
+echo "NETPERF RESULT ${result}kbits"
 
 %iperf:script
 iperf3 -s &> /dev/null
 
-%iperf:script
+%iperf:script delay=1
 result=$(iperf3 -f k -t $TIME -P $PARALLEL $ZEROCOPY -c localhost | tail -n 3 | grep -ioE "[0-9.]+ [kmg]bits")
-echo "RESULT $result"
-killall iperf3 &> /dev/null
+echo "IPERF RESULT $result"

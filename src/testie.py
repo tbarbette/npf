@@ -1,3 +1,4 @@
+from queue import Empty
 from subprocess import Popen, PIPE
 from subprocess import TimeoutExpired
 import os
@@ -11,6 +12,11 @@ from pathlib import Path
 
 from multiprocessing import Queue
 
+import time
+
+from src import npf
+from src.executor.localexecutor import LocalExecutor
+from src.node import Node, NIC
 from src.section import *
 
 
@@ -101,31 +107,21 @@ Dataset = Dict[Run, List]
 
 
 def _parallel_exec(args):
-    (testie, script, commands, n_retry, build, queue) = args
-
-    pid, o, e, c = testie._exec(testie, commands, build, queue)
+    (testie, scriptSection, commands, n_retry, build, queue, terminated_event) = args
+    time.sleep(scriptSection.delay())
+    pid, o, e, c = npf.executor(scriptSection.get_role()).exec(cmd=commands,stdin=testie.stdin.content,timeout=testie.config["timeout"],bin_path=build.get_bin_folder(), queue=queue, options=testie.options, terminated_event=terminated_event)
     if pid == 0:
-        return False, "Timeout expired" + o, e, script
+        return False, "Timeout expired" + o, e, commands
     else:
+        # By default, we kill all other scripts when the first finishes
         if testie.config["autokill"] or pid == -1:
-            Testie.killall(queue)
+            Testie.killall(queue, terminated_event)
         if pid == -1:
-            return -1, o, e, script
-        return True, o, e, script
+            return -1, o, e, commands
+        return True, o, e, commands
 
 
 class Testie:
-    @staticmethod
-    def _addr_gen():
-        mac = [0xAE, 0xAA, 0xAA,
-               random.randint(0x01, 0x7f),
-               random.randint(0x01, 0xff),
-               random.randint(0x01, 0xfe)]
-        macaddr = ':'.join(map(lambda x: "%02x" % x, mac))
-        ip = [10, mac[3], mac[4], mac[5]]
-        ipaddr = '.'.join(map(lambda x: "%d" % x, ip))
-        return macaddr, ipaddr
-
     def get_name(self):
         return self.filename
 
@@ -136,13 +132,7 @@ class Testie:
         self.filename = os.path.basename(testie_path)
         self.options = options
         self.tags = tags if tags else []
-        self.network = {}
 
-        for i in range(32):
-            mac, ip = Testie._addr_gen()
-            self.network['MAC%d' % i] = mac
-            self.network['RAW_MAC%d' % i] = ''.join(mac.split(':'))
-            self.network['IP%d' % i] = ip
         section = ''
 
         f = open(testie_path, 'r')
@@ -150,7 +140,7 @@ class Testie:
             if line.startswith("#"):
                 continue
             elif line.startswith("%"):
-                result = line[1:].split(' ')
+                result = line[1:]
                 section = SectionFactory.build(self, result)
                 if not section is SectionNull:
                     self.sections.append(section)
@@ -178,7 +168,6 @@ class Testie:
             self.sections.append(self.require)
 
         if not hasattr(self, "config"):
-            print("no config")
             self.config = SectionConfig()
             self.sections.append(self.config)
 
@@ -187,21 +176,25 @@ class Testie:
 
     def test_tags(self):
         missings = []
-#        print("%s requires " % self.get_name(), self.config.get_list("require_tags"))
+        #        print("%s requires " % self.get_name(), self.config.get_list("require_tags"))
         for tag in self.config.get_list("require_tags"):
             if not tag in self.tags:
                 missings.append(tag)
         return missings
 
-    def _replace_all(self, v, content):
-        p = content
-        for d in [v, self.network]:
-            for k, v in d.items():
-                if type(v) is tuple:
-                    v = v[0]
-                p = re.sub(r'(?=[^\\])[$]([{]' + k +'[}]|'+ k + '(?=}|[^a-zA-Z0-9_]))', str(v), p)
+    def _replace_all(self, v, content, selfRole='default'):
+        def do_replace(match):
+            varname = match.group('varname_sp') if match.group('varname_sp') is not None else match.group('varname_in')
+            if (varname in v):
+                val = v[varname]
+                return str(val[0] if type(val) is tuple else val);
+            nic_match = re.match(r'(?P<role>[a-z0-9]+)[:](?P<nic_idx>[0-9]+)[:](?P<type>' +NIC.TYPES+ '+)',varname,re.IGNORECASE)
+            if nic_match:
+                return str(npf.node(nic_match.group('role'),selfRole).get_nic(int(nic_match.group('nic_idx')))[nic_match.group('type')]);
+            return match.group(0)
 
-        return p
+        content = re.sub(r'(?=[^\\])[$]([{](?P<varname_in>[a-zA-Z0-9:]+)[}]|(?P<varname_sp>[a-zA-Z0-9:]+)(?=}|[^a-zA-Z0-9_]))', do_replace, content)
+        return content
 
     def create_files(self, v):
         for s in self.files:
@@ -212,8 +205,8 @@ class Testie:
 
     def test_require(self, v, build):
         if self.require.content:
-            p = self._replace_all(v, self.require.content)
-            pid, output, err, returncode = self._exec(self, p, build)
+            p = self._replace_all(v, self.require.content, self.require.role())
+            pid, output, err, returncode = npf.executor(self.require.role()).exec(self, cmd=p, bin_path=build.get_bin_folder(),options=self.options, terminated_event=None)
             if returncode != 0:
                 if not self.options.quiet:
                     print("Requirement not met :")
@@ -230,54 +223,25 @@ class Testie:
                 path.unlink()
 
     @staticmethod
-    def _exec(testie, cmd, build, queue: Queue = None):
-        env = os.environ.copy()
-        env["PATH"] = build.get_bin_folder() + ":" + env["PATH"]
-        if testie.options.show_cmd:
-            print("Executing (PATH=%s) :\n%s" % (env['PATH'], cmd))
-
-        p = Popen(cmd,
-                  stdin=PIPE, stdout=PIPE, stderr=PIPE,
-                  shell=True, preexec_fn=os.setsid,
-                  env=env)
-        pid = p.pid
-        pgpid = os.getpgid(pid)
-        if queue:
-            queue.put(pgpid)
-        try:
-            s_output, s_err = [x.decode() for x in
-                               p.communicate(testie.stdin.content, timeout=testie.config["timeout"])]
-            p.stdin.close()
-            p.stderr.close()
-            p.stdout.close()
-            return pid, s_output, s_err, p.returncode
-        except TimeoutExpired:
-            print("Test expired")
-            p.terminate()
-            p.kill()
-            os.killpg(pgpid, signal.SIGKILL)
-            os.killpg(pgpid, signal.SIGTERM)
-            s_output, s_err = [x.decode() for x in p.communicate()]
-            print(s_output)
-            print(s_err)
-            p.stdin.close()
-            p.stderr.close()
-            p.stdout.close()
-            return 0, s_output, s_err, p.returncode
-        except KeyboardInterrupt:
-            os.killpg(pgpid, signal.SIGKILL)
-            return -1, s_output, s_err, p.returncode
-
-    @staticmethod
-    def killall(queue):
+    def killall(queue, terminated_event):
+        terminated_event.set()
         while not queue.empty():
-            pid = queue.get()
             try:
-                os.killpg(pid, signal.SIGKILL)
+                killer = queue.get(block=False)
+            except Empty:
+                continue
+            try:
+                killer.kill()
             except OSError:
                 pass
 
     def execute(self, build, v, n_runs=1, n_retry=0):
+        for script in self.scripts:
+            for k,val in script.params.items():
+                nic_match = re.match(r'(?P<nic_idx>[0-9]+)[:](?P<type>' + NIC.TYPES + '+)',k, re.IGNORECASE)
+                if nic_match:
+                    npf.node(script.get_role()).nics[int(nic_match.group('nic_idx'))][nic_match.group('type')] = val
+
         self.create_files(v)
         results = []
         for i in range(n_runs):
@@ -288,10 +252,11 @@ class Testie:
                 p = multiprocessing.Pool(n)
                 m = multiprocessing.Manager()
                 queue = m.Queue()
+                terminated_event = m.Event()
 
                 try:
                     parallel_execs = p.map(_parallel_exec,
-                                           [(self, script, self._replace_all(v, script.content), n_retry, build, queue)
+                                           [(self, script, self._replace_all(v, script.content, script.get_role()), n_retry, build, queue, terminated_event)
                                             for script in self.scripts])
                 except KeyboardInterrupt:
                     p.close()
@@ -308,15 +273,15 @@ class Testie:
 
                 for i, (r, o, e, script) in enumerate(parallel_execs):
                     if len(self.scripts) > 1:
-                        output += "Output of script %d for %s :\n" % (i, script.slave)
-                        err += "Output of script %d for %s :\n" % (i, script.slave)
+                        output += "Output of script %d :\n" % (i)
+                        err += "Output of script %d :\n" % (i)
 
                     if r:
                         worked = True
                         output += o
                         err += e
                 if not worked:
-                   continue
+                    continue
 
                 nr = re.search("RESULT[ \t]+([0-9.]+)[ ]*([gmk]?)(b|byte|bits)?", output.strip(), re.IGNORECASE)
                 if nr:
@@ -374,6 +339,10 @@ class Testie:
         :param prev_results: Previous set of result for the same build to update or retrieve
         :return: Dataset(Dict of variables as key and arrays of results as value)
         """
+
+        if not build.build(options.force_build, options.no_build, options.quiet_build):
+            return None
+
         all_results = {}
         for variables in self.variables:
             run = Run(variables)

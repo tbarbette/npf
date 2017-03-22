@@ -180,7 +180,7 @@ class Build:
         self.__write_file(self.repo.get_build_path()  + '/.build_version', self.version)
         return True
 
-    def build(self, force_build : bool = False, never_build : bool = False, quiet_build : bool = False):
+    def build(self, force_build : bool = False, never_build : bool = False, quiet_build : bool = False, executor=None):
         if force_build or self.is_checkout_needed():
             force_build = True
             if never_build:

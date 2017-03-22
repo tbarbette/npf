@@ -5,6 +5,10 @@ sections = ['info', 'config', 'variables', 'script', 'file', 'require']
 
 
 class SectionFactory:
+    varPattern = "([a-zA-Z0-9:]+)[=]([a-zA-Z0-9./]+)"
+    namePattern = re.compile("^(?P<tags>[a-zA-Z0-9,]+[:])?(?P<name>info|config|variables|file (?P<fileName>[a-zA-Z0-9]+)|require|script(:?[@](?P<scriptRole>[a-zA-Z0-9]+))?)(?P<params>([ \t]"+varPattern+")+)?$")
+
+
     @staticmethod
     def build(testie, data):
         """
@@ -13,11 +17,12 @@ class SectionFactory:
         :param data: Array containing the section name and possible arguments
         :return: A Section object
         """
-        sectionName = data[0].rstrip()
-        testTags = sectionName.split(':',1)
-        if len(testTags) > 1:
-            tags = testTags[0].split(',')
-            sectionName = testTags[1]
+        matcher = SectionFactory.namePattern.match(data)
+        if not matcher:
+            raise Exception("Unknown section line %s" % data)
+
+        if matcher.group('tags') is not None:
+            tags = matcher.group('tags').split(',')
         else:
             tags=[]
 
@@ -25,30 +30,34 @@ class SectionFactory:
             if not tag in testie.tags:
                 return SectionNull()
 
-        if not sectionName in sections:
-            raise Exception("Unknown section %s" % sectionName);
-        if sectionName == 'file':
-            s = SectionFile(data[1].rstrip())
-        elif sectionName == 'script':
-            s = SectionScript()
-            if len(data) > 1:
-                s.slave = data[1].rstrip()
-        elif len(data) > 1:
-            raise Exception("Only file section takes arguments (" + s.name + " has argument " + data[1] + ")");
-        elif hasattr(testie, sectionName):
-            raise Exception("Only one section of type " + s.name + " is allowed")
-        elif sectionName == 'variables':
+        sectionName = matcher.group('name')
+
+
+        if (sectionName.startswith('script')):
+            params = matcher.group('params')
+            params = dict(re.findall(SectionFactory.varPattern,params)) if params else {}
+            s = SectionScript(matcher.group('scriptRole'),params)
+            return s
+
+        if matcher.group('params') is not None:
+            raise Exception("Only script sections takes arguments (" + sectionName + " has argument " + matcher.groups('params') + ")");
+
+        if (sectionName.startswith('file')):
+            s = SectionFile(matcher.group('fileName').strip())
+            return s
+
+        if hasattr(testie, sectionName):
+            raise Exception("Only one section of type " + sectionName + " is allowed")
+
+        if sectionName == 'variables':
             s = SectionVariable()
-            setattr(testie, s.name, s)
         elif sectionName == 'config':
             s = SectionConfig()
-            setattr(testie, s.name, s)
         elif sectionName == 'require':
             s = SectionRequire()
-            setattr(testie, s.name, s)
-        else:
+        elif sectionName == 'info':
             s = Section(sectionName)
-            setattr(testie, s.name, s)
+        setattr(testie, s.name, s)
         return s
 
 
@@ -67,13 +76,20 @@ class SectionNull(Section):
 
 
 class SectionScript(Section):
-    def __init__(self, slave='local'):
+    def __init__(self, role=None, params={}):
         self.name = 'script'
         self.content = ''
-        self.slave = 'local'
+        self.params = params
+        self._role = role
+
+    def get_role(self):
+        return self._role
 
     def finish(self, script):
         script.scripts.append(self)
+
+    def delay(self):
+        return float(self.params.get("delay",0))
 
 
 class SectionFile(Section):
@@ -89,6 +105,10 @@ class SectionRequire(Section):
     def __init__(self):
         self.name = 'require'
         self.content = ''
+
+    def role(self):
+        #For now, require is only on one node, the default one
+        return 'default'
 
     def finish(self, testie):
         pass
@@ -221,7 +241,7 @@ class SectionConfig(SectionVariable):
         self.__add("accept_variance", 1)
         self.__add("timeout", 30)
         self.__add("acceptable", 0.01)
-        self.__add("n_runs", 1)
+        self.__add("n_runs", 3)
         self.__add("n_retry", 0)
         self.__add("zero_is_error", True)
         self.__add("n_supplementary_runs", 3)

@@ -3,7 +3,7 @@ Test throughput through two NICs using DPDK
 
 %config
 
-#Grapg title
+#Graph title
 title=DPDK L2 FastUDPGen + Fwd test
 timeout=10
 

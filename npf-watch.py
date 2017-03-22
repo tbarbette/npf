@@ -1,4 +1,11 @@
 #!/usr/bin/python3
+"""
+NPF repository watcher. Essencially a loop watching for commits in a list of git repo to execute given testies when
+a commit is made. If you want to integrate npf in your CI test suite, use npf-run. Passive watching is intended
+to watch project you don't own but you use, just to be sure that they do not mess performances.
+
+We prefered to separate this tool from npf-run because of the lot of specifics for sending an e-mail, watch loop, etc
+"""
 import argparse
 import time
 from email.mime.text import MIMEText
@@ -109,7 +116,7 @@ def main():
     parser.add_argument('repos', metavar='repo name', type=str, nargs='+', help='names of the repositories to watch');
     parser.add_argument('--interval', metavar='secs', type=int, nargs=1, default=60,
                         help='interval in seconds between polling of repositories');
-    parser.add_argument('--history', dest='history', metavar='N', type=int, default=0,
+    parser.add_argument('--history', dest='history', metavar='N', type=int, default=1,
                         help='assume last N commits as untested (default 0)');
 
     v = npf.add_verbosity_options(parser)
@@ -129,6 +136,9 @@ def main():
                    help='e-mail even if there is an error');
 
     args = parser.parse_args();
+
+    npf.parse_nodes(args.cluster)
+
     history = args.history
 
     # Parsing repo list and getting last_build

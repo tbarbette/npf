@@ -1,6 +1,0 @@
-name=cluster01
-#Address for connection
-address=user@cluster01.example.com
-#Private key file to connect with user
-id_rsa=path/to/id_rsa
-tags={tags,added,when,using,me}

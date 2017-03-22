@@ -5,6 +5,7 @@ Netperf test
 n_runs=5
 var_names={PARALLEL:Number of parallel connexions,KEEPALIVE:so_keepalive}
 default_repo=netperf
+require_tags={netperf}
 
 %variables
 PARALLEL=[1*8]
@@ -14,13 +15,9 @@ TIME=2
 extended:TIME={2,10}
 extended:KEEPALIVE={:without,-S:with}
 
-
 %script
-killall -9 netserver
 netserver -D -4 &> /dev/null
 
-%script
-sleep 1
+%script delay=1
 result=$(netperf -f kbits -l $TIME -n $PARALLEL $KEEPALIVE -v 0 -P 0)
 echo "RESULT ${result}kbits"
-killall netserver &> /dev/null

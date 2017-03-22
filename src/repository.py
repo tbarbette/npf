@@ -177,17 +177,17 @@ class Repository:
                 setattr(self,var,val)
 
         self.method = self.method(self) #Instanciate the method
-        self._build_path = os.path.dirname(os.path.abspath(sys.argv[0])) + '/' + self.reponame + '/build/'
+        self._build_path = os.path.dirname(self.reponame + '/build/')
 
 
     def get_build_path(self):
         return self._build_path
 
-    def get_bin_folder(self,version):
-        return self.get_build_path() + self.bin_folder.replace('$version',version) + '/'
+    def get_bin_folder(self, version):
+        return self.get_build_path() + '/' + self.bin_folder.replace('$version', version) + '/'
 
-    def get_bin_path(self,version):
-        return self.get_bin_folder(version) + self.bin_name.replace('$version',version)
+    def get_bin_path(self, version):
+        return self.get_bin_folder(version) + self.bin_name.replace('$version', version)
 
     def get_last_build(self, history: int = 1, stop_at: Build = None, with_results = False) -> Build:
         versions = self.method.get_last_versions(100)

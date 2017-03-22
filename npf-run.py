@@ -1,4 +1,7 @@
 #!/usr/bin/python3
+"""
+Main NPF testie runner program
+"""
 import argparse
 
 import errno
@@ -9,7 +12,7 @@ from src.statistics import Statistics
 
 
 def main():
-    parser = argparse.ArgumentParser(description='NPF Regression test')
+    parser = argparse.ArgumentParser(description='NPF Testie runner')
     v = npf.add_verbosity_options(parser)
 
     b = parser.add_argument_group('Click building options')
@@ -82,7 +85,6 @@ def main():
         parser.print_help()
         return 1
 
-
     if args.repo:
         repo = Repository(args.repo)
     else:
@@ -96,6 +98,8 @@ def main():
         else:
             print("Please specify a repository to use to the command line or only a single testie with a default_repo")
             sys.exit(1)
+
+    npf.parse_nodes(args.cluster)
 
     tags = args.tags
     tags += repo.tags
@@ -165,7 +169,6 @@ def main():
 
     for b in last_rebuilds:
         print("Last version %s had no result. Re-executing tests for it." % b.version)
-        b.build(args.force_build,args.no_build,args.quiet_build)
         for testie in testies:
             print("Executing testie %s" % testie.filename)
             all_results = testie.execute_all(b,options=args)
@@ -179,6 +182,7 @@ def main():
 
         nok = 0
         ntests = 0
+
         for testie in testies:
             print("Executing testie %s" % testie.filename)
 
@@ -202,8 +206,6 @@ def main():
             if testie.has_all(prev_results, build) and not args.force_test:
                 all_results = prev_results
             else:
-                if not build.build(args.force_build,args.no_build,args.quiet_build):
-                    continue
                 all_results = testie.execute_all(build, prev_results=prev_results, do_test=args.do_test, options=args)
 
             if args.compare:

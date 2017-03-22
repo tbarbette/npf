@@ -4,8 +4,9 @@ from src.repository import *
 from src.build import *
 from src.grapher import *
 
+
 class Regression:
-    def __init__(self, repo : Repository):
+    def __init__(self, repo: Repository):
         self.repo = repo
 
     def accept_diff(self, testie, result, old_result):
@@ -13,12 +14,13 @@ class Regression:
         old_result = np.asarray(old_result)
         n = testie.reject_outliers(result).mean()
         old_n = testie.reject_outliers(old_result).mean()
-        diff=abs(old_n - n) / old_n
-        accept =  testie.config["acceptable"]
+        diff = abs(old_n - n) / old_n
+        accept = testie.config["acceptable"]
         accept += abs(result.std() * testie.config["accept_variance"] / n)
         return diff <= accept, diff
 
-    def compare(self, testie, variable_list, all_results, build, old_all_results, last_build, allow_supplementary=True) -> tuple:
+    def compare(self, testie, variable_list, all_results, build, old_all_results, last_build,
+                allow_supplementary=True) -> tuple:
         """
         Compare two sets of results for the given list of variables and returns the amount of failing test
         :param variable_list:
@@ -46,7 +48,7 @@ class Regression:
                     if not testie.options.quiet:
                         print(
                             "Difference of %.2f%% is outside acceptable margin for %s. Running supplementary tests..." % (
-                            diff * 100, run.format_variables()))
+                                diff * 100, run.format_variables()))
                     for i in range(testie.config["n_supplementary_runs"]):
                         n, output, err = testie.execute(build, v)
                         if n == False:
@@ -62,7 +64,8 @@ class Regression:
 
                 if not ok:
                     print(
-                        "ERROR: Test %s is outside acceptable margin between %s and %s : difference of %.2f%% !" % (testie.filename,build.version,last_build.version,diff * 100)  )
+                        "ERROR: Test %s is outside acceptable margin between %s and %s : difference of %.2f%% !" % (
+                        testie.filename, build.version, last_build.version, diff * 100))
                 else:
                     tests_passed += 1
                     if not testie.options.quiet:
@@ -71,13 +74,19 @@ class Regression:
                 print("No old values for %s for version %s." % (run, last_build.version))
                 if (old_all_results):
                     old_all_results[run] = [0]
-        return tests_passed,tests_total
+        return tests_passed, tests_total
 
-    def regress_all_testies(self, testies:List[Testie], options, history:int = 0) -> Tuple[Build,Dataset]:
+    def regress_all_testies(self, testies: List[Testie], options, history : int = 1) -> Tuple[Build, Dataset]:
+        """
+        Execute all testies passed in argument for the last build of the regressor associated repository
+        :param testies: List of testies
+        :param options: Options object
+        :return: the lastbuild and one Dataset per testies or None if could not build
+        """
         repo = self.repo
         datasets = []
 
-        build = repo.get_last_build()
+        build = repo.get_last_build(history=history)
 
         nok = 0
 
@@ -91,9 +100,11 @@ class Regression:
                     old_all_results = None
             else:
                 old_all_results = None
-            all_results = testie.execute_all(build, prev_results=build.load_results(testie),options=options,do_test=True)
-            variables_passed, variables_total = regression.compare(testie, testie.variables, all_results, build, old_all_results,
-                                                           repo.last_build)
+            all_results = testie.execute_all(build, prev_results=build.load_results(testie), options=options,
+                                             do_test=True)
+            variables_passed, variables_total = regression.compare(testie, testie.variables, all_results, build,
+                                                                   old_all_results,
+                                                                   repo.last_build)
             if variables_passed == variables_total:
                 nok += 1
             datasets.append(all_results)
@@ -106,4 +117,4 @@ class Regression:
         build.n_passed = nok
         build.n_tests = len(testies)
 
-        return build,datasets
+        return build, datasets

@@ -8,3 +8,4 @@ pydotplus
 scipy
 sklearn
 orderedset
+paramiko

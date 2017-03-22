@@ -6,7 +6,7 @@ compare() {
     python=$2
     $python regression.py click-2017 --force-test --testie integration/$test.testie --no-compare --quiet-build &> int_res
     if [ $? -ne 0 ] ; then
-        echo "regression.py returned an error for test $test !"
+        echo "npf-run.py returned an error for test $test !"
         cat int_res
         exit 1
     fi
@@ -26,7 +26,7 @@ try() {
     python=$2
     $python regression.py --force-test --testie $test --no-compare --n_runs 1 --tags fastregression
     if [ $? -ne 0 ] ; then
-        echo "regression.py returned an error for test $test !"
+        echo "npf-run.py returned an error for test $test !"
         exit 1
     fi
 }

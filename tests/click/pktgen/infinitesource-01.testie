@@ -1,6 +1,8 @@
 %info
 Simple performance test generating packets with InfiniteSource
 
+Same as fastupdgen-01.testie, but with InfiniteSource
+
 %config
 #Script is time-based on 3s, so if it is longer than 10s, there is a bug somewhere
 timeout=10
@@ -14,6 +16,7 @@ var_unit={BURST:Packets,LENGTH:Bytes,result:BPS}
 title=InfiniteSource Packet Generation
 n_runs=3
 var_serie=LENGTH
+default_repo=click
 
 %variables
 BURST=[1*1024]

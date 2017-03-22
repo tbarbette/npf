@@ -1,6 +1,25 @@
 %info
 FastUDPFlows Generation Speed
 
+This local testie use the FastUDPFlows element of Click to generate packets and compute the generation speed,
+ it is a purely CPU-based test, even if the CONFIG file use some real nics address
+
+Assign the "default" role to run this test on a a specific node.
+
+The fastregression tag reduce the variables to the most interesting values
+
+Consider replay-01.testie for a faster version, but only FastClick-compatible. The slowiness of this test
+resides in the lack of batching capabilities, and the push<->pull part and notifications
+
+%config
+var_names={LENGTH:Length,BURST:Burst}
+n_runs=5
+#Like most CPU test, there is quite a lot of variance in the result, so we lower the value
+accept_variance=2
+var_serie=LENGTH
+default_repo=click
+
+
 %script
 click -c 0x1 -n 4 -- CONFIG || click -j 1 CONFIG
 
@@ -11,19 +30,8 @@ LENGTH={64,128,512}
 fastregression:BURST={1,32,256}
 fastregression:LENGTH=64
 
-%config
-var_names={LENGTH:Length,BURST:Burst}
-n_runs=3
-accept_variance=2
-var_serie=LENGTH
-
 %file CONFIG
-define ($mac0 aa:bb:cc:dd:ee:f0)
-define ($mac1 aa:bb:cc:dd:ee:f1)
-define ($ip0 10.19.0.1)
-define ($ip1 10.19.0.2)
-
-fu0 :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH $LENGTH, SRCETH $mac0, DSTETH $mac1, SRCIP $ip0, DSTIP $ip1, FLOWS 1, FLOWSIZE 100)
+fu0 :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH $LENGTH, SRCETH ${self:0:mac}, DSTETH ${self:1:mac}, SRCIP ${self:0:ip}, DSTIP ${self:1:ip}, FLOWS 1, FLOWSIZE 100)
     -> ac :: AverageCounter
 	-> Unqueue($BURST)
     -> Discard;

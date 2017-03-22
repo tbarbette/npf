@@ -1,4 +1,10 @@
 #!/usr/bin/python3
+"""
+NPF Program to compare multiple software against the same testie
+
+A specific version is needed because tags may influence the testie according to the repo, so some tricks to find
+common variables must be used. For this reason also one testie only is supported in comparator.
+"""
 import argparse
 
 from src import npf
@@ -40,6 +46,8 @@ def main():
     t = npf.add_testing_options(parser)
     g = npf.add_graph_options(parser)
     args = parser.parse_args();
+
+    npf.parse_nodes(args.cluster)
 
     # Parsing repo list and getting last_build
     repo_list = []

@@ -1,0 +1,19 @@
+%info
+Integration Test
+
+%script
+click CONFIG
+
+%variables
+BURST=32
+LENGTH=[1*1024]
+
+%config
+var_names={LENGTH:Length,BURST:Burst}
+n_runs=3
+var_serie=LENGTH
+
+%file CONFIG
+DriverManager(
+			print "RESULT $BURST"
+			stop);

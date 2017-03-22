@@ -17,64 +17,62 @@ Testie files are simple to write, and easy to share, as such we encourage
 users to make pull requests, especially to support more software
 through repo files and give a few examples testie for each of them.
 
-###Dependencies
+### Dependencies
 This project needs python 3
 sudo pip3 install numpy
 sudo pip3 install -r requirements.txt
 
 ##Tools
 Three tools come with this performance framework :
-  * regression.py for advance regression tests on one repository.
-  * watcher.py to watch one or multiple repositories for any new commit and e-mail 
-  results in case
-of change in performances due to the last commits.
-  * compare.py to compare one testie but accross multiple repository, mainly to compare
-how different branches/implementations or even completely different software behave
-against each others.
+  * npf-run.py for advance regression tests on one repository
+  * npf-watch.py to watch one or multiple repositories for any new commit and e-mail output in case
+of change in performances due to the last commits
+  * npf-npf-compare.py to compare one testie but accross multiple repository, mainly to compare
+how different branches/implementations behaves against each others
 
-###NPF Regressor
+### NPF Regressor
 
 Checkout or update a given repository (described in the repo
 folder), build the software, and launch the tests discribed in the
 tests directory. If the script was previously ran on older
 commits, it will make a comparison with last commits, showing
-  regression (or improvement) and will graph 8 old data.
+ a regression (or improvement) and will graph 8 old data.
 
 Example :
 ```bash
-    python3 regression.py click #Produce a graph for each tests with the result
+    python3 npf-run.py click #Produce a graph for each tests with the result
     #click master is updated
-    python3 regression.py click #The graph now compares HEAD and the last commit, if major performances changes are found, the return code will be different than 0
+    python3 npf-run.py click #The graph now compares HEAD and the last commit, if major performances changes are found, the return code will be different than 0
     #click master is updated again
-    python3 regression.py click #The graph includes the older commit for reference, up to "--graph-num", default is 8
+    python3 npf-run.py click #The graph includes the older commit for reference, up to "--graph-num", default is 8
 ```
 
 Example of a generated graph for the Click Modular Router, just when IPFilter compilation process was re-worked :
 ![alt tag](doc/sample_graph2.png)
 
-Alternatively, you can force regression.py to re-build and compute the data for the old runs directly with the --history option :
-    python3 regression.py click --history 10
-    
+Alternatively, you can force npf-run.py to re-build and compute the data for the old runs directly with the --allow-old-build option :
+    python3 npf-run.py click --allow-old-build
+
 Use --help to print all options
 
-###NPF Watcher
+### NPF Watcher
 
-Watcher is a stripped down version of regression.py (without statistics support mostly), but allowing to
+Watcher is a stripped down version of npf-run.py (without statistics support mostly), but allowing to
 loop through a given list of repositories watching for changes. When
 a new commit is seen, it will run all given testies and e-mail the results
 to a given list of addresses.
 
 ```bash
-python3 watcher.py click fastclick --mail-to tom.barbette@ulg.ac.be --tags fastregression --history 1
+python3 npf-watch.py click fastclick --mail-to tom.barbette@ulg.ac.be --tags fastregression --history 1
 ```
  * click fastclick : List of repos to watch, as described in the repos folder
  * --history N allows to re-do the tests for the last N commits, you will receive
  an e-mail for each commits of each repos.
  * --tags TAG1 TAG2 [...] allows to set flags which change variables in the tests, see below.
 
-###NPF Comparator
+### NPF Comparator
 
-Compare allows to do the contrary of regression.py : instead of
+Compare allows to do the contrary of npf-run.py : instead of
  testing multiple testies on one repository, it tests one testie across
  multiple repositories.
  
@@ -82,7 +80,7 @@ This example allows to compare click against fastclick for the infinitesource
   test case :
 
 ```bash
-python3 compare.py click fastclick --testie tests/pktgen/infinitesource-01.testie --variables LENGTH=64
+python3 npf-compare.py click fastclick --testie tests/pktgen/infinitesource-01.testie --variables LENGTH=64
 ```
  * click fastclick : List of repos to compare
  * --testie FILENAME : Testie to test. This argument is available in all tools.
@@ -97,17 +95,17 @@ Just for relevance, batching is what makes this difference.
 
 This tool has also less options than Regressor, you should use this
 last one to create your tests and tune parameters on one repository
-and then only use compare.py. Comparator has no options for statistics.
+and then only use npf-compare.py. Comparator has no options for statistics.
 
 
-###Which one to use
-Use regression.py for development, trying big matrices of configuration,
+### Which one to use
+Use npf-run.py for development, trying big matrices of configuration,
 get extended graph and customized tests for each testies.
 
-Use watcher.py with the fastregression tags to send you an e-mail automatically
+Use npf-watch.py with the fastregression tags to send you an e-mail automatically
 when some new commits introduce performances problems.
 
-Use compare.py to compare multiple Click
+Use npf-compare.py to compare multiple Click
 instances, typically in research paper or to asser that an
 idea of you is good, showing the generated graphs to assert
 your sayings.
@@ -179,7 +177,7 @@ The default method is git.
 When giving a repo name to any tool, the version can be overriden by
 suffixing a "-version" to the repo name, eg :
 ```bash
-python3 regression.py iperf-3.1.3
+python3 npf-run.py iperf-3.1.3
 ```
 
 See the repo folder for examples. Repo can inherit others, as there is only one
@@ -193,13 +191,13 @@ combinations.
 
 To choose the type of graph, the number of dynamic variables is taken into account.
 
-Below, regression.py gave two series to the Grapher (current and last commit), while the testie
+Below, npf-run.py gave two series to the Grapher (current and last commit), while the testie
 generate a matrix of Burst and Lengths, that is 2 dynamic variables and only a barplot can render that correctly
 as lines would be uncomparable.
 
 ![alt tag](doc/sample_graph.png)
 
-If a "previous version" is not given to regression.py (so it just runs the test for the current master but do not compare 
+If a "previous version" is not given to npf-run.py (so it just runs the test for the current master but do not compare 
 the results), the graph will use one variable as the serie as having only one
 line would be a loss of space, leaving only one dybamic variable :
 ![alt tag](doc/sample_graph3.png)

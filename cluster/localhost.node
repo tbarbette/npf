@@ -1,0 +1,6 @@
+#Do not delete this file, it sets up the specific default (localhost) node
+
+#Set up the localhost interface
+0:ip=127.0.0.1
+0:mac=00:00:00:00:00:00
+0:ifname=lo
