@@ -9,7 +9,7 @@ from typing import Tuple
 
 import numpy as np
 
-from npf import args
+from npf import arguments
 from npf.build import Build
 from npf.node import Node, NIC
 from npf.section import *
@@ -133,7 +133,7 @@ class Testie:
             nic_match = re.match(Node.ROLE_VAR_REGEX, varname, re.IGNORECASE)
             if nic_match:
                 varRole = nic_match.group('role')
-                return str(args.node(varRole, selfRole).get_nic(int(nic_match.group('nic_idx')))[nic_match.group('type')])
+                return str(arguments.node(varRole, selfRole).get_nic(int(nic_match.group('nic_idx')))[nic_match.group('type')])
             return match.group(0)
 
         content = re.sub(r'(?=[^\\])[$]([{](?P<varname_in>'+Variable.NAME_REGEX+')[}]|(?P<varname_sp>'+Variable.NAME_REGEX+')(?=}|[^a-zA-Z0-9_]))', do_replace, content)
@@ -149,7 +149,7 @@ class Testie:
     def test_require(self, v, build):
         if self.require.content:
             p = self._replace_all(v, self.require.content, self.require.role())
-            pid, output, err, returncode = args.executor(self.require.role()).exec(self, cmd=p, bin_path=build.get_bin_folder(), options=self.options, terminated_event=None)
+            pid, output, err, returncode = arguments.executor(self.require.role()).exec(self, cmd=p, bin_path=build.get_bin_folder(), options=self.options, terminated_event=None)
             if returncode != 0:
                 if not self.options.quiet:
                     print("Requirement not met :")
@@ -183,7 +183,7 @@ class Testie:
             for k,val in script.params.items():
                 nic_match = re.match(r'(?P<nic_idx>[0-9]+)[:](?P<type>' + NIC.TYPES + '+)',k, re.IGNORECASE)
                 if nic_match:
-                    args.node(script.get_role()).nics[int(nic_match.group('nic_idx'))][nic_match.group('type')] = val
+                    arguments.node(script.get_role()).nics[int(nic_match.group('nic_idx'))][nic_match.group('type')] = val
 
         self.create_files(v)
         results = []

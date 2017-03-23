@@ -13,7 +13,7 @@ from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-from npf import args
+from npf import arguments
 from npf.regression import *
 from npf.testie import Testie
 
@@ -120,11 +120,11 @@ def main():
     parser.add_argument('--history', dest='history', metavar='N', type=int, default=1,
                         help='assume last N commits as untested (default 0)')
 
-    v = args.add_verbosity_options(parser)
+    v = arguments.add_verbosity_options(parser)
 
-    t = args.add_testing_options(parser)
+    t = arguments.add_testing_options(parser)
 
-    a = args.add_graph_options(parser)
+    a = arguments.add_graph_options(parser)
     a.add_argument('--graph-num', metavar='N', type=int, nargs='?', default=8,
                    help='Number of versions to graph')
 

@@ -7,7 +7,7 @@ import errno
 
 import sys
 
-from npf import args
+from npf import arguments
 from npf.regression import *
 from npf.statistics import Statistics
 from npf.testie import Testie
@@ -15,7 +15,7 @@ from npf.testie import Testie
 
 def main():
     parser = argparse.ArgumentParser(description='NPF Testie runner')
-    v = args.add_verbosity_options(parser)
+    v = arguments.add_verbosity_options(parser)
 
     b = parser.add_argument_group('Click building options')
     bf = b.add_mutually_exclusive_group()
@@ -35,7 +35,7 @@ def main():
                    help='Force to rebuild the old versions. Ignored if allow-old-build is not set', dest='force_oldbuild',
                    action='store_true', default=False)
 
-    t = args.add_testing_options(parser, True)
+    t = arguments.add_testing_options(parser, True)
 
     g = parser.add_argument_group('Versioning options')
     gf = g.add_mutually_exclusive_group()
@@ -67,7 +67,7 @@ def main():
     s.add_argument('--statistics-filename',
                    help='Output of learning tree', dest='statistics_filename', type=str, default=None)
 
-    a = args.add_graph_options(parser)
+    a = arguments.add_graph_options(parser)
     af = a.add_mutually_exclusive_group()
     af.add_argument('--graph-version', metavar='version', type=str, nargs='*',
                     help='versions to simply graph')
@@ -101,7 +101,8 @@ def main():
             print("Please specify a repository to use to the command line or only a single testie with a default_repo")
             sys.exit(1)
 
-    args.parse_nodes(args)
+    arguments.parse_nodes(args)
+    arguments.parse_nodes(args)
 
     tags = args.tags
     tags += repo.tags
@@ -124,7 +125,7 @@ def main():
 
     last_build = None
     if args.compare:
-        if args.compare_version and len(args.compare_version):
+        if args.compare_version and len(args.compe_version):
             compare_version = args.compare_version
             last_build = Build(repo, compare_version)
         else:
@@ -167,7 +168,7 @@ def main():
     if not testies:
         sys.exit(errno.ENOENT)
 
-    args.override(args, testies)
+    arguments.override(args, testies)
 
     for b in last_rebuilds:
         print("Last version %s had no result. Re-executing tests for it." % b.version)

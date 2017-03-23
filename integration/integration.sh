@@ -4,9 +4,9 @@
 compare() {
     test=$1
     python=$2
-    $python regression.py click-2017 --force-test --testie integration/$test.testie --no-compare --quiet-build &> int_res
+    $python npf-run.py click-2017 --force-test --testie integration/$test.testie --no-compare --quiet-build &> int_res
     if [ $? -ne 0 ] ; then
-        echo "npf-dataset.py returned an error for test $test !"
+        echo "npf-run.py returned an error for test $test !"
         cat int_res
         exit 1
     fi
@@ -24,9 +24,9 @@ compare() {
 try() {
     test=$1
     python=$2
-    $python regression.py --force-test --testie $test --no-compare --n_runs 1 --tags fastregression
+    $python np-run.py --force-test --testie $test --no-compare --n_runs 1 --tags fastregression
     if [ $? -ne 0 ] ; then
-        echo "npf-dataset.py returned an error for test $test !"
+        echo "npf-run.py returned an error for test $test !"
         exit 1
     fi
 }
@@ -37,7 +37,6 @@ else
     python=python
 fi
 
-try tests/tcp/01-iperf.testie $python
 try tests/tcp/01-iperf.testie $python
 compare integration-01 $python
 compare integration-02 $python

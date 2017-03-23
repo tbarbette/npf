@@ -48,8 +48,11 @@ class Build:
             return False
         return data.strip()
 
+    def __result_folder(self):
+        return 'result/' + self.repo.reponame + '/'
+
     def result_path(self, testie, type,suffix=''):
-        return self.repo.reponame + '/results/' + self.version + '/' + os.path.splitext(testie.filename)[
+        return self.__result_folder() + self.version + '/' + os.path.splitext(testie.filename)[
             0] + suffix + '.' + type
 
     @staticmethod
@@ -63,9 +66,9 @@ class Build:
 
     def __resultFilename(self, script=None):
         if script:
-            return self.repo.reponame + '/results/' + self.version + '/' + script.filename + ".results"
+            return self.__result_folder() + self.version + '/' + script.filename + ".results"
         else:
-            return self.repo.reponame + '/results/' + self.version + '.results'
+            return self.__result_folder() + self.version + '.results'
 
     def writeversion(self, script, all_results):
         filename = self.__resultFilename(script)

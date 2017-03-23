@@ -7,7 +7,7 @@ common variables must be used. For this reason also one testie only is supported
 """
 import argparse
 
-from npf import args
+from npf import arguments
 from npf.regression import *
 from pathlib import Path
 
@@ -24,7 +24,7 @@ class Comparator():
             regressor = Regression(repo)
             print("Tag list : ",repo.tags, tags)
             testies = Testie.expand_folder(testie_name, options=options, tags=repo.tags + tags)
-            testies = args.override(options, testies)
+            testies = arguments.override(options, testies)
             for testie in testies:
                 build, datasets = regressor.regress_all_testies(testies=[testie], options=options)
                 if not build is None:
@@ -41,12 +41,12 @@ class Comparator():
 def main():
     parser = argparse.ArgumentParser(description='NPF cross-repository comparator')
 
-    args.add_verbosity_options(parser)
+    arguments.add_verbosity_options(parser)
 
     parser.add_argument('repos', metavar='repo', type=str, nargs='+', help='names of the repositories to watch')
 
-    t = args.add_testing_options(parser)
-    g = args.add_graph_options(parser)
+    t = arguments.add_testing_options(parser)
+    g = arguments.add_graph_options(parser)
     args = parser.parse_args()
 
     args.parse_nodes(args)

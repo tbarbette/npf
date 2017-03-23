@@ -180,7 +180,7 @@ class Repository:
                 setattr(self,var,val)
 
         self.method = self.method(self) #Instanciate the method
-        self._build_path = os.path.dirname(self.reponame + '/build/')
+        self._build_path = os.path.dirname('build/' + self.reponame + '/')
 
 
     def get_reponame(self):
