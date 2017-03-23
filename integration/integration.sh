@@ -24,7 +24,7 @@ compare() {
 try() {
     test=$1
     python=$2
-    $python np-run.py --force-test --testie $test --no-compare --n_runs 1 --tags fastregression
+    $python npf-run.py --force-test --testie $test --no-compare --n_runs 1 --tags fastregression
     if [ $? -ne 0 ] ; then
         echo "npf-run.py returned an error for test $test !"
         exit 1
