@@ -7,17 +7,16 @@ to watch project you don't own but you use, just to be sure that they do not mes
 We prefered to separate this tool from npf-run because of the lot of specifics for sending an e-mail, watch loop, etc
 """
 import argparse
-import time
-from email.mime.text import MIMEText
-from typing import Tuple, List
-
-from src import npf
-from src.regression import *
-
 import smtplib
-
+import time
 from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
+from npf import args
+from npf.regression import *
+from npf.testie import Testie
+
 
 class Watcher():
     def __init__(self, repo_list:List[Tuple[Repository,List[Testie]]], mail_to: List[str], mail_from: str, interval: int,
@@ -31,7 +30,9 @@ class Watcher():
         self.options = options
 
 
-    def mail(self,subject, body, images=[], bodytype='text'):
+    def mail(self, subject, body, images=None, bodytype='text'):
+        if images is None:
+            images = []
         print(subject)
         COMMASPACE = ', '
 
@@ -70,7 +71,7 @@ class Watcher():
                 print("[%s] Testie %s FAILED !" % (repo.name, testie.filename))
                 body += '<span style="color:red;">FAILED</span> with %d/%d points in constraints.<br />' % (
                     testie.n_variables_passed, testie.n_variables)
-            body += '<img src="cid:%s"><br/><br/>' % testie.filename
+            body += '<img npf="cid:%s"><br/><br/>' % testie.filename
             grapher = Grapher()
             graphs_series = [(testie, build, all_results)]
 
@@ -113,38 +114,38 @@ class Watcher():
 
 def main():
     parser = argparse.ArgumentParser(description='NPF Watcher')
-    parser.add_argument('repos', metavar='repo name', type=str, nargs='+', help='names of the repositories to watch');
+    parser.add_argument('repos', metavar='repo name', type=str, nargs='+', help='names of the repositories to watch')
     parser.add_argument('--interval', metavar='secs', type=int, nargs=1, default=60,
-                        help='interval in seconds between polling of repositories');
+                        help='interval in seconds between polling of repositories')
     parser.add_argument('--history', dest='history', metavar='N', type=int, default=1,
-                        help='assume last N commits as untested (default 0)');
+                        help='assume last N commits as untested (default 0)')
 
-    v = npf.add_verbosity_options(parser)
+    v = args.add_verbosity_options(parser)
 
-    t = npf.add_testing_options(parser)
+    t = args.add_testing_options(parser)
 
-    a = npf.add_graph_options(parser)
+    a = args.add_graph_options(parser)
     a.add_argument('--graph-num', metavar='N', type=int, nargs='?', default=8,
-                   help='Number of versions to graph');
+                   help='Number of versions to graph')
 
     m = parser.add_argument_group('Mail options')
     m.add_argument('--mail-to', metavar='email', type=str, nargs='+', help='list of e-mails for report',
-                   default=['tom.barbette@ulg.ac.be']);
+                   default=['tom.barbette@ulg.ac.be'])
     m.add_argument('--mail-from', metavar='email', type=str, nargs=1, dest='mail_from', default='tom.barbette@ulg.ac.be',
-                   help='list of e-mails for report');
+                   help='list of e-mails for report')
     m.add_argument('--mail-erroronly', default=True, dest='mail_always',  action='store_false',
-                   help='e-mail even if there is an error');
+                   help='e-mail even if there is an error')
 
-    args = parser.parse_args();
+    args = parser.parse_args()
 
-    npf.parse_nodes(args.cluster)
+    args.parse_nodes(args)
 
     history = args.history
 
     # Parsing repo list and getting last_build
     repo_list = []
     for repo_name in args.repos:
-        repo = Repository(repo_name)
+        repo = Repository.get_instance(repo_name)
         tags = args.tags.copy()
         tags += repo.tags
 

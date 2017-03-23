@@ -1,8 +1,9 @@
 from typing import Tuple
 
-from src.repository import *
-from src.build import *
-from src.grapher import *
+from npf.grapher import *
+from npf.repository import *
+from npf.testie import Testie
+from npf.types.dataset import Dataset
 
 
 class Regression:
@@ -23,6 +24,7 @@ class Regression:
                 allow_supplementary=True) -> tuple:
         """
         Compare two sets of results for the given list of variables and returns the amount of failing test
+        :param testie: One testie to get the config from
         :param variable_list:
         :param all_results:
         :param build:
@@ -51,7 +53,7 @@ class Regression:
                                 diff * 100, run.format_variables()))
                     for i in range(testie.config["n_supplementary_runs"]):
                         n, output, err = testie.execute(build, v)
-                        if n == False:
+                        if not n:
                             result = False
                             break
                         result += n
@@ -76,9 +78,10 @@ class Regression:
                     old_all_results[run] = [0]
         return tests_passed, tests_total
 
-    def regress_all_testies(self, testies: List[Testie], options, history : int = 1) -> Tuple[Build, Dataset]:
+    def regress_all_testies(self, testies: List['Testie'], options, history : int = 1) -> Tuple[Build, List[Dataset]]:
         """
         Execute all testies passed in argument for the last build of the regressor associated repository
+        :param history: Start regression at last build + 1 - history
         :param testies: List of testies
         :param options: Options object
         :return: the lastbuild and one Dataset per testies or None if could not build
@@ -102,6 +105,8 @@ class Regression:
                 old_all_results = None
             all_results = testie.execute_all(build, prev_results=build.load_results(testie), options=options,
                                              do_test=True)
+            if all_results is None:
+                return None
             variables_passed, variables_total = regression.compare(testie, testie.variables, all_results, build,
                                                                    old_all_results,
                                                                    repo.last_build)

@@ -4,11 +4,11 @@ from collections import OrderedDict
 from subprocess import PIPE
 from pathlib import Path
 
-from src import variable
-from src.testie import Run, Testie
+from npf import variable
+from npf.types.dataset import Run
 
 renametable = {
-    'src.script': 'src.testie',
+    'npf.script': 'npf.testie',
 }
 
 
@@ -63,9 +63,9 @@ class Build:
 
     def __resultFilename(self, script=None):
         if script:
-            return self.repo.reponame + '/results/' + self.version + '/' + script.filename + ".results";
+            return self.repo.reponame + '/results/' + self.version + '/' + script.filename + ".results"
         else:
-            return self.repo.reponame + '/results/' + self.version + '.results';
+            return self.repo.reponame + '/results/' + self.version + '.results'
 
     def writeversion(self, script, all_results):
         filename = self.__resultFilename(script)
@@ -91,7 +91,7 @@ class Build:
             f.write(','.join(v) + "=" + ','.join(str_results) + "\n")
         f.close()
 
-    def load_results(self, testie: Testie):
+    def load_results(self, testie):
         filename = self.__resultFilename(testie)
         if not Path(filename).exists():
             return None
@@ -141,9 +141,10 @@ class Build:
         else:
             return True
 
+
     def is_compile_needed(self):
         if os.path.exists(self.repo.get_bin_path(self.version)) and (
-                    Build.__read_file(self.repo.get_build_path() + '/.build_version') == self.version):
+                    Build.get_current_version(self.repo) == self.version):
             return False
         else:
             return True
@@ -198,7 +199,12 @@ class Build:
                 print("Building %s" % (self.repo.name))
             if not self.compile(quiet_build):
                 return False
+        self.repo._current_build = self
         return True
 
     def get_bin_folder(self):
         return self.repo.get_bin_folder(self.version)
+
+    @staticmethod
+    def get_current_version(repo):
+        return Build.__read_file(repo.get_build_path() + '/.build_version')

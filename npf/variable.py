@@ -74,7 +74,7 @@ class VariableFactory:
 # raise Exception("Unkown variable type : " + valuedata)
 
 class Variable:
-    pass
+    NAME_REGEX = "[a-zA-Z0-9.:_-]+"
 
 class ProductVariable(Variable):
     def __init__(self, name, nums, values):

@@ -3,19 +3,19 @@ import random
 
 import re
 
-from src.executor.localexecutor import LocalExecutor
-from src.executor.sshexecutor import SSHExecutor
+from npf.executor.localexecutor import LocalExecutor
+from npf.executor.sshexecutor import SSHExecutor
 
 
 class NIC:
     TYPES = "ip|mac|ifname|pci|mask"
 
     def __init__(self, pci, mac, ip, ifname, mask='255.255.255.0'):
-        self.pci = pci;
-        self.mac = mac;
-        self.ip = ip;
-        self.ifname = ifname;
-        self.mask = mask;
+        self.pci = pci
+        self.mac = mac
+        self.ip = ip
+        self.ifname = ifname
+        self.mask = mask
 
     def __getitem__(self, item):
         item = str(item).lower()
@@ -49,7 +49,8 @@ class NIC:
 
 
 class Node:
-    VARS = 'path|user|addr'
+    ROLE_VAR_REGEX = r'(?P<role>[a-z0-9]+)[:](?P<nic_idx>[0-9]+)[:](?P<type>' + NIC.TYPES + '+)'
+    ALLOWED_NODE_VARS = 'path|user|addr'
 
     def __init__(self, name, executor):
         self.executor = executor
@@ -65,13 +66,13 @@ class Node:
             for i,line in enumerate(f):
                 line=line.strip()
                 if not line or line.startswith("#"):
-                    continue;
+                    continue
                 match = re.match(r'(?P<nic_idx>[0-9]+):(?P<type>' + NIC.TYPES + ')=(?P<val>[a-z0-9:.]+)', line,
                                  re.IGNORECASE)
                 if match:
                     self.nics[int(match.group('nic_idx'))][match.group('type')] = match.group('val')
                     continue
-                match = re.match(r'(?P<var>' + Node.VARS + ')=(?P<val>.*)', line,
+                match = re.match(r'(?P<var>' + Node.ALLOWED_NODE_VARS + ')=(?P<val>.*)', line,
                                  re.IGNORECASE)
                 if match:
                     setattr(executor, match.group('var'), match.group('val'))
@@ -105,16 +106,17 @@ class Node:
             self.nics.append(nic)
 
     @classmethod
-    def makeLocal(cls):
+    def makeLocal(cls, options):
         return Node('localhost', LocalExecutor())
 
     @classmethod
-    def makeSSH(cls, user, addr, path):
+    def makeSSH(cls, user, addr, path, options):
         sshex = SSHExecutor(user, addr, path)
         node = Node(addr, sshex)
-        print("Testing connection to %s..." % node.executor.addr)
-        pid, out, err, ret = sshex.exec(cmd="echo \"test\"", terminated_event=None)
-        out = out.strip()
-        if ret != 0 or out != "test":
-            raise Exception("Could not communicate with node %s, got %s", sshex.addr, out)
+        if options.do_test:
+            print("Testing connection to %s..." % node.executor.addr)
+            pid, out, err, ret = sshex.exec(cmd="echo \"test\"", terminated_event=None)
+            out = out.strip()
+            if ret != 0 or out != "test":
+                raise Exception("Could not communicate with node %s, got %s", sshex.addr, out)
         return node

@@ -1,9 +1,10 @@
+import os
 import tarfile
 import urllib
 from abc import ABCMeta
+from pathlib import Path
 
-from src.build import Build
-from .testie import *
+from npf.build import Build
 from .variable import is_numeric
 
 import git
@@ -32,7 +33,7 @@ class MethodGit(Method):
         for i, commit in enumerate(self.gitrepo().iter_commits('origin/' + branch)):
             versions.append(commit.hexsha[:7])
             if (len(versions) >= limit):
-                break;
+                break
         return versions
 
     def get_history(self, version, limit = 1):
@@ -113,6 +114,7 @@ repo_methods = {'git' : MethodGit,'get':MethodGet,'package':MethodPackage}
 
 
 class Repository:
+    _repo_cache = {}
     configure = '--disable-linuxmodule'
     branch = 'master'
     make = 'make -j12'
@@ -121,8 +123,9 @@ class Repository:
     bin_name = 'click'
     method = repo_methods['git']
 
-
     def __init__(self, repo):
+        self.name = None
+        self._current_build = None
         self.reponame = repo
         self.tags=[]
         f = open('repo/' + repo + '.repo', 'r')
@@ -180,13 +183,20 @@ class Repository:
         self._build_path = os.path.dirname(self.reponame + '/build/')
 
 
+    def get_reponame(self):
+        return self.reponame
+
     def get_build_path(self):
         return self._build_path
 
-    def get_bin_folder(self, version):
+    def get_bin_folder(self, version = None):
+        if version is None:
+            version = self.current_version()
         return self.get_build_path() + '/' + self.bin_folder.replace('$version', version) + '/'
 
     def get_bin_path(self, version):
+        if version is None:
+            version = self.current_version()
         return self.get_bin_folder(version) + self.bin_name.replace('$version', version)
 
     def get_last_build(self, history: int = 1, stop_at: Build = None, with_results = False) -> Build:
@@ -212,7 +222,7 @@ class Repository:
     def last_build_before(self, old_build) -> Build:
         return self.get_last_build(stop_at=old_build,history=-1)
 
-    def get_old_results(self, last_graph:Build, num_old:int, testie:Testie):
+    def get_old_results(self, last_graph:Build, num_old:int, testie):
         graphs_series = []
 #Todo
         parents = self.method.gitrepo().iter_commits(last_graph.version)
@@ -227,3 +237,22 @@ class Repository:
             if (i > 100 or len(graphs_series) == num_old):
                 break
         return graphs_series
+
+    def current_build(self):
+        if self._current_build:
+            return self._current_build
+        return None
+
+    def current_version(self):
+        build = self.current_build()
+        if build:
+            return build.version
+        return Build.get_current_version(self)
+
+    @classmethod
+    def get_instance(cls, dep):
+        if dep in cls._repo_cache:
+            return cls._repo_cache[dep]
+        repo = Repository(dep)
+        cls._repo_cache[dep] = repo
+        return repo

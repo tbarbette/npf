@@ -2,6 +2,7 @@ import os
 import signal
 from multiprocessing import Queue
 from subprocess import PIPE, Popen, TimeoutExpired
+from typing import List
 
 
 class LocalExecutor:
@@ -15,12 +16,12 @@ class LocalExecutor:
         def kill(self):
             os.killpg(self.pgpid, signal.SIGKILL)
 
-    def exec(self, cmd, terminated_event, bin_path=None, queue: Queue = None, options = None, stdin = None, timeout = None):
+    def exec(self, cmd, terminated_event, bin_paths : List[str]=[], queue: Queue = None, options = None, stdin = None, timeout = None):
         env = os.environ.copy()
-        if (bin_path):
-            env["PATH"] = bin_path + ":" + env["PATH"]
+        if (bin_paths):
+            env["PATH"] = ':'.join(bin_paths) + ":" + env["PATH"]
         if options is not None and options.show_cmd:
-            print("Executing (PATH+=%s) :\n%s" % (bin_path, cmd))
+            print("Executing (PATH+=%s) :\n%s" % (':'.join(bin_paths), cmd))
 
         p = Popen(cmd,
                   stdin=PIPE, stdout=PIPE, stderr=PIPE,

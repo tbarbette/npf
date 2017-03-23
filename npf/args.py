@@ -1,13 +1,10 @@
 from argparse import ArgumentParser
+from typing import Dict
 
 import regex
 
-from src.executor.localexecutor import LocalExecutor
-from src.executor.sshexecutor import SSHExecutor
-from src.node import Node
-from .variable import VariableFactory, Variable
-
-from typing import Dict
+from npf.node import Node
+from .variable import VariableFactory
 
 
 def add_verbosity_options(parser: ArgumentParser):
@@ -28,9 +25,9 @@ def add_verbosity_options(parser: ArgumentParser):
 def add_graph_options(parser: ArgumentParser):
     g = parser.add_argument_group('Graph options')
     g.add_argument('--graph-size', metavar='INCH', type=float, nargs=2, default=[],
-                   help='Size of graph', dest="graph_size");
+                   help='Size of graph', dest="graph_size")
     g.add_argument('--graph-filename', metavar='graph_filename', type=str, nargs=1, default=None,
-                   help='path to the file to output the graph');
+                   help='path to the file to output the graph')
     g.add_argument('--graph-reject-outliers', dest='graph_reject_outliers', action='store_true', default=False)
 
     return g
@@ -47,17 +44,17 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
                          'variables is already known', dest='force_test', action='store_true',
                     default=False)
 
-    t.add_argument('--tags', metavar='tag', type=str, nargs='+', help='list of tags', default=[]);
+    t.add_argument('--tags', metavar='tag', type=str, nargs='+', help='list of tags', default=[])
     t.add_argument('--variables', metavar='variable=value', type=str, nargs='+',
-                   help='list of variables values to override', default=[]);
+                   help='list of variables values to override', default=[])
     t.add_argument('--config', metavar='config=value', type=str, nargs='+',
-                   help='list of config values to override', default=[]);
+                   help='list of config values to override', default=[])
 
     t.add_argument('--testie', metavar='path or testie', type=str, nargs='?', default='tests',
-                   help='script or script folder. Default is tests');
+                   help='script or script folder. Default is tests')
 
     t.add_argument('--cluster', metavar='[user@]address[:path]', type=str, nargs='*', default=[],
-                   help='role to node mapping for remote execution of tests');
+                   help='role to node mapping for remote execution of tests')
 
     return t
 
@@ -70,8 +67,11 @@ roles = {}
 def node(role,selfRole = None):
     if role is None or role == '':
         role = 'default'
-    if role=='self' and selfRole:
-        role = selfRole
+    if role=='self':
+        if selfRole:
+            role = selfRole
+        else:
+            raise Exception("Using self without a role context. Usually, this happens when self is used in a %file")
     return roles.get(role, roles['default'])
 
 
@@ -84,14 +84,14 @@ def executor(role):
     return node(role).executor
 
 
-def parse_nodes(args_cluster):
-    roles['default'] = Node.makeLocal()
+def parse_nodes(options):
+    roles['default'] = Node.makeLocal(options)
 
-    for mapping in args_cluster:
+    for mapping in options.cluster:
         match = nodePattern.match(mapping)
         if not match:
             raise Exception("Bad definition of node : %s" % mapping)
-        node = Node.makeSSH(user=match.group('user'), addr=match.group('addr'), path=match.group('path'))
+        node = Node.makeSSH(user=match.group('user'), addr=match.group('addr'), path=match.group('path'), options=options)
         roles[match.group('role')] = node
 
 

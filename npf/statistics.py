@@ -1,13 +1,14 @@
-from typing import List, Dict
-
-import pydotplus as pydotplus
-from sklearn import tree,preprocessing
-import numpy as np
 import os
 
-from src.build import Build
-from src.testie import Run, Testie, Dataset
+import numpy as np
+import pydotplus as pydotplus
 from orderedset import OrderedSet
+from sklearn import tree
+
+from npf.build import Build
+from npf.testie import Testie
+from npf.types.dataset import Dataset
+
 
 class Statistics:
     @staticmethod
@@ -33,6 +34,7 @@ class Statistics:
 
         print("")
         print("Feature importances :")
+        # noinspection PyUnresolvedReferences
         for key,f in zip(testie.variables.dtype()['names'],clf.feature_importances_):
             print("  %s : %0.2f" % (key,f))
 

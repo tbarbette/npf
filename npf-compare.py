@@ -7,9 +7,11 @@ common variables must be used. For this reason also one testie only is supported
 """
 import argparse
 
-from src import npf
-from src.regression import *
+from npf import args
+from npf.regression import *
 from pathlib import Path
+
+from npf.testie import Testie
 
 
 class Comparator():
@@ -22,7 +24,7 @@ class Comparator():
             regressor = Regression(repo)
             print("Tag list : ",repo.tags, tags)
             testies = Testie.expand_folder(testie_name, options=options, tags=repo.tags + tags)
-            testies = npf.override(options,testies)
+            testies = args.override(options, testies)
             for testie in testies:
                 build, datasets = regressor.regress_all_testies(testies=[testie], options=options)
                 if not build is None:
@@ -39,20 +41,20 @@ class Comparator():
 def main():
     parser = argparse.ArgumentParser(description='NPF cross-repository comparator')
 
-    npf.add_verbosity_options(parser)
+    args.add_verbosity_options(parser)
 
-    parser.add_argument('repos', metavar='repo', type=str, nargs='+', help='names of the repositories to watch');
+    parser.add_argument('repos', metavar='repo', type=str, nargs='+', help='names of the repositories to watch')
 
-    t = npf.add_testing_options(parser)
-    g = npf.add_graph_options(parser)
-    args = parser.parse_args();
+    t = args.add_testing_options(parser)
+    g = args.add_graph_options(parser)
+    args = parser.parse_args()
 
-    npf.parse_nodes(args.cluster)
+    args.parse_nodes(args)
 
     # Parsing repo list and getting last_build
     repo_list = []
     for repo_name in args.repos:
-        repo = Repository(repo_name)
+        repo = Repository.get_instance(repo_name)
         repo.last_build = None
         repo_list.append(repo)
 
@@ -65,7 +67,7 @@ def main():
         return
 
     if args.graph_filename is None:
-        filename = 'compare/' + os.path.splitext(os.path.basename(args.testie))[0] + '_' +  '_'.join(["%s" % repo.reponame for repo in repo_list]) + '.pdf';
+        filename = 'compare/' + os.path.splitext(os.path.basename(args.testie))[0] + '_' +  '_'.join(["%s" % repo.reponame for repo in repo_list]) + '.pdf'
     else:
         filename = args.graph_filename[0]
 

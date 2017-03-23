@@ -1,11 +1,10 @@
-import os
-import signal
-from multiprocessing import Queue
-from subprocess import PIPE, Popen, TimeoutExpired
-import time
-import paramiko as paramiko
-from paramiko import SSHClient
 import multiprocessing
+import os
+from multiprocessing import Queue
+from typing import List
+
+import paramiko as paramiko
+
 
 class SSHExecutor:
 
@@ -22,15 +21,16 @@ class SSHExecutor:
         ssh.connect(self.addr, username=self.user)
         return ssh
 
-    def exec(self,cmd, terminated_event = None, bin_path = None, queue: Queue = None, options = None, stdin = None, timeout=None):
-        if terminated_event == None:
+    def exec(self,cmd, terminated_event = None, bin_paths : List[str] = None, queue: Queue = None, options = None, stdin = None, timeout=None):
+        if terminated_event is None:
             terminated_event = multiprocessing.Event()
+        path_list = [self.path+'/'+p for p in (bin_paths if bin_paths is not None else [])]
         if options and options.show_cmd:
-            print("Executing on %s (PATH+=%s) :\n%s" % (self.addr, self.path+'/'+bin_path, cmd))
+            print("Executing on %s (PATH+=%s) :\n%s" % (self.addr,':'.join(path_list), cmd))
 
         cmd = 'cd '+ self.path + '\n' + cmd
-        if bin_path:
-          cmd = 'export PATH="%s:$PATH"\n' % (self.path+'/'+bin_path) + cmd
+        if path_list:
+          cmd = 'export PATH="%s:$PATH"\n' % (':'.join(path_list)) + cmd
         ssh = self.get_connection()
         ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command(cmd,timeout=timeout, get_pty=True)
 

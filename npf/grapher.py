@@ -1,15 +1,14 @@
 import io
-from collections import OrderedDict
 from typing import List
 
-import numpy as np
 import matplotlib
+import numpy as np
 
-from src.testie import Run
+from npf.types.dataset import Run
 
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from matplotlib.ticker import FuncFormatter,ScalarFormatter
+from matplotlib.ticker import FuncFormatter
 import math
 import os
 graphcolor = [(31, 119, 180), (174, 199, 232), (255, 127, 14), (255, 187, 120),
@@ -45,10 +44,10 @@ class Grapher:
 
 
     def var_name(self, key):
-        return self.scriptconfig("var_names",key,key);
+        return self.scriptconfig("var_names",key,key)
 
     def var_unit(self, key):
-        return self.scriptconfig("var_unit",key,default=None);
+        return self.scriptconfig("var_unit",key,default=None)
 
     def bits(self, x, pos):
         return self.formatb(x,pos,"Bits")
@@ -65,9 +64,11 @@ class Grapher:
         else:
             return "%.2f %s/s" % (x,unit)
 
-    def graph(self,filename, options, graph_variables:List[Run] = None, title=False, series=[]):
+    def graph(self, filename, options, graph_variables:List[Run] = None, title=False, series=None):
         """series is a list of triplet (script,build,results) where
         result is the output of a script.execute_all()"""
+        if series is None:
+            series = []
         vars_values = {}
         vars_all = set()
         versions=[]
@@ -76,7 +77,7 @@ class Grapher:
         filtered_series=[]
 
         #If no graph variables, use the first serie
-        if graph_variables==None:
+        if graph_variables is None:
             graph_variables=[]
             for run,results in series[0][2].items():
                  graph_variables.append(run)
@@ -377,7 +378,7 @@ class Grapher:
             else:
                 plt.ylim(ymin=float(n[0]))
         else:
-            if (ymin >= 0 and plt.ylim()[0] < 0):
+            if (ymin >= 0 > plt.ylim()[0]):
                 plt.ylim(0,plt.ylim()[1])
 
             if (ymin < ymax/5):
@@ -415,4 +416,3 @@ class Grapher:
 
     def reject_outliers(self, result, testie):
         return testie.reject_outliers(result)
-

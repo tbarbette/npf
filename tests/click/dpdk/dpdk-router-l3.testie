@@ -1,12 +1,10 @@
 %info
 Click Router w/ 2 Networks using DPDK I/O
+Using FastClick as pktgen
 
-This configuration uses 4 NICs. It propose 3 roles : "client" is a pktgen with 1 NIC, the router itself as "dut" with 2 NIC
-and a packet sink as "server" with 1 NIC.
+This configuration uses 4 NICs. It propose 2 roles : "client" is a pktgen with 2 NIC, one to send traffic and the other to receive it and the router itself as "dut" with 2 NIC.
 
-NICs are supposed to be connected to a switch and bound to a DPDK compatible driver
-
-client and server scripts have iperf as dependencies as click is the software under test but they are needed as pktgen
+NICs are supposed to be connected to a switch and bound to a DPDK compatible driver (though, we expect this to be handled by NPF in the future)
 
 As for any DPDK application, you must be root on the node executing DPDK
 
@@ -19,30 +17,30 @@ var_names={LENGTH:Length,result:Throughput,TXCPU:Transmit CPU,RXCPU:Receive CPU}
 require_tags={dpdk}
 
 %variables
-TIME=[1-10]
+#Parameter for the router itself
 BURSTOUT=[1*256]
-BURSTIN=[1*256]
+BURSTIN=[4*256]
+CPUFREQ=1200000
 
-fastregression:TIME=2
-fastregression:BURSTIN=32
-fastregression:BURSTOUT=32
+#Parameters for the packet generator
+GEN_BURST=32
+GEN_LENGTH=[64*1500]
+GEN_QUICK_CLONE=1
+GEN_STOP=1600000
+GEN_FLOWS=5
+GEN_FLOWSIZE=20
 
-%script@client delay=2 deps=iperf 0:ip=10.120.0.100
-sudo -E ifconfig ${self:0:ifname} ${self:0:ip} netmask ${self:0:mask}
-sudo ip route add dev ${self:0:ifname} 10.120.0.0/24 via ${dut:0:ip}
-sudo ip route add dev ${self:0:ifname} 10.121.0.0/24 via ${dut:0:ip}
-iperf3 -s &> /dev/null
 
-%script@server delay=3 deps=iperf 0:ip=10.121.0.100
-sudo -E ifconfig ${self:0:ifname} ${self:0:ip} netmask ${self:0:mask}
-sudo ip route add dev ${self:0:ifname} 10.120.0.0/24 via ${dut:1:ip}
-sudo ip route add dev ${self:0:ifname} 10.121.0.0/24 via ${dut:1:ip}
-result=$(iperf3 -f k -t $TIME -P 1 -Z -c ${client:0:ip} | tail -n 3 | grep -ioE "[0-9.]+ [kmg]bits")
-echo "RESULT $result"
+fastregression:BURSTIN={32,256}
+fastregression:BURSTOUT={32,256
+fastregression:GEN_LENGTH={64,1500}
+
+%script@client delay=2 deps=fastclick 0:ip=10.120.0.100 1:ip=10.121.0.100
+click -n 4 -c 0xf -- CONFIG_CLIENT || click --dpdk -n 4 -c 0xf -- CONFIG_CLIENT
 
 %script@dut 0:ip=10.120.0.1 1:ip=10.121.0.1
 #Support for the older DPDK config style of Click
-click -n 4 -c 0xf -- CONFIG || click --dpdk -n 4 -c 0xf -- CONFIG
+click -n 4 -c 0x1 -- CONFIG || click --dpdk -n 4 -c 0x1 -- CONFIG
 
 %file CONFIG
 define ($MTU 1500)
@@ -135,3 +133,92 @@ output1[1] -> ICMPError(${dut:1:ip}, redirect, host, SET_FIX_ANNO 0) -> IPPrint(
 
 output0[0] -> arpq0;
 output1[0] -> arpq1;
+
+
+%file CONFIG_CLIENT
+td0 :: ToDPDKDevice(${client:0:pci}, BLOCKING true)
+td1 :: ToDPDKDevice(${client:1:pci}, BLOCKING true)
+
+fd0 :: FromDPDKDevice(${client:0:pci})
+fd1 :: FromDPDKDevice(${client:1:pci})
+
+//Our main generator path
+gen:: FastUDPFlows(
+        0, $GEN_BURST, $GEN_LENGTH,
+        ${client:0:mac}, ${client:0:ip},
+        ${dut:0:mac}, ${client:1:ip},
+        $GEN_FLOWS, $GEN_FLOWSIZE)
+ -> MarkMACHeader
+ -> r :: MultiReplayUnqueue(STOP $GEN_STOP, QUICK_CLONE $GEN_QUICK_CLONE, ACTIVE false)
+ -> td0;
+
+/*****************
+ * L2 "advertisement", so all switch and ARP cache know the adresses when
+ *  the test start
+ ****************/
+arpq0 :: ARPQuerier(10.120.0.100, 3c:fd:fe:9e:5b:60)
+    -> td0
+arpq1 :: ARPQuerier(10.121.0.100, 3c:fd:fe:9e:5b:61)
+    -> td1
+
+adv0:: FastUDPFlows(
+        0, -1, 60,
+        ${client:0:mac}, ${client:0:ip},
+        00:00:00:00:00:00, ${client:1:ip},
+        100, 100, ACTIVE false)
+ -> Strip(14)
+ -> CheckIPHeader
+ -> adv0_ru :: RatedUnqueue(2)
+ -> arpq0;
+
+adv1 :: FastUDPFlows(
+        0, -1, 60,
+        ${client:1:mac}, ${client:1:ip},
+        00:00:00:00:00:00, ${client:0:ip},
+        100, 100, ACTIVE false)
+ -> Strip(14)
+ -> CheckIPHeader
+ -> adv1_ru :: RatedUnqueue(2)
+ -> arpq1;
+
+fd0
+// -> Print("fd0", -1)
+ -> c0 :: Classifier(12/0806 20/0001,
+                     12/0806 20/0002,
+                     -);
+c0[2]
+ -> Discard;
+c0[1]
+ -> [1]arpq0;
+c0[0]
+ -> ARPResponder(10.120.0.100 3c:fd:fe:9e:5b:60)
+ -> td0;
+
+fd1
+// -> Print("fd1", -1)
+ -> c1 :: Classifier(12/0806 20/0001,
+                     12/0806 20/0002,
+                     -);
+c1[2]
+ -> ac :: AverageCounter()
+ -> Discard;
+c1[1]
+ -> [1]arpq1;
+c1[0]
+ -> ARPResponder(10.121.0.100 3c:fd:fe:9e:5b:61)
+ -> td1;
+
+
+finish :: DriverManager(
+            wait 1s,
+            write adv0.active true,
+            write adv1.active true,
+            wait 5s,
+            print "Launching test !",
+            //Stop adv
+            write adv0_ru.active false,
+            write adv1_ru.active false,
+            write r.active true,
+            write ac.reset,
+            wait 5s,
+            print "RESULT $(add $(mul $(ac.byte_rate) 8) $(mul $(ac.count) 24))",  stop);

@@ -3,17 +3,19 @@
 Main NPF testie runner program
 """
 import argparse
-
 import errno
 
-from src import npf
-from src.regression import *
-from src.statistics import Statistics
+import sys
+
+from npf import args
+from npf.regression import *
+from npf.statistics import Statistics
+from npf.testie import Testie
 
 
 def main():
     parser = argparse.ArgumentParser(description='NPF Testie runner')
-    v = npf.add_verbosity_options(parser)
+    v = args.add_verbosity_options(parser)
 
     b = parser.add_argument_group('Click building options')
     bf = b.add_mutually_exclusive_group()
@@ -33,7 +35,7 @@ def main():
                    help='Force to rebuild the old versions. Ignored if allow-old-build is not set', dest='force_oldbuild',
                    action='store_true', default=False)
 
-    t = npf.add_testing_options(parser, True)
+    t = args.add_testing_options(parser, True)
 
     g = parser.add_argument_group('Versioning options')
     gf = g.add_mutually_exclusive_group()
@@ -51,7 +53,7 @@ def main():
     g.add_argument('--branch', help='Branch', type=str, nargs='?', default=None)
 
     g.add_argument('--compare-version', dest='compare_version', metavar='version', type=str, nargs='?',
-                   help='A version to compare against the last version. Default is the first parent of the last version containing some results.');
+                   help='A version to compare against the last version. Default is the first parent of the last version containing some results.')
     g.add_argument('--no-compare',
                     help='Do not run regression comparison, just do the tests', dest='compare', action='store_false',
                     default=True)
@@ -65,20 +67,20 @@ def main():
     s.add_argument('--statistics-filename',
                    help='Output of learning tree', dest='statistics_filename', type=str, default=None)
 
-    a = npf.add_graph_options(parser)
+    a = args.add_graph_options(parser)
     af = a.add_mutually_exclusive_group()
     af.add_argument('--graph-version', metavar='version', type=str, nargs='*',
-                    help='versions to simply graph');
+                    help='versions to simply graph')
     af.add_argument('--graph-num', metavar='N', type=int, nargs='?', default=8,
-                    help='Number of olds versions to graph after --compare-version, unused if --graph-version is given');
+                    help='Number of olds versions to graph after --compare-version, unused if --graph-version is given')
     # a.add_argument('--graph-allvariables', help='Graph only the latest variables (usefull when you restrict variables '
     #                                             'with tags)', dest='graph_newonly', action='store_true', default=False)
     # a.add_argument('--graph-serie', dest='graph_serie', metavar='variable', type=str, nargs=1, default=[None],
     #                 help='Set which variable will be used as serie when creating graph');
 
-    parser.add_argument('repo', metavar='repo name', type=str, nargs='?', help='name of the repo/group of builds', default=None);
+    parser.add_argument('repo', metavar='repo name', type=str, nargs='?', help='name of the repo/group of builds', default=None)
 
-    args = parser.parse_args();
+    args = parser.parse_args()
 
     if args.force_oldbuild and not args.allow_oldbuild:
         print("--force-old-build needs --allow-old-build")
@@ -86,12 +88,12 @@ def main():
         return 1
 
     if args.repo:
-        repo = Repository(args.repo)
+        repo = Repository.get_instance(args.repo)
     else:
         if os.path.exists(args.testie) and os.path.isfile(args.testie):
             tmptestie = Testie(args.testie,options=args)
             if "default_repo" in tmptestie.config:
-                repo = Repository(tmptestie.config["default_repo"])
+                repo = Repository.get_instance(tmptestie.config["default_repo"])
             else:
                 print("This testie has no default repository")
                 sys.exit(1)
@@ -99,7 +101,7 @@ def main():
             print("Please specify a repository to use to the command line or only a single testie with a default_repo")
             sys.exit(1)
 
-    npf.parse_nodes(args.cluster)
+    args.parse_nodes(args)
 
     tags = args.tags
     tags += repo.tags
@@ -165,15 +167,21 @@ def main():
     if not testies:
         sys.exit(errno.ENOENT)
 
-    npf.override(args,testies)
+    args.override(args, testies)
 
     for b in last_rebuilds:
         print("Last version %s had no result. Re-executing tests for it." % b.version)
+        did_something = False
         for testie in testies:
             print("Executing testie %s" % testie.filename)
             all_results = testie.execute_all(b,options=args)
+            if all_results is None:
+                continue
+            else:
+                did_something = True
             b.writeversion(testie, all_results)
-        b.writeResults()
+        if did_something:
+            b.writeResults()
 
     returncode = 0
 
@@ -207,6 +215,9 @@ def main():
                 all_results = prev_results
             else:
                 all_results = testie.execute_all(build, prev_results=prev_results, do_test=args.do_test, options=args)
+
+            if not all_results:
+                continue
 
             if args.compare:
                 variables_passed,variables_passed = regression.compare(testie, testie.variables, all_results, build, old_all_results, last_build)

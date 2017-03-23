@@ -15,7 +15,7 @@ install_requires=['python>=3',
 
 setup(name='npf',
       version='1.0',
-      packages=['src'],
+      packages=['npf'],
       author='Tom Barbette',
       license='GPL',
       author_email='tom.barbette@ulg.ac.be',

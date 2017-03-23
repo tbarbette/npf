@@ -1,3 +1,6 @@
+from typing import List, Set
+
+from npf.repository import Repository
 from .variable import *
 from collections import OrderedDict
 
@@ -6,7 +9,7 @@ sections = ['info', 'config', 'variables', 'script', 'file', 'require']
 
 class SectionFactory:
     varPattern = "([a-zA-Z0-9:]+)[=]([a-zA-Z0-9./]+)"
-    namePattern = re.compile("^(?P<tags>[a-zA-Z0-9,]+[:])?(?P<name>info|config|variables|file (?P<fileName>[a-zA-Z0-9]+)|require|script(:?[@](?P<scriptRole>[a-zA-Z0-9]+))?)(?P<params>([ \t]"+varPattern+")+)?$")
+    namePattern = re.compile("^(?P<tags>[a-zA-Z0-9,]+[:])?(?P<name>info|config|variables|file (?P<fileName>[a-zA-Z0-9_.-]+)|require|script(:?[@](?P<scriptRole>[a-zA-Z0-9]+))?)(?P<params>([ \t]"+varPattern+")+)?$")
 
 
     @staticmethod
@@ -40,7 +43,7 @@ class SectionFactory:
             return s
 
         if matcher.group('params') is not None:
-            raise Exception("Only script sections takes arguments (" + sectionName + " has argument " + matcher.groups('params') + ")");
+            raise Exception("Only script sections takes arguments (" + sectionName + " has argument " + matcher.groups('params') + ")")
 
         if (sectionName.startswith('file')):
             s = SectionFile(matcher.group('fileName').strip())
@@ -70,14 +73,16 @@ class Section:
         pass
 
 class SectionNull(Section):
-    def __init__(self):
-        self.content = ''
+    def __init__(self, name = 'null'):
+        super().__init__(name)
 
 
 
 class SectionScript(Section):
-    def __init__(self, role=None, params={}):
-        self.name = 'script'
+    def __init__(self, role=None, params=None):
+        super().__init__('script')
+        if params is None:
+            params = {}
         self.content = ''
         self.params = params
         self._role = role
@@ -91,10 +96,24 @@ class SectionScript(Section):
     def delay(self):
         return float(self.params.get("delay",0))
 
+    def get_deps_repos(self) -> List[Repository]:
+        repos = []
+        for dep in self.get_deps():
+            repos.append(Repository.get_instance(dep))
+        return repos
+
+    def get_deps(self) -> Set[str]:
+        deps = set()
+        if not "deps" in self.params:
+            return deps
+        for dep in self.params["deps"].split(","):
+            deps.add(dep)
+        return deps
+
 
 class SectionFile(Section):
     def __init__(self, filename):
-        self.name = 'file'
+        super().__init__('file')
         self.content = ''
         self.filename = filename
 
@@ -103,7 +122,7 @@ class SectionFile(Section):
 
 class SectionRequire(Section):
     def __init__(self):
-        self.name = 'require'
+        super().__init__('require')
         self.content = ''
 
     def role(self):
@@ -134,8 +153,8 @@ class BruteVariableExpander:
 
 
 class SectionVariable(Section):
-    def __init__(self):
-        self.name = 'variables'
+    def __init__(self, name = 'variables'):
+        super().__init__(name)
         self.content = ''
         self.vlist = OrderedDict()
 
@@ -234,7 +253,7 @@ class SectionConfig(SectionVariable):
         self.vlist[var] = DictVariable(var, dict)
 
     def __init__(self):
-        self.name = 'config'
+        super().__init__('config')
         self.content = ''
         self.vlist = {}
         self.__add("accept_outliers_mult", 1)
