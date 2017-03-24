@@ -6,3 +6,5 @@ CONFIG
 CONFIG2
 build
 result
+.idea/modules.xml
+.idea/misc.xml

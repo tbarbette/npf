@@ -9,17 +9,17 @@ from typing import Tuple
 
 import numpy as np
 
-from npf import arguments
+from npf import npf
 from npf.build import Build
 from npf.node import Node, NIC
 from npf.section import *
 from npf.types.dataset import Run, Dataset
 
 
-def _parallel_exec(args : Tuple['Testie',SectionScript,str,int,'Build',Queue,Event]):
-    (testie, scriptSection, commands, n_retry, build, queue, terminated_event) = args
+def _parallel_exec(exec_args : Tuple['Testie',SectionScript,str,int,'Build',Queue,Event]):
+    (testie, scriptSection, commands, n_retry, build, queue, terminated_event) = exec_args
     time.sleep(scriptSection.delay())
-    pid, o, e, c = args.executor(scriptSection.get_role()).exec(cmd=commands,
+    pid, o, e, c = npf.executor(scriptSection.get_role()).exec(cmd=commands,
                                                                 stdin=testie.stdin.content,
                                                                 timeout=testie.config["timeout"],
                                                                 bin_paths=[repo.get_bin_folder() for repo in scriptSection.get_deps_repos()] + [build.get_bin_folder()],
@@ -133,7 +133,7 @@ class Testie:
             nic_match = re.match(Node.ROLE_VAR_REGEX, varname, re.IGNORECASE)
             if nic_match:
                 varRole = nic_match.group('role')
-                return str(arguments.node(varRole, selfRole).get_nic(int(nic_match.group('nic_idx')))[nic_match.group('type')])
+                return str(npf.node(varRole, selfRole).get_nic(int(nic_match.group('nic_idx')))[nic_match.group('type')])
             return match.group(0)
 
         content = re.sub(r'(?=[^\\])[$]([{](?P<varname_in>'+Variable.NAME_REGEX+')[}]|(?P<varname_sp>'+Variable.NAME_REGEX+')(?=}|[^a-zA-Z0-9_]))', do_replace, content)
@@ -149,7 +149,7 @@ class Testie:
     def test_require(self, v, build):
         if self.require.content:
             p = self._replace_all(v, self.require.content, self.require.role())
-            pid, output, err, returncode = arguments.executor(self.require.role()).exec(self, cmd=p, bin_path=build.get_bin_folder(), options=self.options, terminated_event=None)
+            pid, output, err, returncode = npf.executor(self.require.role()).exec(self, cmd=p, bin_path=build.get_bin_folder(), options=self.options, terminated_event=None)
             if returncode != 0:
                 if not self.options.quiet:
                     print("Requirement not met :")
@@ -183,7 +183,7 @@ class Testie:
             for k,val in script.params.items():
                 nic_match = re.match(r'(?P<nic_idx>[0-9]+)[:](?P<type>' + NIC.TYPES + '+)',k, re.IGNORECASE)
                 if nic_match:
-                    arguments.node(script.get_role()).nics[int(nic_match.group('nic_idx'))][nic_match.group('type')] = val
+                    npf.node(script.get_role()).nics[int(nic_match.group('nic_idx'))][nic_match.group('type')] = val
 
         self.create_files(v)
         results = []
