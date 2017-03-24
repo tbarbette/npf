@@ -45,25 +45,36 @@ class Testie:
         return self.scripts
 
     def __init__(self, testie_path, options, tags=None):
+        if not os.path.exists(testie_path):
+            if not os.path.exists(testie_path + '.testie'):
+                raise Exception("Could not find testie %s" % testie_path)
+            testie_path += '.testie'
+
         self.sections = []
         self.files = []
         self.scripts = []
+        self.imports = []
         self.filename = os.path.basename(testie_path)
         self.options = options
         self.tags = tags if tags else []
 
-        section = ''
+        section = None
 
         f = open(testie_path, 'r')
+
         for i, line in enumerate(f):
             if line.startswith("#"):
                 continue
-            elif line.startswith("%"):
+            if line.strip() == '' and not section:
+                continue
+
+            if line.startswith("%"):
                 result = line[1:]
                 section = SectionFactory.build(self, result)
+
                 if not section is SectionNull:
                     self.sections.append(section)
-            elif not section:
+            elif section is None:
                 raise Exception("Bad syntax, file must start by a section. Line %d :\n%s" % (i, line))
             else:
                 section.content += line
@@ -97,11 +108,25 @@ class Testie:
         known_roles= {'self', 'default'}
         for script in self.get_scripts():
             known_roles.add(script.get_role())
+
         for file in self.files:
-            all_roles_refs = re.findall(Node.ROLE_VAR_REGEX, file.content, re.IGNORECASE)
-            for role,nic_idx,type in all_roles_refs:
-                if role not in known_roles:
-                    raise Exception("Unknown role %s" % role)
+            for nicref in re.finditer(Node.NICREF_REGEX, file.content, re.IGNORECASE):
+                if nicref.group('role') not in known_roles:
+                    raise Exception("Unknown role %s" % nicref.group('role'))
+
+        for imp in self.imports:
+            if "testie" not in imp.params:
+                raise Exception("%import section must define a testie=[...] path to import")
+            imp.testie = Testie(imp.params["testie"],options, tags)
+            del imp.params["testie"]
+            overriden_variables={}
+            for k,v in imp.params.items():
+                overriden_variables[k] = VariableFactory.build(k, v)
+            imp.testie.variables.override_all(overriden_variables)
+            for script in imp.testie.scripts:
+                if script.get_role():
+                    raise Exception('Modules cannot have roles, their importer defines it')
+                script._role = imp.get_role()
 
     def build_deps(self, repo_under_test : List[Repository]):
         # Check for dependencies
@@ -125,18 +150,29 @@ class Testie:
         return missings
 
     def _replace_all(self, v, content, selfRole=None):
+        """
+        Replace all variable and nics references in content
+        This is done in two step : variables first, then NICs reference so variable can be used in NIC references
+        :param v: Dictionary of variables
+        :param content: Text to change
+        :param selfRole: Role of the caller, that self reference in nic will map to
+        :return: The text with reference to variables and nics replaced
+        """
         def do_replace(match):
             varname = match.group('varname_sp') if match.group('varname_sp') is not None else match.group('varname_in')
             if (varname in v):
                 val = v[varname]
                 return str(val[0] if type(val) is tuple else val)
-            nic_match = re.match(Node.ROLE_VAR_REGEX, varname, re.IGNORECASE)
-            if nic_match:
-                varRole = nic_match.group('role')
-                return str(npf.node(varRole, selfRole).get_nic(int(nic_match.group('nic_idx')))[nic_match.group('type')])
             return match.group(0)
-
-        content = re.sub(r'(?=[^\\])[$]([{](?P<varname_in>'+Variable.NAME_REGEX+')[}]|(?P<varname_sp>'+Variable.NAME_REGEX+')(?=}|[^a-zA-Z0-9_]))', do_replace, content)
+        content = re.sub(
+            Variable.VARIABLE_REGEX,
+            do_replace, content)
+        def do_replace_nics(nic_match):
+            varRole = nic_match.group('role')
+            return str(npf.node(varRole, selfRole).get_nic(int(nic_match.group('nic_idx') if nic_match.group('nic_idx') else v[nic_match.group('nic_var')]))[nic_match.group('type')])
+        content = re.sub(
+            Node.VARIABLE_NICREF_REGEX,
+            do_replace_nics, content)
         return content
 
     def create_files(self, v):
@@ -226,7 +262,9 @@ class Testie:
                 if not worked:
                     continue
 
-                nr = re.search("RESULT[ \t]+([0-9.]+)[ ]*([gmk]?)(b|byte|bits)?", output.strip(), re.IGNORECASE)
+                if not self.config["result_regex"]:
+                    break
+                nr = re.search(self.config["result_regex"], output.strip(), re.IGNORECASE)
                 if nr:
                     n = float(nr.group(1))
                     mult = nr.group(2).lower()
@@ -277,7 +315,7 @@ class Testie:
         return True
 
     def execute_all(self, build, options, prev_results: Dataset = None, do_test=True) -> Dataset:
-        """Execute script for all variables combinations
+        """Execute script for all variables combinations. All tools reliy on this function for execution of the testie
         :param do_test: Actually run the tests
         :param options: NPF options object
         :param build: A build object
@@ -291,6 +329,15 @@ class Testie:
         if not self.build_deps([build.repo]):
             return None
 
+        if len(self.imports) > 0:
+            if not options.quiet:
+                print("Executing imports...")
+            for imp in self.imports:
+                imp_res = imp.testie.execute_all(build, options=options, do_test=do_test)
+                for k,v in imp_res.items():
+                    if v == None:
+                        return None
+
         all_results = {}
         for variables in self.variables:
             run = Run(variables)
@@ -298,7 +345,7 @@ class Testie:
                 print(run.format_variables(self.config["var_hide"]))
             if not self.test_require(variables, build):
                 continue
-            if prev_results and not options.force_test:
+            if prev_results and prev_results is not None and not options.force_test:
                 results = prev_results.get(run, [])
                 if results is None:
                     results = []

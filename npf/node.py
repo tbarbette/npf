@@ -5,6 +5,7 @@ import re
 
 from npf.executor.localexecutor import LocalExecutor
 from npf.executor.sshexecutor import SSHExecutor
+from npf.variable import Variable
 
 
 class NIC:
@@ -49,7 +50,8 @@ class NIC:
 
 
 class Node:
-    ROLE_VAR_REGEX = r'(?P<role>[a-z0-9]+)[:](?P<nic_idx>[0-9]+)[:](?P<type>' + NIC.TYPES + '+)'
+    NICREF_REGEX = r'(?P<role>[a-z0-9]+)[:](?P<nic_idx>[0-9]+)[:](?P<type>' + NIC.TYPES + '+)'
+    VARIABLE_NICREF_REGEX = r'(?<!\\)[$][{]'+ NICREF_REGEX +'[}]';
     ALLOWED_NODE_VARS = 'path|user|addr'
 
     def __init__(self, name, executor):

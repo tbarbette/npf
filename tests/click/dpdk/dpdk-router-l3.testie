@@ -29,11 +29,14 @@ GEN_QUICK_CLONE=1
 GEN_STOP=1600000
 GEN_FLOWS=5
 GEN_FLOWSIZE=20
-
+GEN_TIME=5
 
 fastregression:BURSTIN={32,256}
 fastregression:BURSTOUT={32,256
 fastregression:GEN_LENGTH={64,1500}
+
+%-nobind:import@client testie=tests/module/dpdk-bind NIC={0,1}
+%-nobind:import@dut testie=tests/module/dpdk-bind NIC={0,1}
 
 %script@client delay=2 deps=fastclick 0:ip=10.120.0.100 1:ip=10.121.0.100
 click -n 4 -c 0xf -- CONFIG_CLIENT || click --dpdk -n 4 -c 0xf -- CONFIG_CLIENT
@@ -41,6 +44,8 @@ click -n 4 -c 0xf -- CONFIG_CLIENT || click --dpdk -n 4 -c 0xf -- CONFIG_CLIENT
 %script@dut 0:ip=10.120.0.1 1:ip=10.121.0.1
 #Support for the older DPDK config style of Click
 click -n 4 -c 0x1 -- CONFIG || click --dpdk -n 4 -c 0x1 -- CONFIG
+
+
 
 %file CONFIG
 define ($MTU 1500)
@@ -210,15 +215,15 @@ c1[0]
 
 
 finish :: DriverManager(
-            wait 1s,
+            wait 0.5s,
             write adv0.active true,
             write adv1.active true,
-            wait 5s,
+            wait 2s,
             print "Launching test !",
             //Stop adv
             write adv0_ru.active false,
             write adv1_ru.active false,
             write r.active true,
             write ac.reset,
-            wait 5s,
+            wait,
             print "RESULT $(add $(mul $(ac.byte_rate) 8) $(mul $(ac.count) 24))",  stop);

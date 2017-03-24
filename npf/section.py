@@ -4,13 +4,13 @@ from npf.repository import Repository
 from .variable import *
 from collections import OrderedDict
 
-sections = ['info', 'config', 'variables', 'script', 'file', 'require']
+sections = ['info', 'config', 'variables', 'script', 'file', 'require', 'import']
 
 
 class SectionFactory:
-    varPattern = "([a-zA-Z0-9:]+)[=]([a-zA-Z0-9./]+)"
-    namePattern = re.compile("^(?P<tags>[a-zA-Z0-9,]+[:])?(?P<name>info|config|variables|file (?P<fileName>[a-zA-Z0-9_.-]+)|require|script(:?[@](?P<scriptRole>[a-zA-Z0-9]+))?)(?P<params>([ \t]"+varPattern+")+)?$")
-
+    varPattern = "([a-zA-Z0-9:]+)[=]([a-zA-Z0-9./,{}-]+)"
+    namePattern = re.compile(
+        "^(?P<tags>[a-zA-Z0-9,_-]+[:])?(?P<name>info|config|variables|file (?P<fileName>[a-zA-Z0-9_.-]+)|require|(:?script|import)(:?[@](?P<scriptRole>[a-zA-Z0-9]+))?)(?P<params>([ \t]" + varPattern + ")+)?$")
 
     @staticmethod
     def build(testie, data):
@@ -25,27 +25,37 @@ class SectionFactory:
             raise Exception("Unknown section line %s" % data)
 
         if matcher.group('tags') is not None:
-            tags = matcher.group('tags').split(',')
+            tags = matcher.group('tags')[:-1].split(',')
         else:
-            tags=[]
+            tags = []
 
         for tag in tags:
-            if not tag in testie.tags:
-                return SectionNull()
+            if tag.startswith('-'):
+                if tag[:1] in testie.tags:
+                    return SectionNull()
+            else:
+                if not tag in testie.tags:
+                    return SectionNull()
 
         sectionName = matcher.group('name')
 
-
-        if (sectionName.startswith('script')):
+        if sectionName.startswith('import'):
             params = matcher.group('params')
-            params = dict(re.findall(SectionFactory.varPattern,params)) if params else {}
-            s = SectionScript(matcher.group('scriptRole'),params)
+            params = dict(re.findall(SectionFactory.varPattern, params)) if params else {}
+            s = SectionImport(matcher.group('scriptRole'), params)
+            return s
+
+        if sectionName.startswith('script'):
+            params = matcher.group('params')
+            params = dict(re.findall(SectionFactory.varPattern, params)) if params else {}
+            s = SectionScript(matcher.group('scriptRole'), params)
             return s
 
         if matcher.group('params') is not None:
-            raise Exception("Only script sections takes arguments (" + sectionName + " has argument " + matcher.groups('params') + ")")
+            raise Exception("Only script sections takes arguments (" + sectionName + " has argument " +
+                            matcher.groups("params") + ")")
 
-        if (sectionName.startswith('file')):
+        if sectionName.startswith('file'):
             s = SectionFile(matcher.group('fileName').strip())
             return s
 
@@ -69,13 +79,16 @@ class Section:
         self.name = name
         self.content = ''
 
+    def get_content(self):
+        return self.content
+
     def finish(self, testie):
         pass
 
-class SectionNull(Section):
-    def __init__(self, name = 'null'):
-        super().__init__(name)
 
+class SectionNull(Section):
+    def __init__(self, name='null'):
+        super().__init__(name)
 
 
 class SectionScript(Section):
@@ -83,18 +96,17 @@ class SectionScript(Section):
         super().__init__('script')
         if params is None:
             params = {}
-        self.content = ''
         self.params = params
         self._role = role
 
     def get_role(self):
         return self._role
 
-    def finish(self, script):
-        script.scripts.append(self)
+    def finish(self, testie):
+        testie.scripts.append(self)
 
     def delay(self):
-        return float(self.params.get("delay",0))
+        return float(self.params.get("delay", 0))
 
     def get_deps_repos(self) -> List[Repository]:
         repos = []
@@ -111,6 +123,23 @@ class SectionScript(Section):
         return deps
 
 
+class SectionImport(Section):
+    def __init__(self, role=None, params=None):
+        super().__init__('import')
+        if params is None:
+            params = {}
+        self.params = params
+        self._role = role
+
+    def get_role(self):
+        return self._role
+
+    def finish(self, testie):
+        if self.get_content().strip() != '':
+            raise Exception("%import section does not support any content")
+        testie.imports.append(self)
+
+
 class SectionFile(Section):
     def __init__(self, filename):
         super().__init__('file')
@@ -120,17 +149,19 @@ class SectionFile(Section):
     def finish(self, testie):
         testie.files.append(self)
 
+
 class SectionRequire(Section):
     def __init__(self):
         super().__init__('require')
         self.content = ''
 
     def role(self):
-        #For now, require is only on one node, the default one
+        # For now, require is only on one node, the default one
         return 'default'
 
     def finish(self, testie):
         pass
+
 
 class BruteVariableExpander:
     """Expand all variables building the full
@@ -153,7 +184,7 @@ class BruteVariableExpander:
 
 
 class SectionVariable(Section):
-    def __init__(self, name = 'variables'):
+    def __init__(self, name='variables'):
         super().__init__(name)
         self.content = ''
         self.vlist = OrderedDict()
@@ -176,6 +207,14 @@ class SectionVariable(Section):
     def __iter__(self):
         return BruteVariableExpander(self.vlist)
 
+    def __len__(self):
+        if len(self.vlist) == 0:
+            return 0
+        n = 1
+        for k, v in self.vlist.items():
+            n *= v.count()
+        return n
+
     def dynamics(self):
         """List of non-constants variables"""
         dyn = OrderedDict()
@@ -184,7 +223,7 @@ class SectionVariable(Section):
         return dyn
 
     def is_numeric(self, k):
-        v = self.vlist.get(k,None)
+        v = self.vlist.get(k, None)
         if v is None:
             return True
         return v.is_numeric()
@@ -197,19 +236,19 @@ class SectionVariable(Section):
         return dyn
 
     def override_all(self, dict):
-        for k,v in dict.items():
-            self.override(k,v)
+        for k, v in dict.items():
+            self.override(k, v)
 
     def override(self, var, val):
-        if isinstance(val, Variable) :
+        if isinstance(val, Variable):
             self.vlist[var] = val
         else:
-            self.vlist[var] = SimpleVariable(var,val)
+            self.vlist[var] = SimpleVariable(var, val)
 
     def parse_variable(self, line, tags):
         try:
             if not line:
-                return None,None
+                return None, None
             pair = line.split('=', 1)
             var = pair[0].split(':')
 
@@ -219,27 +258,27 @@ class SectionVariable(Section):
                 if (var[0] in tags) or (var[0].startswith('-') and not var[0][1:] in tags):
                     var = var[1]
                 else:
-                    return None,None
-            return var,VariableFactory.build(var, pair[1], self)
+                    return None, None
+            return var, VariableFactory.build(var, pair[1], self)
         except:
             print("Error parsing line %s" % line)
             raise
 
     def finish(self, testie):
         for line in self.content.split("\n"):
-            var,val = self.parse_variable(line,testie.tags)
+            var, val = self.parse_variable(line, testie.tags)
             if not var is None:
                 self.vlist[var] = val
         self.vlist = OrderedDict(sorted(self.vlist.items()))
 
     def dtype(self):
-        formats=[]
-        names=[]
+        formats = []
+        names = []
         for k, v in self.vlist.items():
             f = v.format()
             formats.append(f)
             names.append(k)
-        return dict(names = names, formats = formats)
+        return dict(names=names, formats=formats)
 
 
 class SectionConfig(SectionVariable):
@@ -270,6 +309,7 @@ class SectionConfig(SectionVariable):
         self.__add("var_hide", {})
         self.__add("var_log", [])
         self.__add("autokill", True)
+        self.__add("result_regex", "RESULT[ \t]+([0-9.]+)[ ]*([gmk]?)(b|byte|bits)?")
         self.__add_list("require_tags", [])
 
     def var_name(self, key):
@@ -278,18 +318,18 @@ class SectionConfig(SectionVariable):
         else:
             return key
 
-    def get_list(self,key):
+    def get_list(self, key):
         var = self.vlist[key]
         v = var.makeValues()
         return v
 
-    def get_dict(self,key):
+    def get_dict(self, key):
         var = self.vlist[key]
         try:
             v = var.vdict
         except AttributeError:
             print("WARNING : Error in configuration of %s" % key)
-            return {key:var.makeValues()[0]}
+            return {key: var.makeValues()[0]}
         return v
 
     def __contains__(self, key):
@@ -305,7 +345,6 @@ class SectionConfig(SectionVariable):
 
     def __setitem__(self, key, val):
         self.__add(key, val)
-
 
     def finish(self, testie):
         super().finish(testie)
