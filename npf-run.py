@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#! /usr/bin/env python3
 """
 Main NPF testie runner program
 """
@@ -38,6 +38,9 @@ def main():
     t = npf.add_testing_options(parser, True)
 
     g = parser.add_argument_group('Versioning options')
+    g.add_argument('--regress',
+                    help='Do not run regression comparison, just do the tests', dest='compare', action='store_true',
+                    default=False)
     gf = g.add_mutually_exclusive_group()
     gf.add_argument('--history',
                     help='Number of commits in the history on which to execute the regression tests. By default, '
@@ -51,12 +54,9 @@ def main():
                     dest='history', metavar='N',
                     nargs='?', type=int, default=1)
     g.add_argument('--branch', help='Branch', type=str, nargs='?', default=None)
-
     g.add_argument('--compare-version', dest='compare_version', metavar='version', type=str, nargs='?',
                    help='A version to compare against the last version. Default is the first parent of the last version containing some results.')
-    g.add_argument('--no-compare',
-                    help='Do not run regression comparison, just do the tests', dest='compare', action='store_false',
-                    default=True)
+
 
     s = parser.add_argument_group('Statistics options')
     s.add_argument('--statistics',
@@ -186,7 +186,8 @@ def main():
     returncode = 0
 
     for build in reversed(builds):
-        print("Starting regression test for %s" % build.version)
+        if len(builds) > 1:
+            print("Starting tests for version %s" % build.version)
 
         nok = 0
         ntests = 0

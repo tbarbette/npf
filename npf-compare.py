@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#! /usr/bin/env python3
 """
 NPF Program to compare multiple software against the same testie
 

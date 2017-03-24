@@ -1,6 +1,6 @@
-#!/usr/bin/python3
+#! /usr/bin/env python3
 """
-NPF repository watcher. Essencially a loop watching for commits in a list of git repo to execute given testies when
+NPF repository watcher. Essentially a loop watching for commits in a list of git repo to execute given testies when
 a commit is made. If you want to integrate npf in your CI test suite, use npf-run. Passive watching is intended
 to watch project you don't own but you use, just to be sure that they do not mess performances.
 
@@ -12,6 +12,8 @@ import time
 from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+
+import sys
 
 from npf import npf
 from npf.regression import *
