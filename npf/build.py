@@ -181,7 +181,7 @@ class Build:
                 return False
 
         os.chdir(pwd)
-        self.__write_file(self.repo.get_build_path()  + '/.build_version', self.version)
+        self.__write_file(Build.__get_build_version_path(self.repo), self.version)
         return True
 
     def build(self, force_build : bool = False, never_build : bool = False, quiet_build : bool = False, executor=None):
@@ -210,4 +210,8 @@ class Build:
 
     @staticmethod
     def get_current_version(repo):
-        return Build.__read_file(repo.get_build_path() + '/.build_version')
+        return Build.__read_file(Build.__get_build_version_path(repo))
+
+    @staticmethod
+    def __get_build_version_path(repo):
+        return repo.get_build_path() + '/.build_version'

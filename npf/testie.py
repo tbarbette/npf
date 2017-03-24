@@ -103,11 +103,11 @@ class Testie:
                 if role not in known_roles:
                     raise Exception("Unknown role %s" % role)
 
-    def build_deps(self, repo_under_test : List):
+    def build_deps(self, repo_under_test : List[Repository]):
         # Check for dependencies
         deps = set()
         for script in self.get_scripts():
-            deps.union(script.get_deps())
+            deps = deps.union(script.get_deps())
         for dep in deps:
             if dep in repo_under_test:
                 continue
