@@ -20,7 +20,7 @@ require_tags={dpdk}
 //Parameters for the router itself
 BURSTOUT=[1*256]
 BURSTIN=[4*256]
-CPU=1 //Unused
+CPU=[1*4]
 CPUFREQ=1200000 //Unused
 
 //Parameters for the packet generator
@@ -44,7 +44,8 @@ click -n 4 -c 0xf -- CONFIG_CLIENT || click --dpdk -n 4 -c 0xf -- CONFIG_CLIENT
 
 %script@dut 0:ip=10.120.0.1 1:ip=10.121.0.1
 //Support for the older DPDK config style of Click
-click -n 4 -c 0x1 -- CONFIG || click --dpdk -n 4 -c 0x1 -- CONFIG
+mask=$(echo "obase=16; (2^$CPU) - 1" | bc)
+click -n 4 -c 0x$mask -- CONFIG || click --dpdk -n 4 -c 0x$mask -- CONFIG
 
 
 
