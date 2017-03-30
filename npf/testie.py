@@ -63,14 +63,16 @@ class Testie:
         f = open(testie_path, 'r')
 
         for i, line in enumerate(f):
-            if line.startswith("#"):
+            line = re.sub(r'//.*$','',line)
+            if line.startswith('#') and section is None:
+                print("Warning : comments now use // instead of #. This will be soon deprecated")
                 continue
             if line.strip() == '' and not section:
                 continue
 
             if line.startswith("%"):
                 result = line[1:]
-                section = SectionFactory.build(self, result)
+                section = SectionFactory.build(self, result.strip())
 
                 if not section is SectionNull:
                     self.sections.append(section)
@@ -115,10 +117,7 @@ class Testie:
                     raise Exception("Unknown role %s" % nicref.group('role'))
 
         for imp in self.imports:
-            if "testie" not in imp.params:
-                raise Exception("%import section must define a testie=[...] path to import")
-            imp.testie = Testie(imp.params["testie"],options, tags)
-            del imp.params["testie"]
+            imp.testie = Testie(imp.module,options, tags)
             overriden_variables={}
             for k,v in imp.params.items():
                 overriden_variables[k] = VariableFactory.build(k, v)
@@ -225,6 +224,8 @@ class Testie:
         results = []
         for i in range(n_runs):
             for i_try in range(n_retry + 1):
+                if i_try > 0 and not self.options.quiet:
+                    print("Re-try tests %d/%d...",i_try,n_retry + 1)
                 output = ''
                 err = ''
                 n = len(self.scripts)
@@ -246,6 +247,7 @@ class Testie:
                 worked = False
                 for iscript, (r, o, e, script) in enumerate(parallel_execs):
                     if r == 0:
+                        print("Timeout expired...")
                         continue
                     if r == -1:
                         sys.exit(1)
@@ -337,6 +339,8 @@ class Testie:
                 for k,v in imp_res.items():
                     if v == None:
                         return None
+            if not options.quiet:
+                print("All imports passed successfully...")
 
         all_results = {}
         for variables in self.variables:

@@ -4,13 +4,14 @@ from npf.repository import Repository
 from .variable import *
 from collections import OrderedDict
 
-sections = ['info', 'config', 'variables', 'script', 'file', 'require', 'import']
-
 
 class SectionFactory:
-    varPattern = "([a-zA-Z0-9:]+)[=]([a-zA-Z0-9./,{}-]+)"
+    varPattern = "([a-zA-Z0-9:-]+)[=]("+Variable.VALUE_REGEX+")?"
     namePattern = re.compile(
-        "^(?P<tags>[a-zA-Z0-9,_-]+[:])?(?P<name>info|config|variables|file (?P<fileName>[a-zA-Z0-9_.-]+)|require|(:?script|import)(:?[@](?P<scriptRole>[a-zA-Z0-9]+))?)(?P<params>([ \t]" + varPattern + ")+)?$")
+        "^(?P<tags>[a-zA-Z0-9,_-]+[:])?(?P<name>info|config|variables|file (?P<fileName>[a-zA-Z0-9_.-]+)|require|"
+        "import(:?[@](?P<importRole>[a-zA-Z0-9]+))?[ \t]+(?P<importModule>"+ Variable.VALUE_REGEX +")(?P<importParams>([ \t]+" +
+        varPattern + ")+)?|"
+        "(:?script|init)(:?[@](?P<scriptRole>[a-zA-Z0-9]+))?(?P<scriptParams>([ \t]+" + varPattern + ")*))$")
 
     @staticmethod
     def build(testie, data):
@@ -22,7 +23,7 @@ class SectionFactory:
         """
         matcher = SectionFactory.namePattern.match(data)
         if not matcher:
-            raise Exception("Unknown section line %s" % data)
+            raise Exception("Unknown section line '%s'" % data)
 
         if matcher.group('tags') is not None:
             tags = matcher.group('tags')[:-1].split(',')
@@ -31,27 +32,29 @@ class SectionFactory:
 
         for tag in tags:
             if tag.startswith('-'):
-                if tag[:1] in testie.tags:
+                if tag[1:] in testie.tags:
                     return SectionNull()
             else:
                 if not tag in testie.tags:
                     return SectionNull()
-
         sectionName = matcher.group('name')
 
         if sectionName.startswith('import'):
-            params = matcher.group('params')
+            params = matcher.group('importParams')
+            module = matcher.group('importModule')
             params = dict(re.findall(SectionFactory.varPattern, params)) if params else {}
-            s = SectionImport(matcher.group('scriptRole'), params)
+            s = SectionImport(matcher.group('importRole'), module, params)
             return s
 
-        if sectionName.startswith('script'):
-            params = matcher.group('params')
+        if sectionName.startswith('script') or sectionName.startswith('init'):
+            params = matcher.group('scriptParams')
             params = dict(re.findall(SectionFactory.varPattern, params)) if params else {}
             s = SectionScript(matcher.group('scriptRole'), params)
+            if sectionName.startswith('init'):
+                s.init = True
             return s
 
-        if matcher.group('params') is not None:
+        if matcher.group('scriptParams') is not None:
             raise Exception("Only script sections takes arguments (" + sectionName + " has argument " +
                             matcher.groups("params") + ")")
 
@@ -98,6 +101,7 @@ class SectionScript(Section):
             params = {}
         self.params = params
         self._role = role
+        self.init = False
 
     def get_role(self):
         return self._role
@@ -124,11 +128,18 @@ class SectionScript(Section):
 
 
 class SectionImport(Section):
-    def __init__(self, role=None, params=None):
+    def __init__(self, role=None, module=None, params=None):
         super().__init__('import')
         if params is None:
             params = {}
         self.params = params
+        if module is not None and module is not '':
+            self.module = 'tests/module/' + module
+        else:
+            if not 'testie' in params:
+                raise Exception("%import section must define a module name or a testie=[path] to import")
+            self.module = params['testie']
+
         self._role = role
 
     def get_role(self):

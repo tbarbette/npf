@@ -18,6 +18,7 @@ acceptable=0.01
 accept_variance=2
 n_runs=3
 var_serie=LENGTH
+default_repo=fastclick
 require_tags={fastclick}
 
 %variables

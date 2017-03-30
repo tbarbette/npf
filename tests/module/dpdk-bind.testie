@@ -1,5 +1,5 @@
-#This file import a tool taken
-#Please read below for copyright information
+//This file import a tool taken from the Intel(r) DPDK
+//Please read below for copyright information
 
 %info
 This is not a test, this is a module to be imported using "%import" to set NIC in DPDK mode
@@ -9,20 +9,21 @@ binding NICs to the UIO driver.
 
 User can set the igb_uio tag to use igb_uio instead of uio_pci_generic
 
-Suggested usage example in your testie (omit the prefixed "# " that prevent loop import here)
+Suggested usage example in your testie (omit the prefixed "//" that prevent loop import here)
 
-# %import@client testie=tests/module/dpdk-bind NIC={0,1}
+//%import@client dpdk-bind NIC={0,1}
 
 That will bind NIC 0 and 1 of the client node to uio_pci_generic and ensure pages are mounted
 
 %config
 n_retry=0
 n_runs=1
+require_tags=import
 
 %variables
 NIC={0}
 
-%igb_uio:script
+%igb_uio:init
 DRIVER=igb_uio
 echo "Driver is $DRIVER"
 chmod +x dpdk-devbind.py
@@ -34,7 +35,7 @@ echo "Binding NIC $NIC"
 /usr/bin/env python ./dpdk-devbind.py --bind=$DRIVER ${self:$NIC:pci}
 [ $? -eq 0 ] && echo "RESULT 1"
 
-%-igb_uio:script
+%-igb_uio:init
 DRIVER=uio_pci_generic
 echo "Driver is $DRIVER"
 chmod +x dpdk-devbind.py

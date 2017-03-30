@@ -2,28 +2,29 @@
 Click Router w/ 2 Networks using DPDK I/O
 Using FastClick as pktgen
 
-This configuration uses 4 NICs. It propose 2 roles : "client" is a pktgen with 2 NIC, one to send traffic and the other to receive it and the router itself as "dut" with 2 NIC.
+This configuration uses 4 NICs. It has 2 roles : "client" is a pktgen with 2 NIC, one to send traffic and the other to receive it and the router itself as "dut" with 2 NIC.
 
 NICs are supposed to be connected to a switch and bound to a DPDK compatible driver (though, we expect this to be handled by NPF in the future)
 
 As for any DPDK application, you must be root on the node executing DPDK
 
 %config
-#Timeout for a single script
-timeout=10
+//Timeout for a single script
+timeout=120
 
-#Axis name
+//Axis names
 var_names={LENGTH:Length,result:Throughput,TXCPU:Transmit CPU,RXCPU:Receive CPU}
 require_tags={dpdk}
 
 %variables
-#Parameter for the router itself
+//Parameters for the router itself
 BURSTOUT=[1*256]
 BURSTIN=[4*256]
-CPUFREQ=1200000
+CPU=1 //Unused
+CPUFREQ=1200000 //Unused
 
-#Parameters for the packet generator
-GEN_BURST=32
+//Parameters for the packet generator
+GEN_BURST=256
 GEN_LENGTH=[64*1500]
 GEN_QUICK_CLONE=1
 GEN_STOP=1600000
@@ -32,17 +33,17 @@ GEN_FLOWSIZE=20
 GEN_TIME=5
 
 fastregression:BURSTIN={32,256}
-fastregression:BURSTOUT={32,256
+fastregression:BURSTOUT={32,256}
 fastregression:GEN_LENGTH={64,1500}
 
-%-nobind:import@client testie=tests/module/dpdk-bind NIC={0,1}
-%-nobind:import@dut testie=tests/module/dpdk-bind NIC={0,1}
+%-nobind:import@client dpdk-bind NIC={0,1}
+%-nobind:import@dut dpdk-bind NIC={0,1}
 
 %script@client delay=2 deps=fastclick 0:ip=10.120.0.100 1:ip=10.121.0.100
 click -n 4 -c 0xf -- CONFIG_CLIENT || click --dpdk -n 4 -c 0xf -- CONFIG_CLIENT
 
 %script@dut 0:ip=10.120.0.1 1:ip=10.121.0.1
-#Support for the older DPDK config style of Click
+//Support for the older DPDK config style of Click
 click -n 4 -c 0x1 -- CONFIG || click --dpdk -n 4 -c 0x1 -- CONFIG
 
 
@@ -56,7 +57,7 @@ tol :: Discard(); //ToHost normally
 
 elementclass Input { $device,$ip,$eth |
 
-    FromDPDKDevice($device, BURST $bin) ->
+    FromDPDKDevice($device, BURST $bin, PROMISC false) ->
 
     c0 :: Classifier(    12/0806 20/0001,
                          12/0806 20/0002,
@@ -111,7 +112,7 @@ rt :: LookupIPRouteMP(   ${dut:0:ip}/24 0,
 // for sanity.
 ip ::
 Strip(14)
--> CheckIPHeader(INTERFACES ${dut:0:ip}/16 ${dut:1:ip}/16, VERBOSE true)
+-> CheckIPHeader(INTERFACES ${dut:0:ip}/24 ${dut:1:ip}/24, VERBOSE true)
 -> [0]rt;
 
 oerror :: IPPrint("ICMP Error : DF") -> [0]rt;
@@ -144,26 +145,27 @@ output1[0] -> arpq1;
 td0 :: ToDPDKDevice(${client:0:pci}, BLOCKING true)
 td1 :: ToDPDKDevice(${client:1:pci}, BLOCKING true)
 
-fd0 :: FromDPDKDevice(${client:0:pci})
-fd1 :: FromDPDKDevice(${client:1:pci})
+fd0 :: FromDPDKDevice(${client:0:pci}, PROMISC false)
+fd1 :: FromDPDKDevice(${client:1:pci}, PROMISC false)
 
 //Our main generator path
-gen:: FastUDPFlows(
+gen0:: FastUDPFlows(
         0, $GEN_BURST, $GEN_LENGTH,
         ${client:0:mac}, ${client:0:ip},
         ${dut:0:mac}, ${client:1:ip},
         $GEN_FLOWS, $GEN_FLOWSIZE)
  -> MarkMACHeader
- -> r :: MultiReplayUnqueue(STOP $GEN_STOP, QUICK_CLONE $GEN_QUICK_CLONE, ACTIVE false)
+ -> EnsureDPDKBuffer
+ -> r0 :: MultiReplayUnqueue(STOP $GEN_STOP, QUICK_CLONE $GEN_QUICK_CLONE, ACTIVE false)
  -> td0;
 
 /*****************
  * L2 "advertisement", so all switch and ARP cache know the adresses when
  *  the test start
  ****************/
-arpq0 :: ARPQuerier(10.120.0.100, 3c:fd:fe:9e:5b:60)
+arpq0 :: ARPQuerier(${client:0:ip}, ${client:0:mac})
     -> td0
-arpq1 :: ARPQuerier(10.121.0.100, 3c:fd:fe:9e:5b:61)
+arpq1 :: ARPQuerier(${client:1:ip}, ${client:1:mac})
     -> td1
 
 adv0:: FastUDPFlows(
@@ -192,11 +194,12 @@ fd0
                      12/0806 20/0002,
                      -);
 c0[2]
+ -> ac0 :: AverageCounter()
  -> Discard;
 c0[1]
  -> [1]arpq0;
 c0[0]
- -> ARPResponder(10.120.0.100 3c:fd:fe:9e:5b:60)
+ -> ARPResponder(${client:0:ip} ${client:0:mac})
  -> td0;
 
 fd1
@@ -205,12 +208,12 @@ fd1
                      12/0806 20/0002,
                      -);
 c1[2]
- -> ac :: AverageCounter()
+ -> ac1 :: AverageCounter()
  -> Discard;
 c1[1]
  -> [1]arpq1;
 c1[0]
- -> ARPResponder(10.121.0.100 3c:fd:fe:9e:5b:61)
+ -> ARPResponder(${client:1:ip} ${client:1:mac})
  -> td1;
 
 
@@ -223,7 +226,8 @@ finish :: DriverManager(
             //Stop adv
             write adv0_ru.active false,
             write adv1_ru.active false,
-            write r.active true,
-            write ac.reset,
+            write r0.active true,
+            write ac0.reset,
+            write ac1.reset,
             wait,
-            print "RESULT $(add $(mul $(ac.byte_rate) 8) $(mul $(ac.count) 24))",  stop);
+            print "RESULT $(add  $(mul $(ac0.byte_rate) 8) $(mul $(ac1.byte_rate) 8) $(mul $(ac0.count) 24) $(mul $(ac1.count) 24))",  stop);
