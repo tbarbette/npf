@@ -39,15 +39,22 @@ class SSHExecutor:
 
         out=''
         err=''
+        pid = os.getpid()
 
         while not terminated_event.is_set() and not ssh_stdout.channel.exit_status_ready():
             terminated_event.wait(1)
+            if timeout is not None:
+                timeout -= 1
+                if timeout < 0:
+                    terminated_event.set()
+                    pid = 0
+                    break
         if terminated_event.is_set():
             ssh.close()
         out = ssh_stdout.read().decode()
         err = ssh_stderr.read().decode()
         ret = ssh_stdout.channel.recv_exit_status()
-        return os.getpid(),out,err,ret
+        return pid,out,err,ret
 
 
         #
