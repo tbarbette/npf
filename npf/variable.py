@@ -19,6 +19,7 @@ def is_integer(s):
     except ValueError:
         return False
 
+
 def is_bool(s):
     try:
         bool(s)
@@ -36,6 +37,7 @@ def get_numeric(data):
     else:
         return data
 
+
 def dtype(v):
     if is_numeric(v):
         if is_integer(v):
@@ -45,9 +47,10 @@ def dtype(v):
     else:
         return str
 
+
 class VariableFactory:
     @staticmethod
-    def build(name, valuedata, vsection = None):
+    def build(name, valuedata, vsection=None):
         result = re.match("\[(-?[0-9]+)([+-]|[*])(-?[0-9]+)\]", valuedata)
         if result:
             return RangeVariable(name, int(result.group(1)), int(result.group(3)), result.group(2) == "*")
@@ -75,10 +78,12 @@ class VariableFactory:
 
 class Variable:
     NAME_REGEX = r'[a-zA-Z0-9._-]+'
+    TAGS_REGEX = r'[a-zA-Z0-9._,-]+'
     VALUE_REGEX = r'[a-zA-Z0-9._/,{}-]+'
     VARIABLE_REGEX = r'(?<!\\)[$](' \
                      r'[{](?P<varname_in>' + NAME_REGEX + ')[}]|' \
-                     r'(?P<varname_sp>' + NAME_REGEX + ')(?=}|[^a-zA-Z0-9_]))'
+                                                          r'(?P<varname_sp>' + NAME_REGEX + ')(?=}|[^a-zA-Z0-9_]))'
+
 
 class ProductVariable(Variable):
     def __init__(self, name, nums, values):
@@ -161,12 +166,12 @@ class ListVariable(Variable):
         return len(self.lvalues)
 
     def format(self):
-        t =  dtype(self.lvalues[0])
+        t = dtype(self.lvalues[0])
         if t is int and is_bool(self.lvalues[0]):
             unique = list(set(self.lvalues))
-            if len(unique) == 2 and all([int(u) in (0,1) for u in unique]):
+            if len(unique) == 2 and all([int(u) in (0, 1) for u in unique]):
                 return bool
-            elif len(unique) == 1 and (unique[0] == 'true' or unique[0]=='false'):
+            elif len(unique) == 1 and (unique[0] == 'true' or unique[0] == 'false'):
                 return bool
         return t
 
@@ -185,19 +190,22 @@ class DictVariable(Variable):
                 self.vdict[d[0]] = d[1]
 
     def makeValues(self):
-        return [(k,v) for k,v in self.vdict.items()]
+        return [(k, v) for k, v in self.vdict.items()]
 
     def count(self):
         return len(self.vdict)
 
     def format(self):
-        k,v = next(self.vdict.items().__iter__())
+        k, v = next(self.vdict.items().__iter__())
         return dtype(v)
 
     def is_numeric(self):
         k, v = next(self.vdict.items().__iter__())
         return dtype(v) != str
 
+    def __add__(self, other):
+        self.vdict.update(other.vdict)
+        return self
 
 class RangeVariable(Variable):
     def __init__(self, name, valuestart, valueend, log):

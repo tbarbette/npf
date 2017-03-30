@@ -14,8 +14,13 @@ As for any DPDK application, you must be root on the node executing DPDK
 timeout=120
 
 //Axis names
-var_names={LENGTH:Length,result:Throughput,TXCPU:Transmit CPU,RXCPU:Receive CPU}
+var_names={LENGTH:Length,result:Throughput,TXCPU:Transmit CPU,RXCPU:Receive CPU,GEN_LENGTH:Packet length,BURSTOUT:Output burst,BURSTIN:Input burst}
 require_tags={dpdk}
+
+//For smaller graph
+tight:var_names+={result:Throughput (GBits/s)}
+tight:var_format={result:%d}
+tight:var_divider={result:G}
 
 %variables
 //Parameters for the router itself

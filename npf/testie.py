@@ -325,22 +325,23 @@ class Testie:
         :return: Dataset(Dict of variables as key and arrays of results as value)
         """
 
-        if not build.build(options.force_build, options.no_build, options.quiet_build):
-            return None
+        if do_test:
+            if not build.build(options.force_build, options.no_build, options.quiet_build):
+                return None
 
-        if not self.build_deps([build.repo]):
-            return None
+            if not self.build_deps([build.repo]):
+                return None
 
-        if len(self.imports) > 0:
-            if not options.quiet:
-                print("Executing imports...")
-            for imp in self.imports:
-                imp_res = imp.testie.execute_all(build, options=options, do_test=do_test)
-                for k,v in imp_res.items():
-                    if v == None:
-                        return None
-            if not options.quiet:
-                print("All imports passed successfully...")
+            if len(self.imports) > 0:
+                if not options.quiet:
+                    print("Executing imports...")
+                for imp in self.imports:
+                    imp_res = imp.testie.execute_all(build, options=options, do_test=do_test)
+                    for k,v in imp_res.items():
+                        if v == None:
+                            return None
+                if not options.quiet:
+                    print("All imports passed successfully...")
 
         all_results = {}
         for variables in self.variables:

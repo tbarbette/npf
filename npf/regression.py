@@ -104,7 +104,7 @@ class Regression:
             else:
                 old_all_results = None
             all_results = testie.execute_all(build, prev_results=build.load_results(testie), options=options,
-                                             do_test=True)
+                                             do_test=options.do_test)
             if all_results is None:
                 return None
             variables_passed, variables_total = regression.compare(testie, testie.variables, all_results, build,

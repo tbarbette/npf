@@ -259,27 +259,30 @@ class SectionVariable(Section):
     def parse_variable(self, line, tags):
         try:
             if not line:
-                return None, None
-            pair = line.split('=', 1)
-            var = pair[0].split(':')
-
-            if len(var) == 1:
-                var = var[0]
-            else:
-                if (var[0] in tags) or (var[0].startswith('-') and not var[0][1:] in tags):
-                    var = var[1]
+                return None, None, False
+            match = re.match(r'(?P<tags>' + Variable.TAGS_REGEX + r':)?(?P<name>' + Variable.NAME_REGEX + r')(?P<assignType>=|[+]=)(?P<value>.*)', line)
+            if not match:
+                raise Exception("Invalid variable '%s'" % line)
+            var_tags = match.group('tags')[:-1].split(',') if match.group('tags') is not None else []
+            for t in var_tags:
+                if (t in tags) or (t.startswith('-') and not t[1:] in tags):
+                    pass
                 else:
-                    return None, None
-            return var, VariableFactory.build(var, pair[1], self)
+                    return None, None, False
+            name=match.group('name')
+            return name, VariableFactory.build(name, match.group('value'), self), match.group('assignType') == '+='
         except:
             print("Error parsing line %s" % line)
             raise
 
     def finish(self, testie):
         for line in self.content.split("\n"):
-            var, val = self.parse_variable(line, testie.tags)
+            var, val, is_append = self.parse_variable(line, testie.tags)
             if not var is None:
-                self.vlist[var] = val
+                if is_append:
+                    self.vlist[var] += val
+                else:
+                    self.vlist[var] = val
         self.vlist = OrderedDict(sorted(self.vlist.items()))
 
     def dtype(self):
