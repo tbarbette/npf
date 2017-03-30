@@ -17,16 +17,7 @@ def main():
     parser = argparse.ArgumentParser(description='NPF Testie runner')
     v = npf.add_verbosity_options(parser)
 
-    b = parser.add_argument_group('Click building options')
-    bf = b.add_mutually_exclusive_group()
-    bf.add_argument('--build-folder',
-                    help='Overwrite build folder to use a local version of the program',dest='build_folder',default=None)
-    bf.add_argument('--no-build',
-                    help='Do not build the last master', dest='no_build', action='store_true', default=False)
-    bf.add_argument('--force-build',
-                    help='Force to rebuild Click even if the git current version is matching the regression versions '
-                         '(see --version or --history).', dest='force_build',
-                    action='store_true', default=False)
+    b = npf.add_building_options(parser)
     b.add_argument('--allow-old-build',
                    help='Re-build and run test for old versions (compare-version and graph-version) without results. '
                         'By default, only building for the regression versions (see --history or --version) is done',

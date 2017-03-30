@@ -22,7 +22,6 @@ class Comparator():
         graphs_series = []
         for repo in self.repo_list:
             regressor = Regression(repo)
-            print("Tag list : ",repo.tags, tags)
             testies = Testie.expand_folder(testie_name, options=options, tags=repo.tags + tags)
             testies = npf.override(options, testies)
             for testie in testies:
@@ -45,11 +44,12 @@ def main():
 
     parser.add_argument('repos', metavar='repo', type=str, nargs='+', help='names of the repositories to watch')
 
+    b = npf.add_building_options(parser)
     t = npf.add_testing_options(parser)
     g = npf.add_graph_options(parser)
     args = parser.parse_args()
 
-    args.parse_nodes(args)
+    npf.parse_nodes(args)
 
     # Parsing repo list and getting last_build
     repo_list = []

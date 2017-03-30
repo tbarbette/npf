@@ -5,10 +5,11 @@ import matplotlib
 import numpy as np
 
 from npf.types.dataset import Run
+from npf.variable import is_numeric
 
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from matplotlib.ticker import FuncFormatter
+from matplotlib.ticker import FuncFormatter, StrMethodFormatter, FormatStrFormatter
 import math
 import os
 graphcolor = [(31, 119, 180), (174, 199, 232), (255, 127, 14), (255, 187, 120),
@@ -30,17 +31,23 @@ class Grapher:
     def __init__(self):
         self.scripts = set()
 
+    def config_bool(self, var, default=None):
+        val = self.config(var, default)
+        if val == "0" or val == "F" or val == "False" or val == "false":
+            return False
+        return val
+
     def config(self, var, default=None):
         for script in self.scripts:
             if var in script.config:
                 return script.config[var]
         return default
 
-    def scriptconfig(self, var, key, default):
+    def scriptconfig(self, var, key, default=None):
         for script in self.scripts:
             if var in script.config:
                 return script.config.get_dict(var).get(key,default)
-        return None
+        return default
 
 
     def var_name(self, key):
@@ -48,6 +55,21 @@ class Grapher:
 
     def var_unit(self, key):
         return self.scriptconfig("var_unit",key,default=None)
+
+    def var_divider(self, key):
+        div = self.scriptconfig("var_divider",key,default=1)
+        if is_numeric(div):
+            return float(div)
+        if div.lower() == 'g':
+            return 1024*1024*1024
+        elif div.lower() == 'm':
+            return 1024 * 1024
+        elif div.lower() == 'k':
+            return 1024
+        return 1
+
+    def var_format(self, key):
+        return self.scriptconfig("var_format",key,default=None)
 
     def bits(self, x, pos):
         return self.formatb(x,pos,"Bits")
@@ -186,13 +208,14 @@ class Grapher:
 
         xlog = False
         ax = plt.gca()
+        ydiv = self.var_divider("result")
         yunit = self.var_unit("result").lower()
-        if yunit and yunit[0] == '/':
-            ydiv = 1000000000
-        else:
-            ydiv = 1
+        yformat = self.var_format("result")
 
-        if (yunit == "bps" or yunit == "byteps"):
+        if yformat is not None:
+            formatter = FormatStrFormatter(yformat)
+            ax.yaxis.set_major_formatter(formatter)
+        elif (yunit == "bps" or yunit == "byteps"):
             formatter = FuncFormatter(self.bits if self.var_unit("result").lower() == "bps" else self.bytes)
             ax.yaxis.set_major_formatter(formatter)
         else:
@@ -283,8 +306,6 @@ class Grapher:
 
 
                 plt.gca().set_xlim(xmin,xmax)
-
-            plt.legend(loc=self.config("legend_loc"), title=legend_title)
         else:
             """Barplot. X is all seen variables combination, series are version"""
 
@@ -305,6 +326,7 @@ class Grapher:
                 for run in vars_all:
                     result = all_results.get(run,None)
                     if result is not None:
+                        result = np.asarray(result) / ydiv
                         y.append(np.mean(result))
                         e.append(np.std(result))
                     else:
@@ -353,9 +375,11 @@ class Grapher:
                 if use_short:
                     ss=short_ss
 
+            if not bool(self.config_bool('graph_x_label', True)):
+                ss=["" for i in range(len(vars_all))]
             plt.xticks(interbar + ind + (width * len(versions) / 2.0)  , ss, rotation='vertical' if (sum([len(s) for s in ss]) > 80) else 'horizontal')
 
-        if ndyn > 0 and self.config('graph_legend',True):
+        if ndyn > 0 and bool(self.config_bool('graph_legend',True)):
             plt.legend(loc=self.config("legend_loc"), title=legend_title)
 
         if "result" in self.config('var_log',{}):
@@ -366,8 +390,9 @@ class Grapher:
 
         plt.xlabel(self.var_name(key))
 
-        if "result" in self.config("var_names",{}):
-            plt.ylabel(self.config("var_names")["result"])
+        print()
+        if self.scriptconfig("var_names","result") is not None:
+            plt.ylabel(self.scriptconfig("var_names","result"))
 
         var_lim = self.scriptconfig("var_lim", "result", None)
         if var_lim:

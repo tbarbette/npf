@@ -1,5 +1,6 @@
 %info
-Click Router w/ 2 Networks using DPDK I/O
+Click Router using DPDK
+
 Using FastClick as pktgen
 
 This configuration uses 4 NICs. It has 2 roles : "client" is a pktgen with 2 NIC, one to send traffic and the other to receive it and the router itself as "dut" with 2 NIC.
@@ -20,7 +21,7 @@ require_tags={dpdk}
 //Parameters for the router itself
 BURSTOUT=[1*256]
 BURSTIN=[4*256]
-CPU=[1*4]
+CPU=1
 CPUFREQ=1200000 //Unused
 
 //Parameters for the packet generator
@@ -35,6 +36,9 @@ GEN_TIME=5
 fastregression:BURSTIN={32,256}
 fastregression:BURSTOUT={32,256}
 fastregression:GEN_LENGTH={64,1500}
+
+lengthonly:BURSTIN=32
+lengthonly:BURSTOUT=32
 
 %-nobind:import@client dpdk-bind NIC={0,1}
 %-nobind:import@dut dpdk-bind NIC={0,1}

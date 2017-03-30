@@ -53,7 +53,7 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
     t.add_argument('--testie', metavar='path or testie', type=str, nargs='?', default='tests',
                    help='script or script folder. Default is tests')
 
-    t.add_argument('--cluster', metavar='[user@]address[:path]', type=str, nargs='*', default=[],
+    t.add_argument('--cluster', metavar='user@address:path', type=str, nargs='*', default=[],
                    help='role to node mapping for remote execution of tests')
 
     return t
@@ -110,3 +110,18 @@ def override(args, testies):
         testie.variables.override_all(overriden_variables)
         testie.config.override_all(overriden_config)
     return testies
+
+
+def add_building_options(parser):
+    b = parser.add_argument_group('Building options')
+    bf = b.add_mutually_exclusive_group()
+    bf.add_argument('--build-folder',
+                    help='Overwrite build folder to use a local version of the program', dest='build_folder',
+                    default=None)
+    bf.add_argument('--no-build',
+                    help='Do not build the last master', dest='no_build', action='store_true', default=False)
+    bf.add_argument('--force-build',
+                    help='Force to rebuild Click even if the git current version is matching the regression versions '
+                         '(see --version or --history).', dest='force_build',
+                    action='store_true', default=False)
+    return b
