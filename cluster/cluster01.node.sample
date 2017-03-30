@@ -1,14 +1,16 @@
 #Address for connection
-address=user@cluster01.example.com
-#Private key file to connect with user
-id_rsa=path/to/id_rsa
-tags={tags,added,when,using,me}
+addr=user@cluster01.example.com
 
-nic_0={'mac':'00:11:22:33:44:55',
-       'ip':'10.11.12.13',
-       'ifname':'eth0',
-       'pci':'0000:01:00.0'}
-nic_1={'mac':'00:11:22:33:44:56',
-       'ip':'10.11.12.14',
-       'ifname':'eth1',
-       'pci':'0000:01:00.1'}
+#Private key file to connect with user
+#id_rsa=path/to/id_rsa //TODO:Unimplemented
+#tags={tags,added,when,using,me}  //TODO:Unimplemented
+
+0:mac=00:11:22:33:44:55
+0:ip=10.11.12.13
+0:ifname=eth0
+0:pci=0000:01:00.0
+
+1:mac=00:11:22:33:44:56
+1:ip=10.11.12.14
+1:ifname=eth1
+1:pci=0000:01:00.1
