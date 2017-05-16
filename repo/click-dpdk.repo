@@ -1,3 +1,4 @@
 parent=click
+name=Click + DPDK
 configure+=--enable-dpdk
 tags=click,dpdk,vanilla
