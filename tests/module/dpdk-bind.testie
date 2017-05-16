@@ -1,6 +1,5 @@
-//This file import a tool taken from the Intel(r) DPDK
+//This file import a tool taken from the DPDK
 //Please read below for copyright information
-
 %info
 This is not a test, this is a module to be imported using "%import" to set NIC in DPDK mode
 

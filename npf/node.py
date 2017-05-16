@@ -9,7 +9,7 @@ from npf.variable import Variable
 
 
 class NIC:
-    TYPES = "ip|mac|ifname|pci|mask"
+    TYPES = "ip|mac|raw_mac|ifname|pci|mask"
 
     def __init__(self, pci, mac, ip, ifname, mask='255.255.255.0'):
         self.pci = pci
@@ -24,6 +24,8 @@ class NIC:
             return self.pci
         elif item == 'mac':
             return self.mac
+        elif item == 'raw_mac':
+            return self.mac.replace(':','')
         elif item == 'ip':
             return self.ip
         elif item == 'ifname':
@@ -113,6 +115,8 @@ class Node:
 
     @classmethod
     def makeSSH(cls, user, addr, path, options):
+        if path is None:
+            path = os.getcwd()
         sshex = SSHExecutor(user, addr, path)
         node = Node(addr, sshex)
         if options.do_test:

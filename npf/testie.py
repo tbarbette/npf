@@ -16,8 +16,9 @@ from npf.section import *
 from npf.types.dataset import Run, Dataset
 
 
-def _parallel_exec(exec_args : Tuple['Testie',SectionScript,str,int,'Build',Queue,Event]):
-    (testie, scriptSection, commands, n_retry, build, queue, terminated_event) = exec_args
+def _parallel_exec(exec_args : Tuple['Testie',SectionScript,str,'Build',Queue,Event]):
+    (testie, scriptSection, commands, build, queue, terminated_event) = exec_args
+
     time.sleep(scriptSection.delay())
     pid, o, e, c = npf.executor(scriptSection.get_role()).exec(cmd=commands,
                                                                 stdin=testie.stdin.content,
@@ -25,9 +26,10 @@ def _parallel_exec(exec_args : Tuple['Testie',SectionScript,str,int,'Build',Queu
                                                                 bin_paths=[repo.get_bin_folder() for repo in scriptSection.get_deps_repos()] + [build.get_bin_folder()],
                                                                 queue=queue,
                                                                 options=testie.options,
-                                                                terminated_event=terminated_event)
+                                                                terminated_event=terminated_event,
+                                                                sudo=scriptSection.params.get("sudo",False))
     if pid == 0:
-        return False, "Timeout expired" + o, e, commands
+        return False, o, e, commands
     else:
         # By default, we kill all other scripts when the first finishes
         if testie.config["autokill"] or pid == -1:
@@ -44,7 +46,7 @@ class Testie:
     def get_scripts(self) -> List[SectionScript]:
         return self.scripts
 
-    def __init__(self, testie_path, options, tags=None):
+    def __init__(self, testie_path, options, tags=None, role=None):
         if not os.path.exists(testie_path):
             if not os.path.exists(testie_path + '.testie'):
                 raise Exception("Could not find testie %s" % testie_path)
@@ -57,6 +59,7 @@ class Testie:
         self.filename = os.path.basename(testie_path)
         self.options = options
         self.tags = tags if tags else []
+        self.role = role
 
         section = None
 
@@ -107,17 +110,16 @@ class Testie:
             section.finish(self)
 
         #Check that all reference roles are defined
-        known_roles= {'self', 'default'}
+        known_roles= {'self', 'default'}.union(set(npf.roles.keys()))
         for script in self.get_scripts():
             known_roles.add(script.get_role())
-
         for file in self.files:
             for nicref in re.finditer(Node.NICREF_REGEX, file.content, re.IGNORECASE):
                 if nicref.group('role') not in known_roles:
                     raise Exception("Unknown role %s" % nicref.group('role'))
 
         for imp in self.imports:
-            imp.testie = Testie(imp.module,options, tags)
+            imp.testie = Testie(imp.module,options, tags, imp.get_role())
             overriden_variables={}
             for k,v in imp.params.items():
                 overriden_variables[k] = VariableFactory.build(k, v)
@@ -174,10 +176,10 @@ class Testie:
             do_replace_nics, content)
         return content
 
-    def create_files(self, v):
+    def create_files(self, v, selfRole=None):
         for s in self.files:
             f = open(s.filename, "w")
-            p = self._replace_all(v, s.content)
+            p = self._replace_all(v, s.content, selfRole)
             f.write(p)
             f.close()
 
@@ -213,14 +215,21 @@ class Testie:
             except OSError:
                 pass
 
-    def execute(self, build, v, n_runs=1, n_retry=0):
-        for script in self.scripts:
-            for k,val in script.params.items():
-                nic_match = re.match(r'(?P<nic_idx>[0-9]+)[:](?P<type>' + NIC.TYPES + '+)',k, re.IGNORECASE)
-                if nic_match:
-                    npf.node(script.get_role()).nics[int(nic_match.group('nic_idx'))][nic_match.group('type')] = val
+    def execute(self, build, v, n_runs=1, n_retry=0, allowed_types=None):
+        if allowed_types is None:
+            allowed_types = {"init", "script"}
 
-        self.create_files(v)
+        #Get address definition for roles from scripts
+        self.parse_script_roles()
+        self.create_files(v, self.role)
+
+        for imp in self.imports:
+            imp.testie.parse_script_roles()
+            imp_v = imp.testie.variables.statics()
+            imp_v.update(imp.params)
+            imp_v.update(v)
+            imp.testie.create_files(imp_v, imp.get_role())
+
         results = []
         for i in range(n_runs):
             for i_try in range(n_retry + 1):
@@ -228,16 +237,26 @@ class Testie:
                     print("Re-try tests %d/%d...",i_try,n_retry + 1)
                 output = ''
                 err = ''
-                n = len(self.scripts)
-                p = multiprocessing.Pool(n)
+
                 m = multiprocessing.Manager()
                 queue = m.Queue()
                 terminated_event = m.Event()
 
+                import_scripts = []
+                for imp in self.imports:
+                    import_scripts += [(imp.testie, script, imp.testie._replace_all(v, script.content, imp.get_role()), build, queue,
+                      terminated_event) for script in imp.testie.scripts if script.get_type() in allowed_types]
+
+                testie_scripts = [(self, script, self._replace_all(v, script.content, script.get_role()), build, queue, terminated_event)
+                                            for script in self.scripts if script.get_type() in allowed_types]
+                scripts = import_scripts + testie_scripts
+
+                n = len(scripts)
+                p = multiprocessing.Pool(n)
+
                 try:
                     parallel_execs = p.map(_parallel_exec,
-                                           [(self, script, self._replace_all(v, script.content, script.get_role()), n_retry, build, queue, terminated_event)
-                                            for script in self.scripts])
+                                           scripts)
                 except KeyboardInterrupt:
                     p.close()
                     p.terminate()
@@ -248,6 +267,11 @@ class Testie:
                 for iscript, (r, o, e, script) in enumerate(parallel_execs):
                     if r == 0:
                         print("Timeout expired...")
+                        if self.options.show_full:
+                            print("stdout:")
+                            print(o)
+                            print("stderr:")
+                            print(e)
                         continue
                     if r == -1:
                         sys.exit(1)
@@ -316,7 +340,7 @@ class Testie:
                 return False
         return True
 
-    def execute_all(self, build, options, prev_results: Dataset = None, do_test=True) -> Dataset:
+    def execute_all(self, build, options, prev_results: Dataset = None, do_test=True, allowed_types = None) -> Dataset:
         """Execute script for all variables combinations. All tools reliy on this function for execution of the testie
         :param do_test: Actually run the tests
         :param options: NPF options object
@@ -332,16 +356,31 @@ class Testie:
             if not self.build_deps([build.repo]):
                 return None
 
-            if len(self.imports) > 0:
-                if not options.quiet:
-                    print("Executing imports...")
-                for imp in self.imports:
-                    imp_res = imp.testie.execute_all(build, options=options, do_test=do_test)
-                    for k,v in imp_res.items():
-                        if v == None:
-                            return None
-                if not options.quiet:
-                    print("All imports passed successfully...")
+            if allowed_types is None or "init" in allowed_types:
+                if len(self.imports) > 0:
+                    if not options.quiet:
+                        print("Executing imports init scripts...")
+                    for imp in self.imports:
+                        if len([script for script in imp.testie.scripts if script.get_type() == "init"]) == 0:
+                            continue
+                        imp_res = imp.testie.execute_all(build, options=options, do_test=do_test, allowed_types={"init"})
+                        for k,v in imp_res.items():
+                            if v == None:
+                                if not options.quiet:
+                                    print("Aborting as imports did not run correctly");
+                                return None
+                    if not options.quiet:
+                        print("All imports passed successfully...")
+
+                # init_scripts =[script for script in self.scripts if script.get_type() == "init"]
+                # if len(init_scripts) > 0:
+                #     if not options.quiet:
+                #         print("Executing init scripts...")
+                #     nresults, output, err = self.execute(build, options=options, do_test=do_test, allowed_types={"init"})
+                #     if nresults == 0:
+                #         if not options.quiet:
+                #             print("Aborting as imports did not run correctly");
+                #         return None
 
         all_results = {}
         for variables in self.variables:
@@ -360,7 +399,7 @@ class Testie:
             new_results = False
             n_runs = self.config["n_runs"] - (0 if options.force_test else len(results))
             if n_runs > 0 and do_test:
-                nresults, output, err = self.execute(build, variables, n_runs, self.config["n_retry"])
+                nresults, output, err = self.execute(build, variables, n_runs, self.config["n_retry"], allowed_types={"script"})
                 if nresults:
                     if self.options.show_full:
                         print("stdout:")
@@ -427,3 +466,10 @@ class Testie:
                 continue
 
         return testies
+
+    def parse_script_roles(self):
+        for script in self.scripts:
+            for k,val in script.params.items():
+                nic_match = re.match(r'(?P<nic_idx>[0-9]+)[:](?P<type>' + NIC.TYPES + '+)',k, re.IGNORECASE)
+                if nic_match:
+                    npf.node(script.get_role()).nics[int(nic_match.group('nic_idx'))][nic_match.group('type')] = val

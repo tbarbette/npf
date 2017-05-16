@@ -21,18 +21,21 @@ class SSHExecutor:
         ssh.connect(self.addr, username=self.user)
         return ssh
 
-    def exec(self,cmd, terminated_event = None, bin_paths : List[str] = None, queue: Queue = None, options = None, stdin = None, timeout=None):
+    def exec(self,cmd, terminated_event = None, bin_paths : List[str] = None, queue: Queue = None, options = None, stdin = None, timeout=None, sudo=False):
         if terminated_event is None:
             terminated_event = multiprocessing.Event()
+        if sudo and self.user != "root":
+            cmd = "sudo -E bash -c \"PATH=$PATH\n" + cmd.replace("\"","\\\"") + "\"";
         path_list = [self.path+'/'+p for p in (bin_paths if bin_paths is not None else [])]
         if options and options.show_cmd:
             print("Executing on %s (PATH+=%s) :\n%s" % (self.addr,':'.join(path_list), cmd))
 
-        cmd = 'cd '+ self.path + '\n' + cmd
+        pre = 'cd '+ self.path + '\n'
         if path_list:
-          cmd = 'export PATH="%s:$PATH"\n' % (':'.join(path_list)) + cmd
+          pre = 'export PATH="%s:$PATH"\n' % (':'.join(path_list)) + pre
         ssh = self.get_connection()
-        ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command(cmd,timeout=timeout, get_pty=True)
+
+        ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command(pre + cmd,timeout=timeout, get_pty=True)
 
         if stdin is not None:
             ssh_stdin.write(stdin)
@@ -54,6 +57,7 @@ class SSHExecutor:
         out = ssh_stdout.read().decode()
         err = ssh_stderr.read().decode()
         ret = ssh_stdout.channel.recv_exit_status()
+
         return pid,out,err,ret
 
 

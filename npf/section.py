@@ -106,6 +106,9 @@ class SectionScript(Section):
     def get_role(self):
         return self._role
 
+    def get_type(self):
+        return "init" if self.init else "script"
+
     def finish(self, testie):
         testie.scripts.append(self)
 
@@ -239,7 +242,7 @@ class SectionVariable(Section):
             return True
         return v.is_numeric()
 
-    def statics(self):
+    def statics(self) -> OrderedDict:
         """List of constants variables"""
         dyn = OrderedDict()
         for k, v in self.vlist.items():
