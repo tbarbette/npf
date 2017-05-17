@@ -17,10 +17,10 @@ That will bind NIC 0 and 1 of the client node to uio_pci_generic and ensure page
 %config
 n_retry=0
 n_runs=1
-require_tags=import
+require_tags={import}
 
 %variables
-NIC={0}
+NIC=0
 
 %igb_uio:init
 DRIVER=igb_uio
