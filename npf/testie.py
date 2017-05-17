@@ -5,7 +5,7 @@ import time
 from multiprocessing import Event
 from pathlib import Path
 from queue import Empty, Queue
-from typing import Tuple
+from typing import Tuple, Dict
 
 import numpy as np
 
@@ -215,7 +215,7 @@ class Testie:
             except OSError:
                 pass
 
-    def execute(self, build, v, n_runs=1, n_retry=0, allowed_types=None):
+    def execute(self, build, v, n_runs=1, n_retry=0, allowed_types=None) -> Tuple[Dict[str,List],str,str]:
         if allowed_types is None:
             allowed_types = {"init", "script"}
 
@@ -228,9 +228,10 @@ class Testie:
             imp_v = imp.testie.variables.statics()
             imp_v.update(imp.params)
             imp_v.update(v)
+            print(imp_v)
             imp.testie.create_files(imp_v, imp.get_role())
 
-        results = []
+        results = {}
         for i in range(n_runs):
             for i_try in range(n_retry + 1):
                 if i_try > 0 and not self.options.quiet:
@@ -290,30 +291,34 @@ class Testie:
 
                 if not self.config["result_regex"]:
                     break
-                nr = re.search(self.config["result_regex"], output.strip(), re.IGNORECASE)
-                if nr:
-                    n = float(nr.group(1))
-                    mult = nr.group(2).lower()
-                    if mult == "k":
-                        n *= 1024
-                    elif mult == "m":
-                        n *= 1024 * 1024
-                    elif mult == "g":
-                        n *= 1024 * 1024 * 1024
 
-                    if not (n == 0 and self.config["zero_is_error"]):
-                        results.append(n)
-                        break
-                    else:
-                        print("Result is 0 !")
-                        print("stdout:")
-                        print(output)
-                        print("stderr:")
-                        print(err)
-                        continue
+                has_values = False
+                for result_regex in self.config.get_list("result_regex"):
+                    for nr in re.finditer(result_regex, output.strip(), re.IGNORECASE):
+                        type = nr.group("type")
+                        n = float(nr.group("value"))
+                        mult = nr.group("multiplier").lower()
+                        if mult == "k":
+                            n *= 1024
+                        elif mult == "m":
+                            n *= 1024 * 1024
+                        elif mult == "g":
+                            n *= 1024 * 1024 * 1024
 
-                else:
-                    print("Could not find result !")
+                        if not (n == 0 and self.config["zero_is_error"]):
+                            results.setdefault(type,[]).append(n)
+                            has_values = True
+                        else:
+                            print("Result for %s is 0 !" % (type))
+                            print("stdout:")
+                            print(output)
+                            print("stderr:")
+                            print(err)
+                if has_values:
+                    break
+
+                if len(results) == 0:
+                    print("Could not find results !")
                     print("stdout:")
                     print(output)
                     print("stderr:")
@@ -321,6 +326,7 @@ class Testie:
                     continue
 
         self.cleanup()
+        print("Results are ",results)
         return results, output, err
 
     def has_all(self, prev_results, build):
@@ -390,25 +396,27 @@ class Testie:
             if not self.test_require(variables, build):
                 continue
             if prev_results and prev_results is not None and not options.force_test:
-                results = prev_results.get(run, [])
+                results = prev_results.get(run, {})
                 if results is None:
-                    results = []
+                    results = {}
             else:
-                results = []
+                results = {}
 
             new_results = False
             n_runs = self.config["n_runs"] - (0 if options.force_test else len(results))
             if n_runs > 0 and do_test:
-                nresults, output, err = self.execute(build, variables, n_runs, self.config["n_retry"], allowed_types={"script"})
-                if nresults:
+                new_results, output, err = self.execute(build, variables, n_runs, self.config["n_retry"], allowed_types={"script"})
+                if new_results:
                     if self.options.show_full:
                         print("stdout:")
                         print(output)
                         print("stderr:")
                         print(err)
-                    results += nresults
+                    for k,v in new_results.items():
+                        results.setdefault(k,[]).extend(v)
                     new_results = True
-            if results:
+
+            if len(results) > 0:
                 if not self.options.quiet:
                     print(results)
                 all_results[run] = results

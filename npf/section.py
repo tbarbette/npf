@@ -326,7 +326,7 @@ class SectionConfig(SectionVariable):
         self.__add("var_hide", {})
         self.__add("var_log", [])
         self.__add("autokill", True)
-        self.__add("result_regex", "RESULT[ \t]+([0-9.]+)[ ]*([gmk]?)(b|byte|bits)?")
+        self.__add_list("result_regex", [r"RESULT(:?-(?P<type>[A-Z0-9_]+))?[ \t]+(?P<value>[0-9.]+)[ ]*(?P<multiplier>[nµgmk]?)(?P<unit>s|b|byte|bits)?"])
         self.__add_list("require_tags", [])
 
     def var_name(self, key):

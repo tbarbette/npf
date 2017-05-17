@@ -88,4 +88,4 @@ class Run:
         return self.__cmp__(o) < 0
 
 
-Dataset = Dict[Run, List]
+Dataset = Dict[Run, Dict[str, List]]

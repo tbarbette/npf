@@ -5,7 +5,7 @@ from subprocess import PIPE
 from pathlib import Path
 
 from npf import variable
-from npf.types.dataset import Run
+from npf.types.dataset import Run, Dataset
 
 renametable = {
     'npf.script': 'npf.testie',
@@ -49,7 +49,7 @@ class Build:
         return data.strip()
 
     def __result_folder(self):
-        return 'result/' + self.repo.reponame + '/'
+        return self.repo.reponame + '/results/'
 
     def result_path(self, testie, type,suffix=''):
         return self.__result_folder() + self.version + '/' + os.path.splitext(testie.filename)[
@@ -70,7 +70,7 @@ class Build:
         else:
             return self.__result_folder() + self.version + '.results'
 
-    def writeversion(self, script, all_results):
+    def writeversion(self, script, all_results: Dataset):
         filename = self.__resultFilename(script)
         try:
             if not os.path.exists(os.path.dirname(filename)):
@@ -85,13 +85,16 @@ class Build:
                 if type(val) is tuple:
                     val = val[1]
                 v.append(key + ":" + str(val))
-            str_results = []
-            if results is None:
-                pass
-            else:
-                for r in results:
-                    str_results.append(str(r))
-            f.write(','.join(v) + "=" + ','.join(str_results) + "\n")
+            type_results = []
+            for t,r in results.items():
+                str_results = []
+                if r is None:
+                    pass
+                else:
+                    for val in r:
+                        str_results.append(str(val))
+                type_results.append(t+':'+(','.join(str_results)))
+            f.write(','.join(v) + "={" + '},{'.join(type_results) + "}\n")
         f.close()
 
     def load_results(self, testie):
@@ -100,20 +103,34 @@ class Build:
             return None
         f = open(filename, 'r')
         all_results = {}
-        for line in f:
-            variables_data, results_data = [x.split(',') for x in line.split('=')]
-            variables = OrderedDict()
-            for v_data in variables_data:
-                if v_data:
-                    k, v = v_data.split(':')
-                    variables[k] = variable.get_numeric(v) if testie.variables.is_numeric(k) else str(v)
-            results = []
-            if len(results_data) == 1 and results_data[0].strip() == '':
-                results = None
-            else:
-                for result in results_data:
-                    results.append(float(result.strip()))
-            all_results[Run(variables)] = results
+        try:
+            for line in f:
+                variables_data, results_data = line.split('=')
+
+                variables = OrderedDict()
+                for v_data in variables_data.split(','):
+                    if v_data:
+                        k, v = v_data.split(':')
+                        variables[k] = variable.get_numeric(v) if testie.variables.is_numeric(k) else str(v)
+                results = {}
+
+                results_data = results_data.strip()[1:-1].split('},{')
+                if len(results_data) == 1 and results_data[0].strip() == '':
+                    results = None
+
+                for type,results_type_data in [x.split(':') for x in results_data]:
+                    results_type_data = results_type_data.split(',')
+                    if len(results_type_data) == 1 and results_type_data[0].strip() == '':
+                        type_results = None
+                    else:
+                        type_results = []
+                        for result in results_type_data:
+                            type_results.append(float(result.strip()))
+                    results[type] = type_results
+                all_results[Run(variables)] = results
+        except:
+            print("Could not parse %s. The program will stop to avoid erasing data. Please correct or delete the file." % filename)
+            raise
         f.close()
         return all_results
 
