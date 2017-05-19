@@ -49,7 +49,7 @@ class Build:
         return data.strip()
 
     def __result_folder(self):
-        return self.repo.reponame + '/results/'
+        return 'results/' + self.repo.reponame + '/'
 
     def result_path(self, testie, type,suffix=''):
         return self.__result_folder() + self.version + '/' + os.path.splitext(testie.filename)[
@@ -169,7 +169,7 @@ class Build:
         else:
             return True
 
-    def compile(self, quiet = False):
+    def compile(self, quiet = False, show_cmd = False):
         """
         Compile the currently checked out repo, assuming it is currently at self.version
         :return: True upon success, False if not
@@ -184,6 +184,8 @@ class Build:
                              ("Building %s..." % self.version,self.repo.make.replace('$version',self.version))]:
             if not quiet:
                 print(what)
+            if show_cmd and command:
+                print(command)
             p = subprocess.Popen(command, shell=True, stdin=PIPE, stdout=PIPE, stderr=PIPE)
             output, err = [x.decode() for x in p.communicate()]
             p.wait()
@@ -201,7 +203,7 @@ class Build:
         self.__write_file(Build.__get_build_version_path(self.repo), self.version)
         return True
 
-    def build(self, force_build : bool = False, never_build : bool = False, quiet_build : bool = False, executor=None):
+    def build(self, force_build : bool = False, never_build : bool = False, quiet_build : bool = False, show_build_cmd : bool = False, executor=None):
         if force_build or self.is_checkout_needed():
             force_build = True
             if never_build:
@@ -217,7 +219,7 @@ class Build:
                 print("Warning : will not do test because you disallowed build")
             if not quiet_build:
                 print("Building %s" % (self.repo.name))
-            if not self.compile(quiet_build):
+            if not self.compile(quiet_build, show_build_cmd):
                 return False
         self.repo._current_build = self
         return True

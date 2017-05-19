@@ -54,12 +54,11 @@ def main():
     # Parsing repo list and getting last_build
     repo_list = []
     for repo_name in args.repos:
-        repo = Repository.get_instance(repo_name)
+        repo = Repository.get_instance(repo_name, args)
         repo.last_build = None
         repo_list.append(repo)
 
     comparator = Comparator(repo_list)
-
 
     series = comparator.run(testie_name=args.testie, tags=args.tags, options=args)
 
@@ -67,7 +66,8 @@ def main():
         return
 
     if args.graph_filename is None:
-        filename = 'compare/' + os.path.splitext(os.path.basename(args.testie))[0] + '_' +  '_'.join(["%s" % repo.reponame for repo in repo_list]) + '.pdf'
+        filename = 'compare/' + os.path.splitext(os.path.basename(args.testie))[0] + '_' + '_'.join(
+            ["%s" % repo.reponame for repo in repo_list]) + '.pdf'
     else:
         filename = args.graph_filename[0]
 
@@ -75,20 +75,20 @@ def main():
     if not dir.exists():
         os.makedirs(dir.as_posix())
 
-    #We must find the common variables to all repo, and change dataset to reflect only those
-    all_variables=[]
-    for testie,build,dataset in series:
+    # We must find the common variables to all repo, and change dataset to reflect only those
+    all_variables = []
+    for testie, build, dataset in series:
         v_list = set()
-        for name,variable in testie.variables.vlist.items():
+        for name, variable in testie.variables.vlist.items():
             v_list.add(name)
         all_variables.append(v_list)
     common_variables = set.intersection(*map(set, all_variables))
 
-    for i,(testie,build,dataset) in enumerate(series):
-        ndataset={}
-        for run,results in dataset.items():
+    for i, (testie, build, dataset) in enumerate(series):
+        ndataset = {}
+        for run, results in dataset.items():
             ndataset[run.intersect(common_variables)] = results
-        series[i]=(testie,build,ndataset)
+        series[i] = (testie, build, ndataset)
 
     grapher = Grapher()
     g = grapher.graph(series=series,

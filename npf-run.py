@@ -30,7 +30,7 @@ def main():
 
     g = parser.add_argument_group('Versioning options')
     g.add_argument('--regress',
-                    help='Do not run regression comparison, just do the tests', dest='compare', action='store_true',
+                    help='Do a regression comparison against old version of the software', dest='compare', action='store_true',
                     default=False)
     gf = g.add_mutually_exclusive_group()
     gf.add_argument('--history',
@@ -58,6 +58,10 @@ def main():
     s.add_argument('--statistics-filename',
                    help='Output of learning tree', dest='statistics_filename', type=str, default=None)
 
+    o = parser.add_argument_group('Output data')
+    o.add_argument('--output',
+                   help='Output data to CSV', dest='output', type=str, default=None)
+
     a = npf.add_graph_options(parser)
     af = a.add_mutually_exclusive_group()
     af.add_argument('--graph-version', metavar='version', type=str, nargs='*',
@@ -79,12 +83,12 @@ def main():
         return 1
 
     if args.repo:
-        repo = Repository.get_instance(args.repo)
+        repo = Repository.get_instance(args.repo, args)
     else:
         if os.path.exists(args.testie) and os.path.isfile(args.testie):
             tmptestie = Testie(args.testie,options=args)
             if "default_repo" in tmptestie.config:
-                repo = Repository.get_instance(tmptestie.config["default_repo"])
+                repo = Repository.get_instance(tmptestie.config["default_repo"], args)
             else:
                 print("This testie has no default repository")
                 sys.exit(1)
@@ -98,9 +102,9 @@ def main():
     tags += repo.tags
 
     #Overwrite config if a build folder is given
-    if args.build_folder:
+    if args.use_local:
         repo.url = None
-        repo._build_path = args.build_folder + '/'
+        repo._build_path = args.use_local + '/'
         versions = ['local']
     else:
         versions = repo.method.get_last_versions(limit=args.history,branch=args.branch)
@@ -138,7 +142,7 @@ def main():
         for g in args.graph_version:
             graph_builds.append(Build(repo, g))
     else:
-        if args.graph_num > 0 and not args.build_folder:
+        if args.graph_num > 0 and not args.use_local:
             old_versions = repo.method.get_history(last_build.version if last_build else builds[-1].version, 100)
             for i, version in enumerate(old_versions):
                 g_build = Build(repo, version)
@@ -203,9 +207,10 @@ def main():
             except FileNotFoundError:
                 prev_results = None
 
-            if testie.has_all(prev_results, build) and not args.force_test:
-                all_results = prev_results
-            else:
+            all_results = None
+            if not args.force_test:
+                all_results = testie.has_all(prev_results, build)
+            if all_results is None:
                 all_results = testie.execute_all(build, prev_results=prev_results, do_test=args.do_test, options=args)
 
             if not all_results:

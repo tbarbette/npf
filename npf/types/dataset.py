@@ -1,4 +1,5 @@
-from typing import Dict, List
+import numpy as np
+from typing import Dict, List, Tuple
 
 from npf.variable import is_numeric, get_numeric
 
@@ -19,8 +20,8 @@ class Run:
                 s.append('%s = %s' % (k, v))
         return ', '.join(s)
 
-    def print_variable(self, k):
-        v = self.variables[k]
+    def print_variable(self, k, default=None):
+        v = self.variables.get(k,default)
         if type(v) is tuple:
             return v[1]
         else:
@@ -87,5 +88,56 @@ class Run:
     def __lt__(self, o):
         return self.__cmp__(o) < 0
 
+    def __len__(self):
+        return len(self.variables)
+
 
 Dataset = Dict[Run, Dict[str, List]]
+ResultType = str
+
+
+def var_divider(testie: 'Testie', key: str, result_type):
+    div = testie.config.get_dict_value("var_divider", "result", result_type=result_type, default=1)
+    if is_numeric(div):
+        return float(div)
+    if div.lower() == 'g':
+        return 1024 * 1024 * 1024
+    elif div.lower() == 'm':
+        return 1024 * 1024
+    elif div.lower() == 'k':
+        return 1024
+    return 1
+
+
+def convert_to_xye(datasets: List[Tuple[Dataset, 'Testie']], run_list, key) -> Dict[ResultType,List[Tuple]]:
+    data_types = {}
+
+    for all_results, testie in datasets:
+        x = {}
+        y = {}
+        e = {}
+        for run in run_list:
+            results_types = all_results.get(run, {})
+            for result_type, result in results_types.items():
+                ydiv = var_divider(testie, "result", result_type)
+
+                if len(run) == 0:
+                    xval = key
+                else:
+                    xval = run.print_variable(key,key)
+
+                x.setdefault(result_type, []).append(xval)
+                if result is not None:
+                    result = np.asarray(result) / ydiv
+                    y.setdefault(result_type, []).append(np.mean(result))
+                    e.setdefault(result_type, []).append(np.std(result))
+                else:
+                    y.setdefault(result_type, []).append(np.nan)
+                    e.setdefault(result_type, []).append(np.nan)
+        for result_type in x.keys():
+            order = np.argsort(x[result_type])
+            data_types.setdefault(result_type, []).append(
+                (np.array(x[result_type])[order], np.array(y[result_type])[order], np.array(e[result_type])[order]))
+    return data_types
+
+

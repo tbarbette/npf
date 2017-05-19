@@ -8,4 +8,5 @@ bin_folder=netperf-$version/src/
 bin_name=netperf
 configure=cd netperf-$version && ./autogen.sh && ./configure
 make=cd netperf-$version && make
-clean=cd netperf-$version && make clean
+//Do not clean after configure as this breaks netperf build
+clean=

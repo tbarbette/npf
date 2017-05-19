@@ -115,10 +115,10 @@ class SectionScript(Section):
     def delay(self):
         return float(self.params.get("delay", 0))
 
-    def get_deps_repos(self) -> List[Repository]:
+    def get_deps_repos(self, options) -> List[Repository]:
         repos = []
         for dep in self.get_deps():
-            repos.append(Repository.get_instance(dep))
+            repos.append(Repository.get_instance(dep, options))
         return repos
 
     def get_deps(self) -> Set[str]:
@@ -348,6 +348,18 @@ class SectionConfig(SectionVariable):
             print("WARNING : Error in configuration of %s" % key)
             return {key: var.makeValues()[0]}
         return v
+
+    def get_dict_value(self,var, key, result_type=None, default=None):
+        if var in self:
+            d = self.get_dict(var)
+            if result_type is None:
+                return d.get(key, default)
+            else:
+                if key + "-" + result_type in d:
+                    return d.get(key + "-" + result_type)
+                else:
+                    return d.get(key, default)
+        return default
 
     def __contains__(self, key):
         return key in self.vlist

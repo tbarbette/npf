@@ -1,3 +1,5 @@
+import argparse
+import os
 from argparse import ArgumentParser
 from typing import Dict
 
@@ -6,6 +8,12 @@ import regex
 from npf.node import Node
 from .variable import VariableFactory
 
+class ExtendAction(argparse.Action):
+     def __init__(self, option_strings, dest, nargs=None, **kwargs):
+         super(ExtendAction, self).__init__(option_strings, dest, nargs, **kwargs)
+
+     def __call__(self, parser, namespace, values, option_string=None):
+         setattr(namespace, self.dest, getattr(namespace,self.dest) + values)
 
 def add_verbosity_options(parser: ArgumentParser):
     v = parser.add_argument_group('Verbosity options')
@@ -18,7 +26,9 @@ def add_verbosity_options(parser: ArgumentParser):
                    default=False)
 
     v.add_argument('--quiet', help='Quiet mode', dest='quiet', action='store_true', default=False)
-    v.add_argument('--quiet-build', help='Quiet build mode', dest='quiet_build', action='store_true', default=False)
+    vf = v.add_mutually_exclusive_group()
+    vf.add_argument('--quiet-build', help='Do not tell about the build process', dest='quiet_build', action='store_true', default=False)
+    vf.add_argument('--show-build-cmd', help='Show build commands', dest='show_build_cmd', action='store_true', default=False)
     return v
 
 
@@ -44,10 +54,10 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
                          'variables is already known', dest='force_test', action='store_true',
                     default=False)
 
-    t.add_argument('--tags', metavar='tag', type=str, nargs='+', help='list of tags', default=[])
-    t.add_argument('--variables', metavar='variable=value', type=str, nargs='+',
+    t.add_argument('--tags', metavar='tag', type=str, nargs='+', help='list of tags', default=[], action=ExtendAction)
+    t.add_argument('--variables', metavar='variable=value', type=str, nargs='+', action=ExtendAction,
                    help='list of variables values to override', default=[])
-    t.add_argument('--config', metavar='config=value', type=str, nargs='+',
+    t.add_argument('--config', metavar='config=value', type=str, nargs='+', action=ExtendAction,
                    help='list of config values to override', default=[])
 
     t.add_argument('--testie', metavar='path or testie', type=str, nargs='?', default='tests',
@@ -55,6 +65,8 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
 
     t.add_argument('--cluster', metavar='user@address:path', type=str, nargs='*', default=[],
                    help='role to node mapping for remote execution of tests')
+
+    t.add_argument('--build-folder', metavar='path', type=str, default=None, dest='build_folder')
 
     return t
 
@@ -115,8 +127,8 @@ def override(args, testies):
 def add_building_options(parser):
     b = parser.add_argument_group('Building options')
     bf = b.add_mutually_exclusive_group()
-    bf.add_argument('--build-folder',
-                    help='Overwrite build folder to use a local version of the program', dest='build_folder',
+    bf.add_argument('--use-local',
+                    help='Use a local version of the program instead of the autmatically builded one', dest='use_local',
                     default=None)
     bf.add_argument('--no-build',
                     help='Do not build the last master', dest='no_build', action='store_true', default=False)
@@ -125,3 +137,9 @@ def add_building_options(parser):
                          '(see --version or --history).', dest='force_build',
                     action='store_true', default=False)
     return b
+
+
+def find_local(path):
+    if not os.path.exists(path):
+        return os.path.dirname(os.path.dirname(os.path.realpath(__file__))) + '/' + path
+    return path

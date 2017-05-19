@@ -4,6 +4,9 @@ import urllib
 from abc import ABCMeta
 from pathlib import Path
 
+import re
+
+from npf import npf
 from npf.build import Build
 from .variable import is_numeric
 
@@ -28,8 +31,9 @@ class MethodGit(Method):
         versions = []
         origin = self.gitrepo().remotes.origin
         origin.fetch()
-        if not branch:
+        if branch is None:
             branch = self.repo.branch
+
         for i, commit in enumerate(self.gitrepo().iter_commits('origin/' + branch)):
             versions.append(commit.hexsha[:7])
             if (len(versions) >= limit):
@@ -56,10 +60,6 @@ class MethodGit(Method):
         :param branch: An optional branch
         :return:
         """
-        repo = self.repo
-        if not os.path.exists(repo.reponame):
-            os.mkdir(repo.reponame)
-
         if not branch:
             branch = self.repo.branch
 
@@ -104,6 +104,8 @@ class MethodGet(UnversionedMethod):
         filename, headers = urllib.request.urlretrieve(url,self.repo.get_build_path() + os.path.basename(url))
         t = tarfile.open(filename)
         t.extractall(self.repo.get_build_path())
+        t.close()
+        os.unlink(filename)
         return True
 
 class MethodPackage(UnversionedMethod):
@@ -120,17 +122,22 @@ class Repository:
     make = 'make -j12'
     clean = 'make clean'
     bin_folder = 'bin'
-    bin_name = 'click'
     method = repo_methods['git']
 
-    def __init__(self, repo):
+    def __init__(self, repo, options):
         self.name = None
         self._current_build = None
-        self.reponame = repo
+        repo = repo.split('+')
+        self.reponame = repo[0]
         self.tags=[]
-        f = open('repo/' + repo + '.repo', 'r')
+        self.bin_name=self.reponame #Wild guess that may work some times...
+
+        repo_path = npf.find_local('repo/' + self.reponame + '.repo')
+
+        f = open(repo_path, 'r')
         for line in f:
             line = line.strip()
+            line = re.sub(r'(^|[ ])//.*$', '', line)
             if line.startswith("#"):
                 continue
             if not line:
@@ -150,7 +157,7 @@ class Repository:
             if not var in repo_variables:
                 raise Exception("Unknown variable %s" % var)
             elif var == "parent":
-                parent = Repository(val)
+                parent = Repository(val,options)
                 for attr in repo_variables:
                     if not hasattr(parent,attr):
                         continue
@@ -179,8 +186,11 @@ class Repository:
             else:
                 setattr(self,var,val)
 
+        if len(repo) > 1:
+            self.tags+=repo[1].split(',')
+
         self.method = self.method(self) #Instanciate the method
-        self._build_path = os.path.dirname('build/' + self.reponame + '/')
+        self._build_path = os.path.dirname((options.build_folder if not options.build_folder is None else 'build/') + self.reponame + '/')
 
 
     def get_reponame(self):
@@ -250,9 +260,9 @@ class Repository:
         return Build.get_current_version(self)
 
     @classmethod
-    def get_instance(cls, dep):
+    def get_instance(cls, dep, options):
         if dep in cls._repo_cache:
             return cls._repo_cache[dep]
-        repo = Repository(dep)
+        repo = Repository(dep, options)
         cls._repo_cache[dep] = repo
         return repo

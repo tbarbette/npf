@@ -147,7 +147,7 @@ def main():
     # Parsing repo list and getting last_build
     repo_list = []
     for repo_name in args.repos:
-        repo = Repository.get_instance(repo_name)
+        repo = Repository.get_instance(repo_name, args)
         tags = args.tags.copy()
         tags += repo.tags
 

@@ -1,4 +1,6 @@
 import re
+from collections import OrderedDict
+
 import regex
 
 
@@ -54,7 +56,8 @@ class VariableFactory:
         result = re.match("\[(-?[0-9]+)([+-]|[*])(-?[0-9]+)\]", valuedata)
         if result:
             return RangeVariable(name, int(result.group(1)), int(result.group(3)), result.group(2) == "*")
-        result = regex.match("\{([^:]*:[^,:]+)(?:(?:,)([^,:]+:[^,:]+))*\}", valuedata)
+
+        result = regex.match("\{([^:]*:[^,:]+)(?:(?:,)([^,:]*:[^,:]+))*\}", valuedata)
         if result:
             return DictVariable(name, result.captures(1) + result.captures(2))
 
@@ -184,7 +187,7 @@ class DictVariable(Variable):
         if type(data) is dict:
             self.vdict = data
         else:
-            self.vdict = {}
+            self.vdict = OrderedDict()
             for g in data:
                 d = g.split(':')
                 self.vdict[d[0]] = d[1]
