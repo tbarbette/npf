@@ -58,10 +58,6 @@ def main():
     s.add_argument('--statistics-filename',
                    help='Output of learning tree', dest='statistics_filename', type=str, default=None)
 
-    o = parser.add_argument_group('Output data')
-    o.add_argument('--output',
-                   help='Output data to CSV', dest='output', type=str, default=None)
-
     a = npf.add_graph_options(parser)
     af = a.add_mutually_exclusive_group()
     af.add_argument('--graph-version', metavar='version', type=str, nargs='*',

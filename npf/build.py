@@ -116,17 +116,17 @@ class Build:
 
                 results_data = results_data.strip()[1:-1].split('},{')
                 if len(results_data) == 1 and results_data[0].strip() == '':
-                    results = None
-
-                for type,results_type_data in [x.split(':') for x in results_data]:
-                    results_type_data = results_type_data.split(',')
-                    if len(results_type_data) == 1 and results_type_data[0].strip() == '':
-                        type_results = None
-                    else:
-                        type_results = []
-                        for result in results_type_data:
-                            type_results.append(float(result.strip()))
-                    results[type] = type_results
+                    pass
+                else:
+                    for type,results_type_data in [x.split(':') for x in results_data]:
+                        results_type_data = results_type_data.split(',')
+                        if len(results_type_data) == 1 and results_type_data[0].strip() == '':
+                            type_results = None
+                        else:
+                            type_results = []
+                            for result in results_type_data:
+                                type_results.append(float(result.strip()))
+                        results[type] = type_results
                 all_results[Run(variables)] = results
         except:
             print("Could not parse %s. The program will stop to avoid erasing data. Please correct or delete the file." % filename)

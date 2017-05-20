@@ -111,20 +111,26 @@ def var_divider(testie: 'Testie', key: str, result_type):
 
 def convert_to_xye(datasets: List[Tuple[Dataset, 'Testie']], run_list, key) -> Dict[ResultType,List[Tuple]]:
     data_types = {}
+    all_result_types = set()
+
+    for all_results, testie in datasets:
+        for run, run_results in all_results.items():
+            for result_type,results in run_results.items():
+                all_result_types.add(result_type)
 
     for all_results, testie in datasets:
         x = {}
         y = {}
         e = {}
         for run in run_list:
+            if len(run) == 0:
+                xval = key
+            else:
+                xval = run.print_variable(key,key)
             results_types = all_results.get(run, {})
-            for result_type, result in results_types.items():
+            for result_type in all_result_types:
                 ydiv = var_divider(testie, "result", result_type)
-
-                if len(run) == 0:
-                    xval = key
-                else:
-                    xval = run.print_variable(key,key)
+                result = results_types.get(result_type,None)
 
                 x.setdefault(result_type, []).append(xval)
                 if result is not None:

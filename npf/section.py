@@ -142,6 +142,7 @@ class SectionImport(Section):
             if not 'testie' in params:
                 raise Exception("%import section must define a module name or a testie=[path] to import")
             self.module = params['testie']
+            del params['testie']
 
         self._role = role
 

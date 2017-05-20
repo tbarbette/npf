@@ -125,6 +125,11 @@ class Testie:
             imp.testie = Testie(imp.module,options, tags, imp.get_role())
             if len(imp.testie.variables.dynamics()) > 0:
                 raise Exception("Imports cannot have dynamic variables. Their parents decides what's dynamic.")
+            if 'delay' in imp.params:
+                for script in imp.testie.scripts:
+                    delay = script.params.setdefault('delay',0)
+                    script.params['delay'] = delay + float(imp.params['delay'])
+                del imp.params['delay']
             overriden_variables={}
             for k,v in imp.params.items():
                 overriden_variables[k] = VariableFactory.build(k, v)

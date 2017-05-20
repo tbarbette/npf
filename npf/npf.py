@@ -33,6 +33,12 @@ def add_verbosity_options(parser: ArgumentParser):
 
 
 def add_graph_options(parser: ArgumentParser):
+
+    o = parser.add_argument_group('Output data')
+    o.add_argument('--output',
+                   help='Output data to CSV', dest='output', type=str, default=None)
+
+
     g = parser.add_argument_group('Graph options')
     g.add_argument('--graph-size', metavar='INCH', type=float, nargs=2, default=[],
                    help='Size of graph', dest="graph_size")
@@ -41,7 +47,6 @@ def add_graph_options(parser: ArgumentParser):
     g.add_argument('--graph-reject-outliers', dest='graph_reject_outliers', action='store_true', default=False)
 
     return g
-
 
 def add_testing_options(parser: ArgumentParser, regression: bool = False):
     t = parser.add_argument_group('Testing options')
