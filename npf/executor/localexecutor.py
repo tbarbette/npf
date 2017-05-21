@@ -16,6 +16,9 @@ class LocalExecutor:
         def kill(self):
             os.killpg(self.pgpid, signal.SIGKILL)
 
+        def force_kill(self):
+            os.killpg(self.pgpid, signal.SIGTERM)
+
     def exec(self, cmd, terminated_event, bin_paths : List[str]=[], queue: Queue = None, options = None, stdin = None, timeout = None, sudo = False):
         env = os.environ.copy()
         if (bin_paths):

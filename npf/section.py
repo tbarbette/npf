@@ -61,7 +61,9 @@ class SectionFactory:
         if sectionName.startswith('file'):
             s = SectionFile(matcher.group('fileName').strip())
             return s
-
+        elif sectionName == 'require':
+            s = SectionRequire()
+            return s
         if hasattr(testie, sectionName):
             raise Exception("Only one section of type " + sectionName + " is allowed")
 
@@ -69,8 +71,6 @@ class SectionFactory:
             s = SectionVariable()
         elif sectionName == 'config':
             s = SectionConfig()
-        elif sectionName == 'require':
-            s = SectionRequire()
         elif sectionName == 'info':
             s = Section(sectionName)
         setattr(testie, s.name, s)
@@ -175,7 +175,7 @@ class SectionRequire(Section):
         return 'default'
 
     def finish(self, testie):
-        pass
+        testie.requirements.append(self)
 
 
 class BruteVariableExpander:

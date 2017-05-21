@@ -58,6 +58,7 @@ class Testie:
         self.files = []
         self.scripts = []
         self.imports = []
+        self.requirements = []
         self.filename = os.path.basename(testie_path)
         self.options = options
         self.tags = tags if tags else []
@@ -99,10 +100,6 @@ class Testie:
         if not hasattr(self, "variables"):
             self.variables = SectionVariable()
             self.sections.append(self.variables)
-
-        if not hasattr(self, "require"):
-            self.require = SectionRequire()
-            self.sections.append(self.require)
 
         if not hasattr(self, "config"):
             self.config = SectionConfig()
@@ -194,9 +191,9 @@ class Testie:
             f.close()
 
     def test_require(self, v, build):
-        if self.require.content:
-            p = self._replace_all(v, self.require.content, self.require.role())
-            pid, output, err, returncode = npf.executor(self.require.role()).exec(cmd=p, bin_paths=[build.get_bin_folder()], options=self.options, terminated_event=None)
+        for require in self.requirements:
+            p = self._replace_all(v, require.content, require.role())
+            pid, output, err, returncode = npf.executor(require.role()).exec(cmd=p, bin_paths=[build.get_bin_folder()], options=self.options, terminated_event=None)
             if returncode != 0:
                 if not self.options.quiet:
                     print("Requirement not met for %s" % Run(v))
@@ -205,7 +202,7 @@ class Testie:
                     if err.strip():
                         print(err.strip())
                 return False
-            return True
+            continue
         return True
 
     def cleanup(self):
@@ -224,6 +221,11 @@ class Testie:
                 continue
             try:
                 killer.kill()
+            except OSError:
+                pass
+            delay(1)
+            try:
+                killer.force_kill()
             except OSError:
                 pass
 
