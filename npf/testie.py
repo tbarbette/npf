@@ -223,7 +223,7 @@ class Testie:
                 killer.kill()
             except OSError:
                 pass
-            delay(1)
+            time.sleep(1)
             try:
                 killer.force_kill()
             except OSError:

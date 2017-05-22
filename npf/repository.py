@@ -30,7 +30,8 @@ class MethodGit(Method):
     def get_last_versions(self,limit=100,branch=None):
         versions = []
         origin = self.gitrepo().remotes.origin
-        origin.fetch()
+        if not self.repo.options.no_build:
+            origin.fetch()
         if branch is None:
             branch = self.repo.branch
 
@@ -66,7 +67,8 @@ class MethodGit(Method):
         if os.path.exists(self.repo.get_build_path()):
             gitrepo = git.Repo(self.repo.get_build_path())
             o = gitrepo.remotes.origin
-            o.fetch()
+            if not self.repo.options.no_build:
+                o.fetch()
         else:
             gitrepo = git.Repo.clone_from(self.repo.url, self.repo.get_build_path())
         if branch in gitrepo.remotes.origin.refs:
@@ -130,6 +132,7 @@ class Repository:
         repo = repo.split('+')
         self.reponame = repo[0]
         self.tags=[]
+        self.options = options
         self.bin_name=self.reponame #Wild guess that may work some times...
 
         repo_path = npf.find_local('repo/' + self.reponame + '.repo')
