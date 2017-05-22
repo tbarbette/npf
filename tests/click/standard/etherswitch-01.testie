@@ -1,0 +1,55 @@
+%info
+EtherSwitch performances
+
+Simple performance test generating packets with InfiniteSource and sending them to EtherSwitch to test performances
+
+%config
+//Script is time-based on 3s, so if it is longer than 10s, there is a bug somewhere
+timeout=10
+//Accept 2% changes
+acceptable=0.02
+var_names={BURST:Burst,LENGTH:Length,result:Throughput}
+var_unit={BURST:Packets,LENGTH:Bytes,result:BPS}
+n_runs=3
+var_serie=LENGTH
+default_repo=click
+
+%variables
+BURST=[1*1024]
+LENGTH={64,128,512}
+//With L=1024 and BURST > 256, performances are dropping badly with Click
+
+fastregression:BURST={1,32,256}
+fastregression:LENGTH=64
+
+%script
+click -c 0x1 -n 4 -- CONFIG || click -j 1 CONFIG
+
+%file CONFIG
+elementclass Generator { $SRC, $DST |
+is :: InfiniteSource(LENGTH $LENGTH, BURST $BURST)
+    -> EtherEncap(0x0800, $SRC, $DST)
+    -> [0]output;
+
+input[0]
+    -> ac :: AverageCounter
+    -> Discard;
+}
+
+eth::EtherSwitch
+
+eth[0]
+-> gen0 :: Generator(1:1:1:1:1:1, 2:2:2:2:2:2)
+-> [0]eth
+
+eth[1]
+-> gen1 :: Generator(2:2:2:2:2:2, 1:1:1:1:1:1)
+-> [1]eth
+
+finish :: Script(TYPE ACTIVE,
+            wait 1s,
+            write gen0/ac.reset,
+            write gen1/ac.reset,
+			wait 4s,
+			print "RESULT $(mul $(add gen0/ac.byte_rate gen1/ac.byte_rate) 8)",
+			stop);
