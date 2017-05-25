@@ -24,7 +24,7 @@ class LocalExecutor:
         if (bin_paths):
             env["PATH"] = ':'.join(bin_paths) + ":" + env["PATH"]
         if options is not None and options.show_cmd:
-            print("Executing (PATH+=%s) :\n%s" % (':'.join(bin_paths), cmd))
+            print("Executing (PATH+=%s) :\n%s" % (':'.join(bin_paths), cmd.strip()))
 
         p = Popen(cmd,
                   stdin=PIPE, stdout=PIPE, stderr=PIPE,
