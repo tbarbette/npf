@@ -157,46 +157,20 @@ class Testie:
                 missings.append(tag)
         return missings
 
-    def _replace_all(self, v, content, selfRole=None):
-        """
-        Replace all variable and nics references in content
-        This is done in two step : variables first, then NICs reference so variable can be used in NIC references
-        :param v: Dictionary of variables
-        :param content: Text to change
-        :param selfRole: Role of the caller, that self reference in nic will map to
-        :return: The text with reference to variables and nics replaced
-        """
-        def do_replace(match):
-            varname = match.group('varname_sp') if match.group('varname_sp') is not None else match.group('varname_in')
-            if (varname in v):
-                val = v[varname]
-                return str(val[0] if type(val) is tuple else val)
-            return match.group(0)
-        content = re.sub(
-            Variable.VARIABLE_REGEX,
-            do_replace, content)
-        def do_replace_nics(nic_match):
-            varRole = nic_match.group('role')
-            return str(npf.node(varRole, selfRole).get_nic(int(nic_match.group('nic_idx') if nic_match.group('nic_idx') else v[nic_match.group('nic_var')]))[nic_match.group('type')])
-        content = re.sub(
-            Node.VARIABLE_NICREF_REGEX,
-            do_replace_nics, content)
-        return content
-
     def create_files(self, v, selfRole=None):
         for s in self.files:
             f = open(s.filename, "w")
-            p = self._replace_all(v, s.content, selfRole)
+            p = SectionVariable.replace_variables(v, s.content, selfRole)
             f.write(p)
             f.close()
 
     def test_require(self, v, build):
         for require in self.requirements:
-            p = self._replace_all(v, require.content, require.role())
+            p = SectionVariable.replace_variables(v, require.content, require.role())
             pid, output, err, returncode = npf.executor(require.role()).exec(cmd=p, bin_paths=[build.get_bin_folder()], options=self.options, terminated_event=None)
             if returncode != 0:
                 if not self.options.quiet:
-                    print("Requirement not met for %s" % Run(v))
+                    print("Requirement not met")
                     if output.strip():
                         print(output.strip())
                     if err.strip():
@@ -229,7 +203,7 @@ class Testie:
             except OSError:
                 pass
 
-    def execute(self, build, v, n_runs=1, n_retry=0, allowed_types=None) -> Tuple[Dict[str,List],str,str]:
+    def execute(self, build, run, v, n_runs=1, n_retry=0, allowed_types=None) -> Tuple[Dict[str,List],str,str]:
         if allowed_types is None:
             allowed_types = {"init", "script"}
 
@@ -259,12 +233,12 @@ class Testie:
 
                 import_scripts = []
                 for imp in self.imports:
-                    import_scripts += [(imp.testie, script, imp.testie._replace_all(v, script.content, imp.get_role()),
+                    import_scripts += [(imp.testie, script, SectionVariable.replace_variables(v, script.content, imp.get_role()),
                                         build, queue, terminated_event,
                                         [repo.get_bin_folder() for repo in script.get_deps_repos(self.options)])
                                        for script in imp.testie.scripts if script.get_type() in allowed_types]
 
-                testie_scripts = [(self, script, self._replace_all(v, script.content, script.get_role()), build, queue,
+                testie_scripts = [(self, script, SectionVariable.replace_variables(v, script.content, script.get_role()), build, queue,
                                    terminated_event, [repo.get_bin_folder() for repo in script.get_deps_repos(self.options)])
                                             for script in self.scripts if script.get_type() in allowed_types]
                 scripts = import_scripts + testie_scripts
@@ -354,10 +328,9 @@ class Testie:
             return None
         all_results = {}
         for variables in self.variables:
+            run = Run(variables)
             if not self.test_require(variables, build):
                 continue
-
-            run = Run(variables)
 
             if run in prev_results:
                 results = prev_results[run]
@@ -415,6 +388,8 @@ class Testie:
         all_results = {}
         for variables in self.variables:
             run = Run(variables)
+            if hasattr(self,'late_variables'):
+                variables = self.late_variables.execute(variables,self)
             if not self.options.quiet:
                 print(run.format_variables(self.config["var_hide"]))
             if not self.test_require(variables, build):
@@ -429,7 +404,7 @@ class Testie:
             have_new_results = False
             n_runs = self.config["n_runs"] - (0 if options.force_test or len(run_results) == 0 else min([len(results) for result_type,results in run_results.items()]))
             if n_runs > 0 and do_test:
-                new_results, output, err = self.execute(build, variables, n_runs, self.config["n_retry"], allowed_types={"script"})
+                new_results, output, err = self.execute(build, run, variables, n_runs, self.config["n_retry"], allowed_types={"script"})
                 if new_results:
                     if self.options.show_full:
                         print("stdout:")

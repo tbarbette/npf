@@ -1,17 +1,23 @@
+import ast
+
 from typing import List, Set
 
+from npf import npf
+from npf.node import Node
 from npf.repository import Repository
 from .variable import *
 from collections import OrderedDict
 
+from asteval import Interpreter
+
 
 class SectionFactory:
-    varPattern = "([a-zA-Z0-9:-]+)[=]("+Variable.VALUE_REGEX+")?"
+    varPattern = "([a-zA-Z0-9:-]+)[=](" + Variable.VALUE_REGEX + ")?"
     namePattern = re.compile(
-        "^(?P<tags>[a-zA-Z0-9,_-]+[:])?(?P<name>info|config|variables|file (?P<fileName>[a-zA-Z0-9_.-]+)|require|"
-        "import(:?[@](?P<importRole>[a-zA-Z0-9]+))?[ \t]+(?P<importModule>"+ Variable.VALUE_REGEX +")(?P<importParams>([ \t]+" +
+        "^(?P<tags>[a-zA-Z0-9,_-]+[:])?(?P<name>info|config|variables|late_variables|file (?P<fileName>[a-zA-Z0-9_.-]+)|require|"
+        "import(:?[@](?P<importRole>[a-zA-Z0-9]+))?[ \t]+(?P<importModule>" + Variable.VALUE_REGEX + ")(?P<importParams>([ \t]+" +
         varPattern + ")+)?|"
-        "(:?script|init)(:?[@](?P<scriptRole>[a-zA-Z0-9]+))?(?P<scriptParams>([ \t]+" + varPattern + ")*))$")
+                     "(:?script|init)(:?[@](?P<scriptRole>[a-zA-Z0-9]+))?(?P<scriptParams>([ \t]+" + varPattern + ")*))$")
 
     @staticmethod
     def build(testie, data):
@@ -69,6 +75,8 @@ class SectionFactory:
 
         if sectionName == 'variables':
             s = SectionVariable()
+        elif sectionName == 'late_variables':
+            s = SectionLateVariable()
         elif sectionName == 'config':
             s = SectionConfig()
         elif sectionName == 'info':
@@ -204,19 +212,53 @@ class SectionVariable(Section):
         self.content = ''
         self.vlist = OrderedDict()
 
+    @staticmethod
+    def replace_variables(v, content, self_role=None):
+        """
+        Replace all variable and nics references in content
+        This is done in two step : variables first, then NICs reference so variable can be used in NIC references
+        :param v: Dictionary of variables
+        :param content: Text to change
+        :param self_role: Role of the caller, that self reference in nic will map to
+        :return: The text with reference to variables and nics replaced
+        """
+
+        def do_replace(match):
+            varname = match.group('varname_sp') if match.group('varname_sp') is not None else match.group('varname_in')
+            if (varname in v):
+                val = v[varname]
+                return str(val[0] if type(val) is tuple else val)
+            return match.group(0)
+
+        content = re.sub(
+            Variable.VARIABLE_REGEX,
+            do_replace, content)
+
+        def do_replace_nics(nic_match):
+            varRole = nic_match.group('role')
+            return str(npf.node(varRole, self_role).get_nic(
+                int(nic_match.group('nic_idx') if nic_match.group('nic_idx') else v[nic_match.group('nic_var')]))[
+                           nic_match.group('type')])
+
+        content = re.sub(
+            Node.VARIABLE_NICREF_REGEX,
+            do_replace_nics, content)
+
+        def do_replace_math(match):
+            expr = match.group('expr').strip()
+            aeval = Interpreter()
+            return str(aeval(expr))
+
+        content = re.sub(
+            Variable.MATH_REGEX,
+            do_replace_math, content)
+        return content
+
     def replace_all(self, value):
         """Return a list of all possible replacement in values for each combination of variables"""
-        statics = self.statics()
-        if len(statics):
-            pattern = re.compile("\$(" + "|".join(statics.keys()) + ")")
-            value = pattern.sub(lambda m: statics[re.escape(m.group(0))], value)
-
-        dynamics = self.dynamics()
-        pattern = re.compile("\$(" + "|".join(dynamics.keys()) + ")")
         values = []
-        for variables in BruteVariableExpander(dynamics).it:
-            nvalue = pattern.sub(lambda m: str(variables[re.escape(m.group(1))]), value)
-            values.append(nvalue)
+        for v in self:
+            values.append(SectionVariable.replace_variables(v, value))
         return values
 
     def __iter__(self):
@@ -264,7 +306,9 @@ class SectionVariable(Section):
         try:
             if not line:
                 return None, None, False
-            match = re.match(r'(?P<tags>' + Variable.TAGS_REGEX + r':)?(?P<name>' + Variable.NAME_REGEX + r')(?P<assignType>=|[+]=)(?P<value>.*)', line)
+            match = re.match(
+                r'(?P<tags>' + Variable.TAGS_REGEX + r':)?(?P<name>' + Variable.NAME_REGEX + r')(?P<assignType>=|[+]=)(?P<value>.*)',
+                line)
             if not match:
                 raise Exception("Invalid variable '%s'" % line)
             var_tags = match.group('tags')[:-1].split(',') if match.group('tags') is not None else []
@@ -273,21 +317,24 @@ class SectionVariable(Section):
                     pass
                 else:
                     return None, None, False
-            name=match.group('name')
+            name = match.group('name')
             return name, VariableFactory.build(name, match.group('value'), self), match.group('assignType') == '+='
         except:
             print("Error parsing line %s" % line)
             raise
 
-    def finish(self, testie):
-        for line in self.content.split("\n"):
+    def build(self, content, testie):
+        for line in content.split("\n"):
             var, val, is_append = self.parse_variable(line, testie.tags)
             if not var is None:
                 if is_append:
                     self.vlist[var] += val
                 else:
                     self.vlist[var] = val
-        self.vlist = OrderedDict(sorted(self.vlist.items()))
+        return OrderedDict(sorted(self.vlist.items()))
+
+    def finish(self, testie):
+        self.vlist = self.build(self.content, testie)
 
     def dtype(self):
         formats = []
@@ -297,6 +344,28 @@ class SectionVariable(Section):
             formats.append(f)
             names.append(k)
         return dict(names=names, formats=formats)
+
+
+class SectionLateVariable(SectionVariable):
+    def __init__(self, name='late_variables'):
+        super().__init__(name)
+
+    def finish(self, testie):
+        pass
+
+    def execute(self, variables, testie):
+
+        self.vlist = OrderedDict()
+        for k,v in variables.items():
+            self.vlist[k] = SimpleVariable(k,v)
+        content = self.content
+
+        vlist = self.build(content, testie)
+        final = OrderedDict()
+        for k,v in vlist.items():
+            final[k] = v.makeValues()[0]
+
+        return final
 
 
 class SectionConfig(SectionVariable):
@@ -327,7 +396,8 @@ class SectionConfig(SectionVariable):
         self.__add("var_hide", {})
         self.__add("var_log", [])
         self.__add("autokill", True)
-        self.__add_list("result_regex", [r"RESULT(:?-(?P<type>[A-Z0-9_]+))?[ \t]+(?P<value>[0-9.]+)[ ]*(?P<multiplier>[nµgmk]?)(?P<unit>s|b|byte|bits)?"])
+        self.__add_list("result_regex", [
+            r"RESULT(:?-(?P<type>[A-Z0-9_]+))?[ \t]+(?P<value>[0-9.]+)[ ]*(?P<multiplier>[nµgmk]?)(?P<unit>s|b|byte|bits)?"])
         self.__add_list("require_tags", [])
 
     def var_name(self, key):
@@ -350,7 +420,7 @@ class SectionConfig(SectionVariable):
             return {key: var.makeValues()[0]}
         return v
 
-    def get_dict_value(self,var, key, result_type=None, default=None):
+    def get_dict_value(self, var, key, result_type=None, default=None):
         if var in self:
             d = self.get_dict(var)
             if result_type is None:

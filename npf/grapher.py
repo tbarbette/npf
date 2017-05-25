@@ -286,10 +286,9 @@ class Grapher:
                         wr.writerow(y)
                 print("Output written to %s" % type_filename)
 
-
         if ndyn == 0:
             """No dynamic variables : do a barplot X=version"""
-            figures = self.do_simple_barplot(series, versions, data_types)
+            figures = self.do_simple_barplot(versions, data_types)
         elif ndyn == 1 and len(vars_all) > 2:
             """One dynamic variable used as X, series are version line plots"""
             figures = self.do_line_plot(versions, data_types, key)
@@ -365,28 +364,21 @@ class Grapher:
     def reject_outliers(self, result, testie):
         return testie.reject_outliers(result)
 
-    def do_simple_barplot(self, series, versions, data_types):
-        # If more than 20 bars, do not print bar edges
-        if len(series) > 20:
-            edgecolor = "none"
-            interbar = 0.05
-        else:
-            edgecolor = None
-            interbar = 0.1
-
+    def do_simple_barplot(self, versions, data_types):
         i = 0
+        interbar = 0.1
+        ndata = len(versions)
+        nseries = 1
+        width = (1 - (2 * interbar)) / nseries
 
-        width = (1 - (2 * interbar)) / len(versions)
-
-        xpos = np.arange(len(versions)) + interbar
-        ticks = np.arange(len(versions)) + 0.5
+        ticks = np.arange(ndata) + 0.5
 
         figures = {}
         for result_type, data in data_types.items():
-            y = data[0][1]
+            y = [s[1] for s in data]
             figures[result_type] = plt.figure(result_type)
             self.format_figure(result_type)
-            plt.bar(xpos, y, label=versions[i], color=graphcolor[i % len(graphcolor)], width=width)
+            plt.bar(ticks, y, label=versions[i], color=graphcolor[i % len(graphcolor)], width=width)
             plt.xticks(ticks, versions, rotation='vertical' if (len(versions) > 10) else 'horizontal')
             plt.gca().set_xlim(0, len(versions))
         return figures

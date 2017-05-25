@@ -129,8 +129,12 @@ class Repository:
     def __init__(self, repo, options):
         self.name = None
         self._current_build = None
-        repo = repo.split('+')
-        self.reponame = repo[0]
+
+        overwrite_name = repo.split(':')
+        add_tags = overwrite_name[0].split('+')
+        overwrite_branch = add_tags[0].split('/')
+
+        self.reponame = overwrite_branch[0]
         self.tags=[]
         self.options = options
         self.bin_name=self.reponame #Wild guess that may work some times...
@@ -189,8 +193,14 @@ class Repository:
             else:
                 setattr(self,var,val)
 
-        if len(repo) > 1:
-            self.tags+=repo[1].split(',')
+        if len(add_tags) > 1:
+            self.tags += add_tags[1].split(',')
+
+        if len(overwrite_branch) > 1:
+            self.branch = overwrite_branch[1]
+
+        if len(overwrite_name) > 1:
+            self.name = overwrite_name[1]
 
         self.method = self.method(self) #Instanciate the method
         self._build_path = os.path.dirname((options.build_folder if not options.build_folder is None else 'build/') + self.reponame + '/')

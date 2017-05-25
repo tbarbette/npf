@@ -69,10 +69,10 @@ class VariableFactory:
         if result:
             return ExpandVariable(name, result.group(1), vsection)
 
-        result = regex.match("PRODUCT[ ]*\([ ]*\$([^,]+)[ ]*,[ ]*\$([^,]+)[ ]*\)", valuedata)
+        result = regex.match("HEAD[ ]*\([ ]*\$([^,]+)[ ]*,[ ]*\$([^,]+)[ ]*\)", valuedata)
         if result and vsection:
-            return ProductVariable(name, vsection.vlist[result.group(1)].makeValues(),
-                                   vsection.vlist[result.group(2)].makeValues())
+            return HeadVariable(name, vsection.vlist[result.group(1)].makeValues(),
+                                vsection.vlist[result.group(2)].makeValues())
 
         return SimpleVariable(name, valuedata)
 
@@ -85,10 +85,11 @@ class Variable:
     VALUE_REGEX = r'[a-zA-Z0-9._/,{}-]+'
     VARIABLE_REGEX = r'(?<!\\)[$](' \
                      r'[{](?P<varname_in>' + NAME_REGEX + ')[}]|' \
-                                                          r'(?P<varname_sp>' + NAME_REGEX + ')(?=}|[^a-zA-Z0-9_]))'
+                     r'(?P<varname_sp>' + NAME_REGEX + ')(?=}|[^a-zA-Z0-9_]))'
+    MATH_REGEX = r'(?<!\\)[$][(][(](?P<expr>.*?)[)][)]'
 
-
-class ProductVariable(Variable):
+# For each value N of nums, generate a variable with the first N element of values
+class HeadVariable(Variable):
     def __init__(self, name, nums, values):
         self.values = values
         self.nums = nums
@@ -109,8 +110,9 @@ class ProductVariable(Variable):
     def is_numeric(self):
         return False
 
-
 class ExpandVariable(Variable):
+    """ Create a list wihich expands a string with all possible value for the variable
+        it contains like it would be in a script or file section"""
     def __init__(self, name, value, vsection):
         self.values = vsection.replace_all(value)
 
@@ -209,6 +211,7 @@ class DictVariable(Variable):
     def __add__(self, other):
         self.vdict.update(other.vdict)
         return self
+
 
 class RangeVariable(Variable):
     def __init__(self, name, valuestart, valueend, log):

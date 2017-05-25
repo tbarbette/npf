@@ -52,7 +52,7 @@ class Regression:
                             "Difference of %.2f%% is outside acceptable margin for %s. Running supplementary tests..." % (
                                 diff * 100, run.format_variables()))
                     for i in range(testie.config["n_supplementary_runs"]):
-                        n, output, err = testie.execute(build, v)
+                        n, output, err = testie.execute(build, run, v)
                         if not n:
                             result = False
                             break

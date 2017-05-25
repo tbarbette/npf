@@ -15,41 +15,40 @@ var_serie=LENGTH
 default_repo=click
 
 %variables
-BURST=[1*1024]
-LENGTH={64,128,512}
-//With L=1024 and BURST > 256, performances are dropping badly with Click
+LENGTH=64
+extended:LENGTH={64,128,512}
 
-fastregression:BURST={1,32,256}
 fastregression:LENGTH=64
 
+TOTGEN=[2*128]
+
+%late_variables
+NGEN=[0-127]
+GEN=EXPAND(eth[${NGEN}] -> gen${NGEN} :: Generator(52:54:56:58:$(( format($NGEN, 'x') )):$(( format($NGEN, 'x') )), 52:54:56:58:$(( format(($NGEN + 1) % $TOTGEN, 'x') )):$(( format(($NGEN + 1) % $TOTGEN, 'x') )) ) -> [${NGEN}]eth;gen${NGEN}[1] -> ac)
+GENS=HEAD($TOTGEN,$GEN)
+NGEN=
+GEN=
+
 %script
-click -c 0x1 -n 4 -- CONFIG || click -j 1 CONFIG
+click -j 1 CONFIG
 
 %file CONFIG
 elementclass Generator { $SRC, $DST |
-is :: InfiniteSource(LENGTH $LENGTH, BURST $BURST)
+is :: InfiniteSource(LENGTH $LENGTH, BURST 32)
     -> EtherEncap(0x0800, $SRC, $DST)
     -> [0]output;
 
 input[0]
-    -> ac :: AverageCounter
-    -> Discard;
+    -> [1]output;
 }
 
-eth::EtherSwitch
+eth::EtherSwitch();
+ac :: AverageCounter -> Discard;
 
-eth[0]
--> gen0 :: Generator(1:1:1:1:1:1, 2:2:2:2:2:2)
--> [0]eth
-
-eth[1]
--> gen1 :: Generator(2:2:2:2:2:2, 1:1:1:1:1:1)
--> [1]eth
+$GENS
 
 finish :: Script(TYPE ACTIVE,
-            wait 1s,
-            write gen0/ac.reset,
-            write gen1/ac.reset,
-			wait 4s,
-			print "RESULT $(mul $(add gen0/ac.byte_rate gen1/ac.byte_rate) 8)",
+            wait 2s,
+            print "NB packets : $(ac.count)",
+			print "RESULT $(mul $(ac.byte_count) 8)",
 			stop);
