@@ -8,19 +8,15 @@ Simple performance test generating packets with InfiniteSource and sending them 
 timeout=10
 //Accept 2% changes
 acceptable=0.02
-var_names={BURST:Burst,LENGTH:Length,result:Throughput}
+var_names={BURST:Burst,LENGTH:Length,result:Throughput,TOTGEN:Number of L2 flows}
 var_unit={BURST:Packets,LENGTH:Bytes,result:BPS}
-n_runs=3
-var_serie=LENGTH
+n_runs=10
 default_repo=click
 
 %variables
 LENGTH=64
-extended:LENGTH={64,128,512}
-
-fastregression:LENGTH=64
-
 TOTGEN=[2*128]
+BURST=32
 
 %late_variables
 NGEN=[0-127]
@@ -34,7 +30,7 @@ click -j 1 CONFIG
 
 %file CONFIG
 elementclass Generator { $SRC, $DST |
-is :: InfiniteSource(LENGTH $LENGTH, BURST 32)
+is :: InfiniteSource(LENGTH $LENGTH, BURST $BURST)
     -> EtherEncap(0x0800, $SRC, $DST)
     -> [0]output;
 
