@@ -43,42 +43,57 @@ class Regression:
             # TODO : some config could implement acceptable range no matter the old value
             if results_types is None or len(results_types) == 0:
                 continue
+
+            need_supp=False
             for result_type,result in results_types.items():
                 if old_all_results and run in old_all_results and not old_all_results[run] is None:
                     old_result = old_all_results[run].get(result_type,None)
                     if old_result is None:
                         continue
+
                     ok, diff = self.accept_diff(testie, result, old_result)
                     if not ok and testie.config["n_supplementary_runs"] > 0 and allow_supplementary:
-                        if not testie.options.quiet:
-                            print(
-                                "Difference of %.2f%% is outside acceptable margin for %s. Running supplementary tests..." % (
-                                    diff * 100, run.format_variables()))
-                        for i in range(testie.config["n_supplementary_runs"]):
-                            n, output, err = testie.execute(build, run, v)
-                            if not n:
-                                result = False
-                                break
-                            result += n
-
-                        if result:
-                            all_results[run] = result
-                            ok, diff = self.accept_diff(testie, result, old_result)
-                        else:
-                            ok = True
-
-                    if not ok:
-                        print(
-                            "ERROR: Test %s is outside acceptable margin between %s and %s : difference of %.2f%% !" % (
-                            testie.filename, build.version, last_build.version, diff * 100))
-                    else:
-                        tests_passed += 1
-                        if not testie.options.quiet:
-                            print("Acceptable difference of %.2f%% for %s" % ((diff * 100), run.format_variables()))
+                        need_supp = True
+                        break
                 elif last_build:
                     print("No old values for %s for version %s." % (run, last_build.version))
                     if (old_all_results):
-                        old_all_results[run] = [0]
+                        old_all_results[run] = {}
+
+            if need_supp:
+                if not testie.options.quiet:
+                    print(
+                        "Difference of %.2f%% is outside acceptable margin for %s. Running supplementary tests..." % (
+                            diff * 100, run.format_variables()))
+                result=False
+                for i in range(testie.config["n_supplementary_runs"]):
+                    new_results_types, output, err = testie.execute(build, run, v)
+                    if new_results_types is None:
+                        result = False
+                        break
+                    result=True
+                    for result_type,results in new_results_types.items():
+                        results_types[result_type] += results
+                    print("Result with supp", results_types)
+
+                if result:
+                    all_results[run] = results_types
+                    for result_type, result in results_types.items():
+                        ok, diff = self.accept_diff(testie, result, old_result)
+                        if ok is False:
+                            break
+                else:
+                    ok = True
+
+            if not ok:
+                print(
+                    "ERROR: Test %s is outside acceptable margin between %s and %s : difference of %.2f%% !" % (
+                    testie.filename, build.version, last_build.version, diff * 100))
+            else:
+                tests_passed += 1
+                if not testie.options.quiet:
+                    print("Acceptable difference of %.2f%% for %s" % ((diff * 100), run.format_variables()))
+
         return tests_passed, tests_total
 
     def regress_all_testies(self, testies: List['Testie'], options, history : int = 1) -> Tuple[Build, List[Dataset]]:
