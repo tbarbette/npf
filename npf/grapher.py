@@ -138,7 +138,6 @@ class Grapher:
 
         #Get all scripts, find versions
         for i, (testie, build, all_results) in enumerate(series):
-            versions.append(build.pretty_name())
             self.scripts.add(testie)
 
         # Combine variables as per the graph_combine_variables config parameter
@@ -190,6 +189,7 @@ class Grapher:
 
             if new_results:
                 filtered_series.append((testie, build, new_results))
+                versions.append(build.pretty_name())
             else:
                 print("No valid data for %s" % build)
         series = filtered_series
