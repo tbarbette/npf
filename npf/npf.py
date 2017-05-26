@@ -20,7 +20,9 @@ def add_verbosity_options(parser: ArgumentParser):
     v.add_argument('--show-full', help='Show full execution results',
                    dest='show_full', action='store_true',
                    default=False)
-
+    v.add_argument('--show-files', help='Show content of created files',
+                   dest='show_files', action='store_true',
+                   default=False)
     v.add_argument('--show-cmd', help='Show the executed script',
                    dest='show_cmd', action='store_true',
                    default=False)
@@ -42,7 +44,7 @@ def add_graph_options(parser: ArgumentParser):
     g = parser.add_argument_group('Graph options')
     g.add_argument('--graph-size', metavar='INCH', type=float, nargs=2, default=[],
                    help='Size of graph', dest="graph_size")
-    g.add_argument('--graph-filename', metavar='graph_filename', type=str, nargs=1, default=None,
+    g.add_argument('--graph-filename', metavar='graph_filename', type=str,  default=None, dest='graph_filename',
                    help='path to the file to output the graph')
     g.add_argument('--graph-reject-outliers', dest='graph_reject_outliers', action='store_true', default=False)
 
@@ -148,3 +150,25 @@ def find_local(path):
     if not os.path.exists(path):
         return os.path.dirname(os.path.dirname(os.path.realpath(__file__))) + '/' + path
     return path
+
+def build_filename(build,hint,variables,def_ext,type_str=''):
+    var_str = '_'.join(["%s=%s" % (k,val) for k,val in variables.items()]).replace(' ','')
+    if hint is None:
+        filename = build.result_path(testie,def_ext,var_str)
+    else:
+        dirname,c_filename = os.path.split(hint)
+        if c_filename == '':
+            basename = ''
+            ext = ''
+        else:
+            basename, ext = os.path.splitext(c_filename)
+            if not ext and basename.startswith('.'):
+                ext = basename
+                basename = ''
+
+        if ext is None or ext == '':
+            ext = '.' + def_ext
+
+        if basename is None or basename is '':
+            basename = var_str
+        return (dirname + '/' if dirname else '') + basename + ('-' + type_str if type_str else '') + ext

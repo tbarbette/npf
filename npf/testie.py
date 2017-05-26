@@ -144,9 +144,11 @@ class Testie:
         for dep in deps:
             if dep in repo_under_test:
                 continue
-            deprepo = Repository.get_instance(dep)
+            deprepo = Repository.get_instance(dep, self.options)
             if not deprepo.get_last_build().build():
                 raise Exception("Could not build dependency %s" + dep)
+        for imp in self.imports:
+            imp.testie.build_deps(repo_under_test)
         return True
 
     def test_tags(self):
@@ -161,6 +163,9 @@ class Testie:
         for s in self.files:
             f = open(s.filename, "w")
             p = SectionVariable.replace_variables(v, s.content, selfRole)
+            if self.options.show_files:
+                print("File %s:" % s.filename)
+                print(p.strip())
             f.write(p)
             f.close()
 

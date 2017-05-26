@@ -10,6 +10,7 @@ import numpy as np
 from npf.types import dataset
 from npf.types.dataset import Run
 from npf.variable import is_numeric
+from npf import npf
 
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -197,10 +198,12 @@ class Grapher:
         vars_all.sort()
 
         dyns = []
-
+        statics = {}
         for k, v in vars_values.items():
             if len(v) > 1:
                 dyns.append(k)
+            else:
+                statics[k] = list(v)[0]
 
         ndyn = len(dyns)
         nseries = len(series)
@@ -274,9 +277,7 @@ class Grapher:
 
         if options.output is not None:
             for result_type,data in data_types.items():
-                type_config = "" if not result_type else "-" + result_type
-                f, e = os.path.splitext(options.output)
-                type_filename = f + type_config + e
+                type_filename = npf.build_filename(build, options.output, statics, 'csv', result_type)
                 with open(type_filename, 'w') as csvfile:
                     wr = csv.writer(csvfile, delimiter=' ',
                                             quotechar='"', quoting=csv.QUOTE_MINIMAL)
@@ -351,10 +352,7 @@ class Grapher:
                 buf.seek(0)
                 ret[result_type] = buf.read()
             else:
-                if os.path.dirname(filename) and not os.path.exists(os.path.dirname(filename)):
-                    os.makedirs(os.path.dirname(filename))
-                f, e = os.path.splitext(filename)
-                type_filename = f + type_config + e
+                type_filename =  npf.build_filename(build, options.graph_filename, statics, 'pdf', result_type)
                 plt.savefig(type_filename)
                 ret[result_type] = None
                 print("Graph of test written to %s" % type_filename)

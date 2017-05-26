@@ -235,19 +235,6 @@ def main():
 
             grapher = Grapher()
 
-            graph_variables_names=[]
-            for k,v in testie.variables.statics().items():
-                val = v.makeValues()[0]
-                if type(val) is tuple:
-                    val = val[1]
-                if k and v and val != '':
-                    graph_variables_names.append((k,val))
-
-            if args.graph_filename is None:
-                filename = build.result_path(testie,'pdf','_'.join(["%s=%s" % (k,val) for k,val in graph_variables_names]))
-            else:
-                filename = args.graph_filename[0]
-
             g_series = []
             if last_build and old_all_results and args.compare:
                 g_series.append((testie, last_build, old_all_results))
@@ -261,7 +248,7 @@ def main():
                     print("Previous build %s could not be found, we will not graph it !" % g_build.version)
             grapher.graph(series=[(testie, build, all_results)] + g_series,
                           title=testie.get_title(),
-                          filename=filename,
+                          filename=True,
                           graph_variables=[Run(x) for x in testie.variables],
                           options = args)
         if last_build:

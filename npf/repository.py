@@ -215,12 +215,20 @@ class Repository:
     def get_bin_folder(self, version = None):
         if version is None:
             version = self.current_version()
-        return self.get_build_path() + '/' + self.bin_folder.replace('$version', version) + '/'
+        if version is None:
+            bin_folder = self.bin_folder
+        else:
+            bin_folder = self.bin_folder.replace('$version', version)
+        return self.get_build_path() + '/' + bin_folder + '/'
 
     def get_bin_path(self, version):
         if version is None:
             version = self.current_version()
-        return self.get_bin_folder(version) + self.bin_name.replace('$version', version)
+        if version is None:
+            bin_name = self.bin_name
+        else:
+            bin_name = self.bin_name.replace('$version', version)
+        return self.get_bin_folder(version) + bin_name
 
     def get_last_build(self, history: int = 1, stop_at: Build = None, with_results = False) -> Build:
         versions = self.method.get_last_versions(100)

@@ -45,7 +45,7 @@ class Build:
             with open(fp, 'r') as myfile:
                 data = myfile.read().replace('\n', '')
         except FileNotFoundError:
-            return False
+            return None
         return data.strip()
 
     def __result_folder(self):
@@ -156,7 +156,8 @@ class Build:
 
 
     def is_checkout_needed(self):
-        if Build.__read_file(self.repo.get_build_path() + '/.checkout_version') == self.version:
+        c_ver = Build.__read_file(self.repo.get_build_path() + '/.checkout_version')
+        if c_ver is not None and c_ver == self.version:
             return False
         else:
             return True
