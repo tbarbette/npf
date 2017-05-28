@@ -63,7 +63,7 @@ class SSHExecutor:
         if terminated_event.is_set():
             if not ssh_stdin.channel.closed:
                 ssh_stdin.channel.send(chr(3))
-            time.sleep(1)
+                time.sleep(1)
             ssh.close()
         out = ssh_stdout.read().decode()
         err = ssh_stderr.read().decode()
