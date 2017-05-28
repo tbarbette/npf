@@ -28,7 +28,7 @@ class SSHExecutor:
 
         path_list = [p if os.path.isabs(p) else self.path+'/'+p for p in (bin_paths if bin_paths is not None else [])]
         if options and options.show_cmd:
-            print("Executing on %s%s (PATH+=%s) :\n%s" % (self.addr,':'.join(path_list),(' with sudo' if sudo and self.user != "root" else ''), cmd.strip()))
+            print("Executing on %s%s (PATH+=%s) :\n%s" % (self.addr,(' with sudo' if sudo and self.user != "root" else ''),':'.join(path_list), cmd.strip()))
 
         pre = 'cd '+ self.path + '\n'
         if path_list:

@@ -1,4 +1,5 @@
 import os
+import pwd
 import signal
 from multiprocessing import Queue
 from subprocess import PIPE, Popen, TimeoutExpired
@@ -25,6 +26,9 @@ class LocalExecutor:
             env["PATH"] = ':'.join(bin_paths) + ":" + env["PATH"]
         if options is not None and options.show_cmd:
             print("Executing (PATH+=%s) :\n%s" % (':'.join(bin_paths), cmd.strip()))
+
+        if sudo and pwd.getpwuid(os.getuid()).pw_name != "root":
+            cmd = "sudo -E bash -c '"+ cmd.replace("'", "\\'") + "'";
 
         p = Popen(cmd,
                   stdin=PIPE, stdout=PIPE, stderr=PIPE,
