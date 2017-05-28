@@ -28,13 +28,14 @@ class SSHExecutor:
 
         path_list = [p if os.path.isabs(p) else self.path+'/'+p for p in (bin_paths if bin_paths is not None else [])]
         if options and options.show_cmd:
-            print("Executing on %s (PATH+=%s) :\n%s" % (self.addr,':'.join(path_list), cmd.strip()))
+            print("Executing on %s%s (PATH+=%s) :\n%s" % (self.addr,':'.join(path_list),(' with sudo' if sudo and self.user != "root" else ''), cmd.strip()))
 
         pre = 'cd '+ self.path + '\n'
         if path_list:
             path_cmd = 'export PATH="%s:$PATH"\n' % (':'.join(path_list))
         else:
             path_cmd = ''
+
         if sudo and self.user != "root":
             cmd = "sudo -E bash -c '"+path_cmd + cmd.replace("'", "\\'") + "'";
         else:
