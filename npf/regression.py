@@ -34,6 +34,9 @@ class Regression:
         :return: the amount of failed tests (0 means all passed)
         """
 
+        if not old_all_results:
+            return 0,0
+
         tests_passed = 0
         tests_total = 0
         for v in variable_list:
@@ -46,7 +49,7 @@ class Regression:
 
             need_supp=False
             for result_type,result in results_types.items():
-                if old_all_results and run in old_all_results and not old_all_results[run] is None:
+                if run in old_all_results and not old_all_results[run] is None:
                     old_result = old_all_results[run].get(result_type,None)
                     if old_result is None:
                         continue
@@ -85,14 +88,15 @@ class Regression:
                 else:
                     ok = True
 
-            if not ok:
-                print(
-                    "ERROR: Test %s is outside acceptable margin between %s and %s : difference of %.2f%% !" % (
-                    testie.filename, build.version, last_build.version, diff * 100))
-            else:
-                tests_passed += 1
-                if not testie.options.quiet:
-                    print("Acceptable difference of %.2f%% for %s" % ((diff * 100), run.format_variables()))
+            if len(results_types) > 0:
+                if not ok:
+                    print(
+                        "ERROR: Test %s is outside acceptable margin between %s and %s : difference of %.2f%% !" % (
+                        testie.filename, build.version, last_build.version, diff * 100))
+                else:
+                    tests_passed += 1
+                    if not testie.options.quiet:
+                        print("Acceptable difference of %.2f%% for %s" % ((diff * 100), run.format_variables()))
 
         return tests_passed, tests_total
 
