@@ -61,7 +61,8 @@ class SSHExecutor:
                     pid = 0
                     break
         if terminated_event.is_set():
-            ssh_stdin.channel.send(chr(3))
+            if not ssh_stdin.channel.closed:
+                ssh_stdin.channel.send(chr(3))
             time.sleep(1)
             ssh.close()
         out = ssh_stdout.read().decode()
