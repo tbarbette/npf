@@ -28,7 +28,7 @@ class Statistics:
             if filename:
                 f = filename
             else:
-                f = build.result_path(testie,'pdf',suffix='_clf')
+                f = build.result_path(testie.filename,'pdf',suffix='_clf')
             graph.write(f,format=os.path.splitext(f)[1][1:])
             print("Decision tree visualization written to %s" % f)
 

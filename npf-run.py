@@ -153,7 +153,6 @@ def main():
                 if len(graph_builds) > args.graph_num:
                     break
 
-
     testies = Testie.expand_folder(testie_path=args.testie, options=args, tags=tags)
     if not testies:
         sys.exit(errno.ENOENT)

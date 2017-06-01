@@ -151,10 +151,10 @@ def find_local(path):
         return os.path.dirname(os.path.dirname(os.path.realpath(__file__))) + '/' + path
     return path
 
-def build_filename(build,hint,variables,def_ext,type_str=''):
+def build_filename(testie, build,hint,variables,def_ext,type_str=''):
     var_str = '_'.join(["%s=%s" % (k,val) for k,val in variables.items()]).replace(' ','')
     if hint is None:
-        filename = build.result_path(testie,def_ext,var_str)
+        return build.result_path(testie.filename, def_ext, var_str)
     else:
         dirname,c_filename = os.path.split(hint)
         if c_filename == '':

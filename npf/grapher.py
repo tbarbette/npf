@@ -277,7 +277,7 @@ class Grapher:
 
         if options.output is not None:
             for result_type,data in data_types.items():
-                type_filename = npf.build_filename(build, options.output, statics, 'csv', result_type)
+                type_filename = npf.build_filename(testie, build, options.output, statics, 'csv', result_type)
                 with open(type_filename, 'w') as csvfile:
                     wr = csv.writer(csvfile, delimiter=' ',
                                             quotechar='"', quoting=csv.QUOTE_MINIMAL)
@@ -352,7 +352,7 @@ class Grapher:
                 buf.seek(0)
                 ret[result_type] = buf.read()
             else:
-                type_filename =  npf.build_filename(build, options.graph_filename, statics, 'pdf', result_type)
+                type_filename =  npf.build_filename(testie, build, options.graph_filename, statics, 'pdf', result_type)
                 plt.savefig(type_filename)
                 ret[result_type] = None
                 print("Graph of test written to %s" % type_filename)
