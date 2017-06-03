@@ -12,7 +12,7 @@ from asteval import Interpreter
 
 
 class SectionFactory:
-    varPattern = "([a-zA-Z0-9:-]+)[=](" + Variable.VALUE_REGEX + ")?"
+    varPattern = "([a-zA-Z0-9_:-]+)[=](" + Variable.VALUE_REGEX + ")?"
     namePattern = re.compile(
         "^(?P<tags>[a-zA-Z0-9,_-]+[:])?(?P<name>info|config|variables|late_variables|file (?P<fileName>[a-zA-Z0-9_.-]+)|require|"
         "import(:?[@](?P<importRole>[a-zA-Z0-9]+))?[ \t]+(?P<importModule>" + Variable.VALUE_REGEX + ")(?P<importParams>([ \t]+" +

@@ -138,7 +138,7 @@ def main():
         for g in args.graph_version:
             graph_builds.append(Build(repo, g))
     else:
-        if args.graph_num > 0 and not args.use_local:
+        if args.graph_num > 1 and not args.use_local:
             old_versions = repo.method.get_history(last_build.version if last_build else builds[-1].version, 100)
             for i, version in enumerate(old_versions):
                 g_build = Build(repo, version)
@@ -250,7 +250,7 @@ def main():
                           filename=True,
                           graph_variables=[Run(x) for x in testie.variables],
                           options = args)
-        if last_build:
+        if last_build and graph_num > 0:
             graph_builds = [last_build] + graph_builds[:-1]
         last_build = build
         if args.compare:
