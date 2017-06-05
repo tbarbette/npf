@@ -49,11 +49,11 @@ class Build:
         return data.strip()
 
     def __result_folder(self):
-        return 'results/' + self.repo.reponame + '/'
+        return 'results/' + self.repo.get_identifier() + '/'
 
-    def result_path(self, test_name, type,suffix=''):
+    def result_path(self, test_name, ext, suffix=''):
         return self.__result_folder() + self.version + '/' + os.path.splitext(test_name)[
-            0] + suffix + '.' + type
+            0] + suffix + '.' + ext
 
     @staticmethod
     def __write_file(fp, val):

@@ -195,6 +195,9 @@ class Repository:
 
         if len(add_tags) > 1:
             self.tags += add_tags[1].split(',')
+            self._id = self.reponame + "-" + add_tags[1]
+        else:
+            self._id = self.reponame
 
         if len(overwrite_branch) > 1:
             self.branch = overwrite_branch[1]
@@ -205,6 +208,8 @@ class Repository:
         self.method = self.method(self) #Instanciate the method
         self._build_path = os.path.dirname((options.build_folder if not options.build_folder is None else 'build/') + self.reponame + '/')
 
+    def get_identifier(self):
+        return self._id
 
     def get_reponame(self):
         return self.reponame
