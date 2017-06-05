@@ -1,0 +1,230 @@
+%info
+This is not a test, this is a module to be imported using "%import" to run a pktgen to compute latency of some DUT using FastClick. The traffic is read from traces and replayed in loop.
+
+Packets are directed towards the server NIC 0 MAC address using the client NIC 0 and expect to receive packets back on the NIC 1. There is no L3 support (ARP).
+
+Suggested usage example in your testie (omit the prefixed "//" that prevent loop import here)
+
+//%import@client fastclick-replay-dual traceIN=path/to.pcap traceOUT=path/to.pcap NIC_IN=0 NIC_OUT=1
+
+%config
+n_retry=0
+n_runs=1
+require_tags=import,dpdk
+
+%variables
+PKTGEN_BURST_OUT=32
+PKTGEN_REPLAY_COUNT=1
+NIC_IN=0
+NIC_OUT=1
+
+nolinktest=0
+
+%script sudo=true deps=fastclick
+click --dpdk -c 0xf -- PKTGEN-CONFIG
+
+%file PKTGEN-CONFIG
+define($bout $PKTGEN_BURST_OUT)
+define($INsrcmac ${client:$NIC_IN:mac})
+define($RAW_INsrcmac ${client:$NIC_IN:raw_mac})
+define($OUTsrcmac ${client:$NIC_OUT:mac})
+define($RAW_OUTsrcmac ${client:$NIC_OUT:raw_mac})
+
+define($INdstmac ${server:$NIC_IN:mac})
+define($RAW_INdstmac ${server:$NIC_IN:raw_mac})
+define($OUTdstmac ${server:$NIC_OUT:mac})
+define($RAW_OUTdstmac ${server:$NIC_OUT:raw_mac})
+
+define($ignore 0)
+define($wait 2)
+define($replay_count $PKTGEN_REPLAY_COUNT)
+define($portIN $NIC_IN)
+define($portOUT $NIC_OUT)
+define($quick true)
+define($txverbose 99)
+define($rxverbose 99)
+
+define($IP0 ${client:$NIC_IN:ip})
+define($IP1 ${client:$NIC_OUT:ip})
+
+DPDKInfo(1048576)
+
+fdIN :: FromDump($traceIN, STOP false, TIMING false, END_AFTER 8)
+tdIN :: ToDPDKDevice($portIN, BLOCKING true, BURST $bout, VERBOSE $txverbose)
+
+fdOUT :: FromDump($traceOUT, STOP false, TIMING false)
+tdOUT :: ToDPDKDevice($portOUT, BLOCKING true, BURST $bout, VERBOSE $txverbose)
+
+
+replay :: MultiReplayUnqueue(STOP 0,QUICK_CLONE $quick, VERBOSE true, ACTIVE true)
+StaticThreadSched(replay 0)
+
+elementclass Numberise {
+    input-> Strip(14) -> check :: CheckIPHeader -> nPacket :: NumberPacket(40) -> SetIPChecksum -> doublecheck :: CheckIPHeader -> Unstrip(14) -> triplecheck::CheckIPHeader(OFFSET 14) -> output
+}
+
+fdIN -> rwIN :: EtherRewrite($INsrcmac,$INdstmac)
+  -> NIN :: Numberise
+  ->  EnsureDPDKBuffer
+  -> [0]replay[0]
+  -> rt :: RecordTimestamp(N 1048576)
+  -> avgSIN :: AverageCounter(IGNORE $ignore)
+  -> tdIN
+
+fdOUT -> rwOUT :: EtherRewrite($OUTsrcmac,$OUTdstmac)
+  -> NOUT :: Numberise
+  -> EnsureDPDKBuffer
+  -> [1]replay[1]
+  -> avgSOUT :: AverageCounter(IGNORE $ignore)
+  -> tdOUT
+
+receiveIN :: FromDPDKDevice($portIN, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC false)
+receiveOUT :: FromDPDKDevice($portOUT, VERBOSE $rxverbose, MAC $OUTsrcmac, PROMISC false)
+
+elementclass Receiver { $mac, $dir |
+    input ->
+
+	c::Classifier(0/$mac,-)->
+
+	Strip(14) ->
+	CheckIPHeader ->
+	chPacket :: CheckNumberPacket() ->
+	Unstrip(14) ->
+	output;
+
+	c[1]
+//    -> Print("Bad MAC received $dir :",MAXLENGTH -1)
+    -> Discard;
+
+    chPacket[1] -> Unstrip(14)
+//    -> Print("Bad Packet number in $dir", -1)
+    -> Discard;
+}
+elementclass ARPHandler { $ip, $mac |
+	c0 :: Classifier(	12/0806 20/0001,
+		                12/0806 20/0002,
+			    -);
+
+    // Respond to ARP Query
+    c0[0] -> Print("ARP") -> arpress :: ARPResponder($ip $eth) -> [1]output
+    c0[2] -> [0]output
+}
+
+receiveIN -> RINswitch :: Switch(2) -> RIN :: Receiver($RAW_INsrcmac,"IN")
+//-> IPPrint(IN)
+-> avgRIN :: AverageCounter(IGNORE $ignore) -> Discard;
+receiveOUT -> ROUTswitch :: Switch(2) -> ROUT :: Receiver($RAW_OUTsrcmac,"OUT")
+//-> IPPrint(OUT)
+  -> Strip(14) -> tsd :: TimestampDiff(rt) -> Unstrip(14)
+-> avgROUT :: AverageCounter(IGNORE $ignore) -> Discard;
+
+
+//----------------
+//Link initializer
+//----------------
+adv0 :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH 64, SRCETH $INsrcmac, DSTETH $OUTsrcmac, SRCIP $IP0, DSTIP $IP1, FLOWS 1, FLOWSIZE 1)
+    -> advq0 :: RatedUnqueue(1)
+    -> tdIN;
+adv1 :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH 64, SRCETH $OUTsrcmac, DSTETH $INsrcmac, SRCIP $IP1, DSTIP $IP0, FLOWS 1, FLOWSIZE 1)
+    -> advq1 :: RatedUnqueue(1)
+    -> tdOUT;
+
+//Check that it received its packet from 2 outputs and emits packets on output 0 when it's the case
+linkoklock :: PathSpinlock() [0-1]
+  => linkok :: Script(TYPE PACKET,
+			init a 0,
+			init b 0,
+            init c 0,
+			goto i0 $(eq $input 0),
+			goto i1 $(eq $input 1),
+			error "Unknown input $input",
+            exit,
+			label i0,
+			set a 1,
+            write advq1.active false,
+            write adv1.active false,
+            goto check,
+			label i1,
+			set b 1,
+            write advq0.active false,
+            write adv0.active false,
+            label check,
+			goto finish $(eq $(add $a $b $c) 2),
+            return -1,
+			label finish,
+            set c $(add $c 1),
+			return 0,
+			)
+
+
+RINswitch[2]
+    -> Classifier(0/$RAW_INsrcmac)
+    -> Print -> [0]linkoklock
+
+ROUTswitch[2]
+    -> Classifier(0/$RAW_OUTsrcmac)
+    -> Print -> [1]linkoklock
+
+//-----------------
+
+linkok ->
+link_initialized :: Script(TYPE PACKET,
+    wait $nolinktest,
+	print "Link initialized !",
+	write RINswitch.switch -1,
+	write RINswitch.switch -1,
+	print "IN has $(NIN/nPacket.count) packets",
+        print "OUT has $(NOUT/nPacket.count) packets",
+	write RIN/chPacket.count $(NOUT/nPacket.count),
+	write ROUT/chPacket.count $(NIN/nPacket.count),
+        wait 1s,
+
+	print "Starting replay...",
+
+	write avgSIN.reset, write avgSOUT.reset, write avgRIN.reset, write avgROUT.reset,
+	write RINswitch.switch 0 ,write ROUTswitch.switch 0,
+	write replay.stop $replay_count,
+	write replay.active true);
+
+
+//Script to force the launch without the link init test
+forcelaunch :: InfiniteSource(LIMIT 1, ACTIVE $nolinktest) ->
+Script(TYPE PACKET,
+    print "No link init test. Just waiting 2 secs...",
+    write advq0.active false,
+    write adv0.active false,
+    write advq1.active false,
+    write adv1.active false,
+    return 0) -> Print(GO!) -> link_initialized;
+
+RINswitch[1]->Print(LATEIN) -> Discard;
+ROUTswitch[1]->Print(LATEOUT) -> Discard;
+
+DriverManager(pause, pause,
+                print "Replay finished. Waiting for last packets for $wait seconds...",
+                wait $wait,
+                write RINswitch.switch 1 , write ROUTswitch.switch 1,
+                print "Checking if packets are still coming in..",
+                wait 2s,
+                print "$(RIN/chPacket.min)/$(RIN/chPacket.max)",
+                print "$(ROUT/chPacket.min)/$(ROUT/chPacket.max)",
+		print "Rate : ",
+                print $(avgSIN.link_rate),
+                print $(avgSOUT.link_rate),
+                print $(avgROUT.link_rate),
+                print $(avgRIN.link_rate),
+                print "Count :",
+                print $(avgSIN.count),
+                print $(avgSOUT.count),
+                print $(avgROUT.count),
+                print $(avgRIN.count),
+                print "RESULT-LATENCY $(tsd.average)",
+                print "RESULT-RXTHROUGHPUT $(avgROUT.link_rate)",
+                print "RESULT-TXTHROUGHPUT $(avgRIN.link_rate)",
+                print "Mean Delay: $(tsd.average) µs",
+                print "Min Delay: $(tsd.min) µs",
+                print "Max Delay: $(tsd.max) µs",
+                print "Delay StdDev: $(tsd.stddev) µs",
+//                print "Delay dump:",
+//                print $(tsd.dump),
+                stop);

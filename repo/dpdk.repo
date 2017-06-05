@@ -1,0 +1,9 @@
+#This is only a "download" repo for now, as dpdk is too "user specific" to auto-build
+name=DPDK
+branch=16.11.1
+url=http://dpdk.org/git/dpdk-stable
+method=git
+bin_folder=x86_64-native-linuxapp-gcc
+bin_name=
+configure=
+tags=dpdk
