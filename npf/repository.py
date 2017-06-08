@@ -20,6 +20,7 @@ class Method(metaclass=ABCMeta):
 
 class MethodGit(Method):
     __gitrepo = None
+    _fetch_done = False
 
     def gitrepo(self) -> git.Repo:
         if (self.__gitrepo):
@@ -30,8 +31,11 @@ class MethodGit(Method):
     def get_last_versions(self,limit=100,branch=None):
         versions = []
         origin = self.gitrepo().remotes.origin
-        if not self.repo.options.no_build:
+        if not self.repo.options.no_build and not self._fetch_done:
+            print("Fetching last versions of %s..." % self.repo.reponame)
             origin.fetch()
+            self._fetch_done = True
+
         if branch is None:
             branch = self.repo.branch
 
