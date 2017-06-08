@@ -228,7 +228,7 @@ class Testie:
         for i in range(n_runs):
             for i_try in range(n_retry + 1):
                 if i_try > 0 and not self.options.quiet:
-                    print("Re-try tests %d/%d...",i_try,n_retry + 1)
+                    print("Re-try tests %d/%d..." % (i_try,n_retry + 1))
                 output = ''
                 err = ''
 
@@ -249,6 +249,8 @@ class Testie:
                 scripts = import_scripts + testie_scripts
 
                 n = len(scripts)
+                if n == 0:
+                    return {},None,None
                 p = multiprocessing.Pool(n)
 
                 try:
@@ -380,15 +382,18 @@ class Testie:
                     if msg_shown:
                         print("All imports passed successfully...")
 
-                # init_scripts =[script for script in self.scripts if script.get_type() == "init"]
-                # if len(init_scripts) > 0:
-                #     if not options.quiet:
-                #         print("Executing init scripts...")
-                #     nresults, output, err = self.execute(build, options=options, do_test=do_test, allowed_types={"init"})
-                #     if nresults == 0:
-                #         if not options.quiet:
-                #             print("Aborting as imports did not run correctly");
-                #         return None
+                init_scripts = [script for script in self.scripts if script.get_type() == "init"]
+                if len(init_scripts) > 0:
+                    if not options.quiet:
+                        print("Executing init scripts...")
+                    vs={}
+                    for k,v in self.variables.statics().items():
+                        vs[k] = v.makeValues()[0]
+                    nresults, output, err = self.execute(build, Run(vs), v=vs, n_runs=1, n_retry=0, allowed_types={"init"})
+                    if nresults == 0:
+                        if not options.quiet:
+                            print("Aborting as imports did not run correctly");
+                        return None
 
         all_results = {}
         for variables in self.variables:
@@ -409,7 +414,7 @@ class Testie:
             have_new_results = False
             n_runs = self.config["n_runs"] - (0 if options.force_test or len(run_results) == 0 else min([len(results) for result_type,results in run_results.items()]))
             if n_runs > 0 and do_test:
-                new_results, output, err = self.execute(build, run, variables, n_runs, self.config["n_retry"], allowed_types={"script"})
+                new_results, output, err = self.execute(build, run, variables, n_runs, n_retry=self.config["n_retry"], allowed_types={"script"})
                 if new_results:
                     if self.options.show_full:
                         print("stdout:")
