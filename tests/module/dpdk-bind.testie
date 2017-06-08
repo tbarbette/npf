@@ -22,8 +22,9 @@ require_tags={import}
 %variables
 NIC=0
 
-%igb_uio:init
+%igb_uio:init sudo=true
 DRIVER=igb_uio
+modprobe $DRIVER
 echo "Driver is $DRIVER"
 chmod +x dpdk-devbind.py
 lsmod | grep $DRIVER &> /dev/null
@@ -34,8 +35,9 @@ echo "Binding NIC $NIC"
 /usr/bin/env python ./dpdk-devbind.py --bind=$DRIVER ${self:$NIC:pci}
 [ $? -eq 0 ] && echo "RESULT 1"
 
-%-igb_uio:init
+%-igb_uio:init sudo=true
 DRIVER=uio_pci_generic
+modprobe $DRIVER
 echo "Driver is $DRIVER"
 chmod +x dpdk-devbind.py
 lsmod | grep $DRIVER &> /dev/null
