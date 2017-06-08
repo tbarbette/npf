@@ -112,10 +112,10 @@ class Testie:
         known_roles= {'self', 'default'}.union(set(npf.roles.keys()))
         for script in self.get_scripts():
             known_roles.add(script.get_role())
-        for file in self.files:
-            for nicref in re.finditer(Node.NICREF_REGEX, file.content, re.IGNORECASE):
-                if nicref.group('role') not in known_roles:
-                    raise Exception("Unknown role %s" % nicref.group('role'))
+#        for file in self.files:
+#            for nicref in re.finditer(Node.NICREF_REGEX, file.content, re.IGNORECASE):
+#                if nicref.group('role') not in known_roles:
+#                    raise Exception("Unknown role %s" % nicref.group('role'))
 
         #Create imports testies
         for imp in self.imports:
