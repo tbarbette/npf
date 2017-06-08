@@ -14,7 +14,7 @@ from npf import npf
 
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from matplotlib.ticker import FuncFormatter, StrMethodFormatter, FormatStrFormatter
+from matplotlib.ticker import FuncFormatter, FormatStrFormatter
 import math
 import os
 
