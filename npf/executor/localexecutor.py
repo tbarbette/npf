@@ -5,20 +5,19 @@ from multiprocessing import Queue
 from subprocess import PIPE, Popen, TimeoutExpired
 from typing import List
 
+class LocalKiller:
+    def __init__(self, pgpid):
+        self.pgpid = pgpid
+
+    def kill(self):
+        os.killpg(self.pgpid, signal.SIGKILL)
+
+    def force_kill(self):
+        os.killpg(self.pgpid, signal.SIGTERM)
 
 class LocalExecutor:
     def __init__(self):
         pass
-
-    class LocalKiller:
-        def __init__(self, pgpid):
-            self.pgpid = pgpid
-
-        def kill(self):
-            os.killpg(self.pgpid, signal.SIGKILL)
-
-        def force_kill(self):
-            os.killpg(self.pgpid, signal.SIGTERM)
 
     def exec(self, cmd, terminated_event, bin_paths : List[str]=[], queue: Queue = None, options = None, stdin = None, timeout = None, sudo = False):
         env = os.environ.copy()
@@ -38,7 +37,7 @@ class LocalExecutor:
         pgpid = os.getpgid(pid)
 
         if queue:
-            queue.put(LocalExecutor.LocalKiller(pgpid))
+            queue.put(LocalKiller(pgpid))
         try:
             s_output, s_err = [x.decode() for x in
                                p.communicate(input = stdin,  timeout=timeout)]
