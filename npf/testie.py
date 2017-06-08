@@ -125,7 +125,7 @@ class Testie:
             if 'delay' in imp.params:
                 for script in imp.testie.scripts:
                     delay = script.params.setdefault('delay',0)
-                    script.params['delay'] = delay + float(imp.params['delay'])
+                    script.params['delay'] = float(delay) + float(imp.params['delay'])
                 del imp.params['delay']
             overriden_variables={}
             for k,v in imp.params.items():
