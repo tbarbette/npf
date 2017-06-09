@@ -96,13 +96,15 @@ class HeadVariable(Variable):
         self.join = "\n"
 
     def makeValues(self):
+        if self.nums == 0:
+            return ['']
         vs = []
         for i in self.nums:
             vs.append((self.join.join(self.values[:i]), i))
         return vs
 
     def count(self):
-        return sum(self.nums)
+        return sum(self.nums if self.nums > 0 else 1)
 
     def format(self):
         return str
