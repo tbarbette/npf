@@ -19,11 +19,26 @@ through repo files and give a few examples testie for each of them.
 
 NPF supports running the given test across a custer, allowing to try your tests in multiple different configuration very quickly and on serious hardware.
 
-### Dependencies
-NPF needs python 3
+### Installation
+NPF is built using Python 3
 
+#### Auto
+To install python3, pip, and python dependencies you can do
+```bash
+sudo ./setup.sh
+```
+
+#### Manual
+To install python 3, pip and required devel headers on ubuntu, use :
+```bash
+sudo apt-get install python3 python3-pip libssl-dev
+```
+
+Then to install python dependencies using pip3, do :
+```bash
 sudo pip3 install numpy
 sudo pip3 install -r requirements.txt
+```
 
 ## Tools
 Three tools come with this performance framework :
