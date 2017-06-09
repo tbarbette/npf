@@ -7,11 +7,11 @@ QUICK_CLONE parameter when we can? What's the perfect burst size? Does the numbe
 
 %config
 
-#Grapg title
+//Graph title
 title=Replay throughput
 timeout=10
 
-#Axis name
+//Axis name
 var_names={LENGTH:Length,result:Throughput,TXCPU:Transmit CPU,RXCPU:Receive CPU}
 n_retry=3
 acceptable=0.01
@@ -42,7 +42,7 @@ is:: FastTCPFlows(0, $BURST, $LENGTH,
 90:e2:ba:84:4e:a6, 10.0.0.2,
 5, 20)
 -> MarkMACHeader
--> r :: MultiReplayUnqueue(STOP $STOP, QUICK_CLONE $QUICK_CLONE, ACTIVE false)
+-> r :: ReplayUnqueue(STOP $STOP, QUICK_CLONE $QUICK_CLONE, ACTIVE false)
 -> ac :: AverageCounter
 -> Discard;
 

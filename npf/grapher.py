@@ -287,82 +287,102 @@ class Grapher:
                         wr.writerow(y)
                 print("Output written to %s" % type_filename)
 
-        if ndyn == 0:
-            """No dynamic variables : do a barplot X=version"""
-            figures = self.do_simple_barplot(versions, data_types)
-        elif ndyn == 1 and len(vars_all) > 2:
-            """One dynamic variable used as X, series are version line plots"""
-            figures = self.do_line_plot(versions, data_types, key)
-        else:
-            """Barplot. X is all seen variables combination, series are version"""
-            figures = self.do_barplot(series, vars_all, dyns, versions, data_types)
+        plots={}
+        for result_type, data in data_types.items():
+            if result_type in self.configlist('graph_subplot_results',[]):
+                plots.setdefault('common',[]).append(result_type)
+            else:
+                plots[result_type] = [result_type]
 
         ret = {}
-        for result_type, figure in figures.items():
-            type_config = "" if not result_type else "-" + result_type
-            plt.figure(result_type)
-            if ndyn > 0 and bool(self.config_bool('graph_legend', True)):
-                plt.legend(loc=self.config("legend_loc"), title=legend_title)
+        for whatever,figure in plots.items():
+            for isubplot,result_type in enumerate(figure):
+                data = data_types[result_type]
 
-            if "result-" + result_type in self.config('var_log', {}) or "result" in self.config('var_log', {}):
-                plt.yscale('log')
+                if len(figure) > 1:
+                    plt.subplot(len(figure), 1, isubplot + 1)
 
-            if key in self.config('var_log', {}):
-                plt.xscale('log')
-
-            plt.xlabel(self.var_name(key))
-
-            yname = self.var_name("result", result_type=result_type)
-            if yname != "result":
-                plt.ylabel(yname)
-
-            var_lim = self.scriptconfig("var_lim", "result" + type_config, None)
-            if var_lim:
-                n = var_lim.split('-')
-                if len(n) == 2:
-                    ymin, ymax = (float(x) for x in n)
-                    plt.ylim(ymin=ymin, ymax=ymax)
+                if ndyn == 0:
+                    """No dynamic variables : do a barplot X=version"""
+                    self.do_simple_barplot(versions, result_type, data)
+                elif ndyn == 1 and len(vars_all) > 2:
+                    """One dynamic variable used as X, series are version line plots"""
+                    self.do_line_plot(versions, key, result_type, data)
                 else:
-                    plt.ylim(ymin=float(n[0]))
-            else:
-                if (ymin >= 0 > plt.ylim()[0]):
-                    plt.ylim(0, plt.ylim()[1])
+                    """Barplot. X is all seen variables combination, series are version"""
+                    self.do_barplot(series, vars_all, dyns, versions, result_type, data)
 
-                if (ymin < ymax / 5):
-                    plt.ylim(ymin=0)
+                type_config = "" if not result_type else "-" + result_type
 
-            if options.graph_size:
-                fig = plt.gcf()
-                fig.set_size_inches(options.graph_size[0], options.graph_size[1])
 
-            if title:
-                plt.title(title)
-            try:
-                plt.tight_layout()
-            except ValueError:
-                print("WARNING: Too many points or variables to graph")
-                print("Try reducing the number of dynamic variables : ")
-                for dyn in dyns:
-                    print(dyn)
-                return None
+                if ndyn > 0 and bool(self.config_bool('graph_legend', True)):
+                    plt.legend(loc=self.config("legend_loc"), title=legend_title)
 
-            if (not filename):
-                buf = io.BytesIO()
-                plt.savefig(buf, format='png')
-                buf.seek(0)
-                ret[result_type] = buf.read()
-            else:
-                type_filename =  npf.build_filename(testie, build, options.graph_filename, statics, 'pdf', result_type)
-                plt.savefig(type_filename)
-                ret[result_type] = None
-                print("Graph of test written to %s" % type_filename)
-        plt.clf()
+                if "result-" + result_type in self.config('var_log', {}) or "result" in self.config('var_log', {}):
+                    plt.yscale('log')
+
+                if key in self.config('var_log', {}):
+                    plt.xscale('log')
+
+                plt.xlabel(self.var_name(key))
+
+                yname = self.var_name("result", result_type=result_type)
+                if yname != "result":
+                    plt.ylabel(yname)
+
+                var_lim = self.scriptconfig("var_lim", "result" + type_config, None)
+                if var_lim:
+                    n = var_lim.split('-')
+                    if len(n) == 2:
+                        ymin, ymax = (float(x) for x in n)
+                        plt.ylim(ymin=ymin, ymax=ymax)
+                    else:
+                        plt.ylim(ymin=float(n[0]))
+                else:
+                    if (ymin >= 0 > plt.ylim()[0]):
+                        plt.ylim(0, plt.ylim()[1])
+
+                    if (ymin < ymax / 5):
+                        plt.ylim(ymin=0)
+
+                if options.graph_size:
+                    fig = plt.gcf()
+                    fig.set_size_inches(options.graph_size[0], options.graph_size[1])
+
+                if title and isubplot == 0:
+                    plt.title(title)
+
+                try:
+                    plt.tight_layout()
+                except ValueError:
+                    print("WARNING: Too many points or variables to graph")
+                    print("Try reducing the number of dynamic variables : ")
+                    for dyn in dyns:
+                        print(dyn)
+                    return None
+
+                if len(figure) > 1:
+                    if isubplot < len(figure) -1:
+                        continue
+                    else:
+                        result_type = 'common'
+                if not filename:
+                    buf = io.BytesIO()
+                    plt.savefig(buf, format='png')
+                    buf.seek(0)
+                    ret[result_type] = buf.read()
+                else:
+                    type_filename =  npf.build_filename(testie, build, options.graph_filename, statics, 'pdf', result_type)
+                    plt.savefig(type_filename)
+                    ret[result_type] = None
+                    print("Graph of test written to %s" % type_filename)
+                plt.clf()
         return ret
 
     def reject_outliers(self, result, testie):
         return testie.reject_outliers(result)
 
-    def do_simple_barplot(self, versions, data_types):
+    def do_simple_barplot(self, versions, result_type, data):
         i = 0
         interbar = 0.1
         ndata = len(versions)
@@ -371,51 +391,46 @@ class Grapher:
 
         ticks = np.arange(ndata) + 0.5
 
-        figures = {}
-        for result_type, data in data_types.items():
-            y = [s[1] for s in data]
-            figures[result_type] = plt.figure(result_type)
+        y = [s[1] for s in data]
+        self.format_figure(result_type)
+        plt.bar(ticks, y, label=versions[i], color=graphcolor[i % len(graphcolor)], width=width)
+        plt.xticks(ticks, versions, rotation='vertical' if (len(versions) > 10) else 'horizontal')
+        plt.gca().set_xlim(0, len(versions))
+
+
+    def do_line_plot(self, versions, key, result_type, data):
+
+        xmin, xmax = (float('inf'), 0)
+
+        for i, ax in enumerate(data):
             self.format_figure(result_type)
-            plt.bar(ticks, y, label=versions[i], color=graphcolor[i % len(graphcolor)], width=width)
-            plt.xticks(ticks, versions, rotation='vertical' if (len(versions) > 10) else 'horizontal')
-            plt.gca().set_xlim(0, len(versions))
-        return figures
+            c = graphcolor[i % len(graphcolor)]
 
-    def do_line_plot(self, versions, data_types, key):
-        figures = {}
-        for result_type, data in data_types.items():
-            xmin, xmax = (float('inf'), 0)
+            plt.plot(ax[0], ax[1], label=versions[i], color=c)
+            plt.errorbar(ax[0], ax[1], yerr=ax[2], fmt='o', label=None, color=c)
+            xmin = min(xmin, min(ax[0]))
+            xmax = max(xmax, max(ax[0]))
 
-            for i, ax in enumerate(data):
-                figures[result_type] = plt.figure(result_type)
-                self.format_figure(result_type)
-                c = graphcolor[i % len(graphcolor)]
-
-                plt.plot(ax[0], ax[1], label=versions[i], color=c)
-                plt.errorbar(ax[0], ax[1], yerr=ax[2], fmt='o', label=None, color=c)
-                xmin = min(xmin, min(ax[0]))
-                xmax = max(xmax, max(ax[0]))
-
-            # Arrange the x limits
-            if not (key in self.config('var_log', {})):
-                var_lim = self.scriptconfig("var_lim", key, key)
-                if var_lim and var_lim is not key:
-                    xmin, xmax = (float(x) for x in var_lim.split('-'))
+        # Arrange the x limits
+        if not (key in self.config('var_log', {})):
+            var_lim = self.scriptconfig("var_lim", key, key)
+            if var_lim and var_lim is not key:
+                xmin, xmax = (float(x) for x in var_lim.split('-'))
+            else:
+                if abs(xmin) < 10 and abs(xmax) < 10:
+                    if (xmin != 1):
+                        xmin -= 1
+                    xmax += 1
+                    pass
                 else:
-                    if abs(xmin) < 10 and abs(xmax) < 10:
-                        if (xmin != 1):
-                            xmin -= 1
-                        xmax += 1
-                        pass
-                    else:
-                        base = float(max(10, math.ceil((xmax - xmin) / 10)))
-                        if (xmin > 0):
-                            xmin = int(math.floor(xmin / base)) * base
-                        if (xmax > 0):
-                            xmax = int(math.ceil(xmax / base)) * base
+                    base = float(max(10, math.ceil((xmax - xmin) / 10)))
+                    if (xmin > 0):
+                        xmin = int(math.floor(xmin / base)) * base
+                    if (xmax > 0):
+                        xmax = int(math.ceil(xmax / base)) * base
 
-                plt.gca().set_xlim(xmin, xmax)
-        return figures
+            plt.gca().set_xlim(xmin, xmax)
+
 
     def format_figure(self, type):
         ax = plt.gca()
@@ -432,36 +447,33 @@ class Grapher:
         else:
             ax.get_yaxis().get_major_formatter().set_useOffset(False)
 
-    def do_barplot(self, series, vars_all, dyns, versions, data_types):
+    def do_barplot(self, series, vars_all, dyns, versions, result_type, data):
         nseries = len(series)
 
-        figures = {}
-        for result_type, data in data_types.items():
-            figures[result_type] = plt.figure(result_type)
-            self.format_figure(result_type)
+        self.format_figure(result_type)
 
-            # If more than 20 bars, do not print bar edges
-            maxlen = max([len(serie_data[0]) for serie_data in data])
+        # If more than 20 bars, do not print bar edges
+        maxlen = max([len(serie_data[0]) for serie_data in data])
 
-            if nseries * maxlen > 20:
-                edgecolor = "none"
-                interbar = 0.05
-            else:
-                edgecolor = None
-                interbar = 0.1
+        if nseries * maxlen > 20:
+            edgecolor = "none"
+            interbar = 0.05
+        else:
+            edgecolor = None
+            interbar = 0.1
 
-            width = (1 - (2 * interbar)) / len(versions)
-            ind = np.arange(len(vars_all))
+        width = (1 - (2 * interbar)) / len(versions)
+        ind = np.arange(len(vars_all))
 
-            for i, (x,y,e) in enumerate(data):
-                plt.bar(interbar + ind + (i * width), y, width,
-                        label=str(versions[i]), color=graphcolor[i % len(graphcolor)], yerr=e,
-                        edgecolor=edgecolor)
+        for i, (x,y,e) in enumerate(data):
+            plt.bar(interbar + ind + (i * width), y, width,
+                    label=str(versions[i]), color=graphcolor[i % len(graphcolor)], yerr=e,
+                    edgecolor=edgecolor)
 
-            ss = self.combine_variables(vars_all, dyns)
+        ss = self.combine_variables(vars_all, dyns)
 
-            if not bool(self.config_bool('graph_x_label', True)):
-                ss = ["" for i in range(len(vars_all))]
-            plt.xticks(interbar + ind + (width * len(versions) / 2.0), ss,
-                       rotation='vertical' if (sum([len(s) for s in ss]) > 80) else 'horizontal')
-        return figures
+        if not bool(self.config_bool('graph_x_label', True)):
+            ss = ["" for i in range(len(vars_all))]
+        plt.xticks(interbar + ind + (width * len(versions) / 2.0), ss,
+                   rotation='vertical' if (sum([len(s) for s in ss]) > 80) else 'horizontal')
+
