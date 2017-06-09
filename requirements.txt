@@ -10,3 +10,5 @@ sklearn
 orderedset
 paramiko
 asteval
+cryptography
+gitdb
