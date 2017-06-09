@@ -1,0 +1,38 @@
+%info
+This is not a testie, this is a module to be imported with %import
+
+This will generate UDP traffic using 1 NICs. There is no accounting of the result, it just generate UDP packets.
+
+%variables
+GEN_BURST=32
+GEN_FLOWS=128
+GEN_LENGTH=64
+GEN_TOT=EXPAND( $(( $GEN_BURST * $GEN_FLOWS )) )
+
+%script deps=fastclick sudo=true delay=2
+click --dpdk -c 0x1 -- PKTGEN_CONFIG
+
+%file PKTGEN_CONFIG
+define($IP0 10.0.0.1)
+define($IP1 10.0.0.2)
+
+elementclass Generator { $port, $srcmac, $dstmac |
+    tdOUT::ToDPDKDevice($port, BLOCKING true);
+
+    adv1 :: FastUDPFlows(RATE 0, LIMIT $GEN_TOT, LENGTH $GEN_LENGTH, SRCETH $srcmac, DSTETH $dstmac, SRCIP $IP1, DSTIP $IP0, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST)
+    -> MarkMACHeader
+    -> EnsureDPDKBuffer
+    -> advq1 :: ReplayUnqueue(STOP -1, QUICK_CLONE true)
+    -> sndavg :: AverageCounter()
+    -> tdOUT;
+
+    StaticThreadSched(advq1 $port)
+
+}
+
+gen0 :: Generator(0, ${client:0:mac}, ${server:0:mac})
+
+DriverManager(
+    wait 5s,
+    print "RESULT-TX $(gen0/sndavg.link_rate)"
+)

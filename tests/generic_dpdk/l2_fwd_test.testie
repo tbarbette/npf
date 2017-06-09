@@ -1,0 +1,14 @@
+%info
+L2 Forwarding
+
+Test the throughput between 2 ports that should be connected through L2
+
+%config
+default_repo=fastclick
+
+%variables
+GEN_LENGTH=[64*1500]
+
+%import@client dpdk-bind NIC=0
+%import@client dpdk-bind NIC=1
+%import@client fastclick-udpgen-dual delay=2
