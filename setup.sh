@@ -20,5 +20,14 @@ else
 	p=python3-pip
 fi
 
-$p install numpy
+function osinstall {
+	echo -n "Trying to install $1 using OS package manager..."
+	$p python3-numpy &> /dev/null
+	if [ $? -ne 0 ] ; then
+		$i numpy
+	fi
+}
+
+osinstall numpy
+osinstall scipy
 $p install -r requirements.txt
