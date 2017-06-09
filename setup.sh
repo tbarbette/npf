@@ -1,4 +1,10 @@
 #!/bin/sh
+
+if [ "$(whoami)" != "root" ] ; then
+	echo "Please run this script with root access !"
+	exit 1
+fi
+
 if [ -e /usr/bin/yum ] ; then
 	i="yum -y install"
 else
