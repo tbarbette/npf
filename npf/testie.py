@@ -364,7 +364,7 @@ class Testie:
             if not self.build_deps([build.repo]):
                 return None
 
-            if allowed_types is None or "init" in allowed_types:
+            if (allowed_types is None or "init" in allowed_types) and options.do_init:
                 if len(self.imports) > 0:
                     msg_shown = options.quiet
                     for imp in self.imports:
