@@ -39,6 +39,16 @@ Then to install python dependencies using pip3, do :
 sudo pip3 install numpy
 sudo pip3 install -r requirements.txt
 ```
+### Run-time dependencies ###
+
+#### SSH ####
+Cluster-based tests use SSH to launch multiple software on different nodes, therefore SSH should be setup on each node for a password-less connection. Use public key authentication and be sure to add the ssh keys in your ssh agent using ssh-add before running NPF.
+
+#### File-sharing ####
+Server are expected to share the NPF root. Use either a NFS shared mounted on all nodes or sshfs to mount the local NPF folder on all nodes. The path to the shared NPF root can be different on each node, see the cluster section below.
+
+#### Sudo ####
+Most DPDK-based but also other use the "sudo=true" parameter in testies to ask for root access. You can either always connect as root to other servers (see the cluster section below) or set up password-less sudo on all nodes.
 
 ## Tools
 Three tools come with this performance framework :
