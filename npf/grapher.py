@@ -2,6 +2,8 @@ import csv
 import io
 
 from orderedset._orderedset import OrderedSet
+
+from collections import OrderedDict
 from typing import List
 
 import matplotlib
@@ -287,7 +289,7 @@ class Grapher:
                         wr.writerow(y)
                 print("Output written to %s" % type_filename)
 
-        plots={}
+        plots=OrderedDict()
         for result_type, data in data_types.items():
             if result_type in self.configlist('graph_subplot_results',[]):
                 plots.setdefault('common',[]).append(result_type)

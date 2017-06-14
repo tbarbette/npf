@@ -1,6 +1,6 @@
 import numpy as np
 from typing import Dict, List, Tuple
-
+from collections import OrderedDict
 from npf.variable import is_numeric, get_numeric
 
 
@@ -110,7 +110,7 @@ def var_divider(testie: 'Testie', key: str, result_type):
 
 
 def convert_to_xye(datasets: List[Tuple[Dataset, 'Testie']], run_list, key) -> Dict[ResultType,List[Tuple]]:
-    data_types = {}
+    data_types = OrderedDict()
     all_result_types = set()
 
     for all_results, testie in datasets:
@@ -119,9 +119,9 @@ def convert_to_xye(datasets: List[Tuple[Dataset, 'Testie']], run_list, key) -> D
                 all_result_types.add(result_type)
 
     for all_results, testie in datasets:
-        x = {}
-        y = {}
-        e = {}
+        x = OrderedDict()
+        y = OrderedDict()
+        e = OrderedDict()
         for run in run_list:
             if len(run) == 0:
                 xval = key
