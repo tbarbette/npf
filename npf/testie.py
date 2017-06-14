@@ -293,9 +293,9 @@ class Testie:
                 has_values = False
                 for result_regex in self.config.get_list("result_regex"):
                     for nr in re.finditer(result_regex, output.strip(), re.IGNORECASE):
-                        type = nr.group("type")
-                        if type is None:
-                            type = ''
+                        result_type = nr.group("type")
+                        if result_type is None:
+                            result_type = ''
                         n = float(nr.group("value"))
                         mult = nr.group("multiplier").lower()
                         if mult == "k":
@@ -305,11 +305,11 @@ class Testie:
                         elif mult == "g":
                             n *= 1024 * 1024 * 1024
 
-                        if not (n == 0 and self.config["zero_is_error"]):
-                            results.setdefault(type,[]).append(n)
+                        if n != 0 or (result_type in self.config["accept_zero"]):
+                            results.setdefault(result_type,[]).append(n)
                             has_values = True
                         else:
-                            print("Result for %s is 0 !" % (type))
+                            print("Result for %s is 0 !" % (result_type))
                             print("stdout:")
                             print(output)
                             print("stderr:")
@@ -341,8 +341,11 @@ class Testie:
 
             if run in prev_results:
                 results = prev_results[run]
-                if not results or results is None or (len(results) < self.config["n_runs"]):
+                if not results:
                     return None
+                for result_type,data in results.items():
+                    if not data or data is None or (len(data) < self.config["n_runs"]):
+                        return None
                 all_results[run] = results
             else:
                 return None

@@ -181,11 +181,7 @@ class Grapher:
                             results = self.reject_outliers(np.asarray(results), testie)
                         else:
                             results = np.asarray(results)
-                        ymax = max(ymax, max(results))
-                        ymin = min(ymin, min(results))
-                        if not testie.config['zero_is_error'] or \
-                                (ymax != 0 and ymin != 0):
-                            new_results.setdefault(run, {})[result_type] = results
+                        new_results.setdefault(run, {})[result_type] = results
                     vars_all.add(run)
                     for k, v in run.variables.items():
                         vars_values.setdefault(k, set()).add(v)
