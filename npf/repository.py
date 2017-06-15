@@ -228,7 +228,7 @@ class Repository:
             bin_folder = self.bin_folder
         else:
             bin_folder = self.bin_folder.replace('$version', version)
-        return self.get_build_path() + '/' + bin_folder + '/'
+        return self.get_build_path() + '/' + (bin_folder + '/' if bin_folder else '')
 
     def get_bin_path(self, version):
         if version is None:
