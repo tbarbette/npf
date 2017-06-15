@@ -317,6 +317,16 @@ class Testie:
                 if has_values:
                     break
 
+                for result_type in self.config['results_expect']:
+                    if result_type not in results:
+                        print("Could not find expected result '%s' !" % result_type)
+                        print("stdout:")
+                        print(output)
+                        print("stderr:")
+                        print(err)
+
+
+
                 if len(results) == 0:
                     print("Could not find results !")
                     print("stdout:")
@@ -330,26 +340,65 @@ class Testie:
         self.cleanup()
         return results, output, err
 
-    def has_all(self, prev_results, build):
-        if prev_results is None:
-            return None
-        all_results = {}
-        for variables in self.variables:
-            run = Run(variables)
-            if not self.test_require(variables, build):
-                continue
+#    def has_all(self, prev_results, build):
+#        if prev_results is None:
+#            return None
+#        all_results = {}
+#        for variables in self.variables:
+#            run = Run(variables)
+#            if not self.test_require(variables, build):
+#                continue
+#
+#            if run in prev_results:
+#                results = prev_results[run]
+#                if not results:
+#                    return None
+#                for result_type,data in results.items():
+#                    if not data or data is None or (len(data) < self.config["n_runs"]):
+#                        return None
+#                all_results[run] = results
+#            else:
+#                return None
+#        return all_results
 
-            if run in prev_results:
-                results = prev_results[run]
-                if not results:
+    def do_init_all(self, build, options, allowed_types):
+        if not build.build(options.force_build, options.no_build, options.quiet_build, options.show_build_cmd):
+            return None
+
+        if not self.build_deps([build.repo]):
+            return None
+
+        if (allowed_types is None or "init" in allowed_types) and options.do_init:
+            if len(self.imports) > 0:
+                msg_shown = options.quiet
+                for imp in self.imports:
+                    if len([script for script in imp.testie.scripts if script.get_type() == "init"]) == 0:
+                        continue
+                    if not msg_shown:
+                        print("Executing imports init scripts...")
+                        msg_shown=True
+                    imp_res = imp.testie.execute_all(build, options=options, do_test=do_test, allowed_types={"init"})
+                    for k,v in imp_res.items():
+                        if v == None:
+                            if not options.quiet:
+                                print("Aborting as imports did not run correctly");
+                            return None
+                if msg_shown:
+                    print("All imports passed successfully...")
+
+            init_scripts = [script for script in self.scripts if script.get_type() == "init"]
+            if len(init_scripts) > 0:
+                if not options.quiet:
+                    print("Executing init scripts...")
+                vs={}
+                for k,v in self.variables.statics().items():
+                    vs[k] = v.makeValues()[0]
+                nresults, output, err = self.execute(build, Run(vs), v=vs, n_runs=1, n_retry=0, allowed_types={"init"})
+                if nresults == 0:
+                    if not options.quiet:
+                        print("Aborting as imports did not run correctly");
                     return None
-                for result_type,data in results.items():
-                    if not data or data is None or (len(data) < self.config["n_runs"]):
-                        return None
-                all_results[run] = results
-            else:
-                return None
-        return all_results
+        return True
 
     def execute_all(self, build, options, prev_results: Dataset = None, do_test=True, allowed_types = None) -> Dataset:
         """Execute script for all variables combinations. All tools reliy on this function for execution of the testie
@@ -360,43 +409,7 @@ class Testie:
         :return: Dataset(Dict of variables as key and arrays of results as value)
         """
 
-        if do_test:
-            if not build.build(options.force_build, options.no_build, options.quiet_build, options.show_build_cmd):
-                return None
-
-            if not self.build_deps([build.repo]):
-                return None
-
-            if (allowed_types is None or "init" in allowed_types) and options.do_init:
-                if len(self.imports) > 0:
-                    msg_shown = options.quiet
-                    for imp in self.imports:
-                        if len([script for script in imp.testie.scripts if script.get_type() == "init"]) == 0:
-                            continue
-                        if not msg_shown:
-                            print("Executing imports init scripts...")
-                            msg_shown=True
-                        imp_res = imp.testie.execute_all(build, options=options, do_test=do_test, allowed_types={"init"})
-                        for k,v in imp_res.items():
-                            if v == None:
-                                if not options.quiet:
-                                    print("Aborting as imports did not run correctly");
-                                return None
-                    if msg_shown:
-                        print("All imports passed successfully...")
-
-                init_scripts = [script for script in self.scripts if script.get_type() == "init"]
-                if len(init_scripts) > 0:
-                    if not options.quiet:
-                        print("Executing init scripts...")
-                    vs={}
-                    for k,v in self.variables.statics().items():
-                        vs[k] = v.makeValues()[0]
-                    nresults, output, err = self.execute(build, Run(vs), v=vs, n_runs=1, n_retry=0, allowed_types={"init"})
-                    if nresults == 0:
-                        if not options.quiet:
-                            print("Aborting as imports did not run correctly");
-                        return None
+        inited = False
 
         all_results = {}
         for variables in self.variables:
@@ -414,9 +427,19 @@ class Testie:
             else:
                 run_results = {}
 
+            for result_type in self.config['results_expect']:
+                if result_type not in run_results:
+                    run_results={}
+
             have_new_results = False
+
             n_runs = self.config["n_runs"] - (0 if options.force_test or len(run_results) == 0 else min([len(results) for result_type,results in run_results.items()]))
             if n_runs > 0 and do_test:
+                if not inited:
+                    if not self.do_init_all(build, options, allowed_types):
+                        return None
+                    inited = True
+
                 new_results, output, err = self.execute(build, run, variables, n_runs, n_retry=self.config["n_retry"], allowed_types={"script"})
                 if new_results:
                     if self.options.show_full:

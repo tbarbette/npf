@@ -392,6 +392,7 @@ class SectionConfig(SectionVariable):
         self.__add("n_supplementary_runs", 3)
         self.__add_dict("var_names", {})
         self.__add_dict("var_unit", {"result": "BPS"})
+        self.__add_list("results_expect", [])
         self.__add("legend_loc", "best")
         self.__add("var_hide", {})
         self.__add("var_log", [])
