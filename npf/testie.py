@@ -32,7 +32,7 @@ def _parallel_exec(exec_args : Tuple['Testie',SectionScript,str,'Build',Queue,Ev
         return False, o, e, commands
     else:
         # By default, we kill all other scripts when the first finishes
-        if testie.config["autokill"] or pid == -1:
+        if bool(scriptSection.params.get("autokill", testie.config["autokill"])) or pid == -1:
             Testie.killall(queue, terminated_event)
         if pid == -1:
             return -1, o, e, commands
