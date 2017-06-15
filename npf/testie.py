@@ -209,9 +209,6 @@ class Testie:
                 pass
 
     def execute(self, build, run, v, n_runs=1, n_retry=0, allowed_types=None) -> Tuple[Dict[str,List],str,str]:
-        if allowed_types is None:
-            allowed_types = {"init", "script"}
-
         #Get address definition for roles from scripts
         self.parse_script_roles()
         self.create_files(v, self.role)
@@ -361,7 +358,7 @@ class Testie:
 #                return None
 #        return all_results
 
-    def do_init_all(self, build, options, allowed_types):
+    def do_init_all(self, build, options, allowed_types, do_test):
         if not build.build(options.force_build, options.no_build, options.quiet_build, options.show_build_cmd):
             return None
 
@@ -394,13 +391,15 @@ class Testie:
                 for k,v in self.variables.statics().items():
                     vs[k] = v.makeValues()[0]
                 nresults, output, err = self.execute(build, Run(vs), v=vs, n_runs=1, n_retry=0, allowed_types={"init"})
+
+                print("FIN Executing init scripts...")
                 if nresults == 0:
                     if not options.quiet:
                         print("Aborting as imports did not run correctly");
                     return None
         return True
 
-    def execute_all(self, build, options, prev_results: Dataset = None, do_test=True, allowed_types = None) -> Dataset:
+    def execute_all(self, build, options, prev_results: Dataset = None, do_test=True, allowed_types = {"init", "scripts"}) -> Dataset:
         """Execute script for all variables combinations. All tools reliy on this function for execution of the testie
         :param do_test: Actually run the tests
         :param options: NPF options object
@@ -410,6 +409,11 @@ class Testie:
         """
 
         inited = False
+
+        if not "scripts" in allowed_types:
+           if not self.do_init_all(build, options, allowed_types, do_test):
+               return None
+           return {}
 
         all_results = {}
         for variables in self.variables:
@@ -436,7 +440,7 @@ class Testie:
             n_runs = self.config["n_runs"] - (0 if options.force_test or len(run_results) == 0 else min([len(results) for result_type,results in run_results.items()]))
             if n_runs > 0 and do_test:
                 if not inited:
-                    if not self.do_init_all(build, options, allowed_types):
+                    if not self.do_init_all(build, options, allowed_types, do_test):
                         return None
                     inited = True
 
