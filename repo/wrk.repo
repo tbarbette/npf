@@ -1,0 +1,8 @@
+name=WRK
+branch=master
+url=https://github.com/wg/wrk.git
+method=git
+bin_folder=
+bin_name=wrk
+configure=
+make=make

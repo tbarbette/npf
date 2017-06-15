@@ -1,0 +1,22 @@
+%info
+HTTP Requests for different sizes
+
+Use WRK to requests file ranging from 1K to 1G using WRK.
+
+Note that the HTTP server to use is not included in this test, only
+the request maker (WRK) and creating the file for the server in the
+HTTP_ROOT path
+
+%variables
+NGINX_ROOT=./nginx/
+FSIZE=[1*131072]
+
+%late_variables
+FILE_PATH=EXPAND(bin-${FSIZE}K)
+
+%import@client wrk HTTP_PORT=8088 delay=1
+%import@server nginx NGINX_PORT=8088
+
+%script@merry autokill=false
+dd if=/dev/urandom of=${NGINX_ROOT}/bin-${FSIZE}K bs=1K count=$FSIZE
+

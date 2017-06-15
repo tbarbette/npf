@@ -1,0 +1,21 @@
+%info
+HTTP Requests with increasing load
+
+
+%config
+default_repo=wrk2
+
+%variables
+NGINX_ROOT=./nginx/
+FSIZE=1
+GEN_RATE=[16*1000000]
+
+%late_variables
+FILE_PATH=EXPAND(bin-${FSIZE}K)
+
+%import@client wrk2 HTTP_PORT=8088 delay=1
+%import@server nginx NGINX_PORT=8088
+
+%script@merry autokill=false
+dd if=/dev/urandom of=${NGINX_ROOT}/bin-${FSIZE}K bs=1K count=$FSIZE
+

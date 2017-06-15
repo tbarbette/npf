@@ -1,0 +1,132 @@
+%info
+Launch an NGINX server
+
+As of now, the dependecy is not handled
+
+%variables
+NGINX_NWORKER=16
+NGINX_PORT=8188
+NGINX_GZIP=off
+NGINX_ROOT=./nginx/
+
+%init
+mkdir -p nginx
+mkdir -p $NGINX_ROOT
+echo "RESULT 1"
+
+%script sudo=true
+nginx -c $(pwd)/nginx.conf -p $(pwd)
+
+//%clean
+
+%file nginx.conf
+user www-data;
+worker_processes $NGINX_NWORKER;
+pid nginx.pid;
+daemon off;
+
+events {
+    worker_connections 65536;
+    use epoll;
+    multi_accept on;
+}
+
+http {
+
+    ##
+    # Basic Settings
+    ##
+
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+    keepalive_timeout 30;
+    types_hash_max_size 2048;
+    # server_tokens off;
+
+    # server_names_hash_bucket_size 64;
+    # server_name_in_redirect off;
+
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    ##
+    # SSL Settings
+    ##
+
+    ssl_protocols TLSv1 TLSv1.1 TLSv1.2; # Dropping SSLv3, ref: POODLE
+    ssl_prefer_server_ciphers on;
+
+    ##
+    # Logging Settings
+    ##
+
+    access_log /dev/null;
+    error_log /dev/stdout;
+
+    ##
+    # Gzip Settings
+    ##
+
+    gzip $NGINX_GZIP;
+    gzip_disable "msie6";
+
+    # gzip_vary on;
+    # gzip_proxied any;
+    # gzip_comp_level 6;
+    # gzip_buffers 16 8k;
+    # gzip_http_version 1.1;
+    # gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
+
+    ##
+    # Virtual Host Configs
+    ##
+client_body_buffer_size      128k;
+client_max_body_size         10m;
+client_header_buffer_size    1k;
+large_client_header_buffers  4 4k;
+output_buffers               1 32k;
+postpone_output              1460;
+
+open_file_cache max=200000 inactive=20s;
+open_file_cache_valid 120s;
+open_file_cache_min_uses 1;
+open_file_cache_errors on;
+
+server {
+
+	listen $NGINX_PORT default_server;
+	listen [::]:$NGINX_PORT default_server;
+
+	root $NGINX_ROOT;
+
+	# Add index.php to the list if you are using PHP
+	index index.html index.htm index.nginx-debian.html;
+
+	server_name _;
+
+	location / {
+		# First attempt to serve request as file, then
+		# as directory, then fall back to displaying a 404.
+		try_files $uri $uri/ =404;
+	}
+
+	# pass PHP scripts to FastCGI server
+	#
+	#location ~ \.php$ {
+	#	include snippets/fastcgi-php.conf;
+	#
+	#	# With php-fpm (or other unix sockets):
+	#	fastcgi_pass unix:/var/run/php/php7.0-fpm.sock;
+	#	# With php-cgi (or other tcp sockets):
+	#	fastcgi_pass 127.0.0.1:9000;
+	#}
+
+	# deny access to .htaccess files, if Apache's document root
+	# concurs with nginx's one
+	#
+	#location ~ /\.ht {
+	#	deny all;
+	#}
+}
+}
