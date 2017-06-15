@@ -1,7 +1,7 @@
 %info
 L2 Forwarding
 
-Test the throughput between 2 ports that should be connected through L2
+Test the throughput between 2 machines having 1 NIC each that should be connected through L2
 
 %config
 default_repo=fastclick
