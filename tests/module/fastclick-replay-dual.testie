@@ -84,15 +84,15 @@ receiveOUT :: FromDPDKDevice($portOUT, VERBOSE $rxverbose, MAC $OUTsrcmac, PROMI
 elementclass Receiver { $mac, $dir |
     input ->
 
-	c::Classifier(0/$mac,-)->
+    c::Classifier(0/$mac,-)->
 
-	Strip(14) ->
-	CheckIPHeader ->
-	chPacket :: CheckNumberPacket() ->
-	Unstrip(14) ->
-	output;
+    Strip(14) ->
+    CheckIPHeader ->
+    chPacket :: CheckNumberPacket() ->
+    Unstrip(14) ->
+    output;
 
-	c[1]
+    c[1]
 //    -> Print("Bad MAC received $dir :",MAXLENGTH -1)
     -> Discard;
 
@@ -101,9 +101,9 @@ elementclass Receiver { $mac, $dir |
     -> Discard;
 }
 elementclass ARPHandler { $ip, $mac |
-	c0 :: Classifier(	12/0806 20/0001,
-		                12/0806 20/0002,
-			    -);
+    c0 :: Classifier(    12/0806 20/0001,
+                            12/0806 20/0002,
+                              -);
 
     // Respond to ARP Query
     c0[0] -> Print("ARP") -> arpress :: ARPResponder($ip $eth) -> [1]output
@@ -132,29 +132,29 @@ adv1 :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH 64, SRCETH $OUTsrcmac, DSTETH $INs
 //Check that it received its packet from 2 outputs and emits packets on output 0 when it's the case
 linkoklock :: PathSpinlock() [0-1]
   => linkok :: Script(TYPE PACKET,
-			init a 0,
-			init b 0,
+            init a 0,
+            init b 0,
             init c 0,
-			goto i0 $(eq $input 0),
-			goto i1 $(eq $input 1),
-			error "Unknown input $input",
+            goto i0 $(eq $input 0),
+            goto i1 $(eq $input 1),
+            error "Unknown input $input",
             exit,
-			label i0,
-			set a 1,
+            label i0,
+            set a 1,
             write advq1.active false,
             write adv1.active false,
             goto check,
-			label i1,
-			set b 1,
+            label i1,
+            set b 1,
             write advq0.active false,
             write adv0.active false,
             label check,
-			goto finish $(eq $(add $a $b $c) 2),
+            goto finish $(eq $(add $a $b $c) 2),
             return -1,
-			label finish,
+            label finish,
             set c $(add $c 1),
-			return 0,
-			)
+            return 0,
+            )
 
 
 RINswitch[2]
@@ -170,21 +170,21 @@ ROUTswitch[2]
 linkok ->
 link_initialized :: Script(TYPE PACKET,
     wait $nolinktest,
-	print "Link initialized !",
-	write RINswitch.switch -1,
-	write RINswitch.switch -1,
-	print "IN has $(NIN/nPacket.count) packets",
-        print "OUT has $(NOUT/nPacket.count) packets",
-	write RIN/chPacket.count $(NOUT/nPacket.count),
-	write ROUT/chPacket.count $(NIN/nPacket.count),
-        wait 1s,
+    print "Link initialized !",
+    write RINswitch.switch -1,
+    write ROUTswitch.switch -1,
+    print "IN has $(NIN/nPacket.count) packets",
+    print "OUT has $(NOUT/nPacket.count) packets",
+    write RIN/chPacket.count $(NOUT/nPacket.count),
+    write ROUT/chPacket.count $(NIN/nPacket.count),
+    wait 1s,
 
-	print "Starting replay...",
+    print "Starting replay...",
 
-	write avgSIN.reset, write avgSOUT.reset, write avgRIN.reset, write avgROUT.reset,
-	write RINswitch.switch 0 ,write ROUTswitch.switch 0,
-	write replay.stop $replay_count,
-	write replay.active true);
+    write avgSIN.reset, write avgSOUT.reset, write avgRIN.reset, write avgROUT.reset,
+    write RINswitch.switch 0 ,write ROUTswitch.switch 0,
+    write replay.stop $replay_count,
+    write replay.active true);
 
 
 //Script to force the launch without the link init test
@@ -208,7 +208,7 @@ DriverManager(pause, pause,
                 wait 2s,
                 print "$(RIN/chPacket.min)/$(RIN/chPacket.max)",
                 print "$(ROUT/chPacket.min)/$(ROUT/chPacket.max)",
-		print "Rate : ",
+                print "Rate : ",
                 print $(avgSIN.link_rate),
                 print $(avgSOUT.link_rate),
                 print $(avgROUT.link_rate),

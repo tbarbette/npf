@@ -10,9 +10,9 @@ User can set the igb_uio tag to use igb_uio instead of uio_pci_generic
 
 Suggested usage example in your testie (omit the prefixed "//" that prevent loop import here)
 
-//%import@client dpdk-bind NIC={0,1}
+//%import@client dpdk-bind NIC=0
 
-That will bind NIC 0 and 1 of the client node to uio_pci_generic and ensure pages are mounted
+That will bind NIC 0 of the client node to uio_pci_generic and ensure pages are mounted
 
 %config
 n_retry=0

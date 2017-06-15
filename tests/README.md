@@ -34,3 +34,15 @@ if a tag is given (by the repo, or the command line argument):
  - -cpu:CPU=1    If the tag cpu is not given, $CPU will be expanded by 1
 
 This allows to do more extanded tests to grid-search some value, but do not include that in regression test
+
+## Testies shipped with NPF
+
+### Generic ###
+Generic tests are used to do black-box testing, they are L2/L3 generators,
+packets trace replay and HTTP generators.
+
+They are generic in the sense that you could use them out of the box to test
+any device under test in the middle of a client and a server.
+
+ * generic_dpdk : DPDK-based tests, need a DPDK environment setted up
+ * generic : Other tests using the normal OS stack
