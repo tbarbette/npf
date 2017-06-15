@@ -32,7 +32,13 @@ def _parallel_exec(exec_args : Tuple['Testie',SectionScript,str,'Build',Queue,Ev
         return False, o, e, commands
     else:
         # By default, we kill all other scripts when the first finishes
-        if bool(scriptSection.params.get("autokill", testie.config["autokill"])) or pid == -1:
+        autokill=scriptSection.params.get("autokill", testie.config["autokill"])
+        if type(autokill) is str and autokill.lower() == "false":
+            autokill = False
+        else:
+            autokill=bool(autokill)
+
+        if autokill or pid == -1:
             Testie.killall(queue, terminated_event)
         if pid == -1:
             return -1, o, e, commands
@@ -174,15 +180,9 @@ class Testie:
             p = SectionVariable.replace_variables(v, require.content, require.role())
             pid, output, err, returncode = npf.executor(require.role()).exec(cmd=p, bin_paths=[build.get_bin_folder()], options=self.options, terminated_event=None)
             if returncode != 0:
-                if not self.options.quiet:
-                    print("Requirement not met")
-                    if output.strip():
-                        print(output.strip())
-                    if err.strip():
-                        print(err.strip())
-                return False
+                return False, output, err
             continue
-        return True
+        return True, '', ''
 
     def cleanup(self):
         for s in self.files:
@@ -215,12 +215,12 @@ class Testie:
 
         for imp in self.imports:
             imp.testie.parse_script_roles()
-            imp_v = {}
+            imp.imp_v = {}
             for k, val in imp.testie.variables.statics().items():
-                imp_v[k] = val.makeValues()[0]
-            imp_v.update(v)
-            imp.testie.create_files(imp_v, imp.get_role())
-
+                imp.imp_v[k] = val.makeValues()[0]
+            imp.imp_v.update(v)
+            imp.testie.create_files(imp.imp_v, imp.get_role())
+        print(v)
         results = {}
         for i in range(n_runs):
             for i_try in range(n_retry + 1):
@@ -235,7 +235,7 @@ class Testie:
 
                 import_scripts = []
                 for imp in self.imports:
-                    import_scripts += [(imp.testie, script, SectionVariable.replace_variables(v, script.content, imp.get_role()),
+                    import_scripts += [(imp.testie, script, SectionVariable.replace_variables(imp.imp_v, script.content, imp.get_role()),
                                         build, queue, terminated_event,
                                         [repo.get_bin_folder() for repo in script.get_deps_repos(self.options)])
                                        for script in imp.testie.scripts if script.get_type() in allowed_types]
@@ -392,7 +392,6 @@ class Testie:
                     vs[k] = v.makeValues()[0]
                 nresults, output, err = self.execute(build, Run(vs), v=vs, n_runs=1, n_retry=0, allowed_types={"init"})
 
-                print("FIN Executing init scripts...")
                 if nresults == 0:
                     if not options.quiet:
                         print("Aborting as imports did not run correctly");
@@ -420,10 +419,17 @@ class Testie:
             run = Run(variables)
             if hasattr(self,'late_variables'):
                 variables = self.late_variables.execute(variables,self)
-            if not self.options.quiet:
-                print(run.format_variables(self.config["var_hide"]))
-            if not self.test_require(variables, build):
+            r_status, r_out, r_err = self.test_require(variables, build)
+            if not r_status:
+                if not self.options.quiet:
+                    print("Requirement not met for %s" % run.format_variables(self.config["var_hide"]))
+                    if r_out.strip():
+                        print(output.strip())
+                    if r_err.strip():
+                        print(err.strip())
+
                 continue
+
             if prev_results and prev_results is not None and not options.force_test:
                 run_results = prev_results.get(run, {})
                 if run_results is None:
@@ -443,6 +449,9 @@ class Testie:
                     if not self.do_init_all(build, options, allowed_types, do_test):
                         return None
                     inited = True
+                if not self.options.quiet:
+                    print(run.format_variables(self.config["var_hide"]))
+
 
                 new_results, output, err = self.execute(build, run, variables, n_runs, n_retry=self.config["n_retry"], allowed_types={"script"})
                 if new_results:
@@ -454,6 +463,10 @@ class Testie:
                     for k,v in new_results.items():
                         run_results.setdefault(k,[]).extend(v)
                         have_new_results = True
+            else:
+                if not self.options.quiet:
+                    print(run.format_variables(self.config["var_hide"]))
+
 
             if len(run_results) > 0:
                 if not self.options.quiet:

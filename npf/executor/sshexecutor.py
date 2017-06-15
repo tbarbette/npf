@@ -53,7 +53,12 @@ class SSHExecutor:
         pid = os.getpid()
 
         while not terminated_event.is_set() and not ssh_stdout.channel.exit_status_ready():
-            terminated_event.wait(1)
+            try:
+                terminated_event.wait(1)
+            except KeyboardInterrupt:
+                if terminated_event:
+                    terminated_event.set()
+                return -1, out, err
             if timeout is not None:
                 timeout -= 1
                 if timeout < 0:
