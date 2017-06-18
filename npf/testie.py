@@ -437,6 +437,14 @@ class Testie:
             else:
                 run_results = {}
 
+            if not run_results and options.use_last:
+                for version in build.repo.method.get_history(build.version):
+                    oldb = Build(build.repo, version)
+                    r = oldb.load_results(self)
+                    if r and run in r:
+                        run_results = r[run]
+                        break
+
             for result_type in self.config['results_expect']:
                 if result_type not in run_results:
                     run_results={}

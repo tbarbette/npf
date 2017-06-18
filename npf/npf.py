@@ -60,9 +60,13 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
                     help='Force re-doing all tests even if data for the given version and '
                          'variables is already known', dest='force_test', action='store_true',
                     default=False)
-    tf.add_argument('--no-init',
+    t.add_argument('--no-init',
                     help='Do not run any init scripts', dest='do_init', action='store_false',
                     default=True)
+    t.add_argument('--use-last',
+                    help='Use data from previous version instead of running test if possible', dest='use_last', action='store_true',
+                    default=False)
+
 
     t.add_argument('--tags', metavar='tag', type=str, nargs='+', help='list of tags', default=[], action=ExtendAction)
     t.add_argument('--variables', metavar='variable=value', type=str, nargs='+', action=ExtendAction,

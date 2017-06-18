@@ -3,7 +3,7 @@ import subprocess
 from collections import OrderedDict
 from subprocess import PIPE
 from pathlib import Path
-
+import re
 from npf import variable
 from npf.types.dataset import Run, Dataset
 
@@ -84,7 +84,7 @@ class Build:
             for key, val in sorted(run.variables.items()):
                 if type(val) is tuple:
                     val = val[1]
-                v.append(key + ":" + str(val))
+                v.append(key + ":" + str(val).replace(':','\:'))
             type_results = []
             for t,r in results.items():
                 str_results = []
@@ -104,14 +104,14 @@ class Build:
         f = open(filename, 'r')
         all_results = {}
         try:
-            for line in f:
+            for iline,line in enumerate(f):
                 variables_data, results_data = line.split('=')
 
                 variables = OrderedDict()
                 for v_data in variables_data.split(','):
                     if v_data:
-                        k, v = v_data.split(':')
-                        variables[k] = variable.get_numeric(v) if testie.variables.is_numeric(k) else str(v)
+                        k, v = re.split(r'(?<!\\):', v_data)
+                        variables[k] = variable.get_numeric(v) if testie.variables.is_numeric(k) else str(v).replace('\:',':')
                 results = {}
 
                 results_data = results_data.strip()[1:-1].split('},{')
@@ -129,7 +129,7 @@ class Build:
                         results[type] = type_results
                 all_results[Run(variables)] = results
         except:
-            print("Could not parse %s. The program will stop to avoid erasing data. Please correct or delete the file." % filename)
+            print("Could not parse %s. The program will stop to avoid erasing data. Please correct or delete the file.\nLine %d : %s" % (filename,iline, line))
             raise
         f.close()
         return all_results
