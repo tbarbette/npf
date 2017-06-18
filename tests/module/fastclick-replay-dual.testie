@@ -169,7 +169,6 @@ ROUTswitch[2]
 
 linkok ->
 link_initialized :: Script(TYPE PACKET,
-    wait $nolinktest,
     print "Link initialized !",
     write RINswitch.switch -1,
     write ROUTswitch.switch -1,
@@ -186,21 +185,19 @@ link_initialized :: Script(TYPE PACKET,
     write replay.stop $replay_count,
     write replay.active true);
 
-
-//Script to force the launch without the link init test
-forcelaunch :: InfiniteSource(LIMIT 1, ACTIVE $nolinktest) ->
-Script(TYPE PACKET,
-    print "No link init test. Just waiting 2 secs...",
-    write advq0.active false,
-    write adv0.active false,
-    write advq1.active false,
-    write adv1.active false,
-    return 0) -> Print(GO!) -> link_initialized;
-
 RINswitch[1]->Print(LATEIN) -> Discard;
 ROUTswitch[1]->Print(LATEOUT) -> Discard;
 
-DriverManager(pause, pause,
+DriverManager(pause,
+                goto waitagain $(eq $nolinktest 0),
+                wait 2s,
+                write advq0.active false,
+                write adv0.active false,
+                write advq1.active false,
+                write adv1.active false,
+                write link_initialized.run,
+                write link_initialized.run,
+                pause,
                 print "Replay finished. Waiting for last packets for $wait seconds...",
                 wait $wait,
                 write RINswitch.switch 1 , write ROUTswitch.switch 1,
