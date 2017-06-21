@@ -32,7 +32,8 @@ class MethodGit(Method):
         versions = []
         origin = self.gitrepo().remotes.origin
         if not self.repo.options.no_build and not self._fetch_done:
-            print("Fetching last versions of %s..." % self.repo.reponame)
+            if not self.repo.options.quiet_build:
+                print("Fetching last versions of %s..." % self.repo.reponame)
             origin.fetch()
             self._fetch_done = True
 
