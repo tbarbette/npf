@@ -11,8 +11,8 @@ import numpy as np
 
 from npf.types import dataset
 from npf.types.dataset import Run
-from npf.variable import is_numeric
-from npf import npf
+from npf.variable import is_numeric, get_numeric
+from npf import npf, variable
 
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -32,7 +32,7 @@ for i in range(len(graphcolor)):
 
 def all_num(l):
     for x in l:
-        if type(x) is str:
+        if type(x) is not int and type(x) is not float:
             return False
     return True
 
@@ -57,6 +57,12 @@ class Grapher:
         for script in self.scripts:
             if var in script.config:
                 return script.config.get_list(var)
+        return default
+
+    def configdict(self, var, default=None):
+        for script in self.scripts:
+            if var in script.config:
+                return script.config.get_dict(var)
         return default
 
     def scriptconfig(self, var, key, default=None, result_type=None):
@@ -126,12 +132,10 @@ class Grapher:
         result is the output of a script.execute_all()"""
         if series is None:
             series = []
-        vars_values = {}
-        vars_all = set()
+
         versions = []
 
         ymin, ymax = (float('inf'), 0)
-        filtered_series = []
 
         # If no graph variables, use the first serie
         if graph_variables is None:
@@ -171,7 +175,9 @@ class Grapher:
                 newseries.append((testie,build,new_all_results))
             series = newseries
 
-        # Data transformation : reject outliers, transform list to arrays, filter according to graph_bariables, count var_alls and vars_values
+        # Data transformation : reject outliers, transform list to arrays, filter according to graph_variables, count var_alls and vars_values
+        filtered_series = []
+        vars_values = {}
         for i, (testie, build, all_results) in enumerate(series):
             new_results = {}
             for run, run_results in all_results.items():
@@ -182,7 +188,6 @@ class Grapher:
                         else:
                             results = np.asarray(results)
                         new_results.setdefault(run, {})[result_type] = results
-                    vars_all.add(run)
                     for k, v in run.variables.items():
                         vars_values.setdefault(k, set()).add(v)
 
@@ -192,6 +197,44 @@ class Grapher:
             else:
                 print("No valid data for %s" % build)
         series = filtered_series
+
+        print(series)
+
+        # Transform results to variables as the graph_result_as_variable options asks
+        for result_types,var_name in self.configdict('graph_result_as_variable',{}).items():
+            result_to_variable_map=set()
+            for result_type in result_types.split('+'):
+                result_to_variable_map.add(result_type)
+            vars_values[var_name]=result_to_variable_map
+
+            transformed_series = []
+            for i, (testie, build, all_results) in enumerate(series):
+                new_results = {}
+
+                for run, run_results in all_results.items():
+                    for stripout in result_to_variable_map:
+                        variables = run.variables.copy()
+                        new_run_results = {}
+                        nodata=True
+                        for result_type, results in run_results.items():
+                            if result_type in result_to_variable_map:
+                                if result_type == stripout:
+                                    variables[var_name] = result_type
+                                    nodata=False
+                                    new_run_results[var_name] = results
+                            else:
+                                new_run_results[result_type] = results
+
+                        if not nodata:
+                            new_results[Run(variables)] = new_run_results
+
+                if new_results:
+                    transformed_series.append((testie, build, new_results))
+            series = transformed_series
+        vars_all = set()
+        for i, (testie, build, all_results) in enumerate(series):
+            for run, run_results in all_results.items():
+                 vars_all.add(run)
         vars_all = list(vars_all)
         vars_all.sort()
 
@@ -245,8 +288,8 @@ class Grapher:
             for value in values:
                 newserie = {}
                 for run, run_results in all_results.items():
-                    if (graph_variables and not run in graph_variables):
-                        continue
+#                    if (graph_variables and not run in graph_variables):
+#                        continue
                     if (run.variables[key] == value):
                         newrun = run.copy()
                         del newrun.variables[key]
@@ -404,10 +447,20 @@ class Grapher:
             self.format_figure(result_type)
             c = graphcolor[i % len(graphcolor)]
 
-            plt.plot(ax[0], ax[1], label=versions[i], color=c)
-            plt.errorbar(ax[0], ax[1], yerr=ax[2], fmt='o', label=None, color=c)
-            xmin = min(xmin, min(ax[0]))
-            xmax = max(xmax, max(ax[0]))
+            if not all_num(ax[0]):
+                if variable.numericable(ax[0]):
+                    x = [variable.get_numeric(v) for i,v in enumerate(ax[0])]
+                else:
+                    x = [i + 1 for i,v in enumerate(ax[0])]
+            else:
+                x = ax[0]
+            data = np.asarray((x,ax[1],ax[2]))
+            data[data[:, 1].argsort()]
+            print(data)
+            plt.plot(data[0], data[1], label=versions[i], color=c)
+            plt.errorbar(data[0], data[1], yerr=data[2], fmt='o', label=None, color=c)
+            xmin = min(xmin, min(x))
+            xmax = max(xmax, max(x))
 
         # Arrange the x limits
         if not (key in self.config('var_log', {})):

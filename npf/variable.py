@@ -39,6 +39,11 @@ def get_numeric(data):
     else:
         return data
 
+def numericable(l):
+    for x in l:
+        if not is_numeric(x):
+            return False
+    return True
 
 def dtype(v):
     if is_numeric(v):
