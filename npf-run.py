@@ -62,8 +62,8 @@ def main():
     af = a.add_mutually_exclusive_group()
     af.add_argument('--graph-version', metavar='version', type=str, nargs='*',
                     help='versions to simply graph')
-    af.add_argument('--graph-num', metavar='N', type=int, nargs='?', default=8,
-                    help='Number of olds versions to graph after --compare-version, unused if --graph-version is given')
+    af.add_argument('--graph-num', metavar='N', type=int, nargs='?', default=-1,
+                    help='Number of olds versions to graph after --compare-version, unused if --graph-version is given. Default is 0 or 8 if --regress is given.')
     # a.add_argument('--graph-allvariables', help='Graph only the latest variables (usefull when you restrict variables '
     #                                             'with tags)', dest='graph_newonly', action='store_true', default=False)
     # a.add_argument('--graph-serie', dest='graph_serie', metavar='variable', type=str, nargs=1, default=[None],
@@ -92,7 +92,11 @@ def main():
             print("Please specify a repository to use to the command line or only a single testie with a default_repo")
             sys.exit(1)
 
+    if args.graph_num == -1:
+        args.graph_num = 8 if args.compare else 0
+
     npf.parse_nodes(args)
+
 
     tags = args.tags
     tags += repo.tags
