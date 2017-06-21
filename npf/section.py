@@ -213,7 +213,7 @@ class SectionVariable(Section):
         self.vlist = OrderedDict()
 
     @staticmethod
-    def replace_variables(v, content, self_role=None):
+    def replace_variables(v, content, self_role=None, default_role_map={}):
         """
         Replace all variable and nics references in content
         This is done in two step : variables first, then NICs reference so variable can be used in NIC references
@@ -236,7 +236,7 @@ class SectionVariable(Section):
 
         def do_replace_nics(nic_match):
             varRole = nic_match.group('role')
-            return str(npf.node(varRole, self_role).get_nic(
+            return str(npf.node(varRole, self_role, default_role_map).get_nic(
                 int(nic_match.group('nic_idx') if nic_match.group('nic_idx') else v[nic_match.group('nic_var')]))[
                            nic_match.group('type')])
 
@@ -397,6 +397,7 @@ class SectionConfig(SectionVariable):
         self.__add("var_hide", {})
         self.__add("var_log", [])
         self.__add("autokill", True)
+        self.__add_dict("default_role_map",{})
         self.__add_list("result_regex", [
             r"RESULT(:?-(?P<type>[A-Z0-9_]+))?[ \t]+(?P<value>[0-9.]+)[ ]*(?P<multiplier>[nµgmk]?)(?P<unit>s|b|byte|bits)?"])
         self.__add_list("require_tags", [])

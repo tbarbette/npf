@@ -20,7 +20,7 @@ def _parallel_exec(exec_args : Tuple['Testie',SectionScript,str,'Build',Queue,Ev
     (testie, scriptSection, commands, build, queue, terminated_event, deps_bin_path) = exec_args
 
     time.sleep(scriptSection.delay())
-    pid, o, e, c = npf.executor(scriptSection.get_role()).exec(cmd=commands,
+    pid, o, e, c = npf.executor(scriptSection.get_role(),testie.config.get_dict("default_role_map")).exec(cmd=commands,
                                                                 stdin=testie.stdin.content,
                                                                 timeout=testie.config["timeout"],
                                                                 bin_paths=deps_bin_path + [build.get_bin_folder()],
@@ -168,7 +168,7 @@ class Testie:
     def create_files(self, v, selfRole=None):
         for s in self.files:
             f = open(s.filename, "w")
-            p = SectionVariable.replace_variables(v, s.content, selfRole)
+            p = SectionVariable.replace_variables(v, s.content, selfRole, self.config.get_dict("default_role_map"))
             if self.options.show_files:
                 print("File %s:" % s.filename)
                 print(p.strip())
@@ -177,8 +177,8 @@ class Testie:
 
     def test_require(self, v, build):
         for require in self.requirements:
-            p = SectionVariable.replace_variables(v, require.content, require.role())
-            pid, output, err, returncode = npf.executor(require.role()).exec(cmd=p, bin_paths=[build.get_bin_folder()], options=self.options, terminated_event=None)
+            p = SectionVariable.replace_variables(v, require.content, require.role(), self.config.get_dict("default_role_map"))
+            pid, output, err, returncode = npf.executor(require.role(),self.config.get_dict("default_role_map")).exec(cmd=p, bin_paths=[build.get_bin_folder()], options=self.options, terminated_event=None)
             if returncode != 0:
                 return False, output, err
             continue
@@ -239,12 +239,12 @@ class Testie:
 
                 import_scripts = []
                 for imp in self.imports:
-                    import_scripts += [(imp.testie, script, SectionVariable.replace_variables(imp.imp_v, script.content, imp.get_role()),
+                    import_scripts += [(imp.testie, script, SectionVariable.replace_variables(imp.imp_v, script.content, imp.get_role(),self.config.get_dict("default_role_map")),
                                         build, queue, terminated_event,
                                         [repo.get_bin_folder() for repo in script.get_deps_repos(self.options)])
                                        for script in imp.testie.scripts if script.get_type() in allowed_types]
 
-                testie_scripts = [(self, script, SectionVariable.replace_variables(v, script.content, script.get_role()), build, queue,
+                testie_scripts = [(self, script, SectionVariable.replace_variables(v, script.content, script.get_role(), self.config.get_dict("default_role_map")), build, queue,
                                    terminated_event, [repo.get_bin_folder() for repo in script.get_deps_repos(self.options)])
                                             for script in self.scripts if script.get_type() in allowed_types]
                 scripts = import_scripts + testie_scripts
@@ -555,4 +555,4 @@ class Testie:
             for k,val in script.params.items():
                 nic_match = re.match(r'(?P<nic_idx>[0-9]+)[:](?P<type>' + NIC.TYPES + '+)',k, re.IGNORECASE)
                 if nic_match:
-                    npf.node(script.get_role()).nics[int(nic_match.group('nic_idx'))][nic_match.group('type')] = val
+                    npf.node(script.get_role(),self.config.get_dict("default_role_map")).nics[int(nic_match.group('nic_idx'))][nic_match.group('type')] = val

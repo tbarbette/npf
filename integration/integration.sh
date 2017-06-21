@@ -15,6 +15,7 @@ compare() {
         echo "$test passed !"
     else
         echo "Error for $test : expected output does not match !"
+        echo "Command : $python npf-run.py click-2017 --force-test --testie integration/$test.testie --quiet-build"
         diff int_res integration/$test.stdout
     fi
 

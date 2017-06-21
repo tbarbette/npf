@@ -93,24 +93,27 @@ nodePattern = regex.compile(
 roles = {}
 
 
-def node(role,selfRole = None):
+def node(role, self_role = None, default_role_map={}):
     if role is None or role == '':
         role = 'default'
-    if role=='self':
-        if selfRole:
-            role = selfRole
+    if role == 'self':
+        if self_role:
+            role = self_role
         else:
             raise Exception("Using self without a role context. Usually, this happens when self is used in a %file")
+    if role not in roles:
+        if role in default_role_map:
+            role = default_role_map[role]
     return roles.get(role, roles['default'])
 
 
-def executor(role):
+def executor(role, default_role_map):
     """
     Return the executor for a given role as associated by the cluster configuration
     :param role: A role name
     :return: The executor
     """
-    return node(role).executor
+    return node(role, default_role_map).executor
 
 
 def parse_nodes(options):
