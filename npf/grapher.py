@@ -453,7 +453,7 @@ class Grapher:
             else:
                 x = ax[0]
             data = np.asarray((x,ax[1],ax[2]))
-            data = data[data[:, 1].argsort()]
+            data[data[:, 1].argsort()]
             plt.plot(data[0], data[1], label=versions[i], color=c)
             plt.errorbar(data[0], data[1], yerr=data[2], fmt='o', label=None, color=c)
             xmin = min(xmin, min(x))

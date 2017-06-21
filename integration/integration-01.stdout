@@ -243,4 +243,4 @@ BURST = 512, LENGTH = 1024
 [512.0, 512.0, 512.0]
 BURST = 1024, LENGTH = 1024
 [1024.0, 1024.0, 1024.0]
-Sorry, cannot graph more than 100 variables. Use the statistics module to pick some variables
+Graph of test written to results/click-2017/bbec36c/integration-01.pdf

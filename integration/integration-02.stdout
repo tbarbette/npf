@@ -1,0 +1,25 @@
+Executing testie integration-02.testie
+Integration Test
+BURST = 32, LENGTH = 1
+[32.0, 32.0, 32.0]
+BURST = 32, LENGTH = 2
+[32.0, 32.0, 32.0]
+BURST = 32, LENGTH = 4
+[32.0, 32.0, 32.0]
+BURST = 32, LENGTH = 8
+[32.0, 32.0, 32.0]
+BURST = 32, LENGTH = 16
+[32.0, 32.0, 32.0]
+BURST = 32, LENGTH = 32
+[32.0, 32.0, 32.0]
+BURST = 32, LENGTH = 64
+[32.0, 32.0, 32.0]
+BURST = 32, LENGTH = 128
+[32.0, 32.0, 32.0]
+BURST = 32, LENGTH = 256
+[32.0, 32.0, 32.0]
+BURST = 32, LENGTH = 512
+[32.0, 32.0, 32.0]
+BURST = 32, LENGTH = 1024
+[32.0, 32.0, 32.0]
+Graph of test written to results/click-2017/bbec36c/integration-02BURST=32.pdf
