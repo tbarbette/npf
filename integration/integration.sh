@@ -4,7 +4,7 @@
 compare() {
     test=$1
     python=$2
-    $python npf-run.py click-2017 --force-test --testie integration/$test.testie --no-compare --quiet-build &> int_res
+    $python npf-run.py click-2017 --force-test --testie integration/$test.testie --quiet-build &> int_res
     if [ $? -ne 0 ] ; then
         echo "npf-run.py returned an error for test $test !"
         cat int_res
@@ -24,7 +24,7 @@ compare() {
 try() {
     test=$1
     python=$2
-    $python npf-run.py --force-test --testie $test --no-compare --n_runs 1 --tags fastregression
+    $python npf-run.py --force-test --testie $test --config n_runs=1 --tags fastregression
     if [ $? -ne 0 ] ; then
         echo "npf-run.py returned an error for test $test !"
         exit 1
