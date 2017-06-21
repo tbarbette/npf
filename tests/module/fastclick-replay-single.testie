@@ -97,6 +97,7 @@ elementclass ARPHandler { $ip, $mac |
 
 receiveIN -> RINswitch :: Switch(2) -> RIN :: Receiver($RAW_INsrcmac,"IN")
 //-> IPPrint(IN)
+  -> Strip(14) -> tsd :: TimestampDiff(rt) -> Unstrip(14)
 -> avgRIN :: AverageCounter(IGNORE $ignore) -> Discard;
 
 
