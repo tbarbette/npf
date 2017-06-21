@@ -81,6 +81,9 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
                    help='role to node mapping for remote execution of tests')
 
     t.add_argument('--build-folder', metavar='path', type=str, default=None, dest='build_folder')
+    t.add_argument('--no-mp',dest='allow_mp', action='store_false',
+                    default=True, help='Run tests in the same thread. If there is multiple script, they will run '
+                                       'one after the other, hence breaking most of the tests.')
 
     return t
 

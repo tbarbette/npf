@@ -202,7 +202,11 @@ class Testie:
                 killer.kill()
             except OSError:
                 pass
-            time.sleep(1)
+
+            i = 0
+            while killer.is_alive() and i < 100:
+                time.sleep(0.010)
+                i+=1
             try:
                 killer.force_kill()
             except OSError:
@@ -222,6 +226,7 @@ class Testie:
             imp.testie.create_files(imp.imp_v, imp.get_role())
         print(v)
         results = {}
+        m = multiprocessing.Manager()
         for i in range(n_runs):
             for i_try in range(n_retry + 1):
                 if i_try > 0 and not self.options.quiet:
@@ -229,7 +234,6 @@ class Testie:
                 output = ''
                 err = ''
 
-                m = multiprocessing.Manager()
                 queue = m.Queue()
                 terminated_event = m.Event()
 
@@ -248,17 +252,25 @@ class Testie:
                 n = len(scripts)
                 if n == 0:
                     return {},None,None
-                p = multiprocessing.Pool(n)
 
                 try:
-                    parallel_execs = p.map(_parallel_exec,
+                    if self.options.allow_mp:
+                        p = multiprocessing.Pool(n)
+                        parallel_execs = p.map(_parallel_exec,
                                            scripts)
+                    else:
+                        parallel_execs = []
+                        for script in scripts:
+                            parallel_execs.append(_parallel_exec(script))
+
                 except KeyboardInterrupt:
+                    if self.options.allow_mp:
+                        p.close()
+                        p.terminate()
+                    sys.exit(1)
+                if self.options.allow_mp:
                     p.close()
                     p.terminate()
-                    sys.exit(1)
-                p.close()
-                p.terminate()
                 worked = False
                 for iscript, (r, o, e, script) in enumerate(parallel_execs):
                     if r == 0:

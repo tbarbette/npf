@@ -15,6 +15,13 @@ class LocalKiller:
     def force_kill(self):
         os.killpg(self.pgpid, signal.SIGTERM)
 
+    def is_alive(self):
+        try:
+            os.killpg(self.pgpid, 0)
+        except ProcessLookupError:
+            return False
+        return True
+
 class LocalExecutor:
     def __init__(self):
         pass

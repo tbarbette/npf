@@ -71,8 +71,9 @@ class MethodGit(Method):
         if os.path.exists(self.repo.get_build_path()):
             gitrepo = git.Repo(self.repo.get_build_path())
             o = gitrepo.remotes.origin
-            if not self.repo.options.no_build:
+            if not self.repo.options.no_build and not self._fetch_done:
                 o.fetch()
+                self._fetch_done = True
         else:
             gitrepo = git.Repo.clone_from(self.repo.url, self.repo.get_build_path())
         if branch in gitrepo.remotes.origin.refs:
@@ -80,7 +81,9 @@ class MethodGit(Method):
         else:
             c = branch
             print("Checked out version %s" % c)
-        gitrepo.head.reset(commit=c,index=True,working_tree=True)
+
+        if gitrepo.head.commit is not gitrepo.commit(c):
+            gitrepo.head.reset(commit=c,index=True,working_tree=True)
 
         self.__gitrepo = gitrepo
         return gitrepo
