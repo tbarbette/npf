@@ -1,7 +1,6 @@
-Starting regression test for bbec36c
+Fetching last versions of click-2017...
 Executing testie integration-01.testie
 Integration Test
-Checked out version bbec36c
 BURST = 1, LENGTH = 1
 [1.0, 1.0, 1.0]
 BURST = 2, LENGTH = 1

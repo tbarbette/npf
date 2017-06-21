@@ -224,7 +224,7 @@ class Testie:
                 imp.imp_v[k] = val.makeValues()[0]
             imp.imp_v.update(v)
             imp.testie.create_files(imp.imp_v, imp.get_role())
-        print(v)
+
         results = {}
         m = multiprocessing.Manager()
         for i in range(n_runs):
@@ -490,7 +490,10 @@ class Testie:
 
             if len(run_results) > 0:
                 if not self.options.quiet:
-                    print(run_results)
+                    if len(run_results) == 1:
+                        print(list(run_results.values())[0])
+                    else:
+                        print(run_results)
                 all_results[run] = run_results
             else:
                 all_results[run] = {}

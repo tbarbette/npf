@@ -1,6 +1,6 @@
 language: python
 python:
-  - "3.2"
+#- "3.2" there is no binary numpy for 3.2
   - "3.4"
 sudo: true
 install:

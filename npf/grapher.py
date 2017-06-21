@@ -198,8 +198,6 @@ class Grapher:
                 print("No valid data for %s" % build)
         series = filtered_series
 
-        print(series)
-
         # Transform results to variables as the graph_result_as_variable options asks
         for result_types,var_name in self.configdict('graph_result_as_variable',{}).items():
             result_to_variable_map=set()
