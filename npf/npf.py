@@ -148,7 +148,7 @@ def add_building_options(parser):
     b = parser.add_argument_group('Building options')
     bf = b.add_mutually_exclusive_group()
     bf.add_argument('--use-local',
-                    help='Use a local version of the program instead of the autmatically builded one', dest='use_local',
+                    help='Use a local version of the program instead of the automatically builded one', dest='use_local',
                     default=None)
     bf.add_argument('--no-build',
                     help='Do not build the last master', dest='no_build', action='store_true', default=False)

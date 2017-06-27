@@ -254,7 +254,7 @@ def main():
                           filename=True,
                           graph_variables=[Run(x) for x in testie.variables],
                           options = args)
-        if last_build and graph_num > 0:
+        if last_build and args.graph_num > 0:
             graph_builds = [last_build] + graph_builds[:-1]
         last_build = build
         if args.compare:

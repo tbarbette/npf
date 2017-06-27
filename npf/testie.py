@@ -151,6 +151,8 @@ class Testie:
             if dep in repo_under_test:
                 continue
             deprepo = Repository.get_instance(dep, self.options)
+            if deprepo.url is None:
+                continue
             if not deprepo.get_last_build().build():
                 raise Exception("Could not build dependency %s" + dep)
         for imp in self.imports:
