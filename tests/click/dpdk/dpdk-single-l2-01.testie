@@ -3,11 +3,11 @@ Test throughput through two NICs using DPDK
 
 %config
 
-#Graph title
+//Graph title
 title=DPDK L2 FastUDPGen + Fwd test
 timeout=10
 
-#Axis name
+//Axis name
 var_names={LENGTH:Length,result:Throughput,TXCPU:Transmit CPU,RXCPU:Receive CPU}
 n_retry=1
 acceptable=0.01
@@ -22,10 +22,10 @@ fastregression:RXCPU=2
 LENGTH=[64*1024]
 fastregression:LENGTH={64,256,1024}
 
-#Default
+//Default
 TXCPU=0
 
-#Use 0 and 2 to avoid NUMA node change
+//Use 0 and 2 to avoid NUMA node change
 full:TXCPU={0,2}
 
 FLOWSIZE=1024

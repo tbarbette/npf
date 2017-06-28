@@ -14,14 +14,10 @@ resides in the lack of batching capabilities, and the push<->pull part and notif
 %config
 var_names={LENGTH:Length,BURST:Burst}
 n_runs=5
-#Like most CPU test, there is quite a lot of variance in the result, so we lower the value
+//Like most CPU test, there is quite a lot of variance in the result, so we lower the value
 accept_variance=2
 var_serie=LENGTH
 default_repo=click
-
-
-%script
-click -c 0x1 -n 4 -- CONFIG || click -j 1 CONFIG
 
 %variables
 BURST=[1*1024]
@@ -30,7 +26,11 @@ LENGTH={64,128,512}
 fastregression:BURST={1,32,256}
 fastregression:LENGTH=64
 
-%file CONFIG
+
+%script@client
+click -c 0x1 -n 4 -- CONFIG || click -j 1 CONFIG
+
+%file@client CONFIG
 fu0 :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH $LENGTH, SRCETH ${self:0:mac}, DSTETH ${self:1:mac}, SRCIP ${self:0:ip}, DSTIP ${self:1:ip}, FLOWS 1, FLOWSIZE 100)
     -> ac :: AverageCounter
 	-> Unqueue($BURST)

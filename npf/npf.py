@@ -1,19 +1,21 @@
 import argparse
 import os
 from argparse import ArgumentParser
-from typing import Dict
+from typing import Dict, List
 
 import regex
 
 from npf.node import Node
 from .variable import VariableFactory
 
-class ExtendAction(argparse.Action):
-     def __init__(self, option_strings, dest, nargs=None, **kwargs):
-         super(ExtendAction, self).__init__(option_strings, dest, nargs, **kwargs)
 
-     def __call__(self, parser, namespace, values, option_string=None):
-         setattr(namespace, self.dest, getattr(namespace,self.dest) + values)
+class ExtendAction(argparse.Action):
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        super(ExtendAction, self).__init__(option_strings, dest, nargs, **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, self.dest, getattr(namespace, self.dest) + values)
+
 
 def add_verbosity_options(parser: ArgumentParser):
     v = parser.add_argument_group('Verbosity options')
@@ -28,27 +30,30 @@ def add_verbosity_options(parser: ArgumentParser):
                    default=False)
 
     v.add_argument('--quiet', help='Quiet mode', dest='quiet', action='store_true', default=False)
+    v.add_argument('--quiet-regression', help='Do not tell about the regression process', dest='quiet_regression',
+                    action='store_true', default=False)
     vf = v.add_mutually_exclusive_group()
-    vf.add_argument('--quiet-build', help='Do not tell about the build process', dest='quiet_build', action='store_true', default=False)
-    vf.add_argument('--show-build-cmd', help='Show build commands', dest='show_build_cmd', action='store_true', default=False)
+    vf.add_argument('--quiet-build', help='Do not tell about the build process', dest='quiet_build',
+                    action='store_true', default=False)
+    vf.add_argument('--show-build-cmd', help='Show build commands', dest='show_build_cmd', action='store_true',
+                    default=False)
     return v
 
 
 def add_graph_options(parser: ArgumentParser):
-
     o = parser.add_argument_group('Output data')
     o.add_argument('--output',
                    help='Output data to CSV', dest='output', type=str, default=None)
 
-
     g = parser.add_argument_group('Graph options')
     g.add_argument('--graph-size', metavar='INCH', type=float, nargs=2, default=[],
                    help='Size of graph', dest="graph_size")
-    g.add_argument('--graph-filename', metavar='graph_filename', type=str,  default=None, dest='graph_filename',
+    g.add_argument('--graph-filename', metavar='graph_filename', type=str, default=None, dest='graph_filename',
                    help='path to the file to output the graph')
     g.add_argument('--graph-reject-outliers', dest='graph_reject_outliers', action='store_true', default=False)
 
     return g
+
 
 def add_testing_options(parser: ArgumentParser, regression: bool = False):
     t = parser.add_argument_group('Testing options')
@@ -61,12 +66,12 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
                          'variables is already known', dest='force_test', action='store_true',
                     default=False)
     t.add_argument('--no-init',
-                    help='Do not run any init scripts', dest='do_init', action='store_false',
-                    default=True)
+                   help='Do not run any init scripts', dest='do_init', action='store_false',
+                   default=True)
     t.add_argument('--use-last',
-                    help='Use data from previous version instead of running test if possible', dest='use_last', action='store_true',
-                    default=False)
-
+                   help='Use data from previous version instead of running test if possible', dest='use_last',
+                   action='store_true',
+                   default=False)
 
     t.add_argument('--tags', metavar='tag', type=str, nargs='+', help='list of tags', default=[], action=ExtendAction)
     t.add_argument('--variables', metavar='variable=value', type=str, nargs='+', action=ExtendAction,
@@ -81,9 +86,9 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
                    help='role to node mapping for remote execution of tests')
 
     t.add_argument('--build-folder', metavar='path', type=str, default=None, dest='build_folder')
-    t.add_argument('--no-mp',dest='allow_mp', action='store_false',
-                    default=True, help='Run tests in the same thread. If there is multiple script, they will run '
-                                       'one after the other, hence breaking most of the tests.')
+    t.add_argument('--no-mp', dest='allow_mp', action='store_false',
+                   default=True, help='Run tests in the same thread. If there is multiple script, they will run '
+                                      'one after the other, hence breaking most of the tests.')
 
     return t
 
@@ -93,7 +98,7 @@ nodePattern = regex.compile(
 roles = {}
 
 
-def node(role, self_role = None, default_role_map={}):
+def node(role, self_role=None, default_role_map={}):
     if role is None or role == '':
         role = 'default'
     if role == 'self':
@@ -123,7 +128,8 @@ def parse_nodes(options):
         match = nodePattern.match(mapping)
         if not match:
             raise Exception("Bad definition of node : %s" % mapping)
-        node = Node.makeSSH(user=match.group('user'), addr=match.group('addr'), path=match.group('path'), options=options)
+        node = Node.makeSSH(user=match.group('user'), addr=match.group('addr'), path=match.group('path'),
+                            options=options)
         roles[match.group('role')] = node
 
 
@@ -148,7 +154,8 @@ def add_building_options(parser):
     b = parser.add_argument_group('Building options')
     bf = b.add_mutually_exclusive_group()
     bf.add_argument('--use-local',
-                    help='Use a local version of the program instead of the automatically builded one', dest='use_local',
+                    help='Use a local version of the program instead of the automatically builded one',
+                    dest='use_local',
                     default=None)
     bf.add_argument('--no-build',
                     help='Do not build the last master', dest='no_build', action='store_true', default=False)
@@ -164,12 +171,16 @@ def find_local(path):
         return os.path.dirname(os.path.dirname(os.path.realpath(__file__))) + '/' + path
     return path
 
-def build_filename(testie, build,hint,variables,def_ext,type_str=''):
-    var_str = '_'.join(["%s=%s" % (k,(val[1] if type(val) is tuple else val)) for k,val in sorted(variables.items())]).replace(' ','').replace('/','')
+
+def build_filename(testie, build, hint, variables, def_ext, type_str=''):
+    var_str = '_'.join(
+        ["%s=%s" % (k, (val[1] if type(val) is tuple else val)) for k, val in sorted(variables.items())]).replace(' ',
+                                                                                                                  '').replace(
+        '/', '')
     if hint is None:
         return build.result_path(testie.filename, def_ext, suffix=var_str + ('-' + type_str if type_str else ''))
     else:
-        dirname,c_filename = os.path.split(hint)
+        dirname, c_filename = os.path.split(hint)
         if c_filename == '':
             basename = ''
             ext = ''
@@ -184,4 +195,9 @@ def build_filename(testie, build,hint,variables,def_ext,type_str=''):
 
         if basename is None or basename is '':
             basename = var_str
-        return (dirname + '/' if dirname else '') + basename + (('-' if basename else '') + type_str if type_str else '') + ext
+        return (dirname + '/' if dirname else '') + basename + (
+        ('-' if basename else '') + type_str if type_str else '') + ext
+
+
+def nodes(role) -> List[Node]:
+    return [node(role)]

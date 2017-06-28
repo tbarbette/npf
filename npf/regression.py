@@ -2,7 +2,7 @@ from typing import Tuple
 
 from npf.grapher import *
 from npf.repository import *
-from npf.testie import Testie
+from npf.testie import Testie, SectionScript
 from npf.types.dataset import Dataset
 
 
@@ -20,10 +20,11 @@ class Regression:
         accept += abs(result.std() * testie.config["accept_variance"] / n)
         return diff <= accept, diff
 
-    def compare(self, testie, variable_list, all_results:Dataset, build, old_all_results, last_build,
-                allow_supplementary=True) -> tuple:
+    def compare(self, testie, variable_list, all_results: Dataset, build, old_all_results, last_build,
+                allow_supplementary=True,init_done=False) -> tuple:
         """
         Compare two sets of results for the given list of variables and returns the amount of failing test
+        :param init_done: True if initialization for current testie is already done (init sections for the testie and its import)
         :param testie: One testie to get the config from
         :param variable_list:
         :param all_results:
@@ -35,10 +36,12 @@ class Regression:
         """
 
         if not old_all_results:
-            return 0,0
+            return 0, 0
 
         tests_passed = 0
         tests_total = 0
+        supp_done = False
+        tot_runs = testie.config["n_runs"] + testie.config["n_supplementary_runs"]
         for v in variable_list:
             tests_total += 1
             run = Run(v)
@@ -47,41 +50,51 @@ class Regression:
             if results_types is None or len(results_types) == 0:
                 continue
 
-            need_supp=False
-            for result_type,result in results_types.items():
+            need_supp = False
+            for result_type, result in results_types.items():
                 if run in old_all_results and not old_all_results[run] is None:
-                    old_result = old_all_results[run].get(result_type,None)
+                    old_result = old_all_results[run].get(result_type, None)
                     if old_result is None:
                         continue
 
                     ok, diff = self.accept_diff(testie, result, old_result)
-                    if not ok and testie.config["n_supplementary_runs"] > 0 and allow_supplementary:
+                    if not ok and len(result) < tot_runs and allow_supplementary:
                         need_supp = True
                         break
                 elif last_build:
-                    print("No old values for %s for version %s." % (run, last_build.version))
-                    if (old_all_results):
+                    if not testie.options.quiet_regression:
+                        print("No old values for %s for version %s." % (run, last_build.version))
+                    if old_all_results:
                         old_all_results[run] = {}
 
             if need_supp:
-                if not testie.options.quiet:
+                if not testie.options.quiet_regression:
                     print(
                         "Difference of %.2f%% is outside acceptable margin for %s. Running supplementary tests..." % (
                             diff * 100, run.format_variables()))
-                result=False
-                for i in range(testie.config["n_supplementary_runs"]):
-                    new_results_types, output, err = testie.execute(build, run, v)
-                    if new_results_types is None:
-                        result = False
-                        break
-                    result=True
-                    for result_type,results in new_results_types.items():
-                        results_types[result_type] += results
-                    print("Result with supp", results_types)
 
-                if result:
+                if not init_done:
+                    testie.do_init_all(build=build, options=testie.options, do_test=testie.options.do_test)
+                    init_done = True
+                if hasattr(testie, 'late_variables'):
+                    v = testie.late_variables.execute(v, testie)
+                new_results_types, output, err = testie.execute(build, run, v,
+                                                                n_runs=testie.config["n_supplementary_runs"],
+                                                                allowed_types={SectionScript.TYPE_SCRIPT})
+
+                for result_type, results in new_results_types.items():
+                    results_types[result_type] += results
+
+                if not testie.options.quiet_regression:
+                    print("Result after supplementary tests done :", results_types)
+
+                if new_results_types is not None:
+                    supp_done = True
                     all_results[run] = results_types
                     for result_type, result in results_types.items():
+                        old_result = old_all_results[run].get(result_type, None)
+                        if old_result is None:
+                            continue
                         ok, diff = self.accept_diff(testie, result, old_result)
                         if ok is False:
                             break
@@ -92,15 +105,17 @@ class Regression:
                 if not ok:
                     print(
                         "ERROR: Test %s is outside acceptable margin between %s and %s : difference of %.2f%% !" % (
-                        testie.filename, build.version, last_build.version, diff * 100))
+                            testie.filename, build.version, last_build.version, diff * 100))
                 else:
                     tests_passed += 1
-                    if not testie.options.quiet:
+                    if not testie.options.quiet_regression:
                         print("Acceptable difference of %.2f%% for %s" % ((diff * 100), run.format_variables()))
 
+        if supp_done:
+            build.writeversion(testie, all_results)
         return tests_passed, tests_total
 
-    def regress_all_testies(self, testies: List['Testie'], options, history : int = 1) -> Tuple[Build, List[Dataset]]:
+    def regress_all_testies(self, testies: List['Testie'], options, history: int = 1) -> Tuple[Build, List[Dataset]]:
         """
         Execute all testies passed in argument for the last build of the regressor associated repository
         :param history: Start regression at last build + 1 - history
@@ -116,7 +131,7 @@ class Regression:
         nok = 0
 
         for testie in testies:
-            print("[%s] Running testie %s..." % (repo.name, testie.filename))
+            print("[%s] Running testie %s on version %s..." % (repo.name, testie.filename, build.version))
             regression = self
             if repo.last_build:
                 try:
@@ -125,13 +140,14 @@ class Regression:
                     old_all_results = None
             else:
                 old_all_results = None
-            all_results = testie.execute_all(build, prev_results=build.load_results(testie), options=options,
+            all_results,init_done = testie.execute_all(build, prev_results=build.load_results(testie), options=options,
                                              do_test=options.do_test)
             if all_results is None:
                 return None, None
             variables_passed, variables_total = regression.compare(testie, testie.variables, all_results, build,
                                                                    old_all_results,
-                                                                   repo.last_build)
+                                                                   repo.last_build,
+                                                                   init_done=init_done)
             if variables_passed == variables_total:
                 nok += 1
             datasets.append(all_results)

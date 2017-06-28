@@ -6,12 +6,13 @@ Simple performance test generating packets with InfiniteSource and sending them 
 %config
 //Script is time-based on 3s, so if it is longer than 10s, there is a bug somewhere
 timeout=10
-//Accept 2% changes
-acceptable=0.02
+//Accept 4% changes
+acceptable=0.04
 var_names={BURST:Burst,LENGTH:Length,result:Throughput,TOTGEN:Number of L2 flows}
 var_unit={BURST:Packets,LENGTH:Bytes,result:BPS}
 n_runs=10
 default_repo=click
+accept_variance=2
 
 %variables
 LENGTH=64

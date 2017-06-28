@@ -103,6 +103,13 @@ class SectionNull(Section):
 
 
 class SectionScript(Section):
+
+
+    TYPE_INIT = "init"
+    TYPE_SCRIPT = "script"
+    ALL_TYPES_SET = {TYPE_INIT, TYPE_SCRIPT}
+
+
     def __init__(self, role=None, params=None):
         super().__init__('script')
         if params is None:
@@ -115,7 +122,7 @@ class SectionScript(Section):
         return self._role
 
     def get_type(self):
-        return "init" if self.init else "script"
+        return SectionScript.TYPE_INIT if self.init else SectionScript.TYPE_SCRIPT
 
     def finish(self, testie):
         testie.scripts.append(self)
@@ -327,10 +334,12 @@ class SectionVariable(Section):
             print("Error parsing line %s" % line)
             raise
 
-    def build(self, content, testie):
+    def build(self, content, testie, check_exists=False):
         for line in content.split("\n"):
             var, val, is_append = self.parse_variable(line, testie.tags)
             if not var is None:
+                if check_exists and not var in self.vlist:
+                    raise Exception("Unknown variable %s" % var)
                 if is_append:
                     self.vlist[var] += val
                 else:
@@ -392,6 +401,8 @@ class SectionConfig(SectionVariable):
         self.__add("acceptable", 0.01)
         self.__add("n_runs", 3)
         self.__add("n_retry", 0)
+        self.__add("default_repo", None)
+        self.__add("title", None)
         self.__add_dict("accept_zero", {})
         self.__add("n_supplementary_runs", 3)
         self.__add_dict("var_names", {})
@@ -400,6 +411,8 @@ class SectionConfig(SectionVariable):
         self.__add("legend_loc", "best")
         self.__add("var_hide", {})
         self.__add("var_log", [])
+        self.__add_dict("var_lim", {})
+        self.__add("var_serie",None)
         self.__add("autokill", True)
         self.__add_dict("default_role_map",{})
         self.__add_list("result_regex", [
@@ -453,7 +466,4 @@ class SectionConfig(SectionVariable):
         self.__add(key, val)
 
     def finish(self, testie):
-        super().finish(testie)
-        # for k,v in self.vlist.items():
-        #     print("config %s is %s" %(k,v.makeValues()))
-        #     print("config %s is %s" % (k, self.get_list(k)))
+        self.vlist = self.build(self.content, testie, check_exists=True)

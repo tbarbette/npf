@@ -68,3 +68,8 @@ class LocalExecutor:
         except KeyboardInterrupt:
             os.killpg(pgpid, signal.SIGKILL)
             return -1, s_output, s_err, p.returncode
+
+    def writeFile(self,filename,content):
+        f = open(filename, "w")
+        f.write(content)
+        f.close()

@@ -12,11 +12,14 @@ from .variable import is_numeric
 
 import git
 
-repo_variables=['name','branch','configure','url','method','parent','tags','make','version','clean','bin_folder','bin_name']
+repo_variables = ['name', 'branch', 'configure', 'url', 'method', 'parent', 'tags', 'make', 'version', 'clean',
+                  'bin_folder', 'bin_name']
+
 
 class Method(metaclass=ABCMeta):
     def __init__(self, repo):
         self.repo = repo
+
 
 class MethodGit(Method):
     __gitrepo = None
@@ -28,10 +31,10 @@ class MethodGit(Method):
         else:
             return self.checkout()
 
-    def get_last_versions(self,limit=100,branch=None):
+    def get_last_versions(self, limit=100, branch=None, force_fetch=False):
         versions = []
         origin = self.gitrepo().remotes.origin
-        if not self.repo.options.no_build and not self._fetch_done:
+        if not self.repo.options.no_build and (force_fetch or not self._fetch_done):
             if not self.repo.options.quiet_build:
                 print("Fetching last versions of %s..." % self.repo.reponame)
             origin.fetch()
@@ -46,7 +49,7 @@ class MethodGit(Method):
                 break
         return versions
 
-    def get_history(self, version, limit = 1):
+    def get_history(self, version, limit=1):
         versions = []
         for commit in next(self.gitrepo().iter_commits(version)).iter_parents():
             versions.append(commit.hexsha[:7])
@@ -54,7 +57,7 @@ class MethodGit(Method):
                 break
         return versions
 
-    def is_checkout_needed(self,version):
+    def is_checkout_needed(self, version):
         gitrepo = self.gitrepo()
         if gitrepo.head.commit.hexsha[:7] != version:
             return True
@@ -76,7 +79,10 @@ class MethodGit(Method):
                 o.fetch()
                 self._fetch_done = True
         else:
+            if not self.repo.options.quiet_build:
+                print("Cloning %s from %s..." % (self.repo.reponame, self.repo.url))
             gitrepo = git.Repo.clone_from(self.repo.url, self.repo.get_build_path())
+
         if branch in gitrepo.remotes.origin.refs:
             c = gitrepo.remotes.origin.refs[branch]
         else:
@@ -84,45 +90,46 @@ class MethodGit(Method):
             print("Checked out version %s" % c)
 
         if gitrepo.head.commit is not gitrepo.commit(c):
-            gitrepo.head.reset(commit=c,index=True,working_tree=True)
+            gitrepo.head.reset(commit=c, index=True, working_tree=True)
 
         self.__gitrepo = gitrepo
         return gitrepo
 
-class UnversionedMethod(Method,metaclass=ABCMeta):
-    def __init__(self,repo):
+
+class UnversionedMethod(Method, metaclass=ABCMeta):
+    def __init__(self, repo):
         super().__init__(repo)
         if not repo.version:
             raise Exception("This method require a version")
 
-    def get_last_versions(self,limit=None, branch=None):
+    def get_last_versions(self, limit=None, branch=None, force_fetch=False):
         return [self.repo.version]
-
 
     def get_history(self, version, limit):
         return []
-
 
 
 class MethodGet(UnversionedMethod):
     def checkout(self, branch=None):
         if branch is None:
             branch = self.repo.version
-        url = self.repo.url.replace('$version',branch)
+        url = self.repo.url.replace('$version', branch)
         if not Path(self.repo.get_build_path()).exists():
             os.makedirs(self.repo.get_build_path())
-        filename, headers = urllib.request.urlretrieve(url,self.repo.get_build_path() + os.path.basename(url))
+        filename, headers = urllib.request.urlretrieve(url, self.repo.get_build_path() + os.path.basename(url))
         t = tarfile.open(filename)
         t.extractall(self.repo.get_build_path())
         t.close()
         os.unlink(filename)
         return True
 
+
 class MethodPackage(UnversionedMethod):
     def checkout(self, branch=None):
         pass
 
-repo_methods = {'git' : MethodGit,'get':MethodGet,'package':MethodPackage}
+
+repo_methods = {'git': MethodGit, 'get': MethodGet, 'package': MethodPackage}
 
 
 class Repository:
@@ -143,9 +150,9 @@ class Repository:
         overwrite_branch = add_tags[0].split('/')
 
         self.reponame = overwrite_branch[0]
-        self.tags=[]
+        self.tags = []
         self.options = options
-        self.bin_name=self.reponame #Wild guess that may work some times...
+        self.bin_name = self.reponame  # Wild guess that may work some times...
 
         repo_path = npf.find_local('repo/' + self.reponame + '.repo')
 
@@ -157,13 +164,13 @@ class Repository:
                 continue
             if not line:
                 continue
-            s = line.split('=',1)
+            s = line.split('=', 1)
             val = s[1].strip()
             var = s[0].strip()
-            append=False
+            append = False
             if var.endswith('+'):
                 var = var[:-1]
-                append=True
+                append = True
 
             if is_numeric(val) and var != 'branch':
                 val = float(val)
@@ -172,18 +179,18 @@ class Repository:
             if not var in repo_variables:
                 raise Exception("Unknown variable %s" % var)
             elif var == "parent":
-                parent = Repository(val,options)
+                parent = Repository(val, options)
                 for attr in repo_variables:
-                    if not hasattr(parent,attr):
+                    if not hasattr(parent, attr):
                         continue
-                    pval = getattr(parent,attr)
+                    pval = getattr(parent, attr)
                     if attr == "method":
-                        for m,c in repo_methods.items():
+                        for m, c in repo_methods.items():
                             if c == type(pval):
-                                method=m
+                                method = m
                                 break
                     else:
-                        setattr(self,attr,pval)
+                        setattr(self, attr, pval)
             elif var == "method":
                 val = val.lower()
                 if not val in repo_methods:
@@ -197,9 +204,9 @@ class Repository:
                 continue
 
             if append:
-                setattr(self,var,getattr(self,var) + " " +val)
+                setattr(self, var, getattr(self, var) + " " + val)
             else:
-                setattr(self,var,val)
+                setattr(self, var, val)
 
         if len(add_tags) > 1:
             self.tags += add_tags[1].split(',')
@@ -213,8 +220,9 @@ class Repository:
         if len(overwrite_name) > 1:
             self.name = overwrite_name[1]
 
-        self.method = self.method(self) #Instanciate the method
-        self._build_path = os.path.dirname((options.build_folder if not options.build_folder is None else 'build/') + self.reponame + '/')
+        self.method = self.method(self)  # Instanciate the method
+        self._build_path = os.path.dirname(
+            (options.build_folder if not options.build_folder is None else 'build/') + self.reponame + '/')
 
     def get_identifier(self):
         return self._id
@@ -225,7 +233,7 @@ class Repository:
     def get_build_path(self):
         return self._build_path
 
-    def get_bin_folder(self, version = None):
+    def get_bin_folder(self, version=None):
         if version is None:
             version = self.current_version()
         if version is None:
@@ -243,8 +251,8 @@ class Repository:
             bin_name = self.bin_name.replace('$version', version)
         return self.get_bin_folder(version) + bin_name
 
-    def get_last_build(self, history: int = 1, stop_at: Build = None, with_results = False) -> Build:
-        versions = self.method.get_last_versions(100)
+    def get_last_build(self, history: int = 1, stop_at: Build = None, with_results=False, force_fetch=False) -> Build:
+        versions = self.method.get_last_versions(100, force_fetch=force_fetch)
 
         last_build = None
         for i, version in enumerate(versions):
@@ -253,22 +261,22 @@ class Repository:
                     return None
                 break
             last_build = Build(self, version)
-            if  not with_results or last_build.hasResults():
+            if not with_results or last_build.hasResults():
                 if history <= 1:
                     break
                 else:
-                    history-=1
+                    history -= 1
             if i > 100:
                 last_build = None
                 break
         return last_build
 
     def last_build_before(self, old_build) -> Build:
-        return self.get_last_build(stop_at=old_build,history=-1)
+        return self.get_last_build(stop_at=old_build, history=-1)
 
-    def get_old_results(self, last_graph:Build, num_old:int, testie):
+    def get_old_results(self, last_graph: Build, num_old: int, testie):
         graphs_series = []
-#Todo
+        # Todo
         parents = self.method.gitrepo().iter_commits(last_graph.version)
         next(parents)  # The first commit is last_graph itself
 

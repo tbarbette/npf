@@ -11,13 +11,13 @@ client and server scripts have iperf as dependencies as click is the software un
 As for any DPDK application, you must be root on the node executing DPDK
 
 %config
-#Timeout for a single script
+//Timeout for a single script
 timeout=10
 
-#Number of runs. Iperf is quite unstable, so we do 5 runs instead of 3
+//Number of runs. Iperf is quite unstable, so we do 5 runs instead of 3
 n_runs=5
 
-#Axis name
+//Axis name
 var_names={LENGTH:Length,result:Throughput,TXCPU:Transmit CPU,RXCPU:Receive CPU}
 require_tags={dpdk}
 
@@ -48,7 +48,7 @@ result=$(iperf3 $METHOD -M $MSS -f k -t $TIME -P 1 -Z -c ${client:0:ip} | grep -
 echo "RESULT $result"
 
 %script@dut 0:ip=10.120.0.1 1:ip=10.121.0.1
-#Support for the older DPDK config style of Click
+//Support for the older DPDK config style of Click
 click -n 4 -c 0x1 -- CONFIG || click --dpdk -n 4 -c 0x1 -- CONFIG
 
 %file CONFIG

@@ -5,6 +5,7 @@ Test the throughput between 2 ports that should be connected through L2 on the s
 
 %config
 default_repo=fastclick
+require_tags=dpdk
 
 %variables
 GEN_LENGTH=[64*1500]

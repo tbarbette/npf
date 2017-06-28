@@ -16,27 +16,32 @@ from npf.section import *
 from npf.types.dataset import Run, Dataset
 
 
-def _parallel_exec(exec_args : Tuple['Testie',SectionScript,str,'Build',Queue,Event,str]):
+def _parallel_exec(exec_args: Tuple['Testie', SectionScript, str, 'Build', Queue, Event, str]):
     (testie, scriptSection, commands, build, queue, terminated_event, deps_bin_path) = exec_args
 
     time.sleep(scriptSection.delay())
-    pid, o, e, c = npf.executor(scriptSection.get_role(),testie.config.get_dict("default_role_map")).exec(cmd=commands,
-                                                                stdin=testie.stdin.content,
-                                                                timeout=testie.config["timeout"],
-                                                                bin_paths=deps_bin_path + [build.get_bin_folder()],
-                                                                queue=queue,
-                                                                options=testie.options,
-                                                                terminated_event=terminated_event,
-                                                                sudo=scriptSection.params.get("sudo",False))
+    pid, o, e, c = npf.executor(scriptSection.get_role(), testie.config.get_dict("default_role_map")).exec(cmd=commands,
+                                                                                                           stdin=testie.stdin.content,
+                                                                                                           timeout=
+                                                                                                           testie.config[
+                                                                                                               "timeout"],
+                                                                                                           bin_paths=deps_bin_path + [
+                                                                                                               build.get_bin_folder()],
+                                                                                                           queue=queue,
+                                                                                                           options=testie.options,
+                                                                                                           terminated_event=terminated_event,
+                                                                                                           sudo=scriptSection.params.get(
+                                                                                                               "sudo",
+                                                                                                               False))
     if pid == 0:
         return False, o, e, commands
     else:
         # By default, we kill all other scripts when the first finishes
-        autokill=scriptSection.params.get("autokill", testie.config["autokill"])
+        autokill = scriptSection.params.get("autokill", testie.config["autokill"])
         if type(autokill) is str and autokill.lower() == "false":
             autokill = False
         else:
-            autokill=bool(autokill)
+            autokill = bool(autokill)
 
         if autokill or pid == -1:
             Testie.killall(queue, terminated_event)
@@ -70,71 +75,74 @@ class Testie:
         self.tags = tags if tags else []
         self.role = role
 
-        section = None
+        try:
+            section = None
+            f = open(testie_path, 'r')
 
-        f = open(testie_path, 'r')
+            for i, line in enumerate(f):
+                line = re.sub(r'(^|[ ])//.*$', '', line)
+                if line.startswith('#') and section is None:
+                    print("Warning : comments now use // instead of #. This will be soon deprecated")
+                    continue
+                if line.strip() == '' and not section:
+                    continue
 
-        for i, line in enumerate(f):
-            line = re.sub(r'(^|[ ])//.*$','',line)
-            if line.startswith('#') and section is None:
-                print("Warning : comments now use // instead of #. This will be soon deprecated")
-                continue
-            if line.strip() == '' and not section:
-                continue
+                if line.startswith("%"):
+                    result = line[1:]
+                    section = SectionFactory.build(self, result.strip())
 
-            if line.startswith("%"):
-                result = line[1:]
-                section = SectionFactory.build(self, result.strip())
+                    if not section is SectionNull:
+                        self.sections.append(section)
+                elif section is None:
+                    raise Exception("Bad syntax, file must start by a section. Line %d :\n%s" % (i, line))
+                else:
+                    section.content += line
+            f.close()
 
-                if not section is SectionNull:
-                    self.sections.append(section)
-            elif section is None:
-                raise Exception("Bad syntax, file must start by a section. Line %d :\n%s" % (i, line))
-            else:
-                section.content += line
-        f.close()
+            if not hasattr(self, "info"):
+                self.info = Section("info")
+                self.info.content = self.filename
+                self.sections.append(self.info)
 
-        if not hasattr(self, "info"):
-            self.info = Section("info")
-            self.info.content = self.filename
-            self.sections.append(self.info)
+            if not hasattr(self, "stdin"):
+                self.stdin = Section("stdin")
+                self.sections.append(self.stdin)
 
-        if not hasattr(self, "stdin"):
-            self.stdin = Section("stdin")
-            self.sections.append(self.stdin)
+            if not hasattr(self, "variables"):
+                self.variables = SectionVariable()
+                self.sections.append(self.variables)
 
-        if not hasattr(self, "variables"):
-            self.variables = SectionVariable()
-            self.sections.append(self.variables)
+            if not hasattr(self, "config"):
+                self.config = SectionConfig()
+                self.sections.append(self.config)
 
-        if not hasattr(self, "config"):
-            self.config = SectionConfig()
-            self.sections.append(self.config)
+            for section in self.sections:
+                section.finish(self)
+        except Exception as e:
+            raise Exception("An exception occured while parsing %s :\n%s" % (testie_path, e.__str__()))
 
-        for section in self.sections:
-            section.finish(self)
-
-        #Check that all reference roles are defined
-        known_roles= {'self', 'default'}.union(set(npf.roles.keys()))
+        # Check that all reference roles are defined
+        known_roles = {'self', 'default'}.union(set(npf.roles.keys()))
         for script in self.get_scripts():
             known_roles.add(script.get_role())
-#        for file in self.files:
-#            for nicref in re.finditer(Node.NICREF_REGEX, file.content, re.IGNORECASE):
-#                if nicref.group('role') not in known_roles:
-#                    raise Exception("Unknown role %s" % nicref.group('role'))
+        #        for file in self.files:
+        #            for nicref in re.finditer(Node.NICREF_REGEX, file.content, re.IGNORECASE):
+        #                if nicref.group('role') not in known_roles:
+        #                    raise Exception("Unknown role %s" % nicref.group('role'))
 
-        #Create imports testies
+        # Create imports testies
         for imp in self.imports:
-            imp.testie = Testie(imp.module,options, tags, imp.get_role())
+            from npf.module import Module
+            imp.testie = Module(imp.module, options, tags, imp.get_role())
             if len(imp.testie.variables.dynamics()) > 0:
                 raise Exception("Imports cannot have dynamic variables. Their parents decides what's dynamic.")
             if 'delay' in imp.params:
                 for script in imp.testie.scripts:
-                    delay = script.params.setdefault('delay',0)
+                    delay = script.params.setdefault('delay', 0)
                     script.params['delay'] = float(delay) + float(imp.params['delay'])
                 del imp.params['delay']
-            overriden_variables={}
-            for k,v in imp.params.items():
+            overriden_variables = {}
+            for k, v in imp.params.items():
                 overriden_variables[k] = VariableFactory.build(k, v)
             imp.testie.variables.override_all(overriden_variables)
             for script in imp.testie.scripts:
@@ -142,7 +150,7 @@ class Testie:
                     raise Exception('Modules cannot have roles, their importer defines it')
                 script._role = imp.get_role()
 
-    def build_deps(self, repo_under_test : List[Repository]):
+    def build_deps(self, repo_under_test: List[Repository]):
         # Check for dependencies
         deps = set()
         for script in self.get_scripts():
@@ -161,7 +169,7 @@ class Testie:
 
     def test_tags(self):
         missings = []
-        #        print("%s requires " % self.get_name(), self.config.get_list("require_tags"))
+        # print("%s requires " % self.get_name(), self.config.get_list("require_tags"))
         for tag in self.config.get_list("require_tags"):
             if not tag in self.tags:
                 missings.append(tag)
@@ -169,18 +177,21 @@ class Testie:
 
     def create_files(self, v, selfRole=None):
         for s in self.files:
-            f = open(s.filename, "w")
-            p = SectionVariable.replace_variables(v, s.content, selfRole, self.config.get_dict("default_role_map"))
+            role = s.get_role() if s.get_role() else selfRole
+
+            p = SectionVariable.replace_variables(v, s.content, role, self.config.get_dict("default_role_map"))
             if self.options.show_files:
                 print("File %s:" % s.filename)
                 print(p.strip())
-            f.write(p)
-            f.close()
+            for node in npf.nodes(role):
+                node.executor.writeFile(s.filename, p)
 
     def test_require(self, v, build):
         for require in self.requirements:
-            p = SectionVariable.replace_variables(v, require.content, require.role(), self.config.get_dict("default_role_map"))
-            pid, output, err, returncode = npf.executor(require.role(),self.config.get_dict("default_role_map")).exec(cmd=p, bin_paths=[build.get_bin_folder()], options=self.options, terminated_event=None)
+            p = SectionVariable.replace_variables(v, require.content, require.role(),
+                                                  self.config.get_dict("default_role_map"))
+            pid, output, err, returncode = npf.executor(require.role(), self.config.get_dict("default_role_map")).exec(
+                cmd=p, bin_paths=[build.get_bin_folder()], options=self.options, terminated_event=None)
             if returncode != 0:
                 return False, output, err
             continue
@@ -208,14 +219,15 @@ class Testie:
             i = 0
             while killer.is_alive() and i < 100:
                 time.sleep(0.010)
-                i+=1
+                i += 1
             try:
                 killer.force_kill()
             except OSError:
                 pass
 
-    def execute(self, build, run, v, n_runs=1, n_retry=0, allowed_types=None) -> Tuple[Dict[str,List],str,str]:
-        #Get address definition for roles from scripts
+    def execute(self, build, run, v, n_runs=1, n_retry=0, allowed_types=SectionScript.ALL_TYPES_SET) -> Tuple[
+        Dict[str, List], str, str]:
+        # Get address definition for roles from scripts
         self.parse_script_roles()
         self.create_files(v, self.role)
 
@@ -232,7 +244,7 @@ class Testie:
         for i in range(n_runs):
             for i_try in range(n_retry + 1):
                 if i_try > 0 and not self.options.quiet:
-                    print("Re-try tests %d/%d..." % (i_try,n_retry + 1))
+                    print("Re-try tests %d/%d..." % (i_try, n_retry + 1))
                 output = ''
                 err = ''
 
@@ -240,26 +252,33 @@ class Testie:
                 terminated_event = m.Event()
 
                 import_scripts = []
+
                 for imp in self.imports:
-                    import_scripts += [(imp.testie, script, SectionVariable.replace_variables(imp.imp_v, script.content, imp.get_role(),self.config.get_dict("default_role_map")),
+                    import_scripts += [(imp.testie, script,
+                                        SectionVariable.replace_variables(imp.imp_v, script.content, imp.get_role(),
+                                                                          self.config.get_dict("default_role_map")),
                                         build, queue, terminated_event,
                                         [repo.get_bin_folder() for repo in script.get_deps_repos(self.options)])
                                        for script in imp.testie.scripts if script.get_type() in allowed_types]
 
-                testie_scripts = [(self, script, SectionVariable.replace_variables(v, script.content, script.get_role(), self.config.get_dict("default_role_map")), build, queue,
-                                   terminated_event, [repo.get_bin_folder() for repo in script.get_deps_repos(self.options)])
-                                            for script in self.scripts if script.get_type() in allowed_types]
+                testie_scripts = [(self, script, SectionVariable.replace_variables(v, script.content, script.get_role(),
+                                                                                   self.config.get_dict(
+                                                                                       "default_role_map")), build,
+                                   queue,
+                                   terminated_event,
+                                   [repo.get_bin_folder() for repo in script.get_deps_repos(self.options)])
+                                  for script in self.scripts if script.get_type() in allowed_types]
                 scripts = import_scripts + testie_scripts
 
                 n = len(scripts)
                 if n == 0:
-                    return {},None,None
+                    return {}, None, None
 
                 try:
                     if self.options.allow_mp:
                         p = multiprocessing.Pool(n)
                         parallel_execs = p.map(_parallel_exec,
-                                           scripts)
+                                               scripts)
                     else:
                         parallel_execs = []
                         for script in scripts:
@@ -317,7 +336,7 @@ class Testie:
                             n *= 1024 * 1024 * 1024
 
                         if n != 0 or (result_type in self.config["accept_zero"]):
-                            results.setdefault(result_type,[]).append(n)
+                            results.setdefault(result_type, []).append(n)
                             has_values = True
                         else:
                             print("Result for %s is 0 !" % (result_type))
@@ -336,8 +355,6 @@ class Testie:
                         print("stderr:")
                         print(err)
 
-
-
                 if len(results) == 0:
                     print("Could not find results !")
                     print("stdout:")
@@ -351,28 +368,28 @@ class Testie:
         self.cleanup()
         return results, output, err
 
-#    def has_all(self, prev_results, build):
-#        if prev_results is None:
-#            return None
-#        all_results = {}
-#        for variables in self.variables:
-#            run = Run(variables)
-#            if not self.test_require(variables, build):
-#                continue
-#
-#            if run in prev_results:
-#                results = prev_results[run]
-#                if not results:
-#                    return None
-#                for result_type,data in results.items():
-#                    if not data or data is None or (len(data) < self.config["n_runs"]):
-#                        return None
-#                all_results[run] = results
-#            else:
-#                return None
-#        return all_results
+    #    def has_all(self, prev_results, build):
+    #        if prev_results is None:
+    #            return None
+    #        all_results = {}
+    #        for variables in self.variables:
+    #            run = Run(variables)
+    #            if not self.test_require(variables, build):
+    #                continue
+    #
+    #            if run in prev_results:
+    #                results = prev_results[run]
+    #                if not results:
+    #                    return None
+    #                for result_type,data in results.items():
+    #                    if not data or data is None or (len(data) < self.config["n_runs"]):
+    #                        return None
+    #                all_results[run] = results
+    #            else:
+    #                return None
+    #        return all_results
 
-    def do_init_all(self, build, options, allowed_types, do_test):
+    def do_init_all(self, build, options, do_test, allowed_types=SectionScript.ALL_TYPES_SET):
         if not build.build(options.force_build, options.no_build, options.quiet_build, options.show_build_cmd):
             return None
 
@@ -387,9 +404,9 @@ class Testie:
                         continue
                     if not msg_shown:
                         print("Executing imports init scripts...")
-                        msg_shown=True
+                        msg_shown = True
                     imp_res = imp.testie.execute_all(build, options=options, do_test=do_test, allowed_types={"init"})
-                    for k,v in imp_res.items():
+                    for k, v in imp_res.items():
                         if v == None:
                             if not options.quiet:
                                 print("Aborting as imports did not run correctly");
@@ -401,8 +418,8 @@ class Testie:
             if len(init_scripts) > 0:
                 if not options.quiet:
                     print("Executing init scripts...")
-                vs={}
-                for k,v in self.variables.statics().items():
+                vs = {}
+                for k, v in self.variables.statics().items():
                     vs[k] = v.makeValues()[0]
                 nresults, output, err = self.execute(build, Run(vs), v=vs, n_runs=1, n_retry=0, allowed_types={"init"})
 
@@ -412,8 +429,10 @@ class Testie:
                     return None
         return True
 
-    def execute_all(self, build, options, prev_results: Dataset = None, do_test=True, allowed_types = {"init", "scripts"}) -> Dataset:
+    def execute_all(self, build, options, prev_results: Dataset = None, do_test=True,
+                    allowed_types=SectionScript.ALL_TYPES_SET) -> Tuple[Dataset, bool]:
         """Execute script for all variables combinations. All tools reliy on this function for execution of the testie
+        :param allowed_types:Tyeps of scripts allowed to run. Set with either init, scripts or both
         :param do_test: Actually run the tests
         :param options: NPF options object
         :param build: A build object
@@ -421,18 +440,19 @@ class Testie:
         :return: Dataset(Dict of variables as key and arrays of results as value)
         """
 
-        inited = False
+        init_done = False
 
-        if not "scripts" in allowed_types:
-           if not self.do_init_all(build, options, allowed_types, do_test):
-               return None
-           return {}
+        if not SectionScript.TYPE_SCRIPT in allowed_types:
+            # If scripts is not in allowed_types, we have to run the init by force now
+            if not self.do_init_all(build, options, do_test=do_test, allowed_types=allowed_types):
+                return None, False
+            return {}, True
 
         all_results = {}
         for variables in self.variables:
             run = Run(variables)
-            if hasattr(self,'late_variables'):
-                variables = self.late_variables.execute(variables,self)
+            if hasattr(self, 'late_variables'):
+                variables = self.late_variables.execute(variables, self)
             r_status, r_out, r_err = self.test_require(variables, build)
             if not r_status:
                 if not self.options.quiet:
@@ -461,34 +481,34 @@ class Testie:
 
             for result_type in self.config['results_expect']:
                 if result_type not in run_results:
-                    run_results={}
+                    run_results = {}
 
             have_new_results = False
 
-            n_runs = self.config["n_runs"] - (0 if options.force_test or len(run_results) == 0 else min([len(results) for result_type,results in run_results.items()]))
+            n_runs = self.config["n_runs"] - (0 if options.force_test or len(run_results) == 0 else min(
+                [len(results) for result_type, results in run_results.items()]))
             if n_runs > 0 and do_test:
-                if not inited:
-                    if not self.do_init_all(build, options, allowed_types, do_test):
-                        return None
-                    inited = True
+                if not init_done:
+                    if not self.do_init_all(build, options, do_test, allowed_types=allowed_types):
+                        return None, False
+                    init_done = True
                 if not self.options.quiet:
                     print(run.format_variables(self.config["var_hide"]))
 
-
-                new_results, output, err = self.execute(build, run, variables, n_runs, n_retry=self.config["n_retry"], allowed_types={"script"})
+                new_results, output, err = self.execute(build, run, variables, n_runs, n_retry=self.config["n_retry"],
+                                                        allowed_types={SectionScript.TYPE_SCRIPT})
                 if new_results:
                     if self.options.show_full:
                         print("stdout:")
                         print(output)
                         print("stderr:")
                         print(err)
-                    for k,v in new_results.items():
-                        run_results.setdefault(k,[]).extend(v)
+                    for k, v in new_results.items():
+                        run_results.setdefault(k, []).extend(v)
                         have_new_results = True
             else:
                 if not self.options.quiet:
                     print(run.format_variables(self.config["var_hide"]))
-
 
             if len(run_results) > 0:
                 if not self.options.quiet:
@@ -508,10 +528,10 @@ class Testie:
                 else:
                     build.writeversion(self, all_results)
 
-        return all_results
+        return all_results, init_done
 
     def get_title(self):
-        if "title" in self.config:
+        if "title" in self.config and self.config["title"] is not None:
             title = self.config["title"]
         elif hasattr(self, "info"):
             title = self.info.content.strip().split('\n', 1)[0]
@@ -526,7 +546,8 @@ class Testie:
         data = data[abs(data - mean) <= m * std]
         return data
 
-    def expand_folder(testie_path, options, tags=None) -> List:
+    @staticmethod
+    def expand_folder(testie_path, options, tags=None) -> List['Testie']:
         testies = []
         if not os.path.exists(testie_path):
             print("The testie path %s does not exist" % testie_path)
@@ -541,20 +562,22 @@ class Testie:
                         testie = Testie(os.path.join(root, file), options=options, tags=tags)
                         testies.append(testie)
 
+        filtered_testies = []
         for testie in testies:
             missing_tags = testie.test_tags()
             if len(missing_tags) > 0:
-                testies.remove(testie)
                 if not options.quiet:
                     print(
                         "Passing testie %s as it lacks tags %s" % (testie.filename, ','.join(missing_tags)))
-                continue
+            else:
+                filtered_testies.append(testie)
 
-        return testies
+        return filtered_testies
 
     def parse_script_roles(self):
         for script in self.scripts:
-            for k,val in script.params.items():
-                nic_match = re.match(r'(?P<nic_idx>[0-9]+)[:](?P<type>' + NIC.TYPES + '+)',k, re.IGNORECASE)
+            for k, val in script.params.items():
+                nic_match = re.match(r'(?P<nic_idx>[0-9]+)[:](?P<type>' + NIC.TYPES + '+)', k, re.IGNORECASE)
                 if nic_match:
-                    npf.node(script.get_role(),self.config.get_dict("default_role_map")).nics[int(nic_match.group('nic_idx'))][nic_match.group('type')] = val
+                    npf.node(script.get_role(), self.config.get_dict("default_role_map")).nics[
+                        int(nic_match.group('nic_idx'))][nic_match.group('type')] = val

@@ -168,7 +168,7 @@ def main():
         did_something = False
         for testie in testies:
             print("Executing testie %s" % testie.filename)
-            all_results = testie.execute_all(b,options=args)
+            all_results,init_done = testie.execute_all(b,options=args)
             if all_results is None:
                 continue
             else:
@@ -210,7 +210,7 @@ def main():
 #            if not args.force_test:
 #                all_results = testie.has_all(prev_results, build)
             if all_results is None:
-                all_results = testie.execute_all(build, prev_results=prev_results, do_test=args.do_test, options=args)
+                all_results,init_done = testie.execute_all(build, prev_results=prev_results, do_test=args.do_test, options=args)
 
             if not all_results:
                 continue

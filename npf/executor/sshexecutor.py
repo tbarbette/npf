@@ -102,3 +102,9 @@ class SSHExecutor:
         # except KeyboardInterrupt:
         #     os.killpg(pgpid, signal.SIGKILL)
         #     return -1, s_output, s_err, p.returncode
+
+    def writeFile(self,filename,content):
+        #TODO : write over ssh
+        f = open(filename, "w")
+        f.write(content)
+        f.close()

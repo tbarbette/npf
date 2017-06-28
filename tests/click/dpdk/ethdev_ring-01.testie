@@ -3,6 +3,7 @@ Performance of ring-based virtual device
 
 %config
 var_names={HUGE:Hugepages enabled,LENGTH:Length}
+require_tags=dpdk
 
 %variables
 HUGE={0,1}
