@@ -14,7 +14,7 @@ from asteval import Interpreter
 class SectionFactory:
     varPattern = "([a-zA-Z0-9_:-]+)[=](" + Variable.VALUE_REGEX + ")?"
     namePattern = re.compile(
-        "^(?P<tags>[a-zA-Z0-9,_-]+[:])?(?P<name>info|config|variables|late_variables|file (?P<fileName>[a-zA-Z0-9_.-]+)|require|"
+        "^(?P<tags>[a-zA-Z0-9,_-]+[:])?(?P<name>info|config|variables|late_variables|file(:?[@](?P<fileRole>[a-zA-Z0-9]+))? (?P<fileName>[a-zA-Z0-9_.-]+)|require|"
         "import(:?[@](?P<importRole>[a-zA-Z0-9]+))?[ \t]+(?P<importModule>" + Variable.VALUE_REGEX + ")(?P<importParams>([ \t]+" +
         varPattern + ")+)?|"
                      "(:?script|init)(:?[@](?P<scriptRole>[a-zA-Z0-9]+))?(?P<scriptParams>([ \t]+" + varPattern + ")*))$")
@@ -65,7 +65,7 @@ class SectionFactory:
                             matcher.groups("params") + ")")
 
         if sectionName.startswith('file'):
-            s = SectionFile(matcher.group('fileName').strip())
+            s = SectionFile(matcher.group('fileName').strip(), role=matcher.group('fileRole'))
             return s
         elif sectionName == 'require':
             s = SectionRequire()
@@ -145,7 +145,7 @@ class SectionImport(Section):
             params = {}
         self.params = params
         if module is not None and module is not '':
-            self.module = 'tests/module/' + module
+            self.module = 'modules/' + module
         else:
             if not 'testie' in params:
                 raise Exception("%import section must define a module name or a testie=[path] to import")
@@ -164,10 +164,14 @@ class SectionImport(Section):
 
 
 class SectionFile(Section):
-    def __init__(self, filename):
+    def __init__(self, filename, role=None):
         super().__init__('file')
         self.content = ''
         self.filename = filename
+        self._role = role
+
+    def get_role(self):
+        return self._role
 
     def finish(self, testie):
         testie.files.append(self)
