@@ -10,7 +10,7 @@ import sys
 from npf import npf
 from npf.regression import *
 from npf.statistics import Statistics
-from npf.testie import Testie
+from npf.testie import Testie, ScriptInitException
 
 
 def main():
@@ -73,6 +73,10 @@ def main():
 
     args = parser.parse_args()
 
+
+    npf.parse_nodes(args)
+
+
     if args.force_oldbuild and not args.allow_oldbuild:
         print("--force-old-build needs --allow-old-build")
         parser.print_help()
@@ -83,7 +87,7 @@ def main():
     else:
         if os.path.exists(args.testie) and os.path.isfile(args.testie):
             tmptestie = Testie(args.testie,options=args)
-            if "default_repo" in tmptestie.config:
+            if "default_repo" in tmptestie.config and tmptestie.config["default_repo"] is not None:
                 repo = Repository.get_instance(tmptestie.config["default_repo"], args)
             else:
                 print("This testie has no default repository")
@@ -94,8 +98,6 @@ def main():
 
     if args.graph_num == -1:
         args.graph_num = 8 if args.compare else 0
-
-    npf.parse_nodes(args)
 
 
     tags = args.tags
@@ -168,8 +170,11 @@ def main():
         did_something = False
         for testie in testies:
             print("Executing testie %s" % testie.filename)
-            all_results,init_done = testie.execute_all(b,options=args)
-            if all_results is None:
+            try:
+                all_results,init_done = testie.execute_all(b,options=args)
+                if all_results is None:
+                    continue
+            except ScriptInitException:
                 continue
             else:
                 did_something = True
@@ -209,10 +214,13 @@ def main():
             all_results = None
 #            if not args.force_test:
 #                all_results = testie.has_all(prev_results, build)
-            if all_results is None:
-                all_results,init_done = testie.execute_all(build, prev_results=prev_results, do_test=args.do_test, options=args)
+            try:
+                if all_results is None:
+                    all_results,init_done = testie.execute_all(build, prev_results=prev_results, do_test=args.do_test, options=args)
 
-            if not all_results:
+                if not all_results:
+                    continue
+            except ScriptInitException:
                 continue
 
             if args.compare:

@@ -4,7 +4,7 @@ from collections import OrderedDict
 from subprocess import PIPE
 from pathlib import Path
 import re
-from npf import variable
+from npf import variable, npf
 from npf.types.dataset import Run, Dataset
 
 renametable = {
@@ -164,7 +164,8 @@ class Build:
 
 
     def is_compile_needed(self):
-        if os.path.exists(self.repo.get_bin_path(self.version)) and (
+        bin_path=npf.replace_path(self.repo.get_bin_path(self.version),build=self)
+        if os.path.exists(bin_path) and (
                     Build.get_current_version(self.repo) == self.version):
             return False
         else:
@@ -180,14 +181,18 @@ class Build:
         pwd = os.getcwd()
         os.chdir(self.build_path())
 
-        for what,command in [("Configuring %s..." % self.version,self.repo.configure.replace('$version',self.version)),
-                             ("Cleaning %s..." % self.version,self.repo.clean.replace('$version',self.version)),
-                             ("Building %s..." % self.version,self.repo.make.replace('$version',self.version))]:
+        for what,command in [("Configuring %s..." % self.version,npf.replace_path(self.repo.configure,build=self)),
+                             ("Cleaning %s..." % self.version,npf.replace_path(self.repo.clean,build=self)),
+                             ("Building %s..." % self.version,npf.replace_path(self.repo.make,build=self))]:
+            if not command:
+                continue
             if not quiet:
                 print(what)
             if show_cmd and command:
                 print(command)
-            p = subprocess.Popen(command, shell=True, stdin=PIPE, stdout=PIPE, stderr=PIPE)
+            env = os.environ.copy()
+            env.update(self.repo.env)
+            p = subprocess.Popen(command, shell=True, stdin=PIPE, stdout=PIPE, stderr=PIPE, env=env)
             output, err = [x.decode() for x in p.communicate()]
             p.wait()
             if not p.returncode == 0:
@@ -196,7 +201,7 @@ class Build:
                 print(output)
                 print("stderr :")
                 print(err)
-                self.__write_file('.current_build', '')
+                self.__write_file('.build_version', '')
                 os.chdir(pwd)
                 return False
 

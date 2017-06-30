@@ -93,6 +93,29 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
     return t
 
 
+
+def add_building_options(parser):
+    b = parser.add_argument_group('Building options')
+    bf = b.add_mutually_exclusive_group()
+    bf.add_argument('--use-local',
+                    help='Use a local version of the program instead of the automatically builded one',
+                    dest='use_local',
+                    default=None)
+    bf.add_argument('--no-build',
+                    help='Do not build the last version, use the currently compiled one', dest='no_build', action='store_true', default=False)
+    bf.add_argument('--force-build',
+                    help='Force to rebuild even if the current version is matching the regression versions '
+                         '(see --version or --history).', dest='force_build',
+                    action='store_true', default=False)
+    b.add_argument('--no-build-deps',
+                    help='Do not build the last version of some dependencies, use the currently compiled one',
+                   dest='no_build_deps',
+                    action=ExtendAction,default=[],nargs='+')
+    b.add_argument('--force-build-deps',
+                    help='Force to rebuild some dependencies', dest='force_build_deps',
+                   action=ExtendAction, default=[], nargs='+')
+    return b
+
 nodePattern = regex.compile(
     "(?P<role>[a-zA-Z0-9]+)=(:?(?P<user>[a-zA-Z0-9]+)@)?(?P<addr>[a-zA-Z0-9.]+)(:?[:](?P<path>path))?")
 roles = {}
@@ -128,7 +151,10 @@ def parse_nodes(options):
         match = nodePattern.match(mapping)
         if not match:
             raise Exception("Bad definition of node : %s" % mapping)
-        node = Node.makeSSH(user=match.group('user'), addr=match.group('addr'), path=match.group('path'),
+        if match.group('addr') == 'localhost':
+            node = roles['default']
+        else:
+            node = Node.makeSSH(user=match.group('user'), addr=match.group('addr'), path=match.group('path'),
                             options=options)
         roles[match.group('role')] = node
 
@@ -148,22 +174,6 @@ def override(args, testies):
         testie.variables.override_all(overriden_variables)
         testie.config.override_all(overriden_config)
     return testies
-
-
-def add_building_options(parser):
-    b = parser.add_argument_group('Building options')
-    bf = b.add_mutually_exclusive_group()
-    bf.add_argument('--use-local',
-                    help='Use a local version of the program instead of the automatically builded one',
-                    dest='use_local',
-                    default=None)
-    bf.add_argument('--no-build',
-                    help='Do not build the last master', dest='no_build', action='store_true', default=False)
-    bf.add_argument('--force-build',
-                    help='Force to rebuild Click even if the git current version is matching the regression versions '
-                         '(see --version or --history).', dest='force_build',
-                    action='store_true', default=False)
-    return b
 
 
 def find_local(path):
@@ -201,3 +211,12 @@ def build_filename(testie, build, hint, variables, def_ext, type_str=''):
 
 def nodes(role) -> List[Node]:
     return [node(role)]
+
+
+def replace_path(path, build = None):
+    if build:
+        if build.version is not None:
+            path = path.replace('$version', build.version)
+        for var,val in build.repo.env.items():
+            path = path.replace('$'+var,val)
+    return path

@@ -3,6 +3,13 @@ EtherSwitch performances
 
 Simple performance test generating packets with InfiniteSource and sending them to EtherSwitch to test performances
 
+Explanations about the test :
+TOTGEN defines the number of generator for each run, it is 2, 4, ...
+
+For each run, the late_variables section generate 1 to TOTGEN lines of generator.
+
+Each line of generator is an infinitesource with ip address ending with :line_number to :line_number + 1
+
 %config
 //Script is time-based on 3s, so if it is longer than 10s, there is a bug somewhere
 timeout=10
@@ -33,6 +40,7 @@ click -j 1 CONFIG
 elementclass Generator { $SRC, $DST |
 is :: InfiniteSource(LENGTH $LENGTH, BURST $BURST)
     -> EtherEncap(0x0800, $SRC, $DST)
+    -> ReplayUnqueue(STOP 1000, QUICK_CLONE 1)
     -> [0]output;
 
 input[0]

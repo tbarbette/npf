@@ -414,7 +414,9 @@ class SectionConfig(SectionVariable):
         self.__add_dict("var_lim", {})
         self.__add("var_serie",None)
         self.__add("autokill", True)
+        self.__add_dict("env", {}) #Unimplemented yet
         self.__add_dict("default_role_map",{})
+        self.__add_list("role_exclude", [])
         self.__add_list("result_regex", [
             r"RESULT(:?-(?P<type>[A-Z0-9_]+))?[ \t]+(?P<value>[0-9.]+)[ ]*(?P<multiplier>[nµgmk]?)(?P<unit>s|b|byte|bits)?"])
         self.__add_list("require_tags", [])

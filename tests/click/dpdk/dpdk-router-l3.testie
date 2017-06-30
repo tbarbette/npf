@@ -1,11 +1,11 @@
 %info
 Click Router using DPDK
 
-Using FastClick as pktgen
+Using FastClick as pktgen to load the router
 
 This configuration uses 4 NICs. It has 2 roles : "client" is a pktgen with 2 NIC, one to send traffic and the other to receive it and the router itself as "dut" with 2 NIC.
 
-NICs are supposed to be connected to a switch and bound to a DPDK compatible driver (though, we expect this to be handled by NPF in the future)
+NICs are supposed to be connected to a switch and bound to a DPDK compatible driver
 
 As for any DPDK application, you must be root on the node executing DPDK
 
@@ -16,6 +16,8 @@ timeout=120
 //Axis names
 var_names={LENGTH:Length,result:Throughput,TXCPU:Transmit CPU,RXCPU:Receive CPU,GEN_LENGTH:Packet length,BURSTOUT:Output burst,BURSTIN:Input burst}
 require_tags={dpdk}
+role_exclude={client+dut}
+
 
 //For smaller graph
 tight:var_names+={result:Throughput (GBits/s)}
@@ -27,7 +29,7 @@ tight:var_divider={result:G}
 BURSTOUT=[1*256]
 BURSTIN=[4*256]
 CPU=1
-CPUFREQ=1200000 //Unused
+cpufreq:CPUFREQ=1200000 //Unused
 
 //Parameters for the packet generator
 GEN_BURST=256
@@ -45,13 +47,15 @@ fastregression:GEN_LENGTH={64,1500}
 lengthonly:BURSTIN=32
 lengthonly:BURSTOUT=32
 
-%-nobind:import@client dpdk-bind NIC={0,1}
-%-nobind:import@dut dpdk-bind NIC={0,1}
+%-nobind:import@client dpdk-bind NIC=0
+%-nobind:import@client dpdk-bind NIC=1
+%-nobind:import@dut dpdk-bind NIC=0
+%-nobind:import@dut dpdk-bind NIC=1
 
-%script@client delay=2 deps=fastclick 0:ip=10.120.0.100 1:ip=10.121.0.100
+%script@client delay=2 deps=fastclick 0:ip=10.120.0.100 1:ip=10.121.0.100 sudo=true
 click -n 4 -c 0xf -- CONFIG_CLIENT || click --dpdk -n 4 -c 0xf -- CONFIG_CLIENT
 
-%script@dut 0:ip=10.120.0.1 1:ip=10.121.0.1
+%script@dut 0:ip=10.120.0.1 1:ip=10.121.0.1 sudo=true
 //Support for the older DPDK config style of Click
 mask=$(echo "obase=16; (2^$CPU) - 1" | bc)
 click -n 4 -c 0x$mask -- CONFIG || click --dpdk -n 4 -c 0x$mask -- CONFIG

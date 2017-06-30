@@ -1,9 +1,0 @@
-%info
-Install DPDK
-
-%config
-env+={RTE_SDK:build/dpdk/,RTE_TARGET:}
-
-%script deps=dpdk
-cd build/dpdk/
-make T=x86_64-generic

@@ -50,6 +50,10 @@ def _parallel_exec(exec_args: Tuple['Testie', SectionScript, str, 'Build', Queue
         return True, o, e, commands
 
 
+class ScriptInitException(Exception):
+    pass
+
+
 class Testie:
     def get_name(self):
         return self.filename
@@ -125,7 +129,7 @@ class Testie:
         known_roles = {'self', 'default'}.union(set(npf.roles.keys()))
         for script in self.get_scripts():
             known_roles.add(script.get_role())
-        #        for file in self.files:
+        # for file in self.files:
         #            for nicref in re.finditer(Node.NICREF_REGEX, file.content, re.IGNORECASE):
         #                if nicref.group('role') not in known_roles:
         #                    raise Exception("Unknown role %s" % nicref.group('role'))
@@ -150,6 +154,17 @@ class Testie:
                     raise Exception('Modules cannot have roles, their importer defines it')
                 script._role = imp.get_role()
 
+        for excludes in self.config.get_list("role_exclude"):
+            s = excludes.split('+')
+            m = set()
+            for role in s:
+                node = npf.node(role)
+                if node in m:
+                    raise Exception(
+                        "Roles %s cannot be on the same node ! Please use --cluster argument to set them accross nodes" % ' and '.join(
+                            s))
+                m.add(node)
+
     def build_deps(self, repo_under_test: List[Repository]):
         # Check for dependencies
         deps = set()
@@ -159,10 +174,10 @@ class Testie:
             if dep in repo_under_test:
                 continue
             deprepo = Repository.get_instance(dep, self.options)
-            if deprepo.url is None:
+            if deprepo.url is None or deprepo.reponame in self.options.no_build_deps:
                 continue
-            if not deprepo.get_last_build().build():
-                raise Exception("Could not build dependency %s" + dep)
+            if not deprepo.get_last_build().build(force_build=deprepo.reponame in self.options.force_build_deps):
+                raise Exception("Could not build dependency %s" % dep)
         for imp in self.imports:
             imp.testie.build_deps(repo_under_test)
         return True
@@ -391,10 +406,10 @@ class Testie:
 
     def do_init_all(self, build, options, do_test, allowed_types=SectionScript.ALL_TYPES_SET):
         if not build.build(options.force_build, options.no_build, options.quiet_build, options.show_build_cmd):
-            return None
+            raise ScriptInitException()
 
         if not self.build_deps([build.repo]):
-            return None
+            raise ScriptInitException()
 
         if (allowed_types is None or "init" in allowed_types) and options.do_init:
             if len(self.imports) > 0:
@@ -405,12 +420,8 @@ class Testie:
                     if not msg_shown:
                         print("Executing imports init scripts...")
                         msg_shown = True
-                    imp_res = imp.testie.execute_all(build, options=options, do_test=do_test, allowed_types={"init"})
-                    for k, v in imp_res.items():
-                        if v == None:
-                            if not options.quiet:
-                                print("Aborting as imports did not run correctly");
-                            return None
+                    imp_res, sub_init_done = imp.testie.execute_all(build, options=options, do_test=do_test,
+                                                                    allowed_types={"init"})
                 if msg_shown:
                     print("All imports passed successfully...")
 
@@ -421,13 +432,12 @@ class Testie:
                 vs = {}
                 for k, v in self.variables.statics().items():
                     vs[k] = v.makeValues()[0]
-                nresults, output, err = self.execute(build, Run(vs), v=vs, n_runs=1, n_retry=0, allowed_types={"init"})
+                results, output, err = self.execute(build, Run(vs), v=vs, n_runs=1, n_retry=0, allowed_types={"init"})
 
-                if nresults == 0:
+                if len(results) == 0:
                     if not options.quiet:
-                        print("Aborting as imports did not run correctly");
-                    return None
-        return True
+                        print("Aborting as init scripts did not run correctly !");
+                    raise ScriptInitException()
 
     def execute_all(self, build, options, prev_results: Dataset = None, do_test=True,
                     allowed_types=SectionScript.ALL_TYPES_SET) -> Tuple[Dataset, bool]:
@@ -444,8 +454,7 @@ class Testie:
 
         if not SectionScript.TYPE_SCRIPT in allowed_types:
             # If scripts is not in allowed_types, we have to run the init by force now
-            if not self.do_init_all(build, options, do_test=do_test, allowed_types=allowed_types):
-                return None, False
+            self.do_init_all(build, options, do_test=do_test, allowed_types=allowed_types)
             return {}, True
 
         all_results = {}
@@ -489,8 +498,7 @@ class Testie:
                 [len(results) for result_type, results in run_results.items()]))
             if n_runs > 0 and do_test:
                 if not init_done:
-                    if not self.do_init_all(build, options, do_test, allowed_types=allowed_types):
-                        return None, False
+                    self.do_init_all(build, options, do_test, allowed_types=allowed_types)
                     init_done = True
                 if not self.options.quiet:
                     print(run.format_variables(self.config["var_hide"]))

@@ -6,5 +6,6 @@ CONFIG
 CONFIG2
 build
 result
+tests/local
 .idea/modules.xml
 .idea/misc.xml

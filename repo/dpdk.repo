@@ -1,11 +1,13 @@
-#This is only a "download" repo for now, as dpdk is too "user specific" to auto-build
+//If you want to use your own version of DPDK, just make sure $RTE_SDK is set as an absolute path and $RTE_TARGET environment variable are correctly setted
+
 name=DPDK
 branch=master
 url=http://dpdk.org/git/dpdk-stable
 method=git
-bin_folder=x86_64-native-linuxapp-gcc
-bin_name=
-configure=
-make=
-clean=
+bin_folder=$RTE_TARGET/app/
+bin_name=testpmd
+configure=make T=$RTE_TARGET RTE_OUTPUT=$RTE_TARGET config
+make=cd $RTE_TARGET && (make T=$RTE_TARGET ; cd ..)
+clean=cd $RTE_TARGET && (make T=$RTE_TARGET clean; cd ..)
 tags=dpdk
+env={RTE_SDK:build/dpdk/,RTE_TARGET:x86_64-native-linuxapp-gcc}

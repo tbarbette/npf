@@ -52,14 +52,17 @@ class NIC:
 
 
 class Node:
+    _nodes = {}
+
     NICREF_REGEX = r'(?P<role>[a-z0-9]+)[:](?P<nic_idx>[0-9]+)[:](?P<type>' + NIC.TYPES + '+)'
     VARIABLE_NICREF_REGEX = r'(?<!\\)[$][{]'+ NICREF_REGEX +'[}]';
-    ALLOWED_NODE_VARS = 'path|user|addr'
+    ALLOWED_NODE_VARS = 'path|user|addr|tags'
 
     def __init__(self, name, executor):
         self.executor = executor
         self.name = name
         self.nics = []
+        self.tags = []
 
         # Always fill 32 random nics address that will be overwriten by config eventually
         self._gen_random_nics()
@@ -81,7 +84,7 @@ class Node:
                 if match:
                     setattr(executor, match.group('var'), match.group('val'))
                     continue
-                raise Exception("%s:%d : Unkown node config line %s" % (clusterFile,i,line))
+                raise Exception("%s:%d : Unknown node config line %s" % (clusterFile,i,line))
         else:
             self._find_nics()
 
@@ -111,14 +114,22 @@ class Node:
 
     @classmethod
     def makeLocal(cls, options):
-        return Node('localhost', LocalExecutor())
+        node = cls._nodes.get('localhost',None)
+        if node is None:
+            node = Node('localhost', LocalExecutor())
+            cls._nodes['localhost'] = node
+        return node
 
     @classmethod
     def makeSSH(cls, user, addr, path, options):
         if path is None:
             path = os.getcwd()
+        node = cls._nodes.get(addr,None)
+        if node is not None:
+            return node
         sshex = SSHExecutor(user, addr, path)
         node = Node(addr, sshex)
+        cls._nodes[addr] = node
         if options.do_test:
             print("Testing connection to %s..." % node.executor.addr)
             pid, out, err, ret = sshex.exec(cmd="echo \"test\"", terminated_event=None)

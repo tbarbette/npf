@@ -8,12 +8,12 @@ import re
 
 from npf import npf
 from npf.build import Build
-from .variable import is_numeric
+from .variable import is_numeric, VariableFactory
 
 import git
 
 repo_variables = ['name', 'branch', 'configure', 'url', 'method', 'parent', 'tags', 'make', 'version', 'clean',
-                  'bin_folder', 'bin_name']
+                  'bin_folder', 'bin_name', 'env']
 
 
 class Method(metaclass=ABCMeta):
@@ -89,7 +89,8 @@ class MethodGit(Method):
             c = branch
             print("Checked out version %s" % c)
 
-        if gitrepo.head.commit is not gitrepo.commit(c):
+        if gitrepo.head.commit != gitrepo.commit(c):
+            print("Reseting branch to latest %s" % (c))
             gitrepo.head.reset(commit=c, index=True, working_tree=True)
 
         self.__gitrepo = gitrepo
@@ -113,7 +114,7 @@ class MethodGet(UnversionedMethod):
     def checkout(self, branch=None):
         if branch is None:
             branch = self.repo.version
-        url = self.repo.url.replace('$version', branch)
+        url = npf.replace_path(self.repo.url,Build(self.repo,branch))
         if not Path(self.repo.get_build_path()).exists():
             os.makedirs(self.repo.get_build_path())
         filename, headers = urllib.request.urlretrieve(url, self.repo.get_build_path() + os.path.basename(url))
@@ -134,11 +135,8 @@ repo_methods = {'git': MethodGit, 'get': MethodGet, 'package': MethodPackage}
 
 class Repository:
     _repo_cache = {}
-    configure = '--disable-linuxmodule'
-    branch = 'master'
-    make = 'make -j12'
-    clean = 'make clean'
-    bin_folder = 'bin'
+
+
     method = repo_methods['git']
 
     def __init__(self, repo, options):
@@ -152,6 +150,11 @@ class Repository:
         self.reponame = overwrite_branch[0]
         self.tags = []
         self.options = options
+        self.branch = 'master'
+        self.make = 'make -j12'
+        self.clean = 'make clean'
+        self.bin_folder = 'bin'
+        self.env = {}
         self.bin_name = self.reponame  # Wild guess that may work some times...
 
         repo_path = npf.find_local('repo/' + self.reponame + '.repo')
@@ -201,6 +204,14 @@ class Repository:
                     self.tags += val.split(',')
                 else:
                     self.tags = val.split(',')
+                continue
+
+            elif var == "env":
+                ed = VariableFactory.build(var, val).vdict
+                if append:
+                    self.env += ed
+                else:
+                    self.env = ed
                 continue
 
             if append:

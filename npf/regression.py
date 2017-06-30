@@ -2,7 +2,7 @@ from typing import Tuple
 
 from npf.grapher import *
 from npf.repository import *
-from npf.testie import Testie, SectionScript
+from npf.testie import Testie, SectionScript, ScriptInitException
 from npf.types.dataset import Dataset
 
 
@@ -20,8 +20,8 @@ class Regression:
         accept += abs(result.std() * testie.config["accept_variance"] / n)
         return diff <= accept, diff
 
-    def compare(self, testie, variable_list, all_results: Dataset, build, old_all_results, last_build,
-                allow_supplementary=True,init_done=False) -> tuple:
+    def compare(self, testie:Testie, variable_list, all_results: Dataset, build, old_all_results, last_build,
+                allow_supplementary=True,init_done=False) -> Tuple[int,int]:
         """
         Compare two sets of results for the given list of variables and returns the amount of failing test
         :param init_done: True if initialization for current testie is already done (init sections for the testie and its import)
@@ -140,10 +140,14 @@ class Regression:
                     old_all_results = None
             else:
                 old_all_results = None
-            all_results,init_done = testie.execute_all(build, prev_results=build.load_results(testie), options=options,
-                                             do_test=options.do_test)
-            if all_results is None:
+            try:
+                all_results,init_done = testie.execute_all(build, prev_results=build.load_results(testie), options=options,
+                                                 do_test=options.do_test)
+                if all_results is None:
+                    return None, None
+            except ScriptInitException:
                 return None, None
+
             variables_passed, variables_total = regression.compare(testie, testie.variables, all_results, build,
                                                                    old_all_results,
                                                                    repo.last_build,

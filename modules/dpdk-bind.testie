@@ -22,20 +22,29 @@ require_tags={import}
 %variables
 NIC=0
 
-%igb_uio:init sudo=true
+%igb_uio:init sudo=true deps=dpdk
 DRIVER=igb_uio
-modprobe $DRIVER
 echo "Driver is $DRIVER"
-chmod +x dpdk-devbind.py
+
+if [ "$RTE_SDK" = "" ] ; then
+    export RTE_SDK=$(pwd)/build/dpdk/
+fi
+if [ "$RTE_TARGET" = "" ] ; then
+    export RTE_TARGET=x86_64-native-linuxapp-gcc
+fi
+
 lsmod | grep $DRIVER &> /dev/null
 if [ $? -ne 0 ] ; then
-    sudo modprobe $DRIVER &> /dev/null
+    modprobe $DRIVER || (modprobe uio && insmod $RTE_SDK/$RTE_TARGET/kmod/$DRIVER.ko) || ( echo "-------------------" && echo "--- NPF MESSAGE ---" && echo "-------------------" && echo "Cannot find the $DRIVER module ! Please make sure you installed DPDK. Either set RTE_SDK and RTE_TARGET environment variables globally for all your systems or use --force-build-deps dpdk to force dpdk to be rebuilt" && echo "-------------------" && exit 1)
 fi
+
+chmod +x dpdk-devbind.py
+
 echo "Binding NIC $NIC"
 /usr/bin/env python ./dpdk-devbind.py --bind=$DRIVER ${self:$NIC:pci}
 [ $? -eq 0 ] && echo "RESULT 1"
 
-%-igb_uio:init sudo=true
+%-igb_uio:init sudo=true deps=dpdk
 DRIVER=uio_pci_generic
 modprobe $DRIVER
 echo "Driver is $DRIVER"
@@ -490,14 +499,14 @@ def bind_one(dev_id, driver, force):
         except:
             print("Error: bind failed for %s - Cannot open %s"
                   % (dev_id, filename))
-            return
+            sys.exit(1)
         try:
             f.write("%04x %04x" % (dev["Vendor"], dev["Device"]))
             f.close()
         except:
             print("Error: bind failed for %s - Cannot write new PCI ID to "
                   "driver %s" % (dev_id, driver))
-            return
+            sys.exit(1)
 
     # do the bind by writing to /sys
     filename = "/sys/bus/pci/drivers/%s/bind" % driver
@@ -508,7 +517,7 @@ def bind_one(dev_id, driver, force):
               % (dev_id, filename))
         if saved_driver is not None:  # restore any previous driver
             bind_one(dev_id, saved_driver, force)
-        return
+        sys.exit(1)
     try:
         f.write(dev_id)
         f.close()
@@ -523,7 +532,7 @@ def bind_one(dev_id, driver, force):
               % (dev_id, driver))
         if saved_driver is not None:  # restore any previous driver
             bind_one(dev_id, saved_driver, force)
-        return
+        sys.exit(1)
 
 
 def unbind_all(dev_list, force=False):
