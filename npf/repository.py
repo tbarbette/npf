@@ -5,6 +5,11 @@ from abc import ABCMeta
 from pathlib import Path
 
 import re
+from urllib.error import URLError
+
+import shutil
+
+import gitdb
 
 from npf import npf
 from npf.build import Build
@@ -33,7 +38,7 @@ class MethodGit(Method):
 
     def get_last_versions(self, limit=100, branch=None, force_fetch=False):
         versions = []
-        origin = self.gitrepo().remotes.origin
+        origin = self.gitrepo().remote('origin')
         if not self.repo.options.no_build and (force_fetch or not self._fetch_done):
             if not self.repo.options.quiet_build:
                 print("Fetching last versions of %s..." % self.repo.reponame)
@@ -43,7 +48,12 @@ class MethodGit(Method):
         if branch is None:
             branch = self.repo.branch
 
-        for i, commit in enumerate(self.gitrepo().iter_commits('origin/' + branch)):
+        try:
+            b_commit = self.gitrepo().commit('origin/' + branch)
+        except gitdb.exc.BadName:
+            b_commit = self.gitrepo().tag('refs/tags/' + branch).commit
+
+        for i, commit in enumerate(b_commit.iter_items(repo=b_commit.repo, rev=b_commit, skip=0)):
             versions.append(commit.hexsha[:7])
             if (len(versions) >= limit):
                 break
@@ -72,13 +82,21 @@ class MethodGit(Method):
         if not branch:
             branch = self.repo.branch
 
+        need_clone=False
         if os.path.exists(self.repo.get_build_path()):
-            gitrepo = git.Repo(self.repo.get_build_path())
-            o = gitrepo.remotes.origin
-            if not self.repo.options.no_build and not self._fetch_done:
-                o.fetch()
-                self._fetch_done = True
+            try:
+                gitrepo = git.Repo(self.repo.get_build_path())
+                o = gitrepo.remotes.origin
+                if not self.repo.options.no_build and not self._fetch_done:
+                    o.fetch()
+                    self._fetch_done = True
+            except git.exc.InvalidGitRepositoryError:
+                shutil.rmtree(self.repo.get_build_path())
+                need_clone=True
         else:
+            need_clone=True
+
+        if need_clone:
             if not self.repo.options.quiet_build:
                 print("Cloning %s from %s..." % (self.repo.reponame, self.repo.url))
             gitrepo = git.Repo.clone_from(self.repo.url, self.repo.get_build_path())
@@ -117,7 +135,11 @@ class MethodGet(UnversionedMethod):
         url = npf.replace_path(self.repo.url,Build(self.repo,branch))
         if not Path(self.repo.get_build_path()).exists():
             os.makedirs(self.repo.get_build_path())
-        filename, headers = urllib.request.urlretrieve(url, self.repo.get_build_path() + os.path.basename(url))
+        try:
+            filename, headers = urllib.request.urlretrieve(url, self.repo.get_build_path() + os.path.basename(url))
+        except URLError:
+            print("ERROR : Could not download %s : bad URL?" % url)
+            return False
         t = tarfile.open(filename)
         t.extractall(self.repo.get_build_path())
         t.close()
