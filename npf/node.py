@@ -130,7 +130,7 @@ class Node:
         sshex = SSHExecutor(user, addr, path)
         node = Node(addr, sshex)
         cls._nodes[addr] = node
-        if options.do_test:
+        if options.do_test and options.do_conntest:
             print("Testing connection to %s..." % node.executor.addr)
             pid, out, err, ret = sshex.exec(cmd="echo \"test\"", terminated_event=None)
             out = out.strip()

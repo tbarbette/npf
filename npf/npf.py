@@ -68,6 +68,10 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
     t.add_argument('--no-init',
                    help='Do not run any init scripts', dest='do_init', action='store_false',
                    default=True)
+    t.add_argument('--no-conntest',
+                   help='Do not run connection tests', dest='do_conntest', action='store_false',
+                   default=True)
+
     t.add_argument('--use-last',
                    help='Use data from previous version instead of running test if possible', dest='use_last',
                    action='store_true',

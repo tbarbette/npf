@@ -70,7 +70,10 @@ class Grapher:
             if var in script.config:
                 d = script.config.get_dict(var)
                 if result_type is None:
-                    return d.get(key, default)
+                    for k,v in d.items():
+                        if k.lower() == key.lower():
+                            return v
+                    return default
                 else:
                     if key + "-" + result_type in d:
                         return d.get(key + "-" + result_type)
@@ -480,12 +483,11 @@ class Grapher:
             plt.gca().set_xlim(xmin, xmax)
 
 
-    def format_figure(self, type):
+    def format_figure(self, result_type):
         ax = plt.gca()
 
-        yunit = self.scriptconfig("var_unit", "result", default="", result_type=type)
-        yformat = self.scriptconfig("var_format", "result", default=None, result_type=type)
-
+        yunit = self.scriptconfig("var_unit", "result", default="", result_type=result_type)
+        yformat = self.scriptconfig("var_format", "result", default=None, result_type=result_type)
         if yformat is not None:
             formatter = FormatStrFormatter(yformat)
             ax.yaxis.set_major_formatter(formatter)

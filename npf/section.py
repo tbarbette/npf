@@ -383,13 +383,13 @@ class SectionLateVariable(SectionVariable):
 
 class SectionConfig(SectionVariable):
     def __add(self, var, val):
-        self.vlist[var] = SimpleVariable(var, val)
+        self.vlist[var.lower()] = SimpleVariable(var, val)
 
     def __add_list(self, var, list):
-        self.vlist[var] = ListVariable(var, list)
+        self.vlist[var.lower()] = ListVariable(var, list)
 
     def __add_dict(self, var, dict):
-        self.vlist[var] = DictVariable(var, dict)
+        self.vlist[var.lower()] = DictVariable(var, dict)
 
     def __init__(self):
         super().__init__('config')
@@ -417,22 +417,26 @@ class SectionConfig(SectionVariable):
         self.__add_dict("env", {}) #Unimplemented yet
         self.__add_dict("default_role_map",{})
         self.__add_list("role_exclude", [])
+        self.__add_list("graph_subplot_results", [])
         self.__add_list("result_regex", [
             r"RESULT(:?-(?P<type>[A-Z0-9_]+))?[ \t]+(?P<value>[0-9.]+)[ ]*(?P<multiplier>[nµgmk]?)(?P<unit>s|b|byte|bits)?"])
         self.__add_list("require_tags", [])
 
     def var_name(self, key):
+        key = key.lower()
         if key in self["var_names"]:
             return self["var_names"][key]
         else:
             return key
 
     def get_list(self, key):
+        key = key.lower()
         var = self.vlist[key]
         v = var.makeValues()
         return v
 
     def get_dict(self, key):
+        key = key.lower()
         var = self.vlist[key]
         try:
             v = var.vdict
@@ -442,6 +446,7 @@ class SectionConfig(SectionVariable):
         return v
 
     def get_dict_value(self, var, key, result_type=None, default=None):
+        key = key.lower()
         if var in self:
             d = self.get_dict(var)
             if result_type is None:
@@ -454,10 +459,10 @@ class SectionConfig(SectionVariable):
         return default
 
     def __contains__(self, key):
-        return key in self.vlist
+        return key.lower() in self.vlist
 
     def __getitem__(self, key):
-        var = self.vlist[key]
+        var = self.vlist[key.lower()]
         v = var.makeValues()
         if type(v) is list and len(v) == 1:
             return v[0]
@@ -465,7 +470,7 @@ class SectionConfig(SectionVariable):
             return v
 
     def __setitem__(self, key, val):
-        self.__add(key, val)
+        self.__add(key.lower(), val)
 
     def finish(self, testie):
         self.vlist = self.build(self.content, testie, check_exists=True)
