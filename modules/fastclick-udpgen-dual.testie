@@ -1,47 +1,91 @@
 %info
-This is not a testie, this is a module to be imported with %import
+UDP Traffic loop Module, dual side
 
-This will generate UDP traffic using 2 NICs. Packets are expected to come back, and the sum of UDP traffic is accounted for and printed as the RESULT.
+This will generate UDP traffic using 2 NICs.
+Packets are expected to come back, and the sum of UDP
+traffic is accounted for and printed as the RESULT.
+
+Roles : client will use two NICs of the node running this file to send traffic
+towards "dut" and should receive back the packets on the opposite ports.
+
+See tests/generic_dpdk/l2_fwd.testie for example
+
+GEN_WAIT is the test time, while the client generates $GEN_FLOWS flows of $GEN_BURST packets in loop
+
+%config
+default_role_map={dut:client,server:client}
+require_tags=import,dpdk
 
 %variables
 GEN_BURST=32
 GEN_FLOWS=128
 GEN_LENGTH=64
+GEN_WAIT=5
+
+%late_variables
 GEN_TOT=EXPAND( $(( $GEN_BURST * $GEN_FLOWS )) )
 
 %script deps=fastclick sudo=true delay=2
 click --dpdk -c 0xf -- PKTGEN_CONFIG
 
 %file PKTGEN_CONFIG
-define($IP0 10.0.0.1)
-define($IP1 10.0.0.2)
 
-elementclass Generator { $port, $srcmac, $dstmac |
+elementclass Generator { $port, $srcmac, $dstmac, $srcip, $dstip |
     tdOUT::ToDPDKDevice($port, BLOCKING true);
 
-    adv1 :: FastUDPFlows(RATE 0, LIMIT $GEN_TOT, LENGTH $GEN_LENGTH, SRCETH $srcmac, DSTETH $dstmac, SRCIP $IP1, DSTIP $IP0, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST)
+    adv1 :: FastUDPFlows(RATE 0, LIMIT $GEN_TOT, LENGTH $GEN_LENGTH, SRCETH $srcmac, DSTETH $dstmac, SRCIP $srcip, DSTIP $dstip, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST)
     -> MarkMACHeader
     -> EnsureDPDKBuffer
-    -> advq1 :: ReplayUnqueue(STOP -1, QUICK_CLONE true)
+    -> replay :: ReplayUnqueue(STOP -1, QUICK_CLONE true)
     -> sndavg :: AverageCounter()
     -> tdOUT;
 
-    StaticThreadSched(advq1 $port)
+    StaticThreadSched(replay $port)
 
-    FromDPDKDevice($port, MAC $srcmac, MAXTHREADS 1, VERBOSE 99)
+    fd :: FromDPDKDevice($port, MAC $srcmac, MAXTHREADS 1, VERBOSE 99)
+    -> c0 :: Classifier(12/0806 20/0001,
+                        12/0806 20/0002,
+                        -)[2]
     -> avg :: AverageCounter
-    -> Discard
+    -> Discard;
+
+    c0[0] -> ARPResponder($srcip $srcmac)
+          -> tdOUT;
+    c0[1] -> Discard;
 }
 
-gen0 :: Generator(0, ${client:0:mac}, ${server:0:mac})
-gen1 :: Generator(1, ${client:1:mac}, ${server:1:mac})
+gen0 :: Generator(0, ${client:0:mac}, ${dut:1:mac}, ${client:0:ip}, ${dut:1:ip})
+gen1 :: Generator(1, ${client:1:mac}, ${dut::mac}, ${client:1:ip}, ${dut:0:ip})
+
 DriverManager(
+    label init,
     wait 1s,
+    set initok 0,
+    goto test_1 $(lt $(gen0/avg.count) 1),
+    set initok $(add $initok 1),
+    label test_1,
+
+    goto test_2 $(lt $(gen1/avg.count) 1),
+    set initok $(add $initok 1),
+
+    label test_2,
+    print "$initok",
+    write gen0/sndavg.reset,
+    write gen1/sndavg.reset,
     write gen0/avg.reset,
     write gen1/avg.reset,
-    wait 4s,
+    goto init $(lt $initok 2),
+    init twice 0,
+    set twice $(add $twice 1),
+    goto init $(lt $twice 2),
+    print "Launching test...",
+    wait $GEN_WAIT,
     print "SAVG0 $(gen0/sndavg.link_rate)",
     print "SAVG1 $(gen1/sndavg.link_rate)",
     print "AVG0 $(gen0/avg.link_rate) $(gen0/avg.count)",
     print "AVG1 $(gen1/avg.link_rate) $(gen1/avg.count)",
-    print "RESULT $(add $(gen0/avg.link_rate) $(gen1/avg.link_rate))")
+
+    set snd $(add $(gen0/sndavg.link_rate) $(gen1/sndavg.link_rate)),
+    set throughput $(add $(gen0/avg.link_rate) $(gen1/avg.link_rate)),
+    print "RESULT-LOSS $(div $throughput $sndavg)",
+    print "RESULT-THROUGHOUT $throughput")

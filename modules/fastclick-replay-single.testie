@@ -1,5 +1,5 @@
 %info
-This is not a test, this is a module to be imported using "%import" to run a pktgen to compute latency of some DUT using FastClick. The traffic is read from traces and replayed in loop.
+Module to replay a trace with throughput and latency testing
 
 Packets are directed towards one NIC of the "server" role using one NIC of the CLIENT and expect to receive packets back on the same NIC. There is no L3 support (ARP).
 
@@ -17,6 +17,7 @@ PKTGEN_BURST_OUT=32
 PKTGEN_REPLAY_COUNT=1
 NIC=0
 CLIENT_NIC=0
+TRACE_TIME=8
 
 nolinktest=0
 
@@ -44,7 +45,7 @@ define($IP1 ${client:$NIC:ip})
 
 DPDKInfo(1048576)
 
-fdIN :: FromDump($trace, STOP false, TIMING false, END_AFTER 8)
+fdIN :: FromDump($trace, STOP false, TIMING false, END_AFTER $TRACE_TIME)
 tdIN :: ToDPDKDevice($port, BLOCKING true, BURST $bout, VERBOSE $txverbose)
 
 
@@ -83,16 +84,6 @@ elementclass Receiver { $mac, $dir |
     chPacket[1] -> Unstrip(14)
 //    -> Print("Bad Packet number in $dir", -1)
     -> Discard;
-}
-
-elementclass ARPHandler { $ip, $mac |
-    c0 :: Classifier(    12/0806 20/0001,
-                            12/0806 20/0002,
-                              -);
-
-    // Respond to ARP Query
-    c0[0] -> Print("ARP") -> arpress :: ARPResponder($ip $eth) -> [1]output
-    c0[2] -> [0]output
 }
 
 receiveIN -> RINswitch :: Switch(2) -> RIN :: Receiver($RAW_INsrcmac,"IN")

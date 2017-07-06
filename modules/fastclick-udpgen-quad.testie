@@ -1,50 +1,66 @@
 %info
-This is not a testie, this is a module to be imported with %import
+UDP Traffic loop Module, using 4 NICs
 
-This will generate UDP traffic using 4 NICs. Packets are expected to come back, and the sum of UDP traffic is accounted for and printed as the RESULT.
+This will generate UDP traffic using 4 NICs.
+Packets are expected to come back, and the sum of UDP
+traffic is accounted for and printed as the RESULT.
+
+GEN_WAIT is the test time, while the client generates $GEN_FLOWS flows of $GEN_BURST packets in loop
+
+%config
+default_role_map={dut:client,server:client}
+require_tags=import,dpdk
 
 %variables
 GEN_BURST=32
 GEN_FLOWS=128
 GEN_LENGTH=64
+GEN_WAIT=5
 
-%script deps=fastclick-next sudo=true delay=2
+%late_variables
+GEN_TOT=EXPAND( $(( $GEN_BURST * $GEN_FLOWS )) )
+
+%script deps=fastclick sudo=true delay=2
 click --dpdk -c 0xff -- PKTGEN_CONFIG
 
 %file PKTGEN_CONFIG
-define($IP0 10.0.0.1)
-define($IP1 10.0.0.2)
 
-elementclass Generator { $port, $srcmac, $dstmac |
+elementclass Generator { $port, $srcmac, $dstmac, $srcip, $dstip |
     tdOUT::ToDPDKDevice($port, BLOCKING true);
 
-    adv1 :: FastUDPFlows(RATE 0, LIMIT $GEN_TOT, LENGTH $GEN_LENGTH, SRCETH $srcmac, DSTETH $dstmac, SRCIP $IP1, DSTIP $IP0, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST)
+    adv1 :: FastUDPFlows(RATE 0, LIMIT $GEN_TOT, LENGTH $GEN_LENGTH, SRCETH $srcmac, DSTETH $dstmac, SRCIP $srcip, DSTIP $dstip, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST)
     -> MarkMACHeader
     -> EnsureDPDKBuffer
-//    -> advq1 :: Unqueue($GEN_BURST)
-    -> advq1 :: MultiReplayUnqueue(STOP -1, QUICK_CLONE true)
+    -> replay :: ReplayUnqueue(STOP -1, QUICK_CLONE true)
     -> sndavg :: AverageCounter()
     -> tdOUT;
 
-    StaticThreadSched(advq1 $port)
+    StaticThreadSched(replay $port)
 
-    FromDPDKDevice($port, MAC $srcmac, MAXTHREADS 1, VERBOSE 99)
-//    -> Print("Rcv $port")
+    fd :: FromDPDKDevice($port, MAC $srcmac, MAXTHREADS 1, VERBOSE 99)
+    -> c0 :: Classifier(12/0806 20/0001,
+                        12/0806 20/0002,
+                        -)[2]
     -> avg :: AverageCounter
-    -> Discard
+    -> Discard;
+
+    c0[0] -> ARPResponder($srcip $srcmac)
+          -> tdOUT;
+    c0[1] -> Discard;
 }
 
-gen0 :: Generator(0, ${client:0:mac}, ${server:0:mac})
-gen1 :: Generator(1, ${client:1:mac}, ${server:1:mac})
-gen2 :: Generator(2, ${client:2:mac}, ${server:2:mac})
-gen3 :: Generator(3, ${client:3:mac}, ${server:3:mac})
+gen0 :: Generator(0, ${client:0:mac}, ${dut:1:mac}, ${client:0:ip}, ${client:1:ip})
+gen1 :: Generator(1, ${client:1:mac}, ${dut:0:mac}, ${client:1:ip}, ${client:0:ip})
+gen2 :: Generator(2, ${client:2:mac}, ${dut:3:mac}, ${client:2:ip}, ${client:3:ip})
+gen3 :: Generator(3, ${client:3:mac}, ${dut:2:mac}, ${client:3:ip}, ${client:2:ip})
+
 DriverManager(
-    wait 1s,
+    wait 2s,
     write gen0/avg.reset,
     write gen1/avg.reset,
     write gen2/avg.reset,
     write gen3/avg.reset,
-    wait 4s,
+    wait $GEN_WAIT,
     print "SAVG0 $(gen0/sndavg.link_rate)",
     print "SAVG1 $(gen1/sndavg.link_rate)",
     print "SAVG2 $(gen2/sndavg.link_rate)",
@@ -53,4 +69,4 @@ DriverManager(
     print "AVG1 $(gen1/avg.link_rate) $(gen1/avg.count)",
     print "AVG2 $(gen2/avg.link_rate) $(gen2/avg.count)",
     print "AVG3 $(gen3/avg.link_rate) $(gen3/avg.count)",
-    print "RESULT $(add $(gen0/avg.link_rate) $(gen1/avg.link_rate) $(gen2/avg.link_rate) $(gen3/avg.link_rate))")
+    print "RESULT-THROUGHPUT $(add $(gen0/avg.link_rate) $(gen1/avg.link_rate) $(gen2/avg.link_rate) $(gen3/avg.link_rate))")

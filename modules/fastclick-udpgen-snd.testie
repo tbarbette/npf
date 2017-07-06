@@ -1,38 +1,46 @@
 %info
-This is not a testie, this is a module to be imported with %import
+UDP Traffic Generator module
 
-This will generate UDP traffic using 1 NICs. There is no accounting of the result, it just generate UDP packets.
+This will generate UDP traffic using 1 NICs. There is no
+accounting of the result, it just generate UDP packets for GEN_WAIT
+seconds (default 5).
+
+GEN_WAIT is the test time, while the client generates $GEN_FLOWS flows of $GEN_BURST packets in loop
+
+%config
+default_role_map={dut:client,server:client}
+require_tags=import,dpdk
 
 %variables
 GEN_BURST=32
 GEN_FLOWS=128
 GEN_LENGTH=64
+GEN_WAIT=5
+
+%late_variables
 GEN_TOT=EXPAND( $(( $GEN_BURST * $GEN_FLOWS )) )
 
 %script deps=fastclick sudo=true delay=2
 click --dpdk -c 0x1 -- PKTGEN_CONFIG
 
 %file PKTGEN_CONFIG
-define($IP0 10.0.0.1)
-define($IP1 10.0.0.2)
-
-elementclass Generator { $port, $srcmac, $dstmac |
+elementclass Generator { $port, $srcmac, $dstmac, $srcip, $dstip |
     tdOUT::ToDPDKDevice($port, BLOCKING true);
 
-    adv1 :: FastUDPFlows(RATE 0, LIMIT $GEN_TOT, LENGTH $GEN_LENGTH, SRCETH $srcmac, DSTETH $dstmac, SRCIP $IP1, DSTIP $IP0, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST)
+    adv1 :: FastUDPFlows(RATE 0, LIMIT $GEN_TOT, LENGTH $GEN_LENGTH, SRCETH $srcmac, DSTETH $dstmac, SRCIP $srcip, DSTIP $dstip, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST)
     -> MarkMACHeader
     -> EnsureDPDKBuffer
-    -> advq1 :: ReplayUnqueue(STOP -1, QUICK_CLONE true)
+    -> replay :: ReplayUnqueue(STOP -1, QUICK_CLONE true)
     -> sndavg :: AverageCounter()
     -> tdOUT;
 
-    StaticThreadSched(advq1 $port)
+    StaticThreadSched(replay $port)
 
 }
 
-gen0 :: Generator(0, ${client:0:mac}, ${server:0:mac})
+gen0 :: Generator(0, ${client:0:mac}, ${dut:0:mac}, ${client:0:ip}, ${dut:0:ip})
 
 DriverManager(
-    wait 5s,
+    wait $GEN_WAIT,
     print "RESULT-TX $(gen0/sndavg.link_rate)"
 )
