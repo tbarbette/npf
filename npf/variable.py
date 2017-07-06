@@ -240,10 +240,17 @@ class RangeVariable(Variable):
             i = self.a
             while i <= self.b:
                 vs.append(i)
+                if i == self.b:
+                    break
                 if i == 0:
-                    i = 1
+                    if self.b > 0:
+                        i = 1
+                    else:
+                        i = -1
                 else:
                     i *= 2
+            if i > self.b:
+                vs.append(self.b)
         else:
             for i in range(self.a, self.b + 1):
                 vs.append(i)

@@ -251,7 +251,10 @@ class Testie:
             imp.imp_v = {}
             for k, val in imp.testie.variables.statics().items():
                 imp.imp_v[k] = val.makeValues()[0]
+
             imp.imp_v.update(v)
+            if hasattr(imp.testie, 'late_variables'):
+                imp.imp_v = imp.testie.late_variables.execute(imp.imp_v, imp.testie)
             imp.testie.create_files(imp.imp_v, imp.get_role())
 
         results = {}
@@ -583,7 +586,11 @@ class Testie:
         return filtered_testies
 
     def parse_script_roles(self):
-        for script in self.scripts:
+        """
+        Look for parameters of scripts and imports for configuration that affects the test, such as NICs parameters like
+        the IP address
+        """
+        for script in (self.scripts + self.imports):
             for k, val in script.params.items():
                 nic_match = re.match(r'(?P<nic_idx>[0-9]+)[:](?P<type>' + NIC.TYPES + '+)', k, re.IGNORECASE)
                 if nic_match:

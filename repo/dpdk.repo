@@ -1,7 +1,7 @@
 //If you want to use your own version of DPDK, just make sure $RTE_SDK is set as an absolute path and $RTE_TARGET environment variable are correctly setted
 
 name=DPDK
-branch=master
+branch=v17.02.1
 url=http://dpdk.org/git/dpdk-stable
 method=git
 bin_folder=$RTE_TARGET/app/
