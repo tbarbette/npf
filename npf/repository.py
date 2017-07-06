@@ -105,7 +105,6 @@ class MethodGit(Method):
             c = gitrepo.remotes.origin.refs[branch]
         else:
             c = branch
-            print("Checked out version %s" % c)
 
         if gitrepo.head.commit != gitrepo.commit(c):
             print("Reseting branch to latest %s" % (c))
