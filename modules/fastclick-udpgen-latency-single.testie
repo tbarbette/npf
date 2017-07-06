@@ -16,6 +16,7 @@ require_tags=import,dpdk
 GEN_BURST=32
 GEN_FLOWS=128
 GEN_LENGTH=64
+GEN_BLOCKING=true
 LIMIT=1024000
 
 %late_variables
@@ -35,7 +36,7 @@ elementclass Numberise {
 
 
 elementclass Generator { $port, $outPort, $srcmac, $dstmac, $outSrcmac, $srcip, $dstip |
-    tdOUT::ToDPDKDevice($port, BLOCKING true);
+    tdOUT::ToDPDKDevice($port, BLOCKING $GEN_BLOCKING);
 
     adv1 :: FastUDPFlows(RATE 0, LIMIT $LIMIT, LENGTH $GEN_LENGTH, SRCETH $srcmac, DSTETH $dstmac, SRCIP $srcip, DSTIP $dstip, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST)
     -> MarkMACHeader
@@ -51,12 +52,21 @@ elementclass Generator { $port, $outPort, $srcmac, $dstmac, $outSrcmac, $srcip, 
     fd :: FromDPDKDevice($outPort, MAC $outSrcmac, MAXTHREADS 1, VERBOSE 99)
     -> c0 :: Classifier(12/0806 20/0001,
                         12/0806 20/0002,
+                        12/0800,
                         -)[2]
     -> Strip(14)
     -> tsd :: TimestampDiff(rt)
     -> Unstrip(14)
     -> avg :: AverageCounter
     -> Discard;
+
+    tsd[1]
+    -> Print("WARNING: Untimestamped packet", -1)
+    -> Discard
+
+    c0[3]
+    -> Print("WARNING: Non-IP packet !")
+    -> Discard
 
     c0[0] -> ARPResponder($srcip $srcmac)
           -> tdOUT;
