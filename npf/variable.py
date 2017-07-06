@@ -109,7 +109,7 @@ class HeadVariable(Variable):
         return vs
 
     def count(self):
-        return sum(self.nums if self.nums > 0 else 1)
+        return sum(self.nums if len(self.nums) > 0 else 1)
 
     def format(self):
         return str

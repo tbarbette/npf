@@ -12,3 +12,4 @@ paramiko
 asteval
 cryptography
 gitdb
+pyasn1
