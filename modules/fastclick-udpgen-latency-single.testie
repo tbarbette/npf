@@ -28,8 +28,6 @@ click --dpdk -c 0x3 -- PKTGEN_CONFIG
 DPDKInfo($NBBUF)
 
 define($replay_count 1)
-define($IP0 10.0.0.1)
-define($IP1 10.0.0.2)
 
 elementclass Numberise {
     input-> Strip(14) -> check :: CheckIPHeader -> nPacket :: NumberPacket(40) -> SetIPChecksum -> Unstrip(14) -> output
@@ -69,7 +67,7 @@ gen0 :: Generator(0, 1, ${client:0:mac}, ${dut:0:mac}, ${client:1:mac}, ${client
 
 DriverManager(
     pause,
-    wait 2s,
+    wait 5s,
 
     print "Launching replay",
     write gen0/avg.reset,
