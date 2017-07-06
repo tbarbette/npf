@@ -75,7 +75,9 @@ class VariableFactory:
             return ExpandVariable(name, result.group(1), vsection)
 
         result = regex.match("HEAD[ ]*\([ ]*\$([^,]+)[ ]*,[ ]*\$([^,]+)[ ]*\)", valuedata)
-        if result and vsection:
+        if result:
+            if vsection is None:
+                raise Exception("HEAD variable without vsection",vsection)
             return HeadVariable(name, vsection.vlist[result.group(1)].makeValues(),
                                 vsection.vlist[result.group(2)].makeValues())
 
@@ -109,7 +111,7 @@ class HeadVariable(Variable):
         return vs
 
     def count(self):
-        return sum(self.nums if len(self.nums) > 0 else 1)
+        return sum(self.nums) if len(self.nums) > 0 else 1
 
     def format(self):
         return str
