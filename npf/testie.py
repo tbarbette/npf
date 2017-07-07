@@ -16,6 +16,8 @@ from npf.types.dataset import Run, Dataset
 
 class RemoteParameters:
     def __init__(self):
+        self.default_role_map = None
+        self.role = None
         self.delay = None
         self.executor = None
         self.bin_paths = None
@@ -34,15 +36,16 @@ class RemoteParameters:
 
 
 def _parallel_exec(param: RemoteParameters):
+    executor = npf.executor(param.role, param.default_role_map)
     time.sleep(param.delay)
-    pid, o, e, c = param.executor.exec(cmd=param.commands,
-                                       stdin=param.stdin,
-                                       timeout=param.timeout,
-                                       bin_paths=param.bin_paths,
-                                       queue=param.queue,
-                                       options=param.options,
-                                       terminated_event=param.terminated_event,
-                                       sudo=param.sudo)
+    pid, o, e, c = executor.exec(cmd=param.commands,
+                                 stdin=param.stdin,
+                                 timeout=param.timeout,
+                                 bin_paths=param.bin_paths,
+                                 queue=param.queue,
+                                 options=param.options,
+                                 terminated_event=param.terminated_event,
+                                 sudo=param.sudo)
     if pid == 0:
         return False, o, e, param.commands
     else:
@@ -287,7 +290,8 @@ class Testie:
                         param.queue = queue
                         param.stdin = t.stdin.content
                         param.timeout = t.config['timeout']
-                        param.executor = npf.executor(script.get_role(), self.config.get_dict("default_role_map"))
+                        param.role = script.get_role()
+                        param.default_role_map = self.config.get_dict("default_role_map")
                         param.delay = script.delay()
                         deps_bin_path = [repo.get_bin_folder() for repo in script.get_deps_repos(self.options)]
                         param.bin_paths = deps_bin_path + [build.get_bin_folder()]
