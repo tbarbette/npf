@@ -2,52 +2,55 @@ import multiprocessing
 import os
 import sys
 import time
-from multiprocessing import Event
 from pathlib import Path
-from queue import Empty, Queue
+from queue import Empty
 from typing import Tuple, Dict
 
 import numpy as np
 
-from npf import npf
 from npf.build import Build
-from npf.node import Node, NIC
+from npf.node import NIC
 from npf.section import *
 from npf.types.dataset import Run, Dataset
 
 
-def _parallel_exec(exec_args: Tuple['Testie', SectionScript, str, 'Build', Queue, Event, str]):
-    (testie, scriptSection, commands, build, queue, terminated_event, deps_bin_path) = exec_args
+class RemoteParameters:
+    def __init__(self):
+        self.delay = None
+        self.executor = None
+        self.bin_paths = None
+        self.queue = None
+        self.terminated_event = None
+        self.sudo = None
+        self.autokill = None
+        self.queue = None
+        self.terminated_event = None
+        self.timeout = None
+        self.options = None
+        self.stdin = None
+        self.commands = None
 
-    time.sleep(scriptSection.delay())
-    pid, o, e, c = npf.executor(scriptSection.get_role(), testie.config.get_dict("default_role_map")).exec(cmd=commands,
-                                                                                                           stdin=testie.stdin.content,
-                                                                                                           timeout=
-                                                                                                           testie.config[
-                                                                                                               "timeout"],
-                                                                                                           bin_paths=deps_bin_path + [
-                                                                                                               build.get_bin_folder()],
-                                                                                                           queue=queue,
-                                                                                                           options=testie.options,
-                                                                                                           terminated_event=terminated_event,
-                                                                                                           sudo=scriptSection.params.get(
-                                                                                                               "sudo",
-                                                                                                               False))
+    pass
+
+
+def _parallel_exec(param: RemoteParameters):
+    time.sleep(param.delay)
+    pid, o, e, c = param.executor.exec(cmd=param.commands,
+                                       stdin=param.stdin,
+                                       timeout=param.timeout,
+                                       bin_paths=param.bin_paths,
+                                       queue=param.queue,
+                                       options=param.options,
+                                       terminated_event=param.terminated_event,
+                                       sudo=param.sudo)
     if pid == 0:
-        return False, o, e, commands
+        return False, o, e, param.commands
     else:
-        # By default, we kill all other scripts when the first finishes
-        autokill = scriptSection.params.get("autokill", testie.config["autokill"])
-        if type(autokill) is str and autokill.lower() == "false":
-            autokill = False
-        else:
-            autokill = bool(autokill)
-
-        if autokill or pid == -1:
-            Testie.killall(queue, terminated_event)
+        if param.autokill or pid == -1:
+            Testie.killall(param.queue, param.terminated_event)
         if pid == -1:
-            return -1, o, e, commands
-        return True, o, e, commands
+            return -1, o, e, param.commands
+        return True, o, e, param.commands
 
 
 class ScriptInitException(Exception):
@@ -190,9 +193,9 @@ class Testie:
                 missings.append(tag)
         return missings
 
-    def create_files(self, v, selfRole=None):
+    def create_files(self, v, self_role=None):
         for s in self.files:
-            role = s.get_role() if s.get_role() else selfRole
+            role = s.get_role() if s.get_role() else self_role
 
             p = SectionVariable.replace_variables(v, s.content, role, self.config.get_dict("default_role_map"))
             if self.options.show_files:
@@ -269,26 +272,36 @@ class Testie:
                 queue = m.Queue()
                 terminated_event = m.Event()
 
-                import_scripts = []
+                remote_params = []
+                for t, v, role in [(imp.testie, imp.imp_v, imp.get_role()) for imp in self.imports] + [(self, v, None)]:
+                    for script in t.scripts:
+                        if not script.get_type() in allowed_types:
+                            continue
+                        param = RemoteParameters()
+                        param.commands = SectionVariable.replace_variables(v, script.content,
+                                                                           role if role else script.get_role(),
+                                                                           self.config.get_dict(
+                                                                               "default_role_map"))
+                        param.terminated_event = terminated_event
+                        param.options = self.options
+                        param.queue = queue
+                        param.stdin = t.stdin.content
+                        param.timeout = t.config['timeout']
+                        param.executor = npf.executor(script.get_role(), self.config.get_dict("default_role_map"))
+                        param.delay = script.delay()
+                        deps_bin_path = [repo.get_bin_folder() for repo in script.get_deps_repos(self.options)]
+                        param.bin_paths = deps_bin_path + [build.get_bin_folder()]
+                        param.sudo = script.params.get("sudo", False)
+                        autokill = script.params.get("autokill", t.config["autokill"])
+                        if type(autokill) is str and autokill.lower() == "false":
+                            autokill = False
+                        else:
+                            autokill = bool(autokill)
+                        param.autokill = autokill
 
-                for imp in self.imports:
-                    import_scripts += [(imp.testie, script,
-                                        SectionVariable.replace_variables(imp.imp_v, script.content, imp.get_role(),
-                                                                          self.config.get_dict("default_role_map")),
-                                        build, queue, terminated_event,
-                                        [repo.get_bin_folder() for repo in script.get_deps_repos(self.options)])
-                                       for script in imp.testie.scripts if script.get_type() in allowed_types]
+                        remote_params.append(param)
 
-                testie_scripts = [(self, script, SectionVariable.replace_variables(v, script.content, script.get_role(),
-                                                                                   self.config.get_dict(
-                                                                                       "default_role_map")), build,
-                                   queue,
-                                   terminated_event,
-                                   [repo.get_bin_folder() for repo in script.get_deps_repos(self.options)])
-                                  for script in self.scripts if script.get_type() in allowed_types]
-                scripts = import_scripts + testie_scripts
-
-                n = len(scripts)
+                n = len(remote_params)
                 if n == 0:
                     return {}, None, None
 
@@ -296,11 +309,11 @@ class Testie:
                     if self.options.allow_mp:
                         p = multiprocessing.Pool(n)
                         parallel_execs = p.map(_parallel_exec,
-                                               scripts)
+                                               remote_params)
                     else:
                         parallel_execs = []
-                        for script in scripts:
-                            parallel_execs.append(_parallel_exec(script))
+                        for remoteParam in remote_params:
+                            parallel_execs.append(_parallel_exec(remoteParam))
 
                 except KeyboardInterrupt:
                     if self.options.allow_mp:
@@ -325,8 +338,8 @@ class Testie:
 
                 for iparallel, (r, o, e, script) in enumerate(parallel_execs):
                     if len(self.scripts) > 1:
-                        output += "Output of script %d :\n" % (i)
-                        err += "Output of script %d :\n" % (i)
+                        output += "Output of script %d :\n" % i
+                        err += "Output of script %d :\n" % i
 
                     if r:
                         worked = True
@@ -357,7 +370,7 @@ class Testie:
                             results.setdefault(result_type, []).append(n)
                             has_values = True
                         else:
-                            print("Result for %s is 0 !" % (result_type))
+                            print("Result for %s is 0 !" % result_type)
                             print("stdout:")
                             print(output)
                             print("stderr:")
@@ -439,7 +452,7 @@ class Testie:
 
                 if len(results) == 0:
                     if not options.quiet:
-                        print("Aborting as init scripts did not run correctly !");
+                        print("Aborting as init scripts did not run correctly !")
                     raise ScriptInitException()
 
     def execute_all(self, build, options, prev_results: Dataset = None, do_test=True,
