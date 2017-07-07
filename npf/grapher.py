@@ -339,7 +339,7 @@ class Grapher:
             plots.setdefault('common',[]).append(result_type)
 
         for result_type, data in data_types.items():
-            if result_type not in plots['common']:
+            if not 'common' in plots or result_type not in plots['common']:
                 plots[result_type] = [result_type]
 
         ret = {}
