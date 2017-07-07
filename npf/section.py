@@ -439,7 +439,9 @@ class SectionConfig(SectionVariable):
         key = key.lower()
         var = self.vlist[key]
         try:
-            v = var.vdict
+            v = {}
+            for k,l in var.vdict.items():
+                v[k.strip()] = l
         except AttributeError:
             print("WARNING : Error in configuration of %s" % key)
             return {key: var.makeValues()[0]}

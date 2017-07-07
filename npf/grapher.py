@@ -69,17 +69,21 @@ class Grapher:
         for script in self.scripts:
             if var in script.config:
                 d = script.config.get_dict(var)
+                lk = key.lower()
                 if result_type is None:
                     for k,v in d.items():
-                        if k.lower() == key.lower():
+                        if k.lower() == lk:
                             return v
                     return default
                 else:
-                    if key + "-" + result_type in d:
-                        return d.get(key + "-" + result_type)
-                    else:
-                        return d.get(key, default)
-
+                    lkr = (key + "-" + result_type).lower()
+                    for k,v in d.items():
+                        if k.lower() == lkr:
+                            return v
+                    for k,v in d.items():
+                        if k.lower() == lk:
+                            return v
+                    return default
         return default
 
     def var_name(self, key, result_type=None):
@@ -330,10 +334,12 @@ class Grapher:
                 print("Output written to %s" % type_filename)
 
         plots=OrderedDict()
+
+        for result_type in self.configlist('graph_subplot_results',[]):
+            plots.setdefault('common',[]).append(result_type)
+
         for result_type, data in data_types.items():
-            if result_type in self.configlist('graph_subplot_results',[]):
-                plots.setdefault('common',[]).append(result_type)
-            else:
+            if result_type not in plots['common']:
                 plots[result_type] = [result_type]
 
         ret = {}
