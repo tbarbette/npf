@@ -81,6 +81,7 @@ DriverManager(
 
     print "Launching replay",
     write gen0/avg.reset,
+    write gen0/sndavg.reset,
     write gen0/replay.stop $replay_count,
     write gen0/replay.active true,
     pause,
@@ -88,4 +89,5 @@ DriverManager(
     print "AVG0 $(gen0/avg.link_rate) $(gen0/avg.count)",
     print "RESULT-LATENCY $(gen0/tsd.average)",
     print "RESULT-TX $(gen0/sndavg.link_rate)",
+    print "RESULT-PPS $(gen0/avg.rate)",
     print "RESULT-THROUGHPUT $(gen0/avg.link_rate)")
