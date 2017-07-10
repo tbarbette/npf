@@ -160,16 +160,6 @@ class Testie:
                     raise Exception('Modules cannot have roles, their importer defines it')
                 script._role = imp.get_role()
 
-        for excludes in self.config.get_list("role_exclude"):
-            s = excludes.split('+')
-            m = set()
-            for role in s:
-                node = npf.node(role)
-                if node in m:
-                    raise Exception(
-                        "Roles %s cannot be on the same node ! Please use --cluster argument to set them accross nodes" % ' and '.join(
-                            s))
-                m.add(node)
 
     def build_deps(self, repo_under_test: List[Repository]):
         # Check for dependencies
@@ -585,10 +575,13 @@ class Testie:
             testies.append(testie)
         else:
             for root, dirs, files in os.walk(testie_path):
-                for file in files:
-                    if file.endswith(".testie"):
-                        testie = Testie(os.path.join(root, file), options=options, tags=tags)
-                        testies.append(testie)
+                for filename in files:
+                    if filename.endswith(".testie"):
+                        try:
+                            testie = Testie(os.path.join(root, filename), options=options, tags=tags)
+                            testies.append(testie)
+                        except Exception as e:
+                            print("Error during the parsing of %s :\n%s" % (filename,e))
 
         filtered_testies = []
         for testie in testies:
@@ -598,9 +591,25 @@ class Testie:
                     print(
                         "Passing testie %s as it lacks tags %s" % (testie.filename, ','.join(missing_tags)))
             else:
-                filtered_testies.append(testie)
+                if testie.test_roles_mapping():
+                    filtered_testies.append(testie)
+                else:
+                    raise Exception(
+                        "Roles %s cannot be on the same node ! Please use --cluster argument to set them accross nodes" % ' and '.join(
+                            s))
 
         return filtered_testies
+
+    def test_roles_mapping(self):
+        for excludes in self.config.get_list("role_exclude"):
+            s = excludes.split('+')
+            m = set()
+            for role in s:
+                node = npf.node(role)
+                if node in m:
+                    return False
+                m.add(node)
+        return True
 
     def parse_script_roles(self):
         """
