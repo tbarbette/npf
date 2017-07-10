@@ -426,6 +426,7 @@ class SectionConfig(SectionVariable):
         self.__add_dict("graph_combine_variables",{})
         self.__add_list("graph_subplot_results", [])
         self.__add_list("graph_display_statics", [])
+        self.__add_list("graph_variables_as_series", [])
         self.__add("graph_text",'')
         self.__add("legend_loc", "best")
         self.__add("var_hide", {})

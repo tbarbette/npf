@@ -140,8 +140,6 @@ class Grapher:
         if series is None:
             series = []
 
-        versions = []
-
         ymin, ymax = (float('inf'), 0)
 
         # If no graph variables, use the first serie
@@ -150,7 +148,7 @@ class Grapher:
             for run, results in series[0][2].items():
                 graph_variables.append(run)
 
-        #Get all scripts, find versions
+        #Get all scripts
         for i, (testie, build, all_results) in enumerate(series):
             self.scripts.add(testie)
 
@@ -200,7 +198,6 @@ class Grapher:
 
             if new_results:
                 filtered_series.append((testie, build, new_results))
-                versions.append(build.pretty_name())
             else:
                 print("No valid data for %s" % build)
         series = filtered_series
@@ -240,8 +237,36 @@ class Grapher:
                 if new_results:
                     transformed_series.append((testie, build, new_results))
             series = transformed_series
+
+        #graph_variables_as_series will force a variable to be considered as
+        # a serie. This is different from var_serie which will define
+        # what variable to use as a serie when there is only one serie
+        for to_get_out in self.configlist('graph_variables_as_series',[]):
+            values = vars_values[to_get_out]
+            del vars_values[to_get_out]
+
+            transformed_series = []
+            for i, (testie, build, all_results) in enumerate(series):
+                new_series = {}
+
+                for run, run_results in all_results.items():
+                    variables = run.variables.copy()
+                    new_run_results = {}
+                    value = variables[to_get_out]
+                    del variables[to_get_out]
+                    new_series.setdefault(value,OrderedDict())[Run(variables)] = run_results
+
+                for value,data in new_series.items():
+                    nbuild = build.copy()
+                    nbuild._pretty_name = nbuild.pretty_name() + (" - %s = %s" % (to_get_out,str(value)))
+                    transformed_series.append((testie, nbuild, data))
+
+            series = transformed_series
+
+        versions = []
         vars_all = set()
         for i, (testie, build, all_results) in enumerate(series):
+            versions.append(build.pretty_name())
             for run, run_results in all_results.items():
                  vars_all.add(run)
         vars_all = list(vars_all)

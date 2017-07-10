@@ -6,6 +6,7 @@ from pathlib import Path
 import re
 from npf import variable, npf
 from npf.types.dataset import Run, Dataset
+import copy
 
 renametable = {
     'npf.script': 'npf.testie',
@@ -32,6 +33,9 @@ class Build:
         self.repo = repo
         self.version = version
         self._pretty_name = None
+
+    def copy(self):
+        return copy.copy(self)
 
     def pretty_name(self):
         if self._pretty_name:
