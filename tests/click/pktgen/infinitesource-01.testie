@@ -9,7 +9,6 @@ timeout=10
 //Accept 1% changes
 acceptable=0.02
 //Consider there was a problem if <1G
-require_tags=dpdk
 var_names={BURST:Burst,LENGTH:Length,result:Throughput}
 var_unit={BURST:Packets,LENGTH:Bytes,result:BPS}
 title=InfiniteSource Packet Generation

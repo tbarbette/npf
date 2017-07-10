@@ -26,7 +26,7 @@ compare_watcher() {
     test=watcher
     python=$1
     echo "Executing watcher test..."
-    $python npf-watch.py click-2017 --force-test --testie tests/click/ --onerun --history 2 --tags fast-regression &> int_res
+    $python npf-watch.py click-2017 --force-test --testie tests/click/pktgen/infinitesource-01.testie --onerun --history 2 --tags fast-regression &> int_res
     if [ $? -ne 0 ] ; then
         echo "npf-watch.py returned an error for test $test !"
         cat int_res
