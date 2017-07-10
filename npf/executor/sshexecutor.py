@@ -22,7 +22,7 @@ class SSHExecutor:
         ssh.connect(self.addr, username=self.user)
         return ssh
 
-    def exec(self,cmd, terminated_event = None, bin_paths : List[str] = None, queue: Queue = None, options = None, stdin = None, timeout=None, sudo=False):
+    def exec(self, cmd, terminated_event = None, bin_paths : List[str] = None, queue: Queue = None, options = None, stdin = None, timeout=None, sudo=False):
         if terminated_event is None:
             terminated_event = multiprocessing.Event()
 
@@ -104,7 +104,21 @@ class SSHExecutor:
         #     return -1, s_output, s_err, p.returncode
 
     def writeFile(self,filename,content):
-        #TODO : write over ssh
         f = open(filename, "w")
         f.write(content)
         f.close()
+#        if self.user:
+#            os.system("scp %s %s@%s:%s/" % (filename, self.user,self.addr,self.path))
+#        else:
+#            os.system("scp %s %s:%s/" % (filename, self.addr,self.path))
+
+
+        with paramiko.SSHClient() as ssh:
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            ssh.load_system_host_keys()
+            ssh.connect(self.addr, 22, username=self.user)
+
+            transport = ssh.get_transport()
+            with transport.open_channel(kind='session') as channel:
+                channel.exec_command('cat > %s/%s' % (self.path,filename))
+                channel.sendall(content)
