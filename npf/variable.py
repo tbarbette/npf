@@ -107,7 +107,12 @@ class HeadVariable(Variable):
             return ['']
         vs = []
         for i in self.nums:
-            vs.append((self.join.join(self.values[:i]), i))
+            try:
+                if type(i) is str:
+                    i = int(i.strip())
+                vs.append((self.join.join(self.values[:i]), i))
+            except:
+                print("ERROR in HEAD variable : %s is not a number" % str(i))
         return vs
 
     def count(self):
