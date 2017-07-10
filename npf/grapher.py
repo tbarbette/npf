@@ -205,7 +205,11 @@ class Grapher:
                 print("No valid data for %s" % build)
         series = filtered_series
 
-        # Transform results to variables as the graph_result_as_variable options asks
+        # Transform results to variables as the graph_result_as_variable config
+        #  option. It is a dict in the format
+        #  result-a+result-b+result-c:new_name
+        #  i.e. the first is a + separated list of result and the second member
+        #  a new name for the combined vairable
         for result_types,var_name in self.configdict('graph_result_as_variable',{}).items():
             result_to_variable_map=set()
             for result_type in result_types.split('+'):
@@ -336,6 +340,9 @@ class Grapher:
         plots=OrderedDict()
 
         for result_type in self.configlist('graph_subplot_results',[]):
+            if result_type not in data_types.keys():
+                print("WARNING: Unknown data type to include as subplot : %s" % result_type)
+                continue
             plots.setdefault('common',[]).append(result_type)
 
         for result_type, data in data_types.items():

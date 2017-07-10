@@ -395,31 +395,46 @@ class SectionConfig(SectionVariable):
         super().__init__('config')
         self.content = ''
         self.vlist = {}
-        self.__add("accept_outliers_mult", 1)
-        self.__add("accept_variance", 1)
-        self.__add("timeout", 30)
-        self.__add("acceptable", 0.01)
-        self.__add("n_runs", 3)
-        self.__add("n_retry", 0)
+
+        #Environment
         self.__add("default_repo", None)
-        self.__add("title", None)
+
+
+        #Regression related
         self.__add_dict("accept_zero", {})
         self.__add("n_supplementary_runs", 3)
-        self.__add_dict("var_names", {})
-        self.__add_dict("var_unit", {"result": "BPS"})
+        self.__add("acceptable", 0.01)
+        self.__add("accept_outliers_mult", 1)
+        self.__add("accept_variance", 1)
+
+
+        #Test related
+        self.__add("n_runs", 3)
+        self.__add("n_retry", 0)
+        self.__add_list("result_regex", [
+            r"RESULT(:?-(?P<type>[A-Z0-9_]+))?[ \t]+(?P<value>[0-9.]+)[ ]*(?P<multiplier>[nµgmk]?)(?P<unit>s|b|byte|bits)?"])
         self.__add_list("results_expect", [])
+        self.__add("autokill", True)
+        self.__add_dict("env", {}) #Unimplemented yet
+        self.__add("timeout", 30)
+
+        #Role related
+        self.__add_dict("default_role_map",{})
+        self.__add_list("role_exclude", [])
+
+        #Graph options
+        self.__add_dict("graph_combine_variables",{})
+        self.__add_list("graph_subplot_results", [])
+        self.__add_list("graph_display_statics", [])
+        self.__add("graph_text",'')
         self.__add("legend_loc", "best")
         self.__add("var_hide", {})
         self.__add("var_log", [])
         self.__add_dict("var_lim", {})
         self.__add("var_serie",None)
-        self.__add("autokill", True)
-        self.__add_dict("env", {}) #Unimplemented yet
-        self.__add_dict("default_role_map",{})
-        self.__add_list("role_exclude", [])
-        self.__add_list("graph_subplot_results", [])
-        self.__add_list("result_regex", [
-            r"RESULT(:?-(?P<type>[A-Z0-9_]+))?[ \t]+(?P<value>[0-9.]+)[ ]*(?P<multiplier>[nµgmk]?)(?P<unit>s|b|byte|bits)?"])
+        self.__add_dict("var_names", {})
+        self.__add_dict("var_unit", {"result": "BPS"})
+        self.__add("title", None)
         self.__add_list("require_tags", [])
 
     def var_name(self, key):
