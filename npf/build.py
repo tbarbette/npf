@@ -33,6 +33,8 @@ class Build:
         self.repo = repo
         self.version = version
         self._pretty_name = None
+        self._marker = '.'
+        self._line = '-'
 
     def copy(self):
         return copy.copy(self)

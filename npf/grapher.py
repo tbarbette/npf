@@ -13,7 +13,7 @@ from npf.types import dataset
 from npf.types.dataset import Run
 from npf.variable import is_numeric, get_numeric
 from npf import npf, variable
-
+from matplotlib.lines import Line2D
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter, FormatStrFormatter
@@ -29,6 +29,8 @@ for i in range(len(graphcolor)):
     r, g, b = graphcolor[i]
     graphcolor[i] = (r / 255., g / 255., b / 255.)
 
+graphmarkers = ['o','^','s','D','*','x','.','_','H','>','<','v','d']
+graphlines = ['-','--','-.',':']
 
 def all_num(l):
     for x in l:
@@ -247,6 +249,7 @@ class Grapher:
 
             transformed_series = []
             for i, (testie, build, all_results) in enumerate(series):
+                build._line = graphlines[i % len(graphlines)]
                 new_series = {}
 
                 for run, run_results in all_results.items():
@@ -256,9 +259,10 @@ class Grapher:
                     del variables[to_get_out]
                     new_series.setdefault(value,OrderedDict())[Run(variables)] = run_results
 
-                for value,data in new_series.items():
+                for i,(value,data) in enumerate(new_series.items()):
                     nbuild = build.copy()
                     nbuild._pretty_name = nbuild.pretty_name() + (" - %s = %s" % (to_get_out,str(value)))
+                    nbuild._marker = graphmarkers[i % len(graphmarkers)]
                     transformed_series.append((testie, nbuild, data))
 
             series = transformed_series
@@ -394,7 +398,7 @@ class Grapher:
                     self.do_simple_barplot(versions, result_type, data)
                 elif ndyn == 1 and len(vars_all) > 2:
                     """One dynamic variable used as X, series are version line plots"""
-                    self.do_line_plot(versions, key, result_type, data)
+                    self.do_line_plot(versions, key, result_type, data, [build._marker for testie,build,data in series], [build._line for testie,build,data in series])
                 else:
                     """Barplot. X is all seen variables combination, series are version"""
                     self.do_barplot(series, vars_all, dyns, versions, result_type, data)
@@ -493,7 +497,7 @@ class Grapher:
         plt.gca().set_xlim(0, len(versions))
 
 
-    def do_line_plot(self, versions, key, result_type, data):
+    def do_line_plot(self, versions, key, result_type, data, markers, linestyles):
 
         xmin, xmax = (float('inf'), 0)
 
@@ -510,8 +514,8 @@ class Grapher:
                 x = ax[0]
             data = np.asarray((x,ax[1],ax[2]))
             data[data[:, 1].argsort()]
-            plt.plot(data[0], data[1], label=versions[i], color=c)
-            plt.errorbar(data[0], data[1], yerr=data[2], fmt='o', label=None, color=c)
+            plt.plot(data[0], data[1], label=versions[i], color=c, linestyle=linestyles[i])
+            plt.errorbar(data[0], data[1], yerr=data[2], marker=markers[i], label=None, linestyle=' ', color=c)
             xmin = min(xmin, min(x))
             xmax = max(xmax, max(x))
 
