@@ -351,11 +351,18 @@ class Grapher:
 
         ret = {}
         for whatever,figure in plots.items():
+            text = self.config("graph_text")
+
+            if len(self.configlist("graph_display_statics")) > 0:
+                for stat in self.configlist("graph_display_statics"):
+                    if text == '' or text[-1] != "\n":
+                        text+="\n"
+                    text+= self.var_name(stat)+ " : " + ', '.join([str(val) for val in vars_values[stat]])
+
             for isubplot,result_type in enumerate(figure):
                 data = data_types[result_type]
 
-                if len(figure) > 1:
-                    plt.subplot(len(figure), 1, isubplot + 1)
+                plt.subplot(len(figure) + (1 if text else 0), 1, isubplot + 1)
 
                 if ndyn == 0:
                     """No dynamic variables : do a barplot X=version"""
@@ -407,6 +414,9 @@ class Grapher:
                 if title and isubplot == 0:
                     plt.title(title)
 
+#                if len(figure > 0):
+#                    plt.title(self.var_name())
+
                 try:
                     plt.tight_layout()
                 except ValueError:
@@ -416,22 +426,27 @@ class Grapher:
                         print(dyn)
                     return None
 
-                if len(figure) > 1:
-                    if isubplot < len(figure) -1:
-                        continue
-                    else:
-                        result_type = 'common'
-                if not filename:
-                    buf = io.BytesIO()
-                    plt.savefig(buf, format='png')
-                    buf.seek(0)
-                    ret[result_type] = buf.read()
+            if text:
+                plt.subplot(len(figure) +1 , 1, len(figure) + 1)
+                plt.axis('off')
+                plt.figtext(.05,(0.5 / (len(figure) + 1)), text.replace("\\n","\n"),verticalalignment='center',horizontalalignment='left')
+
+            if len(figure) > 1:
+                if isubplot < len(figure) -1:
+                    continue
                 else:
-                    type_filename =  npf.build_filename(testie, build, options.graph_filename, statics, 'pdf', result_type)
-                    plt.savefig(type_filename)
-                    ret[result_type] = None
-                    print("Graph of test written to %s" % type_filename)
-                plt.clf()
+                    result_type = 'common'
+            if not filename:
+                buf = io.BytesIO()
+                plt.savefig(buf, format='png')
+                buf.seek(0)
+                ret[result_type] = buf.read()
+            else:
+                type_filename =  npf.build_filename(testie, build, options.graph_filename, statics, 'pdf', result_type)
+                plt.savefig(type_filename)
+                ret[result_type] = None
+                print("Graph of test written to %s" % type_filename)
+            plt.clf()
         return ret
 
     def reject_outliers(self, result, testie):
