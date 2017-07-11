@@ -43,10 +43,10 @@ full:TEST_TIME={1,2,3}
 
 fastregression:TEST_TIME=2
 
-%script
+%script@dut
 click -n 4 -c 0xf -- CONFIG || click --dpdk -n 4 -c 0xf -- CONFIG
 
-%file CONFIG
+%file@dut CONFIG
 
 //fd0 :: FromDPDKDevice(0);
 td0 :: ToDPDKDevice(0, BLOCKING $BLOCK);
