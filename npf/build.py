@@ -90,7 +90,7 @@ class Build:
             for key, val in sorted(run.variables.items()):
                 if type(val) is tuple:
                     val = val[1]
-                v.append(key + ":" + str(val).replace(':','\:'))
+                v.append((key + ":" + str(val).replace(':','\:')).replace(',','\,'))
             type_results = []
             for t,r in results.items():
                 str_results = []
@@ -100,7 +100,7 @@ class Build:
                     for val in r:
                         str_results.append(str(val))
                 type_results.append(t+':'+(','.join(str_results)))
-            f.write(','.join(v.replace(',','\,')) + "={" + '},{'.join(type_results) + "}\n")
+            f.write(','.join(v) + "={" + '},{'.join(type_results) + "}\n")
         f.close()
 
     def load_results(self, testie):
