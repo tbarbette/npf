@@ -100,7 +100,7 @@ class Build:
                     for val in r:
                         str_results.append(str(val))
                 type_results.append(t+':'+(','.join(str_results)))
-            f.write(','.join(v) + "={" + '},{'.join(type_results) + "}\n")
+            f.write(','.join(v.replace(',','\,')) + "={" + '},{'.join(type_results) + "}\n")
         f.close()
 
     def load_results(self, testie):
@@ -114,8 +114,9 @@ class Build:
                 variables_data, results_data = line.split('=')
 
                 variables = OrderedDict()
-                for v_data in variables_data.split(','):
-                    if v_data:
+
+                for v_data in re.split(r'(?<!\\),', variables_data):
+                    if v_data.strip():
                         k, v = re.split(r'(?<!\\):', v_data)
                         variables[k] = variable.get_numeric(v) if testie.variables.is_numeric(k) else str(v).replace('\:',':')
                 results = {}
@@ -124,7 +125,7 @@ class Build:
                 if len(results_data) == 1 and results_data[0].strip() == '':
                     pass
                 else:
-                    for type,results_type_data in [x.split(':') for x in results_data]:
+                    for type, results_type_data in [x.split(':') for x in results_data]:
                         results_type_data = results_type_data.split(',')
                         if len(results_type_data) == 1 and results_type_data[0].strip() == '':
                             type_results = None
