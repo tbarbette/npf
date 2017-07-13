@@ -109,7 +109,7 @@ def var_divider(testie: 'Testie', key: str, result_type):
     return 1
 
 
-def convert_to_xye(datasets: List[Tuple[Dataset, 'Testie']], run_list, key) -> Dict[ResultType,List[Tuple]]:
+def convert_to_xye(datasets: List[Tuple[Dataset, 'Testie']], run_list, key, do_sort) -> Dict[ResultType,List[Tuple]]:
     data_types = OrderedDict()
     all_result_types = set()
 
@@ -141,9 +141,17 @@ def convert_to_xye(datasets: List[Tuple[Dataset, 'Testie']], run_list, key) -> D
                     y.setdefault(result_type, []).append(np.nan)
                     e.setdefault(result_type, []).append(np.nan)
         for result_type in x.keys():
-            order = np.argsort(x[result_type])
-            data_types.setdefault(result_type, []).append(
-                (np.array(x[result_type])[order], np.array(y[result_type])[order], np.array(e[result_type])[order]))
+            if not do_sort:
+                ox = x[result_type]
+                oy = y[result_type]
+                oe = e[result_type]
+            else:
+                order = np.argsort(x[result_type])
+                ox = np.array(x[result_type])[order]
+                oy = np.array(y[result_type])[order]
+                oe = np.array(e[result_type])[order]
+
+            data_types.setdefault(result_type, []).append((ox,oy,oe))
     return data_types
 
 

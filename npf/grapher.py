@@ -351,12 +351,15 @@ class Grapher:
 
         if ndyn == 0:
             key = "version"
+            do_sort = False
         elif ndyn == 1:
             key = dyns[0]
+            do_sort = True
         else:
             key = "Variables"
+            do_sort = False
 
-        data_types = dataset.convert_to_xye([(all_results,script) for script, build, all_results in series],vars_all,key)
+        data_types = dataset.convert_to_xye([(all_results,script) for script, build, all_results in series],vars_all,key,do_sort=do_sort)
 
         if options.output is not None:
             for result_type,data in data_types.items():
@@ -494,6 +497,8 @@ class Grapher:
 
         ticks = np.arange(ndata) + 0.5
 
+
+        x = [s[0] for s in data]
         y = [s[1] for s in data]
         self.format_figure(result_type)
         plt.bar(ticks, y, label=versions[i], color=graphcolor[i % len(graphcolor)], width=width)
