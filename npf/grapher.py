@@ -240,11 +240,16 @@ class Grapher:
                     transformed_series.append((testie, build, new_results))
             series = transformed_series
 
+        #List of static variables to use in filename
+        statics = {}
+
         #graph_variables_as_series will force a variable to be considered as
         # a serie. This is different from var_serie which will define
         # what variable to use as a serie when there is only one serie
         for to_get_out in self.configlist('graph_variables_as_series',[]):
             values = vars_values[to_get_out]
+            if len(values) == 1:
+                statics[to_get_out] = list(values)[0]
             del vars_values[to_get_out]
 
             transformed_series = []
@@ -277,7 +282,6 @@ class Grapher:
         vars_all.sort()
 
         dyns = []
-        statics = {}
         for k, v in vars_values.items():
             if len(v) > 1:
                 dyns.append(k)
