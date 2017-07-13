@@ -171,7 +171,7 @@ def main():
         for testie in testies:
             print("Executing testie %s" % testie.filename)
             try:
-                all_results,init_done = testie.execute_all(b,options=args)
+                all_results, init_done = testie.execute_all(b,options=args)
                 if all_results is None:
                     continue
             except ScriptInitException:

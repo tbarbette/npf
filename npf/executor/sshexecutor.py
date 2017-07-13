@@ -4,7 +4,7 @@ import time
 from multiprocessing import Queue
 from typing import List
 
-import paramiko as paramiko
+
 
 
 class SSHExecutor:
@@ -16,6 +16,7 @@ class SSHExecutor:
         #Executor should not make any connection in init as parameters can be overwritten afterward
 
     def get_connection(self):
+        import paramiko
         ssh = paramiko.SSHClient()
         ssh.load_system_host_keys()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -112,7 +113,7 @@ class SSHExecutor:
 #        else:
 #            os.system("scp %s %s:%s/" % (filename, self.addr,self.path))
 
-
+        import paramiko
         with paramiko.SSHClient() as ssh:
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             ssh.load_system_host_keys()

@@ -1,9 +1,13 @@
 import os
 
+import iterutils as iterutils
 import numpy as np
 import pydotplus as pydotplus
 from orderedset import OrderedSet
 from sklearn import tree
+from collections import OrderedDict
+
+from typing import List
 
 from npf.build import Build
 from npf.testie import Testie
@@ -12,88 +16,93 @@ from npf.types.dataset import Dataset
 
 class Statistics:
     @staticmethod
-    def run(build:Build, all_results:Dataset, testie:Testie,max_depth=3,filename=None):
+    def run(build: Build, all_results: Dataset, testie: Testie, max_depth=3, filename=None):
         print("Building dataset...")
-        X,y = Statistics.buildDataset(all_results,testie)
-        print("Learning dataset built with %d samples and %d features..." % (X.shape[0],X.shape[1]))
-        clf = tree.DecisionTreeRegressor(max_depth=max_depth)
-        clf = clf.fit(X,y)
+        for result_type, X, y, dtype in Statistics.buildDataset(all_results, testie):
+            print("Learning dataset built with %d samples and %d features..." % (X.shape[0], X.shape[1]))
+            clf = tree.DecisionTreeRegressor(max_depth=max_depth)
+            clf = clf.fit(X, y)
 
-        if max_depth is None or max_depth > 8:
-            print("No tree graph when maxdepth is > 8")
-        else:
-            dot_data = tree.export_graphviz(clf, out_file=None, filled=True,rounded=True,special_characters=True,
-                                        feature_names=testie.variables.dtype()['names'])
-            graph = pydotplus.graph_from_dot_data(dot_data)
-            if filename:
-                f = filename
+            if max_depth is None or max_depth > 8:
+                print("No tree graph when maxdepth is > 8")
             else:
-                f = build.result_path(testie.filename,'pdf',suffix='_clf')
-            graph.write(f,format=os.path.splitext(f)[1][1:])
-            print("Decision tree visualization written to %s" % f)
-
-        print("")
-        print("Feature importances :")
-        # noinspection PyUnresolvedReferences
-        for key,f in zip(testie.variables.dtype()['names'],clf.feature_importances_):
-            print("  %s : %0.2f" % (key,f))
-
-
-        vars_values = {}
-        for run,results in all_results.items():
-            for k,v in run.variables.items():
-                vars_values.setdefault(k,set()).add(v)
-
-        print('')
-        print("Better :")
-        best=X[y['result'].argmax()]
-        print("  ",end='')
-        f = next(iter(all_results.items()))
-        for i,(k,v) in enumerate(f[0].variables.items()):
-            print("%s = %s, " % (k,best[i]),end='')
-        print(' : %.02f' % y['result'].max())
-
-        print('')
-        print("Means and std/mean per variables :")
-        for k,vals in vars_values.items():
-            if len(vals) is 1:
-                continue
-            print("%s :" % k)
-            for v in sorted(vals):
-                tot = 0
-                std = 0
-                n = 0
-                for run,results in all_results.items():
-                    if run.variables[k] == v:
-                        if not results is None:
-                            tot+=np.mean(results)
-                            std+=np.std(results)
-                            n+=1
-                if n == 0:
-                    print("  %s : None" % v)
+                dot_data = tree.export_graphviz(clf, out_file=None, filled=True, rounded=True, special_characters=True,
+                                                feature_names=dtype['names'])
+                graph = pydotplus.graph_from_dot_data(dot_data)
+                if filename:
+                    f = filename
                 else:
-                    print("  %s : (%.02f,%.02f), " % (v,tot/n,std/n / (tot/n)))
+                    f = build.result_path(testie.filename, 'pdf', suffix='_clf')
+                graph.write(f, format=os.path.splitext(f)[1][1:])
+                print("Decision tree visualization written to %s" % f)
+
+            vars_values = OrderedDict()
+
             print("")
+            for i, column in enumerate(X.T):
+                varname = dtype['names'][i]
+                vars_values[varname] = set([v for v in np.unique(column)])
+
+            print("")
+            print("Feature importances :")
+            # noinspection PyUnresolvedReferences
+            for key, f in zip(dtype['names'], clf.feature_importances_):
+                if len(vars_values[key]) > 1:
+                    print("  %s : %0.2f" % (key, f))
+
+            print('')
+            print("Better :")
+            best = X[y.argmax()]
+            print("  ", end='')
+            for i, name in enumerate(dtype['names']):
+                print("%s = %s, " % (name, best[i] if (dtype['values'][i] is None) else dtype['values'][i][best[i]]), end='')
+            print(' : %.02f' % y.max())
+
+            print('')
+            print("Means and std/mean per variables :")
+            for i, (k, vals) in enumerate(vars_values.items()):
+                if len(vals) is 1:
+                    continue
+                print("%s :" % k)
+                for v in sorted(vals):
+                    vs = v if (dtype['values'][i] is None) else dtype['values'][i][v]
+                    tot = 0
+                    n = 0
+                    for ic in range(X.shape[0]):
+                        if X[ic,i] == v:
+                            tot += y[ic]
+                            n += 1
+                    if n == 0:
+                        print("  %s : None" % vs)
+                    else:
+                        print("  %s : %.02f, " % (vs, tot / n))
+                print("")
 
     @classmethod
-    def buildDataset(cls, all_results:Dataset, testie:Testie):
+    def buildDataset(cls, all_results: Dataset, testie: Testie) -> List[tuple]:
         dtype = testie.variables.dtype()
-        y=[]
+        y = OrderedDict()
         dataset = []
-        for i,(run,results) in enumerate(all_results.items()):
+        for i, (run, results_types) in enumerate(all_results.items()):
             vars = list(run.variables.values())
-            if not results is None:
+            if not results_types is None and len(results_types) > 0:
                 dataset.append(vars)
-                y.append(np.mean(results))
-        dtype['formats'] = dtype['formats']
-        dtype['names'] = dtype['names']
+                for result_type, results in results_types.items():
+                    r = np.mean(results)
+                    y.setdefault(result_type, []).append(r)
 
-        for i,f in enumerate(dtype['formats']):
+        dtype['values'] = [None] * len(dtype['formats'])
+        for i, f in enumerate(dtype['formats']):
             if f is str:
                 dtype['formats'][i] = int
                 values = OrderedSet()
                 for row in dataset:
                     values.add(row[i])
                     row[i] = values.index(row[i])
-        X = np.array(dataset,ndmin=2)
-        return X,np.array(y,dtype=[('result',float)])
+                dtype['values'][i] = list(values)
+        X = np.array(dataset, ndmin=2)
+
+        lset = []
+        for result_type, v in y.items():
+            lset.append((result_type, X, np.array(v),dtype))
+        return lset
