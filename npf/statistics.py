@@ -1,6 +1,5 @@
 import os
 
-import iterutils as iterutils
 import numpy as np
 import pydotplus as pydotplus
 from orderedset import OrderedSet
