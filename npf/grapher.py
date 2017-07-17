@@ -1,6 +1,7 @@
 import csv
 import io
 
+import re
 from orderedset._orderedset import OrderedSet
 
 from collections import OrderedDict
@@ -208,37 +209,46 @@ class Grapher:
         #  option. It is a dict in the format
         #  result-a+result-b+result-c:new_name
         #  i.e. the first is a + separated list of result and the second member
-        #  a new name for the combined vairable
+        #  a new name for the combined variable
         for result_types,var_name in self.configdict('graph_result_as_variable',{}).items():
-            result_to_variable_map=set()
+            result_to_variable_map=[]
+
             for result_type in result_types.split('+'):
-                result_to_variable_map.add(result_type)
-            vars_values[var_name]=result_to_variable_map
+                result_to_variable_map.append(result_type)
+            vars_values[var_name]=set()
 
             transformed_series = []
             for i, (testie, build, all_results) in enumerate(series):
                 new_results = {}
 
                 for run, run_results in all_results.items():
-                    for stripout in result_to_variable_map:
-                        variables = run.variables.copy()
-                        new_run_results = {}
-                        nodata=True
-                        for result_type, results in run_results.items():
-                            if result_type in result_to_variable_map:
-                                if result_type == stripout:
-                                    variables[var_name] = result_type
-                                    nodata=False
-                                    new_run_results[var_name] = results
-                            else:
-                                new_run_results[result_type] = results
+                    new_run_results = {}
+                    new_run_results_exp = {}
+                    nodata = True
+                    for result_type, results in run_results.items():
+                        match=False
+                        for stripout in result_to_variable_map:
+                            m = re.match(stripout,result_type)
+                            if m:
+                                match=m.group(1) if len(m.groups()) > 0 else result_type
+                                break
+                        if match:
+                            new_run_results_exp[match] = results
+                        else:
+                            new_run_results[result_type] = results
 
-                        if not nodata:
-                            new_results[Run(variables)] = new_run_results
+                    for result_type,results in new_run_results_exp.items():
+                        variables = run.variables.copy()
+                        variables[var_name] = result_type
+                        vars_values[var_name].add(result_type)
+                        nr = new_run_results.copy()
+                        nr.update({var_name: results})
+                        new_results[Run(variables)] = nr
 
                 if new_results:
                     transformed_series.append((testie, build, new_results))
             series = transformed_series
+
 
         #List of static variables to use in filename
         statics = {}
@@ -254,7 +264,6 @@ class Grapher:
 
             transformed_series = []
             for i, (testie, build, all_results) in enumerate(series):
-                build._line = graphlines[i % len(graphlines)]
                 new_series = {}
 
                 for run, run_results in all_results.items():
@@ -338,10 +347,12 @@ class Grapher:
                         newserie[newrun] = run_results
                         new_varsall.add(newrun)
 
-                series.append((script, build, newserie))
                 if type(value) is tuple:
                     value = value[1]
                 versions.append(value)
+                nb = build.copy()
+                nb._pretty_name = value
+                series.append((script, nb, newserie))
                 legend_title = self.var_name(key)
             nseries = len(series)
             vars_all = list(new_varsall)
@@ -361,6 +372,10 @@ class Grapher:
 
         data_types = dataset.convert_to_xye([(all_results,script) for script, build, all_results in series],vars_all,key,do_sort=do_sort)
 
+        #Set lines types
+        for i,(script, build, all_results) in enumerate(series):
+            build._line = graphlines[i % len(graphlines)]
+
         if options.output is not None:
             for result_type,data in data_types.items():
                 type_filename = npf.build_filename(testie, build, options.output, statics, 'csv', result_type)
@@ -374,19 +389,24 @@ class Grapher:
                 print("Output written to %s" % type_filename)
 
         plots=OrderedDict()
-
-        for result_type in self.configlist('graph_subplot_results',[]):
-            if result_type not in data_types.keys():
+        matched_set=set()
+        for result_type,fig_name in self.configdict('graph_subplot_results',{}).items():
+            matched=False
+            for k in data_types.keys():
+                if re.match(result_type,k):
+                    plots.setdefault(fig_name, []).append(k)
+                    matched_set.add(k)
+                    matched=True
+            if not matched:
                 print("WARNING: Unknown data type to include as subplot : %s" % result_type)
-                continue
-            plots.setdefault('common',[]).append(result_type)
+
 
         for result_type, data in data_types.items():
-            if not 'common' in plots or result_type not in plots['common']:
+            if result_type not in matched_set:
                 plots[result_type] = [result_type]
 
         ret = {}
-        for whatever,figure in plots.items():
+        for fig_name,figure in plots.items():
             text = self.config("graph_text")
 
             if len(self.configlist("graph_display_statics")) > 0:
@@ -471,7 +491,7 @@ class Grapher:
                 if isubplot < len(figure) -1:
                     continue
                 else:
-                    result_type = 'common'
+                    result_type = fig_name
             if not filename:
                 buf = io.BytesIO()
                 plt.savefig(buf, format='png')

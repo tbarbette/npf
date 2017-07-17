@@ -68,7 +68,7 @@ class Build:
         f.close()
 
     def __repr__(self):
-        return "Build(repo=" + str(self.repo) + ", version=" + self.version + ")"
+        return "Build(repo=" + str(self.repo) + ", version=" + self.pretty_name() + ")"
 
     def __resultFilename(self, script=None):
         if script:

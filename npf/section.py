@@ -412,7 +412,7 @@ class SectionConfig(SectionVariable):
         self.__add("n_runs", 3)
         self.__add("n_retry", 0)
         self.__add_list("result_regex", [
-            r"RESULT(:?-(?P<type>[A-Z0-9_]+))?[ \t]+(?P<value>[0-9.]+)[ ]*(?P<multiplier>[nµgmk]?)(?P<unit>s|b|byte|bits)?"])
+            r"RESULT(:?-(?P<type>[A-Z0-9_:~-]+))?[ \t]+(?P<value>[0-9.]+)[ ]*(?P<multiplier>[nµgmk]?)(?P<unit>s|b|byte|bits)?"])
         self.__add_list("results_expect", [])
         self.__add("autokill", True)
         self.__add_dict("env", {}) #Unimplemented yet
@@ -424,9 +424,10 @@ class SectionConfig(SectionVariable):
 
         #Graph options
         self.__add_dict("graph_combine_variables",{})
-        self.__add_list("graph_subplot_results", [])
+        self.__add_dict("graph_subplot_results", {})
         self.__add_list("graph_display_statics", [])
         self.__add_list("graph_variables_as_series", [])
+        self.__add_dict('graph_result_as_variable',{})
         self.__add("graph_text",'')
         self.__add("legend_loc", "best")
         self.__add("var_hide", {})

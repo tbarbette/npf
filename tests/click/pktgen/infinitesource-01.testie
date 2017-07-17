@@ -9,12 +9,14 @@ timeout=10
 //Accept 1% changes
 acceptable=0.02
 //Consider there was a problem if <1G
-var_names={BURST:Burst,LENGTH:Length,result:Throughput}
-var_unit={BURST:Packets,LENGTH:Bytes,result:BPS}
+var_names={BURST:Burst,LENGTH:Length,result-THROUGHPUT:Throughput}
+var_unit={BURST:Packets,LENGTH:Bytes,result-THROUGHPUT:BPS}
 title=InfiniteSource Packet Generation
 n_runs=3
 var_serie=LENGTH
 default_repo=click
+graph_result_as_variable={PERF-(.*):Perf}
+
 
 %variables
 BURST=[1*1024]
@@ -24,7 +26,10 @@ LENGTH={64,128,512}
 fastregression:BURST={1,32,256}
 fastregression:LENGTH=64
 
-%script
+//If tag "perf" is given, do an anaylisis of function usages with perf
+%perf:import@dut perf-functions
+
+%script@dut
 click -c 0x1 -n 4 -- CONFIG || click -j 1 CONFIG
 
 %file CONFIG
@@ -36,5 +41,5 @@ finish :: Script(TYPE ACTIVE,
             wait 1s,
             write ac.reset,
 			wait 4s,
-			print "RESULT $(mul $(ac.byte_rate) 8)",
+			print "RESULT-THROUGHPUT $(mul $(ac.byte_rate) 8)",
 			stop);
