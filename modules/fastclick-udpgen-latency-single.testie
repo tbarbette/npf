@@ -17,6 +17,7 @@ GEN_BURST=32
 GEN_FLOWS=128
 GEN_LENGTH=64
 GEN_BLOCKING=true
+GEN_REPLAY=1
 LIMIT=1024000
 
 %late_variables
@@ -28,7 +29,7 @@ click --dpdk -c 0x3 -- PKTGEN_CONFIG
 %file PKTGEN_CONFIG
 DPDKInfo($NBBUF)
 
-define($replay_count 1)
+define($replay_count $GEN_REPLAY)
 
 elementclass Numberise {
     input-> Strip(14) -> check :: CheckIPHeader -> nPacket :: NumberPacket(40) -> SetIPChecksum -> Unstrip(14) -> output

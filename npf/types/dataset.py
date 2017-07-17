@@ -109,24 +109,24 @@ def var_divider(testie: 'Testie', key: str, result_type):
     return 1
 
 
-def convert_to_xye(datasets: List[Tuple[Dataset, 'Testie']], run_list, key, do_sort) -> Dict[ResultType,List[Tuple]]:
+def convert_to_xye(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list, key, do_sort) -> Dict[ResultType,List[Tuple]]:
     data_types = OrderedDict()
     all_result_types = set()
 
-    for all_results, testie in datasets:
+    for testie,build,all_results in datasets:
         for run, run_results in all_results.items():
             for result_type,results in run_results.items():
                 all_result_types.add(result_type)
 
-    for all_results, testie in datasets:
+    for testie, build, all_results in datasets:
         x = OrderedDict()
         y = OrderedDict()
         e = OrderedDict()
         for run in run_list:
             if len(run) == 0:
-                xval = key
+                xval = build.pretty_name()
             else:
-                xval = run.print_variable(key,key)
+                xval = run.print_variable(key,build.pretty_name())
             results_types = all_results.get(run, {})
             for result_type in all_result_types:
                 ydiv = var_divider(testie, "result", result_type)

@@ -1,5 +1,6 @@
 %variables
 PERF_MIN=1
+PERF_OPT=
 
 %script sudo=true
 trap : INT
@@ -8,10 +9,11 @@ sh script.sh
 %file script.sh
 trap : INT
 perf record -a -g -o perf.data
-perf report -s overhead -F symbol,overhead --call-graph none -t "," --no-children | grep -v '^#' | while read line; do
+perf report -s overhead -F symbol,overhead --call-graph none -t "," $PERF_OPT --no-children --percentage relative | grep -v '^#' | while read line; do
     sym=$(echo $line | cut -d',' -f1 | xargs)
-    pc=$(echo $line | cut -d',' -f2 | xargs | grep -oE '[0-9][0-9]*' | head -n 1 )
-    if [ $pc -lt 1 ] ; then break; fi
+    pc=$(echo $line | cut -d',' -f2 | xargs | grep -oE '[0-9.]*' )
+    roundpc=$(echo $pc | grep -oE '[0-9]*' | head -n 1)
+    if [ $roundpc -lt 1 ] ; then break; fi
     echo "RESULT-PERF-$(echo $sym | sed 's/[^0-9a-zA-Z_~:]*//g' ) $pc"
 done
 rm perf.data

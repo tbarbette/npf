@@ -370,7 +370,7 @@ class Grapher:
             key = "Variables"
             do_sort = False
 
-        data_types = dataset.convert_to_xye([(all_results,script) for script, build, all_results in series],vars_all,key,do_sort=do_sort)
+        data_types = dataset.convert_to_xye(series,vars_all,key,do_sort=do_sort)
 
         #Set lines types
         for i,(script, build, all_results) in enumerate(series):
@@ -390,13 +390,14 @@ class Grapher:
 
         plots=OrderedDict()
         matched_set=set()
-        for result_type,fig_name in self.configdict('graph_subplot_results',{}).items():
-            matched=False
-            for k in data_types.keys():
-                if re.match(result_type,k):
-                    plots.setdefault(fig_name, []).append(k)
-                    matched_set.add(k)
-                    matched=True
+        for result_type_list,fig_name in self.configdict('graph_subplot_results',{}).items():
+            for result_type in re.split('[,]|[+]',result_type_list):
+                matched=False
+                for k in data_types.keys():
+                    if re.match(result_type,k):
+                        plots.setdefault(fig_name, []).append(k)
+                        matched_set.add(k)
+                        matched=True
             if not matched:
                 print("WARNING: Unknown data type to include as subplot : %s" % result_type)
 
@@ -517,13 +518,12 @@ class Grapher:
 
         ticks = np.arange(ndata) + 0.5
 
-
-        x = [s[0] for s in data]
-        y = [s[1] for s in data]
+        x = [s[0][0] for s in data]
+        y = [s[1][0] for s in data]
         self.format_figure(result_type)
-        plt.bar(ticks, y, label=versions[i], color=graphcolor[i % len(graphcolor)], width=width)
-        plt.xticks(ticks, versions, rotation='vertical' if (len(versions) > 10) else 'horizontal')
-        plt.gca().set_xlim(0, len(versions))
+        plt.bar(ticks, y, label=x, color=graphcolor[i % len(graphcolor)], width=width)
+        plt.xticks(ticks, x, rotation='vertical' if (len(versions) > 10) else 'horizontal')
+        plt.gca().set_xlim(0, len(x))
 
 
     def do_line_plot(self, versions, key, result_type, data, markers, linestyles):
