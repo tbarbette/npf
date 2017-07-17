@@ -200,6 +200,7 @@ class Grapher:
                         vars_values.setdefault(k, set()).add(v)
 
             if new_results:
+                build._marker = graphmarkers[i % len(graphmarkers)]
                 filtered_series.append((testie, build, new_results))
             else:
                 print("No valid data for %s" % build)
@@ -336,7 +337,7 @@ class Grapher:
             values = list(vars_values[key])
             values.sort()
             new_varsall = set()
-            for value in values:
+            for i,value in enumerate(values):
                 newserie = {}
                 for run, run_results in all_results.items():
 #                    if (graph_variables and not run in graph_variables):
@@ -352,6 +353,7 @@ class Grapher:
                 versions.append(value)
                 nb = build.copy()
                 nb._pretty_name = value
+                nb._marker = graphmarkers[i % len(graphmarkers)]
                 series.append((script, nb, newserie))
                 legend_title = self.var_name(key)
             nseries = len(series)
@@ -543,8 +545,8 @@ class Grapher:
                 x = ax[0]
             data = np.asarray((x,ax[1],ax[2]))
             data[data[:, 1].argsort()]
-            plt.plot(data[0], data[1], label=versions[i], color=c, linestyle=linestyles[i])
-            plt.errorbar(data[0], data[1], yerr=data[2], marker=markers[i], label=None, linestyle=' ', color=c)
+            plt.plot(data[0], data[1], label=(versions[i][1:] if versions[i].startswith('_') else versions[i]), color=c, linestyle=linestyles[i], marker=markers[i])
+            plt.errorbar(data[0], data[1], yerr=data[2], marker=' ', label=None, linestyle=' ', color=c)
             xmin = min(xmin, min(x))
             xmax = max(xmax, max(x))
 
