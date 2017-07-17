@@ -42,7 +42,7 @@ elementclass Generator { $port, $srcmac, $dstmac, $srcip, $dstip |
 
     StaticThreadSched(replay $port)
 
-    fd :: FromDPDKDevice($port, MAC $srcmac, MAXTHREADS 1, VERBOSE 99)
+    fd :: FromDPDKDevice($port, MAC $srcmac, MAXTHREADS 1, PROMISC false, VERBOSE 99)
     -> c0 :: Classifier(12/0806 20/0001,
                         12/0806 20/0002,
                         -)[2]
@@ -87,5 +87,5 @@ DriverManager(
 
     set snd $(add $(gen0/sndavg.link_rate) $(gen1/sndavg.link_rate)),
     set throughput $(add $(gen0/avg.link_rate) $(gen1/avg.link_rate)),
-    print "RESULT-LOSS $(div $throughput $sndavg)",
+    print "RESULT-LOSS $(div $(sub $snd $throughput) $snd)",
     print "RESULT-THROUGHOUT $throughput")
