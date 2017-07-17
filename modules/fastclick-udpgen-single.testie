@@ -1,0 +1,78 @@
+%info
+UDP Traffic loop Module, A to B
+
+This will generate UDP traffic using 1 NICs and receive it on the other
+Packets are expected to come back
+
+Roles : client will use one NICs of the node running this file to send traffic
+towards "dut" and should receive back the packets on NIC 1.
+
+GEN_WAIT is the test time, while the client generates $GEN_FLOWS flows of $GEN_BURST packets in loop
+
+%config
+default_role_map={dut:client,server:client}
+require_tags=import,dpdk
+
+%variables
+GEN_BURST=32
+GEN_FLOWS=128
+GEN_LENGTH=64
+GEN_WAIT=5
+
+%late_variables
+GEN_TOT=EXPAND( $(( $GEN_BURST * $GEN_FLOWS )) )
+
+%script deps=fastclick sudo=true delay=2
+click --dpdk -c 0x3 -- PKTGEN_CONFIG
+
+%file PKTGEN_CONFIG
+
+elementclass Generator { $portOut, $portIn, $srcmac, $dstmac, $srcip, $dstip |
+    tdOUT::ToDPDKDevice($portOut, BLOCKING true);
+
+    fudp :: FastUDPFlows(RATE 0, LIMIT $GEN_TOT, LENGTH $GEN_LENGTH, SRCETH $srcmac, DSTETH $dstmac, SRCIP $srcip, DSTIP $dstip, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST)
+    -> MarkMACHeader
+    -> EnsureDPDKBuffer
+    -> replay :: ReplayUnqueue(STOP -1, QUICK_CLONE true)
+    -> sndavg :: AverageCounter()
+    -> tdOUT;
+
+    StaticThreadSched(replay $portIn)
+
+    fd :: FromDPDKDevice($portIn, MAC $srcmac, MAXTHREADS 1, VERBOSE 99)
+    -> c0 :: Classifier(12/0806 20/0001,
+                        12/0806 20/0002,
+                        -)[2]
+    -> avg :: AverageCounter
+    -> Discard;
+
+    c0[0] -> Discard;
+    c0[1] -> Discard;
+}
+
+gen0 :: Generator(0, 1, ${client:0:mac}, ${dut:1:mac}, ${client:0:ip}, ${dut:1:ip})
+
+//Support a switch by advertising L2 packets
+
+tdIN::ToDPDKDevice(1, BLOCKING true);
+adv :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH 64, SRCETH ${client:1:mac}, DSTETH ${client:0:mac}, SRCIP ${client:1:ip}, DSTIP ${client:0:ip}, FLOWS 1, FLOWSIZE 1)
+    -> RatedUnqueue(1)
+    -> tdIN;
+
+
+DriverManager(
+    label init,
+    wait 1s,
+    goto init $(lt $(gen0/avg.count) 1),
+    label test_1,
+    write gen0/sndavg.reset,
+    write gen0/avg.reset,
+    print "Launching test...",
+    wait $GEN_WAIT,
+    print "SAVG0 $(gen0/sndavg.link_rate)",
+    print "AVG0 $(gen0/avg.link_rate) $(gen0/avg.count)",
+
+    set snd $(add $(gen0/sndavg.link_rate)),
+    set throughput $(add $(gen0/avg.link_rate)),
+    print "RESULT-LOSS $(div $(sub $snd $throughput) $snd)",
+    print "RESULT-THROUGHOUT $throughput")
