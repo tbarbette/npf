@@ -14,9 +14,11 @@ var_unit={BURST:Packets,LENGTH:Bytes,result-THROUGHPUT:BPS}
 title=InfiniteSource Packet Generation
 n_runs=3
 var_serie=LENGTH
+var_log={BURST}
 default_repo=click
 graph_result_as_variable={PERF-(.*):Perf}
-
+graph_series_sort=-avg
+graph_max_series=8
 
 %variables
 BURST=[1*1024]

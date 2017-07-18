@@ -95,6 +95,8 @@ class Run:
 Dataset = Dict[Run, Dict[str, List]]
 ResultType = str
 
+XYEB = Tuple
+AllXYEB = Dict[ResultType, List[XYEB]]
 
 def var_divider(testie: 'Testie', key: str, result_type):
     div = testie.config.get_dict_value("var_divider", "result", result_type=result_type, default=1)
@@ -109,7 +111,7 @@ def var_divider(testie: 'Testie', key: str, result_type):
     return 1
 
 
-def convert_to_xye(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list, key, do_sort) -> Dict[ResultType,List[Tuple]]:
+def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list, key, do_x_sort, max_series = None, series_sort=None) -> AllXYEB:
     data_types = OrderedDict()
     all_result_types = set()
 
@@ -141,7 +143,7 @@ def convert_to_xye(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list,
                     y.setdefault(result_type, []).append(np.nan)
                     e.setdefault(result_type, []).append(np.nan)
         for result_type in x.keys():
-            if not do_sort:
+            if not do_x_sort:
                 ox = x[result_type]
                 oy = y[result_type]
                 oe = e[result_type]
@@ -151,7 +153,39 @@ def convert_to_xye(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list,
                 oy = np.array(y[result_type])[order]
                 oe = np.array(e[result_type])[order]
 
-            data_types.setdefault(result_type, []).append((ox,oy,oe))
+
+            data_types.setdefault(result_type, []).append((ox,oy,oe,build))
+    if series_sort is not None:
+        new_data_types = OrderedDict()
+        for result_type,data in data_types.items():
+            order = []
+            max = []
+            min = []
+            for x,y,e,build in data:
+                order.append(np.sum(y))
+                max.append(np.max(y))
+                min.append(np.min(y))
+            if series_sort == 'avg':
+                order = np.argsort(np.asarray(order))
+            elif series_sort == '-avg':
+                order = np.argsort(- np.asarray(order))
+            elif series_sort == 'max':
+                order = np.argsort(- np.asarray(max))
+            elif series_sort == 'min':
+                order = np.argsort(np.asarray(min))
+            else:
+                raise Exception("Unknown sorting : %s" % series_sort)
+
+            data = [data[i] for i in order]
+            new_data_types[result_type] = data
+        data_types = new_data_types
+
+    if max_series is not None:
+        new_data_types = OrderedDict()
+        for i,(result_type,data) in enumerate(data_types.items()):
+            new_data_types[result_type] = data[:max_series]
+        data_types = new_data_types
+
     return data_types
 
 
