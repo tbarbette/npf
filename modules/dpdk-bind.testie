@@ -21,9 +21,11 @@ require_tags={import}
 
 %variables
 NIC=0
+DRIVER=uio_pci_generic
+igb_uio:DRIVER=igb_uio
+
 
 %igb_uio:init sudo=true deps=dpdk
-DRIVER=igb_uio
 echo "Driver is $DRIVER"
 
 if [ "$RTE_SDK" = "" ] ; then
@@ -45,7 +47,6 @@ echo "Binding NIC $NIC"
 [ $? -eq 0 ] && echo "RESULT 1"
 
 %-igb_uio:init sudo=true deps=dpdk
-DRIVER=uio_pci_generic
 modprobe $DRIVER
 echo "Driver is $DRIVER"
 chmod +x dpdk-devbind.py
