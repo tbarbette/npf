@@ -14,7 +14,7 @@ from asteval import Interpreter
 class SectionFactory:
     varPattern = "([a-zA-Z0-9_:-]+)[=](" + Variable.VALUE_REGEX + ")?"
     namePattern = re.compile(
-        "^(?P<tags>[a-zA-Z0-9,_-]+[:])?(?P<name>info|config|variables|late_variables|file(:?[@](?P<fileRole>[a-zA-Z0-9]+))? (?P<fileName>[a-zA-Z0-9_.-]+)|require|"
+            "^(?P<tags>[a-zA-Z0-9,_-]+[:])?(?P<name>info|config|variables|late_variables|file(:?[@](?P<fileRole>[a-zA-Z0-9]+))? (?P<fileName>[a-zA-Z0-9_.-]+)(:? (?P<fileNoparse>noparse))?|require|"
         "import(:?[@](?P<importRole>[a-zA-Z0-9]+))?[ \t]+(?P<importModule>" + Variable.VALUE_REGEX + ")(?P<importParams>([ \t]+" +
         varPattern + ")+)?|"
                      "(:?script|init)(:?[@](?P<scriptRole>[a-zA-Z0-9]+))?(?P<scriptParams>([ \t]+" + varPattern + ")*))$")
@@ -65,7 +65,7 @@ class SectionFactory:
                             matcher.groups("params") + ")")
 
         if sectionName.startswith('file'):
-            s = SectionFile(matcher.group('fileName').strip(), role=matcher.group('fileRole'))
+            s = SectionFile(matcher.group('fileName').strip(), role=matcher.group('fileRole'),noparse=matcher.group('fileNoparse'))
             return s
         elif sectionName == 'require':
             s = SectionRequire()
@@ -89,6 +89,7 @@ class Section:
     def __init__(self, name):
         self.name = name
         self.content = ''
+        self.noparse = False
 
     def get_content(self):
         return self.content
@@ -171,11 +172,12 @@ class SectionImport(Section):
 
 
 class SectionFile(Section):
-    def __init__(self, filename, role=None):
+    def __init__(self, filename, role=None, noparse=False):
         super().__init__('file')
         self.content = ''
         self.filename = filename
         self._role = role
+        self.noparse = noparse
 
     def get_role(self):
         return self._role

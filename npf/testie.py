@@ -90,7 +90,8 @@ class Testie:
             f = open(testie_path, 'r')
 
             for i, line in enumerate(f):
-                line = re.sub(r'(^|[ ])//.*$', '', line)
+                if section is None or section.noparse is False:
+                    line = re.sub(r'(^|[ ])//.*$', '', line)
                 if line.startswith('#') and section is None:
                     print("Warning : comments now use // instead of #. This will be soon deprecated")
                     continue
@@ -189,8 +190,10 @@ class Testie:
     def create_files(self, v, self_role=None):
         for s in self.files:
             role = s.get_role() if s.get_role() else self_role
-
-            p = SectionVariable.replace_variables(v, s.content, role, self.config.get_dict("default_role_map"))
+            if not s.noparse:
+                p = SectionVariable.replace_variables(v, s.content, role, self.config.get_dict("default_role_map"))
+            else:
+                p = s.content
             if self.options.show_files:
                 print("File %s:" % s.filename)
                 print(p.strip())
