@@ -52,7 +52,7 @@ elementclass Generator { $port, $srcmac, $dstmac, $srcip, $dstip, $e |
 
     StaticThreadSched(replay $port)
 
-    fd :: FromDPDKDevice($port, MAC $srcmac, MAXTHREADS 1, VERBOSE 99)
+    fd :: FromDPDKDevice($port, MAC $srcmac, MAXTHREADS 1, PROMISC false, VERBOSE 99)
     -> c0 :: Classifier(12/0806 20/0001,
                         12/0806 20/0002,
                         -)[2]

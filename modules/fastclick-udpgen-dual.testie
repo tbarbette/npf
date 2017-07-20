@@ -88,4 +88,4 @@ DriverManager(
     set snd $(add $(gen0/sndavg.link_rate) $(gen1/sndavg.link_rate)),
     set throughput $(add $(gen0/avg.link_rate) $(gen1/avg.link_rate)),
     print "RESULT-LOSS $(div $(sub $snd $throughput) $snd)",
-    print "RESULT-THROUGHOUT $throughput")
+    print "RESULT-THROUGHPOUT $throughput")
