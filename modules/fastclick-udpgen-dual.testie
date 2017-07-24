@@ -21,26 +21,42 @@ GEN_BURST=32
 GEN_FLOWS=128
 GEN_LENGTH=64
 GEN_WAIT=5
+rate:GEN_RATE=1000
 
 %late_variables
 GEN_TOT=EXPAND( $(( $GEN_BURST * $GEN_FLOWS )) )
 
 %script deps=fastclick sudo=true delay=2
-click --dpdk -c 0xf -- PKTGEN_CONFIG
+cat REPLAYER  PKTGEN_CONFIG | click --dpdk -c 0xf --
+
+%-rate:file REPLAYER
+elementclass Replayer { $srcmac, $dstmac, $srcip, $dstip |
+
+    gen :: FastUDPFlows(RATE 0, LIMIT $GEN_TOT, LENGTH $GEN_LENGTH, SRCETH $srcmac, DSTETH $dstmac, SRCIP $srcip, DSTIP $dstip, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST)
+    -> MarkMACHeader
+    -> EnsureDPDKBuffer
+    -> replay :: ReplayUnqueue(STOP -1, QUICK_CLONE true)
+    -> output
+}
+
+%rate:file REPLAYER
+elementclass Replayer { $srcmac, $dstmac, $srcip, $dstip |
+    gen :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH $GEN_LENGTH, SRCETH $srcmac, DSTETH $dstmac, SRCIP $srcip, DSTIP $dstip, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST)
+    -> replay :: RatedUnqueue($GEN_RATE)
+    -> output
+}
+
 
 %file PKTGEN_CONFIG
 
 elementclass Generator { $port, $srcmac, $dstmac, $srcip, $dstip |
     tdOUT::ToDPDKDevice($port, BLOCKING true);
 
-    adv1 :: FastUDPFlows(RATE 0, LIMIT $GEN_TOT, LENGTH $GEN_LENGTH, SRCETH $srcmac, DSTETH $dstmac, SRCIP $srcip, DSTIP $dstip, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST)
-    -> MarkMACHeader
-    -> EnsureDPDKBuffer
-    -> replay :: ReplayUnqueue(STOP -1, QUICK_CLONE true)
+    rp :: Replayer($srcmac, $dstmac, $srcip, $dstip)
     -> sndavg :: AverageCounter()
     -> tdOUT;
 
-    StaticThreadSched(replay $port)
+    StaticThreadSched(rp/replay $port)
 
     fd :: FromDPDKDevice($port, MAC $srcmac, MAXTHREADS 1, PROMISC false, VERBOSE 99)
     -> c0 :: Classifier(12/0806 20/0001,
@@ -54,8 +70,8 @@ elementclass Generator { $port, $srcmac, $dstmac, $srcip, $dstip |
     c0[1] -> Discard;
 }
 
-gen0 :: Generator(0, ${client:0:mac}, ${dut:1:mac}, ${client:0:ip}, ${dut:1:ip})
-gen1 :: Generator(1, ${client:1:mac}, ${dut:0:mac}, ${client:1:ip}, ${dut:0:ip})
+gen0 :: Generator(0, ${client:0:mac}, ${dut:1:mac}, ${client:0:ip}, ${server:1:ip})
+gen1 :: Generator(1, ${client:1:mac}, ${dut:0:mac}, ${client:1:ip}, ${server:0:ip})
 
 DriverManager(
     label init,
@@ -79,7 +95,9 @@ DriverManager(
     set twice $(add $twice 1),
     goto init $(lt $twice 2),
     print "Launching test...",
+    print "EVENT launch",
     wait $GEN_WAIT,
+    print "EVENT stop",
     print "SAVG0 $(gen0/sndavg.link_rate)",
     print "SAVG1 $(gen1/sndavg.link_rate)",
     print "AVG0 $(gen0/avg.link_rate) $(gen0/avg.count)",
@@ -87,5 +105,8 @@ DriverManager(
 
     set snd $(add $(gen0/sndavg.link_rate) $(gen1/sndavg.link_rate)),
     set throughput $(add $(gen0/avg.link_rate) $(gen1/avg.link_rate)),
+    set pps $(add $(gen0/avg.rate) $(gen1/avg.rate)),
     print "RESULT-LOSS $(div $(sub $snd $throughput) $snd)",
+    print "RESULT-TX $snd",
+    print "RESULT-PPS $pps",
     print "RESULT-THROUGHPOUT $throughput")
