@@ -17,7 +17,8 @@ PKTGEN_BURST_OUT=32
 PKTGEN_REPLAY_COUNT=1
 NIC_IN=0
 NIC_OUT=1
-
+NBUF=1048576
+GEN_ENDAFTER=8
 nolinktest=0
 
 %script sudo=true deps=fastclick
@@ -47,12 +48,12 @@ define($rxverbose 99)
 define($IP0 ${client:$NIC_IN:ip})
 define($IP1 ${client:$NIC_OUT:ip})
 
-DPDKInfo(1048576)
+DPDKInfo($NBUF)
 
-fdIN :: FromDump($traceIN, STOP false, TIMING false, END_AFTER 8)
+fdIN :: FromDump($traceIN, STOP false, TIMING false, END_AFTER $GEN_ENDAFTER)
 tdIN :: ToDPDKDevice($portIN, BLOCKING true, BURST $bout, VERBOSE $txverbose)
 
-fdOUT :: FromDump($traceOUT, STOP false, TIMING false)
+fdOUT :: FromDump($traceOUT, STOP false, TIMING false, END_AFTER $GEN_ENDAFTER)
 tdOUT :: ToDPDKDevice($portOUT, BLOCKING true, BURST $bout, VERBOSE $txverbose)
 
 
@@ -197,6 +198,7 @@ DriverManager(pause,
                 write adv1.active false,
                 write link_initialized.run,
                 write link_initialized.run,
+                label waitagain,
                 pause,
                 print "Replay finished. Waiting for last packets for $wait seconds...",
                 wait $wait,
