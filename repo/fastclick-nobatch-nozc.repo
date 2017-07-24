@@ -1,0 +1,4 @@
+parent=fastclick
+name=FastClick - Without batching nor ZC
+configure+= --disable-batch --disable-zerocopy 
+tags=fastclick,nobatch,nozc
