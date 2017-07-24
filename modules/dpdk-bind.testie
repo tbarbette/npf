@@ -37,7 +37,7 @@ fi
 
 lsmod | grep $DRIVER &> /dev/null
 if [ $? -ne 0 ] ; then
-    modprobe $DRIVER || (modprobe uio && insmod $RTE_SDK/$RTE_TARGET/kmod/$DRIVER.ko) || ( echo "-------------------" && echo "--- NPF MESSAGE ---" && echo "-------------------" && echo "Cannot find the $DRIVER module ! Please make sure you installed DPDK. Either set RTE_SDK and RTE_TARGET environment variables globally for all your systems or use --force-build-deps dpdk to force dpdk to be rebuilt" && echo "-------------------" && exit 1)
+    modprobe $DRIVER || (modprobe uio && insmod $RTE_SDK/$RTE_TARGET/kmod/${DRIVER}.ko) || ( echo "-------------------" && echo "--- NPF MESSAGE ---" && echo "-------------------" && echo "Cannot find the $DRIVER module ! Please make sure you installed DPDK. Either set RTE_SDK and RTE_TARGET environment variables globally for all your systems or use --force-build-deps dpdk to force dpdk to be rebuilt" && echo "-------------------" && exit 1)
 fi
 
 chmod +x dpdk-devbind.py
