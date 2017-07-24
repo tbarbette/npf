@@ -17,7 +17,10 @@ class Statistics:
     @staticmethod
     def run(build: Build, all_results: Dataset, testie: Testie, max_depth=3, filename=None):
         print("Building dataset...")
-        for result_type, X, y, dtype in Statistics.buildDataset(all_results, testie):
+        dataset = Statistics.buildDataset(all_results, testie)
+        for result_type, X, y, dtype in dataset:
+            if len(dataset) > 1:
+                print("Statistics for %s" % result_type)
             print("Learning dataset built with %d samples and %d features..." % (X.shape[0], X.shape[1]))
             clf = tree.DecisionTreeRegressor(max_depth=max_depth)
             clf = clf.fit(X, y)
@@ -45,9 +48,11 @@ class Statistics:
             print("")
             print("Feature importances :")
             # noinspection PyUnresolvedReferences
-            for key, f in zip(dtype['names'], clf.feature_importances_):
+            l = list(zip(dtype['names'], clf.feature_importances_))
+            l.sort(key=lambda x: x[1])
+            for key, f in l:
                 if len(vars_values[key]) > 1:
-                    print("  %s : %0.2f" % (key, f))
+                    print("  %s : %0.4f" % (key, f))
 
             print('')
             print("Better :")

@@ -2,8 +2,10 @@
 """
 NPF Program to compare multiple software against the same testie
 
-A specific version is needed because tags may influence the testie according to the repo, so some tricks to find
-common variables must be used. For this reason also one testie only is supported in comparator.
+A specific script for that purpose is needed because tags may influence
+the testie according to the repo, so some tricks to find
+common variables must be used. For this reason also one testie only is
+supported in comparator.
 """
 import argparse
 

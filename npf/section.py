@@ -10,6 +10,7 @@ from collections import OrderedDict
 
 from asteval import Interpreter
 
+import re
 
 class SectionFactory:
     varPattern = "([a-zA-Z0-9_:-]+)[=](" + Variable.VALUE_REGEX + ")?"
@@ -494,6 +495,12 @@ class SectionConfig(SectionVariable):
 
     def __setitem__(self, key, val):
         self.__add(key.lower(), val)
+
+    def match(self, key, val):
+        for match in self.get_list(key):
+            if re.match(match, val):
+                return True
+        return False
 
     def finish(self, testie):
         self.vlist = self.build(self.content, testie, check_exists=True)

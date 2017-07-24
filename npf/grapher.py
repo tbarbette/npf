@@ -76,11 +76,13 @@ class Grapher:
                 d = script.config.get_dict(var)
                 lk = key.lower()
                 if result_type is None:
+                    #Search for the exact key if there is no result_type
                     for k, v in d.items():
                         if k.lower() == lk:
                             return v
                     return default
                 else:
+                    #Search for "key-result_type", such as result-throughput
                     lkr = (key + "-" + result_type).lower()
                     for k, v in d.items():
                         if k.lower() == lkr:
@@ -88,6 +90,15 @@ class Grapher:
                     for k, v in d.items():
                         if k.lower() == lk:
                             return v
+                    #Search for result type alone such as throughput
+                    lkr = (result_type).lower()
+                    for k, v in d.items():
+                        if k.lower() == lkr:
+                            return v
+                    for k, v in d.items():
+                        if k.lower() == lk:
+                            return v
+
                     return default
         return default
 
@@ -216,7 +227,7 @@ class Grapher:
 
             for result_type in result_types.split('+'):
                 result_to_variable_map.append(result_type)
-            vars_values[var_name] = set()
+            vvalues = set()
 
             transformed_series = []
             for i, (testie, build, all_results) in enumerate(series):
@@ -241,13 +252,14 @@ class Grapher:
                     for result_type, results in new_run_results_exp.items():
                         variables = run.variables.copy()
                         variables[var_name] = result_type
-                        vars_values[var_name].add(result_type)
+                        vvalues.add(result_type)
                         nr = new_run_results.copy()
                         nr.update({var_name: results})
                         new_results[Run(variables)] = nr
 
                 if new_results:
                     transformed_series.append((testie, build, new_results))
+            vars_values[var_name] = vvalues
             series = transformed_series
 
         # List of static variables to use in filename
@@ -351,25 +363,25 @@ class Grapher:
                     value = value[1]
                 versions.append(value)
                 nb = build.copy()
-                nb._pretty_name = value
+                nb._pretty_name = str(value)
                 nb._marker = graphmarkers[i % len(graphmarkers)]
                 series.append((script, nb, newserie))
                 legend_title = self.var_name(key)
             nseries = len(series)
             vars_all = list(new_varsall)
             vars_all.sort()
+            do_sort=False
         else:
             legend_title = None
-
-        if ndyn == 0:
-            key = "version"
-            do_sort = False
-        elif ndyn == 1:
-            key = dyns[0]
-            do_sort = True
-        else:
-            key = "Variables"
-            do_sort = False
+            if ndyn == 0:
+                key = "version"
+                do_sort = False
+            elif ndyn == 1:
+                key = dyns[0]
+                do_sort = True
+            else:
+                key = "Variables"
+                do_sort = False
 
         # Set lines types
         for i, (script, build, all_results) in enumerate(series):
@@ -449,6 +461,8 @@ class Grapher:
                 yname = self.var_name("result", result_type=result_type)
                 if yname != "result":
                     plt.ylabel(yname)
+                elif len(figure) > 0:
+                    plt.ylabel(result_type)
 
                 var_lim = self.scriptconfig("var_lim", "result" + type_config, None)
                 if var_lim:
@@ -611,7 +625,7 @@ class Grapher:
 
         for i, (x, y, e, build) in enumerate(data):
             plt.bar(interbar + ind + (i * width), y, width,
-                    label=str(build[i].pretty_name()), color=graphcolor[i % len(graphcolor)], yerr=e,
+                    label=str(build.pretty_name()), color=graphcolor[i % len(graphcolor)], yerr=e,
                     edgecolor=edgecolor)
 
         ss = self.combine_variables(vars_all, dyns)

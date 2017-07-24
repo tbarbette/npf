@@ -76,13 +76,15 @@ class Build:
         else:
             return self.__result_folder() + self.version + '.results'
 
-    def writeversion(self, script, all_results: Dataset):
+    def writeversion(self, script, all_results: Dataset, allow_overwrite: bool = False):
         filename = self.__resultFilename(script)
         try:
             if not os.path.exists(os.path.dirname(filename)):
                 os.makedirs(os.path.dirname(filename))
         except OSError:
             print("Error : could not create %s" % os.path.dirname(filename))
+        if not allow_overwrite and os.path.exists(filename):
+            raise Exception("I refuse to overwrite %s" % filename)
         f = open(filename, 'w+')
         f.seek(0)
         for run, results in all_results.items():

@@ -111,8 +111,8 @@ class Regression:
                     if not testie.options.quiet_regression:
                         print("Acceptable difference of %.2f%% for %s" % ((diff * 100), run.format_variables()))
 
-        if supp_done:
-            build.writeversion(testie, all_results)
+        if supp_done and all_results:
+            build.writeversion(testie, all_results, allow_overwrite = True)
         return tests_passed, tests_total
 
     def regress_all_testies(self, testies: List['Testie'], options, history: int = 1) -> Tuple[Build, List[Dataset]]:

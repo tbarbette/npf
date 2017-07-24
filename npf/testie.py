@@ -2,10 +2,11 @@ import multiprocessing
 import os
 import sys
 import time
+import random
+import shutil
 from pathlib import Path
 from queue import Empty
 from typing import Tuple, Dict
-
 import numpy as np
 
 from npf.build import Build
@@ -243,6 +244,9 @@ class Testie:
         Dict[str, List], str, str]:
         # Get address definition for roles from scripts
         self.parse_script_roles()
+        test_folder="testie" + str(random.randint(1,2 << 32))
+        os.mkdir(test_folder)
+        os.chdir(test_folder)
         self.create_files(v, self.role)
 
         for imp in self.imports:
@@ -274,7 +278,7 @@ class Testie:
                         if not script.get_type() in allowed_types:
                             continue
                         param = RemoteParameters()
-                        param.commands = SectionVariable.replace_variables(v, script.content,
+                        param.commands = "cd "+test_folder+";\n" + SectionVariable.replace_variables(v, script.content,
                                                                            role if role else script.get_role(),
                                                                            self.config.get_dict(
                                                                                "default_role_map"))
@@ -313,10 +317,17 @@ class Testie:
                             parallel_execs.append(_parallel_exec(remoteParam))
 
                 except KeyboardInterrupt:
+                    print("Program is interrupted")
                     if self.options.allow_mp:
                         p.close()
                         p.terminate()
+                    for imp in self.imports:
+                        imp.testie.cleanup()
+                    self.cleanup()
+                    os.chdir('..')
+                    shutil.rmtree(test_folder)
                     sys.exit(1)
+
                 if self.options.allow_mp:
                     p.close()
                     p.terminate()
@@ -363,7 +374,7 @@ class Testie:
                         elif mult == "g":
                             n *= 1024 * 1024 * 1024
 
-                        if n != 0 or (result_type in self.config["accept_zero"]):
+                        if n != 0 or (self.config.match("accept_zero", result_type)):
                             results.setdefault(result_type, []).append(n)
                             has_values = True
                         else:
@@ -394,6 +405,8 @@ class Testie:
         for imp in self.imports:
             imp.testie.cleanup()
         self.cleanup()
+        os.chdir('..')
+        shutil.rmtree(test_folder)
         return results, output, err
 
     #    def has_all(self, prev_results, build):
@@ -545,9 +558,9 @@ class Testie:
             if all_results and have_new_results:
                 if prev_results:
                     prev_results[run] = all_results[run]
-                    build.writeversion(self, prev_results)
+                    build.writeversion(self, prev_results, allow_overwrite=True)
                 else:
-                    build.writeversion(self, all_results)
+                    build.writeversion(self, all_results, allow_overwrite=True)
 
         return all_results, init_done
 

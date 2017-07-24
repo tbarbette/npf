@@ -212,8 +212,6 @@ def main():
                 prev_results = None
 
             all_results = None
-#            if not args.force_test:
-#                all_results = testie.has_all(prev_results, build)
             try:
                 if all_results is None:
                     all_results,init_done = testie.execute_all(build, prev_results=prev_results, do_test=args.do_test, options=args)

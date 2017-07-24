@@ -180,7 +180,7 @@ def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list
             new_data_types[result_type] = data
         data_types = new_data_types
 
-    if max_series is not None:
+    if max_series:
         new_data_types = OrderedDict()
         for i,(result_type,data) in enumerate(data_types.items()):
             new_data_types[result_type] = data[:max_series]

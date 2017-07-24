@@ -192,7 +192,7 @@ def build_filename(testie, build, hint, variables, def_ext, type_str=''):
                                                                                                                   '').replace(
         '/', '')
     if hint is None:
-        return build.result_path(testie.filename, def_ext, suffix=var_str + ('-' + type_str if type_str else ''))
+        path = build.result_path(testie.filename, def_ext, suffix=var_str + ('-' + type_str if type_str else ''))
     else:
         dirname, c_filename = os.path.split(hint)
         if c_filename == '':
@@ -209,8 +209,13 @@ def build_filename(testie, build, hint, variables, def_ext, type_str=''):
 
         if basename is None or basename is '':
             basename = var_str
-        return (dirname + '/' if dirname else '') + basename + (
+
+        path = (dirname + '/' if dirname else '') + basename + (
         ('-' if basename else '') + type_str if type_str else '') + ext
+
+    if not os.path.exists(os.path.dirname(path)):
+        os.makedirs(os.path.dirname(path))
+    return path
 
 
 def nodes(role) -> List[Node]:
