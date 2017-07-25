@@ -18,6 +18,8 @@ require_tags=import,dpdk
 GEN_BURST=32
 GEN_FLOWS=128
 GEN_LENGTH=64
+GEN_BLOCKING=true
+GEN_REPLAY=1
 LIMIT=1024000
 
 %late_variables
@@ -29,9 +31,7 @@ click --dpdk -c 0xf -- PKTGEN_CONFIG
 %file PKTGEN_CONFIG
 DPDKInfo($NBBUF)
 
-define($replay_count 1)
-define($IP0 10.0.0.1)
-define($IP1 10.0.0.2)
+define($replay_count $GEN_REPLAY)
 
 elementclass Numberise {
     input-> Strip(14) -> check :: CheckIPHeader -> nPacket :: NumberPacket(40) -> SetIPChecksum -> Unstrip(14) -> output
@@ -39,7 +39,7 @@ elementclass Numberise {
 
 
 elementclass Generator { $port, $srcmac, $dstmac, $srcip, $dstip, $e |
-    tdOUT::ToDPDKDevice($port, BLOCKING true);
+    tdOUT::ToDPDKDevice($port, BLOCKING $GEN_BLOCKING);
 
     adv1 :: FastUDPFlows(RATE 0, LIMIT $LIMIT, LENGTH $GEN_LENGTH, SRCETH $srcmac, DSTETH $dstmac, SRCIP $srcip, DSTIP $dstip, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST)
     -> MarkMACHeader
@@ -55,6 +55,7 @@ elementclass Generator { $port, $srcmac, $dstmac, $srcip, $dstip, $e |
     fd :: FromDPDKDevice($port, MAC $srcmac, MAXTHREADS 1, PROMISC false, VERBOSE 99)
     -> c0 :: Classifier(12/0806 20/0001,
                         12/0806 20/0002,
+                        12/0800,
                         -)[2]
     -> Strip(14)
     -> tsd :: TimestampDiff($e)
@@ -62,13 +63,21 @@ elementclass Generator { $port, $srcmac, $dstmac, $srcip, $dstip, $e |
     -> avg :: AverageCounter
     -> Discard;
 
+    tsd[1]
+    -> Print("WARNING: Untimestamped packet", -1)
+    -> Discard
+
+    c0[3]
+    -> Print("WARNING: Non-IP packet !")
+    -> Discard
+
     c0[0] -> ARPResponder($srcip $srcmac)
           -> tdOUT;
     c0[1] -> Discard;
 }
 
-gen0 :: Generator(0, ${client:0:mac}, ${dut:1:mac}, ${client:0:ip}, ${server:1:ip}, gen1/rt)
-gen1 :: Generator(1, ${client:1:mac}, ${dut:0:mac}, ${client:1:ip}, ${server:0:ip}, gen0/rt)
+gen0 :: Generator(0, ${client:0:mac}, ${dut:0:mac}, ${client:0:ip}, ${server:1:ip}, gen1/rt)
+gen1 :: Generator(1, ${client:1:mac}, ${dut:1:mac}, ${client:1:ip}, ${server:0:ip}, gen0/rt)
 
 DriverManager(
     pause,
@@ -77,6 +86,7 @@ DriverManager(
 
     print "Launching replay",
     write gen0/avg.reset,
+    write gen0/sndavg.reset,
     write gen0/replay.stop $replay_count,
     write gen0/replay.active true,
     write gen1/avg.reset,
@@ -90,4 +100,5 @@ DriverManager(
     print "AVG1 $(gen1/avg.link_rate) $(gen1/avg.count) $(gen1/fd.hw_count)",
     print "RESULT-LATENCY $(add $(gen0/tsd.average) $(gen1/tsd.average))",
     print "RESULT-TX $(add $(gen0/sndavg.link_rate) $(gen1/sndavg.link_rate))",
+    print "RESULT-PPS $(add $(gen0/avg.rate) $(gen1/avg.rate))",
     print "RESULT-THROUGHPUT $(add $(gen0/avg.link_rate) $(gen1/avg.link_rate))")

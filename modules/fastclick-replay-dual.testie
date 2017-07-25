@@ -18,6 +18,7 @@ PKTGEN_REPLAY_COUNT=1
 NIC_IN=0
 NIC_OUT=1
 NBUF=1048576
+GEN_PROMISC=false
 GEN_ENDAFTER=8
 nolinktest=0
 
@@ -79,8 +80,8 @@ fdOUT -> rwOUT :: EtherRewrite($OUTsrcmac,$OUTdstmac)
   -> avgSOUT :: AverageCounter(IGNORE $ignore)
   -> tdOUT
 
-receiveIN :: FromDPDKDevice($portIN, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC false)
-receiveOUT :: FromDPDKDevice($portOUT, VERBOSE $rxverbose, MAC $OUTsrcmac, PROMISC false)
+receiveIN :: FromDPDKDevice($portIN, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $GEN_PROMISC)
+receiveOUT :: FromDPDKDevice($portOUT, VERBOSE $rxverbose, MAC $OUTsrcmac, PROMISC $GEN_PROMISC)
 
 elementclass Receiver { $mac, $dir |
     input ->
