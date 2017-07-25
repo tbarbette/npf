@@ -259,7 +259,8 @@ class Grapher:
 
                 if new_results:
                     transformed_series.append((testie, build, new_results))
-            vars_values[var_name] = vvalues
+            if vvalues:
+                vars_values[var_name] = vvalues
             series = transformed_series
 
         # List of static variables to use in filename
@@ -316,8 +317,8 @@ class Grapher:
                             ndyn == 1 and all_num(vars_values[dyns[0]]) and len(vars_values[dyns[0]]) > 2):
             """Only one serie: expand one dynamic variable as serie, but not if it was plotable as a line"""
             script, build, all_results = series[0]
-            if self.config("var_series") and self.config("var_series") in dyns:
-                key = self.config("var_series")
+            if self.config("var_serie") and self.config("var_serie") in dyns:
+                key = self.config("var_serie")
             else:
                 key = None
                 # First pass : use the non-numerical variable with the most points
@@ -370,7 +371,13 @@ class Grapher:
             nseries = len(series)
             vars_all = list(new_varsall)
             vars_all.sort()
-            do_sort=False
+            if ndyn == 1:
+                key = dyns[0]
+                do_sort = True
+            else:
+                key = "Variables"
+                do_sort = False
+
         else:
             legend_title = None
             if ndyn == 0:
@@ -568,8 +575,8 @@ class Grapher:
                 lab = lab[1:]
             plt.plot(ax, y, label=lab, color=c, linestyle=build._line, marker=build._marker)
             plt.errorbar(ax, y, yerr=e, marker=' ', label=None, linestyle=' ', color=c)
-            xmin = min(xmin, min(x))
-            xmax = max(xmax, max(x))
+            xmin = min(xmin, min(ax))
+            xmax = max(xmax, max(ax))
 
         # Arrange the x limits
         if not (key in self.config('var_log', {})):
