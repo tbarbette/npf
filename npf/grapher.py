@@ -266,6 +266,10 @@ class Grapher:
         # List of static variables to use in filename
         statics = {}
 
+        # Set lines types
+        for i, (script, build, all_results) in enumerate(series):
+            build._line = graphlines[i % len(graphlines)]
+
         # graph_variables_as_series will force a variable to be considered as
         # a serie. This is different from var_serie which will define
         # what variable to use as a serie when there is only one serie
@@ -390,9 +394,6 @@ class Grapher:
                 key = "Variables"
                 do_sort = False
 
-        # Set lines types
-        for i, (script, build, all_results) in enumerate(series):
-            build._line = graphlines[i % len(graphlines)]
 
         data_types = dataset.convert_to_xyeb(series, vars_all, key, max_series=self.config('graph_max_series'),
                                              do_x_sort=do_sort, series_sort=self.config('graph_series_sort'))
