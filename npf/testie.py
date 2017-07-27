@@ -287,7 +287,7 @@ class Testie:
                         param.options = self.options
                         param.queue = queue
                         param.stdin = t.stdin.content
-                        param.timeout = t.config['timeout']
+                        param.timeout = t.config['timeout'] if t.config['timeout'] > 0 else None
                         param.role = script.get_role()
                         param.default_role_map = self.config.get_dict("default_role_map")
                         param.delay = script.delay()
@@ -363,6 +363,7 @@ class Testie:
 
                 has_values = False
                 for result_regex in self.config.get_list("result_regex"):
+                    result_types = OrderedDict()
                     for nr in re.finditer(result_regex, output.strip(), re.IGNORECASE):
                         result_type = nr.group("type")
                         if result_type is None:
@@ -377,7 +378,10 @@ class Testie:
                             n *= 1024 * 1024 * 1024
 
                         if n != 0 or (self.config.match("accept_zero", result_type)):
-                            results.setdefault(result_type, []).append(n)
+                            if result_type in result_types:
+                                result_types[result_type] += n
+                            else:
+                                result_types[result_type] = n
                             has_values = True
                         else:
                             print("Result for %s is 0 !" % result_type)
@@ -385,6 +389,8 @@ class Testie:
                             print(output)
                             print("stderr:")
                             print(err)
+                    for result_type, val in result_types.items():
+                       results.setdefault(result_type,[]).append(val)
                 if has_values:
                     break
 

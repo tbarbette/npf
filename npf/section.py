@@ -438,6 +438,7 @@ class SectionConfig(SectionVariable):
         self.__add("legend_loc", "best")
         self.__add("var_hide", {})
         self.__add("var_log", [])
+        self.__add("var_divider", 1)
         self.__add_dict("var_lim", {})
         self.__add("var_serie",None)
         self.__add_dict("var_names", {})
