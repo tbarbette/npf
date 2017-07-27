@@ -21,6 +21,7 @@ GEN_WAIT=5
 
 %late_variables
 GEN_TOT=EXPAND( $(( $GEN_BURST * $GEN_FLOWS )) )
+GEN_PROMISC=true
 
 %script deps=fastclick sudo=true delay=2
 click --dpdk -c 0x3 -- PKTGEN_CONFIG
@@ -39,7 +40,7 @@ elementclass Generator { $portOut, $portIn, $srcmac, $dstmac, $srcip, $dstip |
 
     StaticThreadSched(replay $portIn)
 
-    fd :: FromDPDKDevice($portIn, MAC $srcmac, MAXTHREADS 1, VERBOSE 99)
+    fd :: FromDPDKDevice($portIn, MAC $srcmac, MAXTHREADS 1, PROMISC $GEN_PROMISC, VERBOSE 99)
     -> c0 :: Classifier(12/0806 20/0001,
                         12/0806 20/0002,
                         -)[2]
@@ -74,5 +75,7 @@ DriverManager(
 
     set snd $(add $(gen0/sndavg.link_rate)),
     set throughput $(add $(gen0/avg.link_rate)),
+    set pps $(add $(gen0/avg.rate)),
     print "RESULT-LOSS $(div $(sub $snd $throughput) $snd)",
+    print "RESULT-PPS $pps",
     print "RESULT-THROUGHOUT $throughput")
