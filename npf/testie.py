@@ -471,6 +471,10 @@ class Testie:
                 if num_ok != num_exec:
                     if not options.quiet:
                         print("Aborting as init scripts did not run correctly !")
+                        print("Stdout:")
+                        print(output)
+                        print("Stderr:")
+                        print(err)
                     raise ScriptInitException()
 
     def execute_all(self, build, options, prev_results: Dataset = None, do_test=True,
