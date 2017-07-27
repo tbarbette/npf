@@ -240,14 +240,15 @@ class Testie:
             except OSError:
                 pass
 
-    def execute(self, build, run, v, n_runs=1, n_retry=0, allowed_types=SectionScript.ALL_TYPES_SET) -> Tuple[
-        Dict[str, List], str, str]:
+    def execute(self, build, run, v, n_runs=1, n_retry=0, allowed_types=SectionScript.ALL_TYPES_SET, do_imports=True) -> Tuple[
+        Dict[str, List], str, str, int]:
         # Get address definition for roles from scripts
         self.parse_script_roles()
         test_folder="testie" + str(random.randint(1,2 << 32))
         os.mkdir(test_folder)
         os.chdir(test_folder)
         self.create_files(v, self.role)
+        n_exec = 0
 
         for imp in self.imports:
             imp.testie.parse_script_roles()
@@ -273,7 +274,7 @@ class Testie:
                 terminated_event = m.Event()
 
                 remote_params = []
-                for t, v, role in [(imp.testie, imp.imp_v, imp.get_role()) for imp in self.imports] + [(self, v, None)]:
+                for t, v, role in ([(imp.testie, imp.imp_v, imp.get_role()) for imp in self.imports] if do_imports else []) + [(self, v, None)]:
                     for script in t.scripts:
                         if not script.get_type() in allowed_types:
                             continue
@@ -303,8 +304,9 @@ class Testie:
                         remote_params.append(param)
 
                 n = len(remote_params)
+                n_exec += n
                 if n == 0:
-                    return {}, None, None
+                    return {}, None, None, 0
 
                 try:
                     if self.options.allow_mp:
@@ -407,7 +409,7 @@ class Testie:
         self.cleanup()
         os.chdir('..')
         shutil.rmtree(test_folder)
-        return results, output, err
+        return results, output, err, n_exec
 
     #    def has_all(self, prev_results, build):
     #        if prev_results is None:
@@ -438,29 +440,35 @@ class Testie:
             raise ScriptInitException()
 
         if (allowed_types is None or "init" in allowed_types) and options.do_init:
-            if len(self.imports) > 0:
-                msg_shown = options.quiet
-                for imp in self.imports:
-                    if len([script for script in imp.testie.scripts if script.get_type() == "init"]) == 0:
-                        continue
-                    if not msg_shown:
-                        print("Executing imports init scripts...")
-                        msg_shown = True
-                    imp_res, sub_init_done = imp.testie.execute_all(build, options=options, do_test=do_test,
-                                                                    allowed_types={"init"})
-                if msg_shown:
-                    print("All imports passed successfully...")
+#            if len(self.imports) > 0:
+#                msg_shown = options.quiet
+#                for imp in self.imports:
+#                    if len([script for script in imp.testie.scripts if script.get_type() == "init"]) == 0:
+#                        continue
+#                    if not msg_shown:
+#                        print("Executing imports init scripts...")
+#                        msg_shown = True
+#                    imp_res, sub_init_done = imp.testie.execute_all(build, options=options, do_test=do_test,
+#                                                                    allowed_types={"init"})
+#                if msg_shown:
+#                    print("All imports passed successfully...")
+#
+#                print("Sub done")
 
-            init_scripts = [script for script in self.scripts if script.get_type() == "init"]
-            if len(init_scripts) > 0:
+#           init_scripts = [script for script in self.scripts if script.get_type() == "init"]
+#            if len(init_scripts) > 0:
                 if not options.quiet:
                     print("Executing init scripts...")
                 vs = {}
                 for k, v in self.variables.statics().items():
                     vs[k] = v.makeValues()[0]
-                results, output, err = self.execute(build, Run(vs), v=vs, n_runs=1, n_retry=0, allowed_types={"init"})
-
-                if len(results) == 0:
+                all_results, output, err, num_exec = self.execute(build, Run(vs), v=vs, n_runs=1, n_retry=0, allowed_types={"init"},do_imports=True)
+                num_ok = 0
+                for result_type,results in all_results.items():
+                    for n in results:
+                        if n > 0:
+                            num_ok +=1
+                if num_ok != num_exec:
                     if not options.quiet:
                         print("Aborting as init scripts did not run correctly !")
                     raise ScriptInitException()
@@ -529,7 +537,7 @@ class Testie:
                 if not self.options.quiet:
                     print(run.format_variables(self.config["var_hide"]))
 
-                new_results, output, err = self.execute(build, run, variables, n_runs, n_retry=self.config["n_retry"],
+                new_results, output, err, n_exec = self.execute(build, run, variables, n_runs, n_retry=self.config["n_retry"],
                                                         allowed_types={SectionScript.TYPE_SCRIPT})
                 if new_results:
                     if self.options.show_full:

@@ -59,6 +59,7 @@ class SectionFactory:
             s = SectionScript(matcher.group('scriptRole'), params)
             if sectionName.startswith('init'):
                 s.init = True
+                s.params.setdefault("autokill",False)
             return s
 
         if matcher.group('scriptParams') is not None:
