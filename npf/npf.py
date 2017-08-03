@@ -188,7 +188,7 @@ def find_local(path):
 
 def build_filename(testie, build, hint, variables, def_ext, type_str=''):
     var_str = '_'.join(
-        ["%s=%s" % (k, (val[1] if type(val) is tuple else val)) for k, val in sorted(variables.items())]).replace(' ',
+        ["%s=%s" % (k, (val[1] if type(val) is tuple else val)) for k, val in sorted(variables.items()) if val]).replace(' ',
                                                                                                                   '').replace(
         '/', '')
     if hint is None:
