@@ -2,16 +2,17 @@ import csv
 import io
 
 import re
+import natsort
 from orderedset._orderedset import OrderedSet
 
 from collections import OrderedDict
 from typing import List
-
+from matplotlib.ticker import LinearLocator,ScalarFormatter
 import matplotlib
 import numpy as np
 
 from npf.types import dataset
-from npf.types.dataset import Run
+from npf.types.dataset import Run, XYEB
 from npf.variable import is_numeric, get_numeric
 from npf import npf, variable
 from matplotlib.lines import Line2D
@@ -31,7 +32,6 @@ for i in range(len(graphcolor)):
     r, g, b = graphcolor[i]
     graphcolor[i] = (r / 255., g / 255., b / 255.)
 
-graphmarkers = ['o', '^', 's', 'D', '*', 'x', '.', '_', 'H', '>', '<', 'v', 'd']
 graphlines = ['-', '--', '-.', ':']
 
 
@@ -101,6 +101,9 @@ class Grapher:
 
                     return default
         return default
+
+    def result_in_list(self, var, result_type):
+        return "result-" + result_type in self.config(var, []) or "result" in self.config(var, [])
 
     def var_name(self, key, result_type=None):
         return self.scriptconfig("var_names", key, key, result_type)
@@ -194,6 +197,8 @@ class Grapher:
                 newseries.append((testie, build, new_all_results))
             series = newseries
 
+        graphmarkers = self.configlist("graph_markers")
+
         # Data transformation : reject outliers, transform list to arrays, filter according to graph_variables, count var_alls and vars_values
         filtered_series = []
         vars_values = {}
@@ -211,7 +216,8 @@ class Grapher:
                         vars_values.setdefault(k, set()).add(v)
 
             if new_results:
-                build._marker = graphmarkers[i % len(graphmarkers)]
+                if len(graphmarkers) > 0:
+                    build._marker = graphmarkers[i % len(graphmarkers)]
                 filtered_series.append((testie, build, new_results))
             else:
                 print("No valid data for %s" % build)
@@ -254,7 +260,7 @@ class Grapher:
                         variables[var_name] = result_type
                         vvalues.add(result_type)
                         nr = new_run_results.copy()
-                        nr.update({var_name: results})
+                        nr.update({'result-'+var_name: results})
                         new_results[Run(variables)] = nr
 
                 if new_results:
@@ -274,26 +280,29 @@ class Grapher:
         # a serie. This is different from var_serie which will define
         # what variable to use as a serie when there is only one serie
         for to_get_out in self.configlist('graph_variables_as_series', []):
-            values = vars_values[to_get_out]
+            values = natsort.natsorted(vars_values[to_get_out])
             if len(values) == 1:
                 statics[to_get_out] = list(values)[0]
             del vars_values[to_get_out]
 
             transformed_series = []
             for i, (testie, build, all_results) in enumerate(series):
-                new_series = {}
+                new_series = OrderedDict()
+                for value in values:
+                    new_series[value] = OrderedDict()
 
                 for run, run_results in all_results.items():
                     variables = run.variables.copy()
                     new_run_results = {}
                     value = variables[to_get_out]
                     del variables[to_get_out]
-                    new_series.setdefault(value, OrderedDict())[Run(variables)] = run_results
+                    new_series[value][Run(variables)] = run_results
 
                 for i, (value, data) in enumerate(new_series.items()):
                     nbuild = build.copy()
-                    nbuild._pretty_name = nbuild.pretty_name() + (" - %s = %s" % (to_get_out, str(value)))
-                    nbuild._marker = graphmarkers[i % len(graphmarkers)]
+                    nbuild._pretty_name = nbuild.pretty_name() + (" - %s = %s" % (self.var_name(to_get_out), str(value)))
+                    if len(graphmarkers) > 0:
+                        nbuild._marker = graphmarkers[i % len(graphmarkers)]
                     transformed_series.append((testie, nbuild, data))
 
             series = transformed_series
@@ -369,7 +378,8 @@ class Grapher:
                 versions.append(value)
                 nb = build.copy()
                 nb._pretty_name = str(value)
-                nb._marker = graphmarkers[i % len(graphmarkers)]
+                if len(graphmarkers) > 0:
+                    nb._marker = graphmarkers[i % len(graphmarkers)]
                 series.append((script, nb, newserie))
                 legend_title = self.var_name(key)
             nseries = len(series)
@@ -412,12 +422,16 @@ class Grapher:
 
         plots = OrderedDict()
         matched_set = set()
-        for result_type_list, fig_name in self.configdict('graph_subplot_results', {}).items():
+        for i,(result_type_list, n_cols) in enumerate(self.configdict('graph_subplot_results', {}).items()):
             for result_type in re.split('[,]|[+]', result_type_list):
                 matched = False
                 for k in data_types.keys():
                     if re.match(result_type, k):
-                        plots.setdefault(fig_name, []).append(k)
+                        if variable.is_numeric(n_cols):
+                            n_cols = variable.get_numeric(n_cols)
+                        else:
+                            n_cols = 1
+                        plots.setdefault(i,([],n_cols))[0].append((k))
                         matched_set.add(k)
                         matched = True
                 if not matched:
@@ -425,10 +439,10 @@ class Grapher:
 
         for result_type, data in data_types.items():
             if result_type not in matched_set:
-                plots[result_type] = [result_type]
+                plots[result_type] = ([result_type],1)
 
         ret = {}
-        for fig_name, figure in plots.items():
+        for i, (figure,n_cols) in plots.items():
             text = self.config("graph_text")
 
             if len(self.configlist("graph_display_statics")) > 0:
@@ -436,12 +450,15 @@ class Grapher:
                     if text == '' or text[-1] != "\n":
                         text += "\n"
                     text += self.var_name(stat) + " : " + ', '.join([str(val) for val in vars_values[stat]])
+            print(figure,n_cols)
+            n_lines = math.ceil((len(figure) + (1 if text else 0)) / float(n_cols))
+            fig_name = "subplot" + str(i)
 
             for isubplot, result_type in enumerate(figure):
                 data = data_types[result_type]
                 ymin, ymax = (float('inf'), 0)
 
-                plt.subplot(len(figure) + (1 if text else 0), 1, isubplot + 1)
+                plt.subplot(n_lines, n_cols, isubplot + 1)
 
                 if ndyn == 0:
                     """No dynamic variables : do a barplot X=version"""
@@ -455,14 +472,35 @@ class Grapher:
 
                 type_config = "" if not result_type else "-" + result_type
 
+                lgd = None
                 if ndyn > 0 and bool(self.config_bool('graph_legend', True)):
-                    plt.legend(loc=self.config("legend_loc"), title=legend_title)
-
-                if "result-" + result_type in self.config('var_log', {}) or "result" in self.config('var_log', {}):
-                    plt.yscale('log')
+                    loc = self.config("legend_loc")
+                    if loc.startswith("outer"):
+                        loc = loc[5:].strip()
+                        lgd = plt.legend(loc=loc,bbox_to_anchor=(0., 1, 1., .0), mode=self.config("legend_mode"), borderaxespad=0.,ncol=self.config("legend_ncol"), title=legend_title,bbox_transform=plt.gcf().transFigure)
+                    else:
+                        lgd = plt.legend(loc=loc,ncol=self.config("legend_ncol"), title=legend_title)
 
                 if key in self.config('var_log', {}):
-                    plt.xscale('log')
+                    ax = data[0][0]
+                    if ax is not None and len(ax) > 1:
+                        if ax[0] == 0 and len(ax) > 2:
+                            base = ax[2] / ax[1]
+                        else:
+                            base = ax[1] / ax[0]
+                        if base != 2:
+                            base = 10
+                        plt.xscale('symlog',basex=base)
+                        plt.xticks(data[0][0])
+                    else:
+                        plt.xscale('symlog')
+
+
+                    xticks = self.scriptconfig("var_ticks", key, default=None)
+                    if xticks:
+                        plt.xticks([variable.get_numeric(x) for x in xticks.split('+')])
+                    plt.gca().xaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%d'))
+
 
                 plt.xlabel(self.var_name(key))
 
@@ -507,7 +545,7 @@ class Grapher:
                     return None
 
             if text:
-                plt.subplot(len(figure) + 1, 1, len(figure) + 1)
+                plt.subplot(n_lines, n_cols, len(figure) + 1)
                 plt.axis('off')
                 plt.figtext(.05, (0.5 / (len(figure) + 1)), text.replace("\\n", "\n"), verticalalignment='center',
                             horizontalalignment='left')
@@ -519,12 +557,12 @@ class Grapher:
                     result_type = fig_name
             if not filename:
                 buf = io.BytesIO()
-                plt.savefig(buf, format='png')
+                plt.savefig(buf, format='png', bbox_extra_artists=(lgd,) if lgd else [], bbox_inches='tight')
                 buf.seek(0)
                 ret[result_type] = buf.read()
             else:
                 type_filename = npf.build_filename(testie, build, options.graph_filename, statics, 'pdf', result_type)
-                plt.savefig(type_filename)
+                plt.savefig(type_filename, bbox_extra_artists=(lgd,) if lgd else [], bbox_inches='tight')
                 ret[result_type] = None
                 print("Graph of test written to %s" % type_filename)
             plt.clf()
@@ -546,10 +584,10 @@ class Grapher:
 
         self.format_figure(result_type)
         plt.bar(ticks, y, label=x, color=graphcolor[i % len(graphcolor)], width=width)
-        plt.xticks(ticks, x, rotation='vertical' if (ndata > 10) else 'horizontal')
+        plt.xticks(ticks, x, rotation='vertical' if (ndata > 8) else 'horizontal')
         plt.gca().set_xlim(0, len(x))
 
-    def do_line_plot(self, key, result_type, data):
+    def do_line_plot(self, key, result_type, data : XYEB):
         xmin, xmax = (float('inf'), 0)
 
         for i, (x, y, e, build) in enumerate(data):
@@ -584,34 +622,52 @@ class Grapher:
             var_lim = self.scriptconfig("var_lim", key, key)
             if var_lim and var_lim is not key:
                 xmin, xmax = (float(x) for x in var_lim.split('-'))
-            else:
-                if abs(xmin) < 10 and abs(xmax) < 10:
-                    if (xmin != 1):
-                        xmin -= 1
-                    xmax += 1
-                    pass
-                else:
-                    base = float(max(10, math.ceil((xmax - xmin) / 10)))
-                    if (xmin > 0):
-                        xmin = int(math.floor(xmin / base)) * base
-                    if (xmax > 0):
-                        xmax = int(math.ceil(xmax / base)) * base
+            # else:
+            #     if abs(xmin) < 10 and abs(xmax) < 10:
+            #         if (xmin != 1):
+            #             xmin -= 1
+            #         xmax += 1
+            #         pass
+            #     else:
+            #         base = float(max(10, math.ceil((xmax - xmin) / 10)))
+            #         if (xmin > 0):
+            #             xmin = int(math.floor(xmin / base)) * base
+            #         if (xmax > 0):
+            #             xmax = int(math.ceil(xmax / base)) * base
+            #
+            # plt.gca().set_xlim(xmin, xmax)
 
-            plt.gca().set_xlim(xmin, xmax)
 
     def format_figure(self, result_type):
         ax = plt.gca()
 
         yunit = self.scriptconfig("var_unit", "result", default="", result_type=result_type)
         yformat = self.scriptconfig("var_format", "result", default=None, result_type=result_type)
+        yticks = self.scriptconfig("var_ticks", "result", default=None, result_type=result_type)
+        if self.result_in_list('var_grid',result_type):
+            plt.grid(True)
+        if self.result_in_list('var_log', result_type):
+            plt.yscale('symlog' if yformat else 'log')
         if yformat is not None:
             formatter = FormatStrFormatter(yformat)
             ax.yaxis.set_major_formatter(formatter)
         elif (yunit.lower() == "bps" or yunit.lower() == "byteps"):
             formatter = FuncFormatter(self.bits if yunit.lower() == "bps" else self.bytes)
             ax.yaxis.set_major_formatter(formatter)
+        elif (yunit.lower() == "%" or yunit.lower().startswith("percent")):
+            def to_percent(y, position):
+                s = str(100 * y)
+
+                if matplotlib.rcParams['text.usetex'] is True:
+                    return s + r'$\%$'
+                else:
+                    return s + '%'
+
+            ax.yaxis.set_major_formatter(FuncFormatter(to_percent))
         else:
             ax.get_yaxis().get_major_formatter().set_useOffset(False)
+        if yticks:
+            plt.yticks([variable.get_numeric(y) for y in yticks.split('+')])
 
     def do_barplot(self, vars_all, dyns, result_type, data):
         nseries = len(data)
