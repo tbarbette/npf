@@ -5,10 +5,10 @@ Set the number of hardware queues for a given device
 N=1
 NIC=0
 
-%init
+%init sudo=true
 n=$(sudo ethtool -l ${self:$NIC:ifname} | grep -i combined | tail -n 1 | grep -oE "[0-9]+")
 if [ "$n" != "$N" ] ; then
-    sudo ethtool -L ${self:$NIC:ifname} combined $N && echo "RESULT 1"
+    ethtool -L ${self:$NIC:ifname} combined $N && echo "RESULT 1"
 else
     echo "RESULT 1"
 fi

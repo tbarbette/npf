@@ -173,6 +173,10 @@ class ListVariable(Variable):
             self.lvalues = [str(x) for x in l]
         self.all_num = all_num
 
+    def __add__(self,other):
+        self.lvalues.extend(other.lvalues)
+        return self
+
     def makeValues(self):
         vs = []
         for v in self.lvalues:

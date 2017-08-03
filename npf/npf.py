@@ -71,7 +71,10 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
     t.add_argument('--no-conntest',
                    help='Do not run connection tests', dest='do_conntest', action='store_false',
                    default=True)
-
+    t.add_argument('--preserve-temporaries',
+                   help='Do not delete tesite folder with temporary files', dest='preserve_temp',
+                   action='store_true',
+                   default=False)
     t.add_argument('--use-last',
                    help='Use data from previous version instead of running test if possible', dest='use_last',
                    action='store_true',

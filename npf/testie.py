@@ -78,6 +78,8 @@ class Testie:
 
         self.sections = []
         self.files = []
+        self.init_files = []
+        self.late_variables = []
         self.scripts = []
         self.imports = []
         self.requirements = []
@@ -162,7 +164,6 @@ class Testie:
                     raise Exception('Modules cannot have roles, their importer defines it')
                 script._role = imp.get_role()
 
-
     def build_deps(self, repo_under_test: List[Repository]):
         # Check for dependencies
         deps = set()
@@ -188,18 +189,35 @@ class Testie:
                 missings.append(tag)
         return missings
 
-    def create_files(self, v, self_role=None):
-        for s in self.files:
+    def build_file_list(self, v, self_role=None, files=None) -> List[Tuple[str, str, str]]:
+        list = []
+        if files is None:
+            files = self.files
+        for s in files:
             role = s.get_role() if s.get_role() else self_role
             if not s.noparse:
                 p = SectionVariable.replace_variables(v, s.content, role, self.config.get_dict("default_role_map"))
             else:
                 p = s.content
+            list.append((s.filename, p, role))
+        return list
+
+    def create_files(self, file_list):
+        unique_list = {}
+        for filename, p, role in file_list:
+            if filename in unique_list:
+                if unique_list[filename+role][1] != p:
+                    raise Exception(
+                        "File name conflict ! Some of your scripts try to create some file with the same name but different content !")
+            else:
+                unique_list[filename+(role if role else '')] = (filename,p,role)
+
+        for whatever, (filename,p,role) in unique_list.items():
             if self.options.show_files:
-                print("File %s:" % s.filename)
+                print("File %s:" % filename)
                 print(p.strip())
             for node in npf.nodes(role):
-                node.executor.writeFile(s.filename, p)
+                node.executor.writeFile(filename, p)
 
     def test_require(self, v, build):
         for require in self.requirements:
@@ -240,27 +258,45 @@ class Testie:
             except OSError:
                 pass
 
-    def execute(self, build, run, v, n_runs=1, n_retry=0, allowed_types=SectionScript.ALL_TYPES_SET, do_imports=True) -> Tuple[
-        Dict[str, List], str, str, int]:
+    def execute(self, build, run, v, n_runs=1, n_retry=0, allowed_types=SectionScript.ALL_TYPES_SET, do_imports=True) \
+            -> Tuple[Dict[str, List], str, str, int]:
+
         # Get address definition for roles from scripts
         self.parse_script_roles()
-        test_folder="testie" + str(random.randint(1,2 << 32))
+
+        #Create temporary folder
+        test_folder = "testie" + str(random.randint(1, 2 << 32))
         os.mkdir(test_folder)
         os.chdir(test_folder)
-        self.create_files(v, self.role)
+
+        #Build file list
+        file_list = []
+        if SectionScript.TYPE_INIT in allowed_types:
+            initv = {}
+            for k, vinit in self.variables.statics().items():
+                initv[k] = vinit.makeValues()[0]
+            file_list.extend(self.build_file_list(initv, self.role, files=self.init_files))
+        else:
+            file_list.extend(self.build_file_list(v, self.role))
+
         n_exec = 0
 
-        for imp in self.imports:
+        for imp in self.get_imports():
             imp.testie.parse_script_roles()
             imp.imp_v = {}
             for k, val in imp.testie.variables.statics().items():
                 imp.imp_v[k] = val.makeValues()[0]
-
             imp.imp_v.update(v)
-            if hasattr(imp.testie, 'late_variables'):
-                imp.imp_v = imp.testie.late_variables.execute(imp.imp_v, imp.testie)
-            imp.testie.create_files(imp.imp_v, imp.get_role())
+            for late_variables in imp.testie.get_late_variables():
+                imp.imp_v.update(late_variables.execute(imp.imp_v, imp.testie))
+            if SectionScript.TYPE_INIT in allowed_types:
+                file_list.extend(imp.testie.build_file_list(imp.imp_v, imp.get_role(), files=imp.testie.init_files))
+            else:
+                file_list.extend(imp.testie.build_file_list(imp.imp_v, imp.get_role()))
 
+        self.create_files(file_list)
+
+        #Launching the tests in itself
         results = {}
         m = multiprocessing.Manager()
         for i in range(n_runs):
@@ -274,15 +310,18 @@ class Testie:
                 terminated_event = m.Event()
 
                 remote_params = []
-                for t, v, role in ([(imp.testie, imp.imp_v, imp.get_role()) for imp in self.imports] if do_imports else []) + [(self, v, None)]:
+                for t, v, role in (
+                [(imp.testie, imp.imp_v, imp.get_role()) for imp in self.imports] if do_imports else []) + [
+                    (self, v, None)]:
                     for script in t.scripts:
                         if not script.get_type() in allowed_types:
                             continue
                         param = RemoteParameters()
-                        param.commands = "cd "+test_folder+";\n" + SectionVariable.replace_variables(v, script.content,
-                                                                           role if role else script.get_role(),
-                                                                           self.config.get_dict(
-                                                                               "default_role_map"))
+                        param.commands = "cd " + test_folder + ";\n" + SectionVariable.replace_variables(v,
+                                                                                                         script.content,
+                                                                                                         role if role else script.get_role(),
+                                                                                                         self.config.get_dict(
+                                                                                                             "default_role_map"))
                         param.terminated_event = terminated_event
                         param.options = self.options
                         param.queue = queue
@@ -306,7 +345,7 @@ class Testie:
                 n = len(remote_params)
                 n_exec += n
                 if n == 0:
-                    return {}, None, None, 0
+                    break
 
                 try:
                     if self.options.allow_mp:
@@ -390,11 +429,11 @@ class Testie:
                             print("stderr:")
                             print(err)
                     for result_type, val in result_types.items():
-                       results.setdefault(result_type,[]).append(val)
+                        results.setdefault(result_type, []).append(val)
                 if has_values:
                     break
 
-                for result_type in self.config['results_expect']:
+                for result_type in self.config.get_list('results_expect'):
                     if result_type not in results:
                         print("Could not find expected result '%s' !" % result_type)
                         print("stdout:")
@@ -410,11 +449,13 @@ class Testie:
                     print(err)
                     continue
 
-        for imp in self.imports:
-            imp.testie.cleanup()
-        self.cleanup()
+        if not self.options.preserve_temp:
+            for imp in self.imports:
+                imp.testie.cleanup()
+            self.cleanup()
         os.chdir('..')
-        shutil.rmtree(test_folder)
+        if not self.options.preserve_temp:
+            shutil.rmtree(test_folder)
         return results, output, err, n_exec
 
     #    def has_all(self, prev_results, build):
@@ -446,42 +487,44 @@ class Testie:
             raise ScriptInitException()
 
         if (allowed_types is None or "init" in allowed_types) and options.do_init:
-#            if len(self.imports) > 0:
-#                msg_shown = options.quiet
-#                for imp in self.imports:
-#                    if len([script for script in imp.testie.scripts if script.get_type() == "init"]) == 0:
-#                        continue
-#                    if not msg_shown:
-#                        print("Executing imports init scripts...")
-#                        msg_shown = True
-#                    imp_res, sub_init_done = imp.testie.execute_all(build, options=options, do_test=do_test,
-#                                                                    allowed_types={"init"})
-#                if msg_shown:
-#                    print("All imports passed successfully...")
-#
-#                print("Sub done")
+            #            if len(self.imports) > 0:
+            #                msg_shown = options.quiet
+            #                for imp in self.imports:
+            #                    if len([script for script in imp.testie.scripts if script.get_type() == "init"]) == 0:
+            #                        continue
+            #                    if not msg_shown:
+            #                        print("Executing imports init scripts...")
+            #                        msg_shown = True
+            #                    imp_res, sub_init_done = imp.testie.execute_all(build, options=options, do_test=do_test,
+            #                                                                    allowed_types={"init"})
+            #                if msg_shown:
+            #                    print("All imports passed successfully...")
+            #
+            #                print("Sub done")
 
-#           init_scripts = [script for script in self.scripts if script.get_type() == "init"]
-#            if len(init_scripts) > 0:
+            #           init_scripts = [script for script in self.scripts if script.get_type() == "init"]
+            #            if len(init_scripts) > 0:
+
+            if not options.quiet:
+                print("Executing init scripts...")
+            vs = {}
+            for k, v in self.variables.statics().items():
+                vs[k] = v.makeValues()[0]
+            all_results, output, err, num_exec = self.execute(build, Run(vs), v=vs, n_runs=1, n_retry=0,
+                                                              allowed_types={"init"}, do_imports=True)
+            num_ok = 0
+            for result_type, results in all_results.items():
+                for n in results:
+                    if n > 0:
+                        num_ok += n
+            if num_ok != num_exec:
                 if not options.quiet:
-                    print("Executing init scripts...")
-                vs = {}
-                for k, v in self.variables.statics().items():
-                    vs[k] = v.makeValues()[0]
-                all_results, output, err, num_exec = self.execute(build, Run(vs), v=vs, n_runs=1, n_retry=0, allowed_types={"init"},do_imports=True)
-                num_ok = 0
-                for result_type,results in all_results.items():
-                    for n in results:
-                        if n > 0:
-                            num_ok +=1
-                if num_ok != num_exec:
-                    if not options.quiet:
-                        print("Aborting as init scripts did not run correctly !")
-                        print("Stdout:")
-                        print(output)
-                        print("Stderr:")
-                        print(err)
-                    raise ScriptInitException()
+                    print("Aborting as init scripts did not run correctly !")
+                    print("Stdout:")
+                    print(output)
+                    print("Stderr:")
+                    print(err)
+                raise ScriptInitException()
 
     def execute_all(self, build, options, prev_results: Dataset = None, do_test=True,
                     allowed_types=SectionScript.ALL_TYPES_SET) -> Tuple[Dataset, bool]:
@@ -504,8 +547,9 @@ class Testie:
         all_results = {}
         for variables in self.variables:
             run = Run(variables)
-            if hasattr(self, 'late_variables'):
-                variables = self.late_variables.execute(variables, self)
+            variables = variables.copy()
+            for late_variables in self.get_late_variables():
+                variables.update(late_variables.execute(variables, self))
             r_status, r_out, r_err = self.test_require(variables, build)
             if not r_status:
                 if not self.options.quiet:
@@ -518,7 +562,7 @@ class Testie:
                 continue
 
             if prev_results and prev_results is not None and not options.force_test:
-                run_results = prev_results.get(run, {})
+                run_results = prev_results.get(run, None)
                 if run_results is None:
                     run_results = {}
             else:
@@ -532,7 +576,7 @@ class Testie:
                         run_results = r[run]
                         break
 
-            for result_type in self.config['results_expect']:
+            for result_type in self.config.get_list('results_expect'):
                 if result_type not in run_results:
                     run_results = {}
 
@@ -547,8 +591,9 @@ class Testie:
                 if not self.options.quiet:
                     print(run.format_variables(self.config["var_hide"]))
 
-                new_results, output, err, n_exec = self.execute(build, run, variables, n_runs, n_retry=self.config["n_retry"],
-                                                        allowed_types={SectionScript.TYPE_SCRIPT})
+                new_results, output, err, n_exec = self.execute(build, run, variables, n_runs,
+                                                                n_retry=self.config["n_retry"],
+                                                                allowed_types={SectionScript.TYPE_SCRIPT})
                 if new_results:
                     if self.options.show_full:
                         print("stdout:")
@@ -615,7 +660,7 @@ class Testie:
                             testie = Testie(os.path.join(root, filename), options=options, tags=tags)
                             testies.append(testie)
                         except Exception as e:
-                            print("Error during the parsing of %s :\n%s" % (filename,e))
+                            print("Error during the parsing of %s :\n%s" % (filename, e))
 
         filtered_testies = []
         for testie in testies:
@@ -656,3 +701,9 @@ class Testie:
                 if nic_match:
                     npf.node(script.get_role(), self.config.get_dict("default_role_map")).nics[
                         int(nic_match.group('nic_idx'))][nic_match.group('type')] = val
+
+    def get_imports(self) -> List[SectionImport]:
+        return self.imports
+
+    def get_late_variables(self) -> List[SectionLateVariable]:
+        return self.late_variables

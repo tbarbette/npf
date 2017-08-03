@@ -189,8 +189,21 @@ class Repository:
             if not line:
                 continue
             s = line.split('=', 1)
-            val = s[1].strip()
             var = s[0].strip()
+            var = var.split(':',1)
+            if len(var) > 1:
+                have_all=True
+                for v in var[0].split(','):
+                    if not v in options.tags:
+                        have_all = False
+                        break
+                if not have_all:
+                    continue
+                self.reponame += '-' + var[0]
+                var = var[1]
+            else:
+                var = var[0]
+            val = s[1].strip()
             append = False
             if var.endswith('+'):
                 var = var[:-1]

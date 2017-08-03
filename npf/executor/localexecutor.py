@@ -27,12 +27,14 @@ class LocalExecutor:
         pass
 
     def exec(self, cmd, terminated_event, bin_paths : List[str]=[], queue: Queue = None, options = None, stdin = None, timeout = None, sudo = False):
+        os.chdir("..")
+        cwd = os.getcwd()
         env = os.environ.copy()
         if bin_paths:
             if not sudo:
-                env["PATH"] = ':'.join(bin_paths) + ":" + env["PATH"]
+                env["PATH"] = ':'.join([cwd + '/' + path for path in bin_paths]) + ":" + env["PATH"]
             else:
-                cmd = 'export PATH=' + ':'.join(bin_paths) + ":" + '$PATH\n' + cmd
+                cmd = 'export PATH=' + ':'.join([cwd + '/' + path for path in bin_paths]) + ":" + '$PATH\n' + cmd
 
         if options is not None and options.show_cmd:
             print("Executing (PATH+=%s) :\n%s" % (':'.join(bin_paths), cmd.strip()))

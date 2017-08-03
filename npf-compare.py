@@ -46,6 +46,9 @@ def main():
 
     parser.add_argument('repos', metavar='repo', type=str, nargs='+', help='names of the repositories to watch')
 
+
+    parser.add_argument('--graph-title', type=str, nargs='?', help='Graph title')
+
     b = npf.add_building_options(parser)
     t = npf.add_testing_options(parser)
     g = npf.add_graph_options(parser)
@@ -95,7 +98,8 @@ def main():
     grapher = Grapher()
     g = grapher.graph(series=series,
                       filename=filename,
-                      options=args)
+                      options=args,
+                      title=args.graph_title)
 
 
 if __name__ == "__main__":

@@ -20,6 +20,7 @@ GEN_FLOWS=128
 GEN_LENGTH=64
 GEN_BLOCKING=true
 GEN_REPLAY=1
+GEN_INIT_WAIT=5
 LIMIT=1024000
 
 %late_variables
@@ -82,7 +83,7 @@ gen1 :: Generator(1, ${client:1:mac}, ${dut:1:mac}, ${client:1:ip}, ${server:0:i
 DriverManager(
     pause,
     pause,
-    wait 5s,
+    wait ${GEN_INIT_WAIT}s,
 
     print "Launching replay",
     write gen0/avg.reset,

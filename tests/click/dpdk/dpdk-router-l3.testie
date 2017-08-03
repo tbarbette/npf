@@ -61,8 +61,6 @@ lengthonly:BURSTOUT=32
 mask=$(echo "obase=16; (2^$CPU) - 1" | bc)
 click -n 4 -c 0x$mask -- CONFIG || click --dpdk -n 4 -c 0x$mask -- CONFIG
 
-
-
 %file CONFIG
 define ($MTU 1500)
 define ($bout ${BURSTOUT})

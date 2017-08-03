@@ -2,7 +2,7 @@ import numpy as np
 from typing import Dict, List, Tuple
 from collections import OrderedDict
 from npf.variable import is_numeric, get_numeric
-
+import natsort
 
 class Run:
     def __init__(self, variables):
@@ -158,23 +158,37 @@ def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list
     if series_sort is not None:
         new_data_types = OrderedDict()
         for result_type,data in data_types.items():
-            order = []
+            avg = []
             max = []
             min = []
             for x,y,e,build in data:
-                order.append(np.sum(y))
+                if not np.isnan(np.sum(y)):
+                    avg.append(np.sum(y))
+                else:
+                    avg.append(0)
                 max.append(np.max(y))
                 min.append(np.min(y))
+            print(series_sort)
+            print(avg)
+            if series_sort.startswith('-'):
+                inverted = True
+                series_sort = series_sort[1:]
+            else:
+                inverted = False
+
             if series_sort == 'avg':
-                order = np.argsort(np.asarray(order))
-            elif series_sort == '-avg':
-                order = np.argsort(- np.asarray(order))
+                order = np.argsort(np.asarray(avg))
             elif series_sort == 'max':
                 order = np.argsort(- np.asarray(max))
             elif series_sort == 'min':
                 order = np.argsort(np.asarray(min))
+            elif series_sort == 'natsort':
+                order = natsort.index_natsorted(data,key=lambda x: x[3].pretty_name())
             else:
                 raise Exception("Unknown sorting : %s" % series_sort)
+
+            if inverted:
+                order = np.flip(order,0)
 
             data = [data[i] for i in order]
             new_data_types[result_type] = data

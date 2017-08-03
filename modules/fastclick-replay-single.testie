@@ -22,7 +22,7 @@ TRACE_TIME=8
 nolinktest=0
 
 %script sudo=true deps=fastclick
-click --dpdk -c 0xf -- PKTGEN-CONFIG
+click --dpdk -c 0x3 -- PKTGEN-CONFIG
 
 %file PKTGEN-CONFIG
 define($bout $PKTGEN_BURST_OUT)

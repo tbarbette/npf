@@ -15,7 +15,7 @@ import re
 class SectionFactory:
     varPattern = "([a-zA-Z0-9_:-]+)[=](" + Variable.VALUE_REGEX + ")?"
     namePattern = re.compile(
-            "^(?P<tags>[a-zA-Z0-9,_-]+[:])?(?P<name>info|config|variables|late_variables|file(:?[@](?P<fileRole>[a-zA-Z0-9]+))? (?P<fileName>[a-zA-Z0-9_.-]+)(:? (?P<fileNoparse>noparse))?|require|"
+            "^(?P<tags>[a-zA-Z0-9,_-]+[:])?(?P<name>info|config|variables|late_variables|(init-)?file(:?[@](?P<fileRole>[a-zA-Z0-9]+))? (?P<fileName>[a-zA-Z0-9_.-]+)(:? (?P<fileNoparse>noparse))?|require|"
         "import(:?[@](?P<importRole>[a-zA-Z0-9]+))?[ \t]+(?P<importModule>" + Variable.VALUE_REGEX + ")(?P<importParams>([ \t]+" +
         varPattern + ")+)?|"
                      "(:?script|init)(:?[@](?P<scriptRole>[a-zA-Z0-9]+))?(?P<scriptParams>([ \t]+" + varPattern + ")*))$")
@@ -53,7 +53,7 @@ class SectionFactory:
             s = SectionImport(matcher.group('importRole'), module, params)
             return s
 
-        if sectionName.startswith('script') or sectionName.startswith('init'):
+        if sectionName.startswith('script') or (sectionName.startswith('init') and not sectionName.startswith('init-file')):
             params = matcher.group('scriptParams')
             params = dict(re.findall(SectionFactory.varPattern, params)) if params else {}
             s = SectionScript(matcher.group('scriptRole'), params)
@@ -69,16 +69,21 @@ class SectionFactory:
         if sectionName.startswith('file'):
             s = SectionFile(matcher.group('fileName').strip(), role=matcher.group('fileRole'),noparse=matcher.group('fileNoparse'))
             return s
+        if sectionName.startswith('init-file'):
+            s = SectionInitFile(matcher.group('fileName').strip(), role=matcher.group('fileRole'),noparse=matcher.group('fileNoparse'))
+            return s
+
         elif sectionName == 'require':
             s = SectionRequire()
+            return s
+        elif sectionName == 'late_variables':
+            s = SectionLateVariable()
             return s
         if hasattr(testie, sectionName):
             raise Exception("Only one section of type " + sectionName + " is allowed")
 
         if sectionName == 'variables':
             s = SectionVariable()
-        elif sectionName == 'late_variables':
-            s = SectionLateVariable()
         elif sectionName == 'config':
             s = SectionConfig()
         elif sectionName == 'info':
@@ -186,6 +191,13 @@ class SectionFile(Section):
 
     def finish(self, testie):
         testie.files.append(self)
+
+class SectionInitFile(SectionFile):
+    def __init__(self, filename, role=None, noparse=False):
+        super().__init__(filename,role,noparse)
+
+    def finish(self, testie):
+        testie.init_files.append(self)
 
 
 class SectionRequire(Section):
@@ -343,7 +355,12 @@ class SectionVariable(Section):
             var, val, is_append = self.parse_variable(line, testie.tags)
             if not var is None:
                 if check_exists and not var in self.vlist:
-                    raise Exception("Unknown variable %s" % var)
+                    if var.endswith('s') and var[:-1] in self.vlist:
+                        var = var[:-1]
+                    elif var + 's' in self.vlist:
+                        var = var + 's'
+                    else:
+                        raise Exception("Unknown variable %s" % var)
                 if is_append:
                     self.vlist[var] += val
                 else:
@@ -368,10 +385,9 @@ class SectionLateVariable(SectionVariable):
         super().__init__(name)
 
     def finish(self, testie):
-        pass
+        testie.late_variables.append(self)
 
     def execute(self, variables, testie):
-
         self.vlist = OrderedDict()
         for k,v in variables.items():
             self.vlist[k] = SimpleVariable(k,v)
@@ -435,11 +451,18 @@ class SectionConfig(SectionVariable):
         self.__add("graph_max_series", None)
         self.__add("graph_series_sort", None)
         self.__add("graph_text",'')
+        self.__add("graph_legend",True)
+        self.__add("graph_mode",None)
+        self.__add_list("graph_markers",  ['o', '^', 's', 'D', '*', 'x', '.', '_', 'H', '>', '<', 'v', 'd'])
         self.__add("legend_loc", "best")
+        self.__add("legend_ncol", 1)
         self.__add("var_hide", {})
         self.__add("var_log", [])
-        self.__add("var_divider", 1)
+        self.__add_dict("var_divider", {'result':1})
         self.__add_dict("var_lim", {})
+        self.__add_dict("var_format", {})
+        self.__add_dict("var_ticks", {})
+        self.__add_list("var_grid", [])
         self.__add("var_serie",None)
         self.__add_dict("var_names", {})
         self.__add_dict("var_unit", {"result": "BPS"})
@@ -480,6 +503,8 @@ class SectionConfig(SectionVariable):
             else:
                 if key + "-" + result_type in d:
                     return d.get(key + "-" + result_type)
+                elif result_type in d:
+                    return d.get(result_type)
                 else:
                     return d.get(key, default)
         return default
