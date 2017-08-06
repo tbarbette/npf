@@ -27,9 +27,9 @@ igb_uio:DRIVER=igb_uio
 
 %igb_uio:init sudo=true deps=dpdk
 echo "Driver is $DRIVER"
-
+ifconfig ${self:$NIC:ifname} down
 if [ "$RTE_SDK" = "" ] ; then
-    export RTE_SDK=$(pwd)/build/dpdk/
+    export RTE_SDK=$(pwd)/../build/dpdk/
 fi
 if [ "$RTE_TARGET" = "" ] ; then
     export RTE_TARGET=x86_64-native-linuxapp-gcc
@@ -49,6 +49,7 @@ echo "Binding NIC $NIC"
 %-igb_uio:init sudo=true deps=dpdk
 modprobe $DRIVER
 echo "Driver is $DRIVER"
+ifconfig ${self:$NIC:ifname} down
 chmod +x dpdk-devbind.py
 lsmod | grep $DRIVER &> /dev/null
 if [ $? -ne 0 ] ; then
@@ -59,7 +60,7 @@ echo "Binding NIC $NIC"
 [ $? -eq 0 ] && echo "RESULT 1"
 
 
-%file dpdk-devbind.py
+%init-file dpdk-devbind.py
 #! /usr/bin/env python
 #
 #   BSD LICENSE

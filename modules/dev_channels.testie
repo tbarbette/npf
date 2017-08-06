@@ -10,6 +10,7 @@ n=$(sudo ethtool -l ${self:$NIC:ifname} | grep -i combined | tail -n 1 | grep -o
 if [ "$n" != "$N" ] ; then
     ethtool -L ${self:$NIC:ifname} combined $N && echo "RESULT 1"
 else
+    echo "Already have $n queues"
     echo "RESULT 1"
 fi
 

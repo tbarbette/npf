@@ -103,9 +103,9 @@ elementclass Receiver { $mac, $dir |
     -> Discard;
 }
 elementclass ARPHandler { $ip, $mac |
-    c0 :: Classifier(    12/0806 20/0001,
-                            12/0806 20/0002,
-                              -);
+    c0 :: Classifier(   12/0806 20/0001,
+                        12/0806 20/0002,
+                        -);
 
     // Respond to ARP Query
     c0[0] -> Print("ARP") -> arpress :: ARPResponder($ip $eth) -> [1]output
