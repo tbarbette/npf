@@ -88,7 +88,7 @@ class VariableFactory:
 
 class Variable:
     NAME_REGEX = r'[a-zA-Z0-9._-]+'
-    TAGS_REGEX = r'[a-zA-Z0-9._,-]+'
+    TAGS_REGEX = r'[a-zA-Z0-9._,|!-]+'
     VALUE_REGEX = r'[a-zA-Z0-9._/,{}-]+'
     VARIABLE_REGEX = r'(?<!\\)[$](' \
                      r'[{](?P<varname_in>' + NAME_REGEX + ')[}]|' \

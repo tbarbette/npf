@@ -216,8 +216,9 @@ def build_filename(testie, build, hint, variables, def_ext, type_str=''):
         path = (dirname + '/' if dirname else '') + basename + (
         ('-' if basename else '') + type_str if type_str else '') + ext
 
-    if not os.path.exists(os.path.dirname(path)):
-        os.makedirs(os.path.dirname(path))
+    folder = os.path.dirname(path)
+    if folder and not os.path.exists(folder):
+        os.makedirs(folder)
     return path
 
 

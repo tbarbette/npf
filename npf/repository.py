@@ -178,80 +178,85 @@ class Repository:
         self.env = {}
         self.bin_name = self.reponame  # Wild guess that may work some times...
 
-        repo_path = npf.find_local('repo/' + self.reponame + '.repo')
+        if self.reponame == 'None':
+            self.url = None
+        else:
+            repo_path = npf.find_local('repo/' + self.reponame + '.repo')
 
-        f = open(repo_path, 'r')
-        for line in f:
-            line = line.strip()
-            line = re.sub(r'(^|[ ])//.*$', '', line)
-            if line.startswith("#"):
-                continue
-            if not line:
-                continue
-            s = line.split('=', 1)
-            var = s[0].strip()
-            var = var.split(':',1)
-            if len(var) > 1:
-                have_all=True
-                for v in var[0].split(','):
-                    if not v in options.tags:
-                        have_all = False
-                        break
-                if not have_all:
+            f = open(repo_path, 'r')
+            for line in f:
+                line = line.strip()
+                line = re.sub(r'(^|[ ])//.*$', '', line)
+                if line.startswith("#"):
                     continue
-                self.reponame += '-' + var[0]
-                var = var[1]
-            else:
-                var = var[0]
-            val = s[1].strip()
-            append = False
-            if var.endswith('+'):
-                var = var[:-1]
-                append = True
-
-            if is_numeric(val) and var != 'branch':
-                val = float(val)
-                if val.is_integer():
-                    val = int(val)
-            if not var in repo_variables:
-                raise Exception("Unknown variable %s" % var)
-            elif var == "parent":
-                parent = Repository(val, options)
-                for attr in repo_variables:
-                    if not hasattr(parent, attr):
+                if not line:
+                    continue
+                s = line.split('=', 1)
+                var = s[0].strip()
+                var = var.split(':',1)
+                if len(var) > 1:
+                    have_all=True
+                    for v in var[0].split(','):
+                        if not v in options.tags:
+                            have_all = False
+                            break
+                    if not have_all:
                         continue
-                    pval = getattr(parent, attr)
-                    if attr == "method":
-                        for m, c in repo_methods.items():
-                            if c == type(pval):
-                                method = m
-                                break
+                    self.reponame += '-' + var[0]
+                    var = var[1]
+                else:
+                    var = var[0]
+                val = s[1].strip()
+                append = False
+                if var.endswith('+'):
+                    var = var[:-1]
+                    append = True
+
+                if is_numeric(val) and var != 'branch':
+                    val = float(val)
+                    if val.is_integer():
+                        val = int(val)
+                if not var in repo_variables:
+                    raise Exception("Unknown variable %s" % var)
+                elif var == "parent":
+                    parent = Repository(val, options)
+                    for attr in repo_variables:
+                        if not hasattr(parent, attr):
+                            continue
+                        pval = getattr(parent, attr)
+                        if attr == "method":
+                            for m, c in repo_methods.items():
+                                if c == type(pval):
+                                    method = m
+                                    break
+                        else:
+                            setattr(self, attr, pval)
+                elif var == "method":
+                    val = val.lower()
+                    if not val in repo_methods:
+                        raise Exception("Unknown method %s" % val)
+                    val = repo_methods[val]
+                elif var == "tags":
+                    if append:
+                        self.tags += val.split(',')
                     else:
-                        setattr(self, attr, pval)
-            elif var == "method":
-                val = val.lower()
-                if not val in repo_methods:
-                    raise Exception("Unknown method %s" % val)
-                val = repo_methods[val]
-            elif var == "tags":
-                if append:
-                    self.tags += val.split(',')
-                else:
-                    self.tags = val.split(',')
-                continue
+                        self.tags = val.split(',')
+                    continue
 
-            elif var == "env":
-                ed = VariableFactory.build(var, val).vdict
-                if append:
-                    self.env += ed
-                else:
-                    self.env = ed
-                continue
+                elif var == "env":
+                    ed = VariableFactory.build(var, val).vdict
+                    if append:
+                        self.env += ed
+                    else:
+                        self.env = ed
+                    continue
 
-            if append:
-                setattr(self, var, getattr(self, var) + " " + val)
-            else:
-                setattr(self, var, val)
+                if append:
+                    setattr(self, var, getattr(self, var) + " " + val)
+                else:
+                    setattr(self, var, val)
+
+            self.method = self.method(self)  # Instanciate the method
 
         if len(add_tags) > 1:
             self.tags += add_tags[1].split(',')
@@ -259,13 +264,14 @@ class Repository:
         else:
             self._id = self.reponame
 
+
         if len(overwrite_branch) > 1:
             self.branch = overwrite_branch[1]
 
         if len(overwrite_name) > 1:
             self.name = overwrite_name[1]
 
-        self.method = self.method(self)  # Instanciate the method
+
         self._build_path = os.path.dirname(
             (options.build_folder if not options.build_folder is None else 'build/') + self.reponame + '/')
 

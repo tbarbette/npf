@@ -303,6 +303,8 @@ class Grapher:
                     nbuild._pretty_name = nbuild.pretty_name() + (" - %s = %s" % (self.var_name(to_get_out), str(value)))
                     if len(graphmarkers) > 0:
                         nbuild._marker = graphmarkers[i % len(graphmarkers)]
+                    if len(series) == 1: #If there is one serie, expand the line types
+                        nbuild._line = graphlines[i % len(graphlines)]
                     transformed_series.append((testie, nbuild, data))
 
             series = transformed_series
@@ -576,6 +578,7 @@ class Grapher:
         interbar = 0.1
         x = [s[0][0] for s in data]
         y = [s[1][0] for s in data]
+        e = [s[2][0] for s in data]
         ndata = len(x)
         nseries = 1
         width = (1 - (2 * interbar)) / nseries
@@ -583,7 +586,7 @@ class Grapher:
         ticks = np.arange(ndata) + 0.5
 
         self.format_figure(result_type)
-        plt.bar(ticks, y, label=x, color=graphcolor[i % len(graphcolor)], width=width)
+        plt.bar(ticks, y, label=x, color=graphcolor[i % len(graphcolor)], width=width, yerr=e)
         plt.xticks(ticks, x, rotation='vertical' if (ndata > 8) else 'horizontal')
         plt.gca().set_xlim(0, len(x))
 
@@ -646,8 +649,10 @@ class Grapher:
         yticks = self.scriptconfig("var_ticks", "result", default=None, result_type=result_type)
         if self.result_in_list('var_grid',result_type):
             plt.grid(True)
+        isLog = False
         if self.result_in_list('var_log', result_type):
             plt.yscale('symlog' if yformat else 'log')
+            isLog = True
         if yformat is not None:
             formatter = FormatStrFormatter(yformat)
             ax.yaxis.set_major_formatter(formatter)
@@ -665,7 +670,8 @@ class Grapher:
 
             ax.yaxis.set_major_formatter(FuncFormatter(to_percent))
         else:
-            ax.get_yaxis().get_major_formatter().set_useOffset(False)
+            if not isLog:
+                ax.get_yaxis().get_major_formatter().set_useOffset(False)
         if yticks:
             plt.yticks([variable.get_numeric(y) for y in yticks.split('+')])
 

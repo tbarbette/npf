@@ -206,9 +206,9 @@ class Testie:
         unique_list = {}
         for filename, p, role in file_list:
             if filename in unique_list:
-                if unique_list[filename+role][1] != p:
+                if unique_list[filename+(role if role else '')][1] != p:
                     raise Exception(
-                        "File name conflict ! Some of your scripts try to create some file with the same name but different content !")
+                        "File name conflict ! Some of your scripts try to create some file with the same name but different content (%s) !" % filename)
             else:
                 unique_list[filename+(role if role else '')] = (filename,p,role)
 
@@ -362,11 +362,14 @@ class Testie:
                     if self.options.allow_mp:
                         p.close()
                         p.terminate()
-                    for imp in self.imports:
-                        imp.testie.cleanup()
-                    self.cleanup()
+
+                    if not self.options.preserve_temp:
+                        for imp in self.imports:
+                            imp.testie.cleanup()
+                        self.cleanup()
                     os.chdir('..')
-                    shutil.rmtree(test_folder)
+                    if not self.options.preserve_temp:
+                        shutil.rmtree(test_folder)
                     sys.exit(1)
 
                 if self.options.allow_mp:

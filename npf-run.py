@@ -108,8 +108,10 @@ def main():
         repo.url = None
         repo._build_path = args.use_local + '/'
         versions = ['local']
-    else:
+    elif repo.url:
         versions = repo.method.get_last_versions(limit=args.history,branch=args.branch)
+    else:
+        versions = ['local']
 
     # Builds of the regression versions
     builds = []
@@ -144,7 +146,7 @@ def main():
         for g in args.graph_version:
             graph_builds.append(Build(repo, g))
     else:
-        if args.graph_num > 1 and not args.use_local:
+        if args.graph_num > 1 and repo.url:
             old_versions = repo.method.get_history(last_build.version if last_build else builds[-1].version, 100)
             for i, version in enumerate(old_versions):
                 g_build = Build(repo, version)

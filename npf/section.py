@@ -15,7 +15,7 @@ import re
 class SectionFactory:
     varPattern = "([a-zA-Z0-9_:-]+)[=](" + Variable.VALUE_REGEX + ")?"
     namePattern = re.compile(
-            "^(?P<tags>[a-zA-Z0-9,_-]+[:])?(?P<name>info|config|variables|late_variables|(init-)?file(:?[@](?P<fileRole>[a-zA-Z0-9]+))? (?P<fileName>[a-zA-Z0-9_.-]+)(:? (?P<fileNoparse>noparse))?|require|"
+            "^(?P<tags>"+Variable.TAGS_REGEX+"[:])?(?P<name>info|config|variables|late_variables|(init-)?file(:?[@](?P<fileRole>[a-zA-Z0-9]+))? (?P<fileName>[a-zA-Z0-9_.-]+)(:? (?P<fileNoparse>noparse))?|require|"
         "import(:?[@](?P<importRole>[a-zA-Z0-9]+))?[ \t]+(?P<importModule>" + Variable.VALUE_REGEX + ")(?P<importParams>([ \t]+" +
         varPattern + ")+)?|"
                      "(:?script|init)(:?[@](?P<scriptRole>[a-zA-Z0-9]+))?(?P<scriptParams>([ \t]+" + varPattern + ")*))$")
@@ -32,18 +32,8 @@ class SectionFactory:
         if not matcher:
             raise Exception("Unknown section line '%s'" % data)
 
-        if matcher.group('tags') is not None:
-            tags = matcher.group('tags')[:-1].split(',')
-        else:
-            tags = []
-
-        for tag in tags:
-            if tag.startswith('-'):
-                if tag[1:] in testie.tags:
-                    return SectionNull()
-            else:
-                if not tag in testie.tags:
-                    return SectionNull()
+        if not SectionVariable.match_tags(matcher.group('tags'), testie.tags):
+            return SectionNull()
         sectionName = matcher.group('name')
 
         if sectionName.startswith('import'):
@@ -329,6 +319,28 @@ class SectionVariable(Section):
         else:
             self.vlist[var] = SimpleVariable(var, val)
 
+    @staticmethod
+    def match_tags(text, tags):
+        if not text or text == ':' :
+            return True
+        if text.endswith(':'):
+            text = text[:-1]
+        var_tags_ors = text.split('|')
+        valid = False
+        for var_tags_or in var_tags_ors:
+            var_tags = var_tags_or.split(',')
+            has_this_or = True
+            for t in var_tags:
+                if (t in tags) or (t.startswith('-') and not t[1:] in tags):
+                    pass
+                else:
+                    has_this_or = False
+                    break
+            if has_this_or:
+                valid = True
+                break
+        return valid
+
     def parse_variable(self, line, tags):
         try:
             if not line:
@@ -338,12 +350,9 @@ class SectionVariable(Section):
                 line)
             if not match:
                 raise Exception("Invalid variable '%s'" % line)
-            var_tags = match.group('tags')[:-1].split(',') if match.group('tags') is not None else []
-            for t in var_tags:
-                if (t in tags) or (t.startswith('-') and not t[1:] in tags):
-                    pass
-                else:
-                    return None, None, False
+            if not self.match_tags(match.group('tags'), tags):
+                return None, None, False
+
             name = match.group('name')
             return name, VariableFactory.build(name, match.group('value'), self), match.group('assignType') == '+='
         except:
