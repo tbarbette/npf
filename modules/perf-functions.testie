@@ -6,7 +6,7 @@ PERF_MIN=1
 PERF_OPT=
 PERF_TIME=4
 
-%script sudo=true autokill=false
+%script sudo=true
 trap : INT
 sh script.sh
 
@@ -18,7 +18,7 @@ cat perf.list | while read line; do
     sym=$(echo $line | cut -d',' -f1 | xargs)
     pc=$(echo $line | cut -d',' -f2 | xargs | grep -oE '[0-9.]*' )
     roundpc=$(echo $pc | grep -oE '[0-9]*' | head -n 1)
-#    if [ $roundpc -lt 1 ] ; then break; fi
+    if [ $roundpc -lt 1 ] ; then break; fi
     if [ "$sym" != "" ] ; then
         echo "RESULT-PERF-$(echo $sym | sed 's/[^0-9a-zA-Z_~]*//g' ) $pc"
     fi

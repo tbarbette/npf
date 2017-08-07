@@ -1,0 +1,116 @@
+%info
+
+%config
+var_unit={PPS:packets,OPPS:operations}
+var_divider={PPS:1000000,OPPS:1000000,GEN:1000000}
+var_format={PPS:%dMPps,OPPS:%dM}
+var_name={PPS:PPS,OPPS:Operation per seconds,COUNTER:Counter type,RATE:Amount of read per write}
+paper:graph_markers={}
+//graph_combine_variable={ATOMIC+COUNTER}
+paper:graph_series_sort=-avg
+var_log={RATE}
+accept_zero={LOST}
+var_ticks={RATE:0+1+2+8+32+128+512+2048+8192+65536}
+perf:graph_result_as_variable={PERF-(.*):Perf}
+
+%variables
+GEN_BURST=32
+GEN_FLOWS=128
+GEN_LENGTH=64
+GEN_WAIT=5
+COUNTER={Counter,CounterMP,CounterAtomic,CounterLock,CounterRCU}
+atomic:COUNTER={CounterMP,CounterAtomic,CounterLock,CounterRCU}
+fullatomic:COUNTER={CounterMP,CounterLock,CounterRCU}
+
+//CounterRCUMP
+CPU=[1-16]
+rate:CPU=8
+NORATE=true
+ATOMIC={0:No,1:Counter,2:Full state}
+noatomic:ATOMIC=0
+atomic:ATOMIC=1
+fullatomic:ATOMIC=2
+rate:NORATE=true
+rate:ATOMIC=2
+rate:COUNTER={CounterMP,CounterLock,CounterRCU}
+rate:RATE=[0*65536]
+//rate:ATOMIC_READ={true,false}
+-rate:RATE=0
+//GEN_TOT={400000}
+GEN_TOT={2048}
+
+%late_variables
+GEN_PROMISC=true
+
+CPUEX=[0-31]
+ALL_GENS=EXPAND(gen${CPUEX} :: Generator($CPUEX, ${client:0:mac}, ${dut:1:mac}, ${client:0:ip}, ${dut:1:ip}) -> cnt);
+GENS=HEAD($CPU,$ALL_GENS)
+
+%late_variables
+CPUEX=[0-31]
+ALL_LAUNCH=EXPAND(write gen${CPUEX}/replay.stop -1, write gen${CPUEX}/replay.active true,)
+LAUNCHS=HEAD($CPU,$ALL_LAUNCH)
+
+%late_variables
+CPUEX=[0-31]
+ALL_STOP=EXPAND(write gen${CPUEX}/replay.active false,)
+STOPS=HEAD($CPU,$ALL_STOP)
+
+%late_variables
+CPUEX=[0-31]
+ALL_WAIT=EXPAND(wait,)
+WAITS=HEAD($CPU,$ALL_WAIT)
+
+%late_variables
+CPUEX=[0-31]
+ALL_COUNT=EXPAND($(gen${CPUEX}/c.count) )
+COUNTS=HEAD($CPU,$ALL_COUNT)
+
+%late_variables
+perf:GEN_WAIT=20
+perf:PERF_OPT=EXPAND( --cpu 0-$CPU )
+
+%perf:import@dut perf-functions delay=12
+
+%script@dut sudo=true
+click -j $J -a PKTGEN_CONFIG
+
+%file PKTGEN_CONFIG
+
+elementclass Generator { $th, $srcmac, $dstmac, $srcip, $dstip |
+
+    fudp :: FastUDPFlows(RATE 0, LIMIT $GEN_TOT, LENGTH $GEN_LENGTH, SRCETH $srcmac, DSTETH $dstmac, SRCIP $srcip, DSTIP $dstip, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST)
+    -> MarkMACHeader
+    -> replay :: ReplayUnqueue(STOP 0, QUICK_CLONE true, BURST $GEN_BURST)
+    -> c :: Counter(ATOMIC 0, NO_RATE true)
+    -> rate :: CounterTest(cnt, RATE $RATE)
+    -> output;
+
+    StaticThreadSched(replay $th)
+}
+
+cnt :: $COUNTER(ATOMIC $ATOMIC, NO_RATE $NORATE) -> Discard;
+
+$GENS
+
+
+
+d :: DriverManager(
+    $WAITS
+    print "Launching test...",
+    $LAUNCHS
+    set s $(now_steady),
+    wait $GEN_WAIT,
+    set e $(now_steady),
+    $STOPS
+    set ttime $(sub $e $s),
+    print "RESULT-PPS $(div $(cnt.count) $ttime)",
+    print "RESULT-TIME $ttime",
+    set ops $(mul $(div $(cnt.count) $GEN_BURST) $(add $RATE 1)),
+    print "RESULT-OPS $ops",
+    print "RESULT-OPPS $(div $ops $ttime)",
+    set tot $(add $COUNTS),
+    print "RESULT-GEN $tot",
+    print "RESULT-LOST $(sub $tot $(cnt.count))",
+)
+StaticThreadSched(d $CPU)

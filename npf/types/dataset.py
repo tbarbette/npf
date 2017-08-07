@@ -168,8 +168,6 @@ def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list
                     avg.append(0)
                 max.append(np.max(y))
                 min.append(np.min(y))
-            print(series_sort)
-            print(avg)
             if series_sort.startswith('-'):
                 inverted = True
                 series_sort = series_sort[1:]
