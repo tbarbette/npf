@@ -14,6 +14,7 @@ import numpy as np
 from npf.types import dataset
 from npf.types.dataset import Run, XYEB
 from npf.variable import is_numeric, get_numeric
+from npf.section import SectionVariable
 from npf import npf, variable
 from matplotlib.lines import Line2D
 
@@ -276,6 +277,7 @@ class Grapher:
         # Set lines types
         for i, (script, build, all_results) in enumerate(series):
             build._line = graphlines[i % len(graphlines)]
+            build.statics = {}
 
         # graph_variables_as_series will force a variable to be considered as
         # a serie. This is different from var_serie which will define
@@ -301,11 +303,13 @@ class Grapher:
 
                 for i, (value, data) in enumerate(new_series.items()):
                     nbuild = build.copy()
-                    nbuild._pretty_name = nbuild.pretty_name() + (" - %s = %s" % (self.var_name(to_get_out), str(value)))
+                    nbuild.statics = build.statics.copy()
+                    nbuild._pretty_name = ' - '.join(([nbuild.pretty_name()] if len(series) > 1 else []) + ["%s = %s" % (self.var_name(to_get_out), str(value))])
                     if len(graphmarkers) > 0:
                         nbuild._marker = graphmarkers[i % len(graphmarkers)]
                     if len(series) == 1: #If there is one serie, expand the line types
                         nbuild._line = graphlines[i % len(graphlines)]
+                    nbuild.statics[to_get_out] = value
                     transformed_series.append((testie, nbuild, data))
 
             series = transformed_series
@@ -407,6 +411,15 @@ class Grapher:
                 key = "Variables"
                 do_sort = False
 
+        graph_series_label = self.config("graph_series_label")
+        if graph_series_label:
+            for i, (testie, build, all_results) in enumerate(series):
+                print(statics)
+                print(graph_series_label)
+                v = {}
+                v.update(statics)
+                v.update(build.statics)
+                build._pretty_name=SectionVariable.replace_variables(v, graph_series_label)
 
         data_types = dataset.convert_to_xyeb(series, vars_all, key, max_series=self.config('graph_max_series'),
                                              do_x_sort=do_sort, series_sort=self.config('graph_series_sort'))
@@ -586,7 +599,15 @@ class Grapher:
         ticks = np.arange(ndata) + 0.5
 
         self.format_figure(result_type)
-        plt.bar(ticks, y, label=x, color=graphcolor[i % len(graphcolor)], width=width, yerr=e)
+        rects = plt.bar(ticks, y, label=x, color=graphcolor[i % len(graphcolor)], width=width, yerr=e)
+        if self.config('graph_show_values',False):
+            def autolabel(rects, ax):
+                for rect in rects:
+                    height = rect.get_height()
+                    ax.text(rect.get_x() + rect.get_width()/2., 1.05*height,
+                        '%0.2f' % height,
+                         ha='center', va='bottom')
+            autolabel(rects, plt)
         plt.xticks(ticks, x, rotation='vertical' if (ndata > 8) else 'horizontal')
         plt.gca().set_xlim(0, len(x))
 

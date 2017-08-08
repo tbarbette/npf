@@ -4,7 +4,7 @@
 var_unit={PPS:packets,OPPS:operations}
 var_divider={PPS:1000000,OPPS:1000000,GEN:1000000}
 var_format={PPS:%dMPps,OPPS:%dM}
-var_name={PPS:PPS,OPPS:Operation per seconds,COUNTER:Counter type,RATE:Amount of read per write}
+var_name={PPS:PPS,OPPS:Operations per seconds,COUNTER:Counter type,RATE:Amount of reads per write}
 paper:graph_markers={}
 //graph_combine_variable={ATOMIC+COUNTER}
 paper:graph_series_sort=-avg
@@ -12,6 +12,7 @@ var_log={RATE}
 accept_zero={LOST}
 var_ticks={RATE:0+1+2+8+32+128+512+2048+8192+65536}
 perf:graph_result_as_variable={PERF-(.*):Perf}
+graph_series_label=$COUNTER - $CPU cores
 
 %variables
 GEN_BURST=32

@@ -459,6 +459,7 @@ class SectionConfig(SectionVariable):
         self.__add_dict('graph_result_as_variable',{})
         self.__add("graph_max_series", None)
         self.__add("graph_series_sort", None)
+        self.__add("graph_series_label", None)
         self.__add("graph_text",'')
         self.__add("graph_legend",True)
         self.__add("graph_mode",None)
