@@ -161,9 +161,10 @@ class Grapher:
 
         # If no graph variables, use the first serie
         if graph_variables is None:
-            graph_variables = []
-            for run, results in series[0][2].items():
-                graph_variables.append(run)
+            graph_variables = set()
+            for serie in series:
+                for run, results in serie[2].items():
+                    graph_variables.add(run)
 
         # Get all scripts
         for i, (testie, build, all_results) in enumerate(series):
@@ -452,7 +453,6 @@ class Grapher:
                     if text == '' or text[-1] != "\n":
                         text += "\n"
                     text += self.var_name(stat) + " : " + ', '.join([str(val) for val in vars_values[stat]])
-            print(figure,n_cols)
             n_lines = math.ceil((len(figure) + (1 if text else 0)) / float(n_cols))
             fig_name = "subplot" + str(i)
 
@@ -465,7 +465,7 @@ class Grapher:
                 if ndyn == 0:
                     """No dynamic variables : do a barplot X=version"""
                     self.do_simple_barplot(result_type, data)
-                elif ndyn == 1 and len(vars_all) > 2:
+                elif ndyn == 1 and len(vars_all) > 2 and all_num(vars_values[key]):
                     """One dynamic variable used as X, series are version line plots"""
                     self.do_line_plot(key, result_type, data)
                 else:

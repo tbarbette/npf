@@ -89,10 +89,31 @@ def main():
         all_variables.append(v_list)
     common_variables = set.intersection(*map(set, all_variables))
 
+    #Remove variables that are totally defined by the series, that is
+    # variables that only have one value inside each serie
+    # but have different values accross series
+    useful_variables=[]
+    for variable in common_variables:
+        all_values = set()
+        all_alone=True
+        for i, (testie, build, dataset) in enumerate(series):
+            serie_values = set()
+            for run, result_types in dataset.items():
+                val = run.variables[variable]
+                all_values.add(val)
+                serie_values.add(val)
+            if len(serie_values) > 1:
+                all_alone = False
+                break
+        if all_alone and len(all_values) > 1:
+            pass
+        else:
+            useful_variables.append(variable)
+
     for i, (testie, build, dataset) in enumerate(series):
         ndataset = {}
         for run, results in dataset.items():
-            ndataset[run.intersect(common_variables)] = results
+            ndataset[run.intersect(useful_variables)] = results
         series[i] = (testie, build, ndataset)
 
     grapher = Grapher()
