@@ -2,9 +2,9 @@
 
 %config
 var_unit={PPS:packets,OPPS:operations}
-var_divider={PPS:1000000,OPPS:1000000,GEN:1000000}
-var_format={PPS:%dMPps,OPPS:%dM}
-var_name={PPS:PPS,OPPS:Operations per seconds,COUNTER:Counter type,RATE:Amount of reads per write}
+var_divider={PPS:1000000,OPPS:1000000,GEN:1000000,LOST:1000000}
+var_format={PPS:%dMPps,OPPS:%dM,LOST:%dM}
+var_name={PPS:PPS,OPPS:Operations per seconds,COUNTER:Counter type,RATE:Amount of reads per write,CPU:Cores,LOST:Uncounted packets}
 paper:graph_markers={}
 //graph_combine_variable={ATOMIC+COUNTER}
 paper:graph_series_sort=-avg
@@ -12,32 +12,22 @@ var_log={RATE}
 accept_zero={LOST}
 var_ticks={RATE:0+1+2+8+32+128+512+2048+8192+65536}
 perf:graph_result_as_variable={PERF-(.*):Perf}
-graph_series_label=$COUNTER - $CPU cores
+rate:graph_series_label=$COUNTER - $CPU cores
 
 %variables
 GEN_BURST=32
 GEN_FLOWS=128
 GEN_LENGTH=64
 GEN_WAIT=5
-COUNTER={Counter,CounterMP,CounterAtomic,CounterLock,CounterRCU}
-atomic:COUNTER={CounterMP,CounterAtomic,CounterLock,CounterRCU}
-fullatomic:COUNTER={CounterMP,CounterLock,CounterRCU}
+COUNTER={Counter,CounterMP,CounterRxWMP,CounterAtomic,CounterLock,CounterRCU}
 
 //CounterRCUMP
 CPU=[1-16]
 rate:CPU=8
 NORATE=true
-ATOMIC={0:No,1:Counter,2:Full state}
-noatomic:ATOMIC=0
-atomic:ATOMIC=1
-fullatomic:ATOMIC=2
 rate:NORATE=true
-rate:ATOMIC=2
-rate:COUNTER={CounterMP,CounterLock,CounterRCU}
 rate:RATE=[0*65536]
-//rate:ATOMIC_READ={true,false}
 -rate:RATE=0
-//GEN_TOT={400000}
 GEN_TOT={2048}
 
 %late_variables
@@ -90,7 +80,7 @@ elementclass Generator { $th, $srcmac, $dstmac, $srcip, $dstip |
     StaticThreadSched(replay $th)
 }
 
-cnt :: $COUNTER(ATOMIC $ATOMIC, NO_RATE $NORATE) -> Discard;
+cnt :: $COUNTER(NO_RATE $NORATE) -> Discard;
 
 $GENS
 
