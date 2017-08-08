@@ -159,6 +159,10 @@ class SimpleVariable(Variable):
     def is_numeric(self):
         return self.format() != str
 
+    def __add__(self, other):
+        self.value += other.value
+        return self
+
 
 class ListVariable(Variable):
     def __init__(self, name, l):

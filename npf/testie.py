@@ -48,13 +48,13 @@ def _parallel_exec(param: RemoteParameters):
                                  terminated_event=param.terminated_event,
                                  sudo=param.sudo)
     if pid == 0:
-        return False, o, e, param.commands
+        return False, o, e, c, param.commands
     else:
         if param.autokill or pid == -1:
             Testie.killall(param.queue, param.terminated_event)
         if pid == -1:
-            return -1, o, e, param.commands
-        return True, o, e, param.commands
+            return -1, o, e, c, param.commands
+        return True, o, e, c, param.commands
 
 
 class ScriptInitException(Exception):
@@ -376,10 +376,10 @@ class Testie:
                     p.close()
                     p.terminate()
                 worked = False
-                for iscript, (r, o, e, script) in enumerate(parallel_execs):
+                for iscript, (r, o, e, c, script) in enumerate(parallel_execs):
                     if r == 0:
                         print("Timeout expired...")
-                        if self.options.show_full:
+                        if not self.options.quiet:
                             print("stdout:")
                             print(o)
                             print("stderr:")
@@ -387,8 +387,17 @@ class Testie:
                         continue
                     if r == -1:
                         sys.exit(1)
+                    if c != 0:
+                        print("Bad return code ! Something probably went wrong...")
+                        if not self.options.quiet:
+                            print("stdout:")
+                            print(o)
+                            print("stderr:")
+                            print(e)
+                        continue
 
-                for iparallel, (r, o, e, script) in enumerate(parallel_execs):
+
+                for iparallel, (r, o, e, c, script) in enumerate(parallel_execs):
                     if len(self.scripts) > 1:
                         output += "Output of script %d :\n" % i
                         err += "Output of script %d :\n" % i

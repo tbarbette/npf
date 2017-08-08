@@ -156,6 +156,12 @@ def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list
 
             data_types.setdefault(result_type, []).append((ox,oy,oe,build))
     if series_sort is not None:
+        if series_sort.startswith('-'):
+            inverted = True
+            series_sort = series_sort[1:]
+        else:
+            inverted = False
+
         new_data_types = OrderedDict()
         for result_type,data in data_types.items():
             avg = []
@@ -168,11 +174,6 @@ def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list
                     avg.append(0)
                 max.append(np.max(y))
                 min.append(np.min(y))
-            if series_sort.startswith('-'):
-                inverted = True
-                series_sort = series_sort[1:]
-            else:
-                inverted = False
 
             if series_sort == 'avg':
                 order = np.argsort(np.asarray(avg))

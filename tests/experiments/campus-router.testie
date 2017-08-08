@@ -18,6 +18,9 @@ var_names={LENGTH:Length,result:Throughput,TXCPU:Transmit CPU,RXCPU:Receive CPU,
 require_tags={dpdk}
 role_exclude={client+dut}
 default_role_map={server:dut}
+var_unit={result:}
+var_divider={result:1000000000}
+graph_series_sort=-avg
 
 %variables
 //Parameters for the router itself
@@ -54,14 +57,20 @@ lengthonly:BURSTOUT=32
 
 FNTIN=
 FNTOUT=
-FNTavg:FNTIN=-> AverageCounter -> Counter
-FNTavg:FNTOUT=-> Counter
+FNTavg:FNTIN+=-> SetTimestamp
+FNTavg:FNTOUT+=
+FNTnat:FNTOUT+=-> IPRewriter(pattern 139.165.0.2 1024-65535 - - 0 0)
 
 %-nobind:import@client dpdk-bind NIC=0
 %-nobind:import@client dpdk-bind NIC=1
 %-nobind:import@dut dpdk-bind NIC=0
 %-nobind:import@dut dpdk-bind NIC=1
 %cpufreq:import@dut cpufreq
+
+%late_variables
+GLOBAL_ELEMENTS=
+TSC:GLOBAL_ELEMENTS+=TSCClock(NOWAIT true, INSTALL true);
+JIFFIE:GLOBAL_ELEMENTS+=JiffieClock();
 
 %udp:import@client fastclick-udpgen-dual 0:ip=10.120.0.100 1:ip=10.121.0.100
 %-udp:import@client fastclick-replay-dual 0:ip=139.165.0.1 1:ip=10.10.10.1 traceIN=/mnt/traces/201601-1_fullanon_padded.pcap traceOUT=/mnt/traces/201601-2_fullanon_padded.pcap NBUF=5000000
@@ -83,6 +92,8 @@ define ($bout ${BURSTOUT})
 define ($bin ${BURSTIN})
 define ($i 1024)
 tol :: Discard(); //ToHost normally
+
+$GLOBAL_ELEMENTS
 
 elementclass Input { $device,$ip,$eth |
 
@@ -133,7 +144,7 @@ input1[2] -> tol;
 input0[3] -> Discard;
 input1[3] -> Discard;
 
-arpq0 $FNTOUT  -> td0;
+arpq0 $FNTOUT -> td0;
 arpq1 $FNTOUT -> td1;
 
 // IP routing table.
@@ -152,7 +163,7 @@ oerror :: IPPrint("ICMP Error : DF") -> [0]rt;
 ttlerror :: IPPrint("ICMP Error : TTL") -> [0]rt;
 
 input0[0] -> Paint(1) $FNTIN -> ip;
-input1[0] -> Paint(2) $FNTOUT -> ip;
+input1[0] -> Paint(2) $FNTIN -> ip;
 
 // IP packets for this machine.
 rt[0] -> output0 :: IPOutputCombo(1, ${dut:0:ip}, $MTU);
