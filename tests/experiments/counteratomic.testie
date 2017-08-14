@@ -26,7 +26,6 @@ rate:COUNTER={CounterMP,CounterRxWMP,CounterAtomic,CounterLock,CounterRW,Counter
 CPU=[1-16]
 rate:CPU=8
 NORATE=true
-rate:NORATE=true
 rate:RATE=[0*65536]
 -rate:RATE=0
 GEN_TOT={2048}
