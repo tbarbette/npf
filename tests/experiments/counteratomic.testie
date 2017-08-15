@@ -12,8 +12,10 @@ var_log={RATE}
 accept_zero={LOST}
 var_ticks={RATE:0+1+2+8+32+128+512+2048+8192+65536}
 perf:graph_result_as_variable={PERF-(.*):Perf}
-rate:graph_series_label=$COUNTER - $CPU cores
-rate:graph_variables_as_series={COUNTER,CPU}
+//rate:graph_series_label=$COUNTER - $CPU cores
+//rate:graph_variables_as_series={COUNTER,CPU}
+rate:var_log+={result-OPPS}
+rate:var_lim={result-OPPS:10000}
 
 %variables
 GEN_BURST=32
@@ -21,7 +23,7 @@ GEN_FLOWS=128
 GEN_LENGTH=64
 GEN_WAIT=5
 -rate:COUNTER={Counter,CounterMP,CounterRxWMP,CounterAtomic,CounterLock,CounterRCU}
-rate:COUNTER={CounterMP,CounterRxWMP,CounterAtomic,CounterLock,CounterRW,CounterRCU}
+rate:COUNTER={CounterMP,CounterRxWMP,CounterAtomic,CounterLock,CounterRW,CounterPRW,CounterRCU}
 //CounterRCUMP
 CPU=[1-16]
 rate:CPU=8

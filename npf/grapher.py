@@ -532,7 +532,7 @@ class Grapher:
                         ymin, ymax = (float(x) for x in n)
                         plt.ylim(ymin=ymin, ymax=ymax)
                     else:
-                        plt.ylim(ymin=float(n[0]))
+                        plt.ylim(ymax=float(n[0]))
                 else:
                     if (ymin >= 0 > plt.ylim()[0]):
                         plt.ylim(0, plt.ylim()[1])
