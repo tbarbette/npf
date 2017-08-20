@@ -66,9 +66,9 @@ perf:PERF_OPT=EXPAND( --cpu 0-$CPU )
 %perf:import@dut perf-functions delay=12
 
 %script@dut sudo=true
-click -j $J -a PKTGEN_CONFIG
+click -j $J -a T_CONFIG
 
-%file PKTGEN_CONFIG
+%file@dut T_CONFIG
 
 elementclass Generator { $th, $srcmac, $dstmac, $srcip, $dstip |
 
