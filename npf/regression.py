@@ -67,7 +67,7 @@ class Regression:
                     if old_all_results:
                         old_all_results[run] = {}
 
-            if need_supp:
+            if need_supp and testie.options.do_test:
                 if not testie.options.quiet_regression:
                     print(
                         "Difference of %.2f%% is outside acceptable margin for %s. Running supplementary tests..." % (
@@ -126,7 +126,11 @@ class Regression:
         repo = self.repo
         datasets = []
 
-        build = repo.get_last_build(history=history)
+        if repo.url:
+            build = repo.get_last_build(history=history)
+        else:
+            build = Build(repo, 'local')
+
 
         nok = 0
 

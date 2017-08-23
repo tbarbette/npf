@@ -163,8 +163,9 @@ class SectionImport(Section):
         return self._role
 
     def finish(self, testie):
-        if self.get_content().strip() != '':
-            raise Exception("%import section does not support any content")
+        content = self.get_content().strip()
+        if content != '':
+            raise Exception("%%import section does not support any content (got %s)" % content)
         testie.imports.append(self)
 
 

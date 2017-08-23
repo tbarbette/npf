@@ -15,4 +15,7 @@ CPUFREQ= //This must be passed by the script absolutely
 %init sudo=true
 if [ -n "$CPUFREQ" ] ; then
     cpupower frequency-set -f $CPUFREQ && echo "RESULT 1"
+else
+    echo "Unknown CPU frequency !"
+    echo "RESULT 0"
 fi

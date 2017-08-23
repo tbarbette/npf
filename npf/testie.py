@@ -32,6 +32,7 @@ class RemoteParameters:
         self.options = None
         self.stdin = None
         self.commands = None
+        self.testdir = None
 
     pass
 
@@ -46,7 +47,8 @@ def _parallel_exec(param: RemoteParameters):
                                  queue=param.queue,
                                  options=param.options,
                                  terminated_event=param.terminated_event,
-                                 sudo=param.sudo)
+                                 sudo=param.sudo,
+                                 testdir=param.testdir)
     if pid == 0:
         return False, o, e, c, param.commands
     else:
@@ -133,7 +135,7 @@ class Testie:
             for section in self.sections:
                 section.finish(self)
         except Exception as e:
-            raise Exception("An exception occured while parsing %s :\n%s" % (testie_path, e.__str__()))
+            raise Exception("An exception occured while parsing %s at line %d:\n%s" % (testie_path, i, e.__str__()))
 
         # Check that all reference roles are defined
         known_roles = {'self', 'default'}.union(set(npf.roles.keys()))
@@ -224,7 +226,7 @@ class Testie:
             p = SectionVariable.replace_variables(v, require.content, require.role(),
                                                   self.config.get_dict("default_role_map"))
             pid, output, err, returncode = npf.executor(require.role(), self.config.get_dict("default_role_map")).exec(
-                cmd=p, bin_paths=[build.get_bin_folder()], options=self.options, terminated_event=None)
+                cmd=p, bin_paths=[build.get_bin_folder()], options=self.options, terminated_event=None, testdir=None)
             if returncode != 0:
                 return False, output, err
             continue
@@ -333,6 +335,7 @@ class Testie:
                         deps_bin_path = [repo.get_bin_folder() for repo in script.get_deps_repos(self.options)]
                         param.bin_paths = deps_bin_path + [build.get_bin_folder()]
                         param.sudo = script.params.get("sudo", False)
+                        param.testdir = test_folder
                         autokill = script.params.get("autokill", t.config["autokill"])
                         if type(autokill) is str and autokill.lower() == "false":
                             autokill = False

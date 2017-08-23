@@ -26,8 +26,10 @@ class LocalExecutor:
     def __init__(self):
         pass
 
-    def exec(self, cmd, terminated_event, bin_paths : List[str]=[], queue: Queue = None, options = None, stdin = None, timeout = None, sudo = False):
-        os.chdir("..")
+    def exec(self, cmd, terminated_event, bin_paths : List[str]=[], queue: Queue = None, options = None, stdin = None, timeout = None, sudo = False, testdir=None):
+        if testdir is not None:
+            os.chdir("..")
+
         cwd = os.getcwd()
         env = os.environ.copy()
         if bin_paths:
@@ -57,6 +59,8 @@ class LocalExecutor:
             p.stdin.close()
             p.stderr.close()
             p.stdout.close()
+            if testdir is not None:
+                os.chdir(testdir)
             return pid, s_output, s_err, p.returncode
         except TimeoutExpired:
             print("Test expired")
@@ -70,9 +74,13 @@ class LocalExecutor:
             p.stdin.close()
             p.stderr.close()
             p.stdout.close()
+            if testdir is not None:
+                os.chdir(testdir)
             return 0, s_output, s_err, p.returncode
         except KeyboardInterrupt:
             os.killpg(pgpid, signal.SIGKILL)
+            if testdir is not None:
+                os.chdir(testdir)
             return -1, s_output, s_err, p.returncode
 
     def writeFile(self,filename,content):

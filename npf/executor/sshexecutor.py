@@ -23,7 +23,7 @@ class SSHExecutor:
         ssh.connect(self.addr, username=self.user)
         return ssh
 
-    def exec(self, cmd, terminated_event = None, bin_paths : List[str] = None, queue: Queue = None, options = None, stdin = None, timeout=None, sudo=False):
+    def exec(self, cmd, terminated_event = None, bin_paths : List[str] = None, queue: Queue = None, options = None, stdin = None, timeout=None, sudo=False, testdir=None):
         if terminated_event is None:
             terminated_event = multiprocessing.Event()
 
@@ -117,7 +117,11 @@ class SSHExecutor:
         with paramiko.SSHClient() as ssh:
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             ssh.load_system_host_keys()
-            ssh.connect(self.addr, 22, username=self.user)
+            try:
+                ssh.connect(self.addr, 22, username=self.user)
+            except Exception as e:
+                print("Cannot connect to %s with username %s" % (self.addr,self.user))
+                raise e
 
             transport = ssh.get_transport()
             with transport.open_channel(kind='session') as channel:

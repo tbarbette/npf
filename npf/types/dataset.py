@@ -98,8 +98,8 @@ ResultType = str
 XYEB = Tuple
 AllXYEB = Dict[ResultType, List[XYEB]]
 
-def var_divider(testie: 'Testie', key: str, result_type):
-    div = testie.config.get_dict_value("var_divider", "result", result_type=result_type, default=1)
+def var_divider(testie: 'Testie', key: str, result_type = None):
+    div = testie.config.get_dict_value("var_divider", key, result_type=result_type, default=1)
     if is_numeric(div):
         return float(div)
     if div.lower() == 'g':
@@ -132,9 +132,10 @@ def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list
             results_types = all_results.get(run, {})
             for result_type in all_result_types:
                 ydiv = var_divider(testie, "result", result_type)
+                xdiv = var_divider(testie, key)
                 result = results_types.get(result_type,None)
 
-                x.setdefault(result_type, []).append(xval)
+                x.setdefault(result_type, []).append(xval / xdiv)
                 if result is not None:
                     result = np.asarray(result) / ydiv
                     y.setdefault(result_type, []).append(np.mean(result))
