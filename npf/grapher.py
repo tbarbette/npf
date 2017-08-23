@@ -257,13 +257,16 @@ class Grapher:
                         else:
                             new_run_results[result_type] = results
 
-                    for result_type, results in new_run_results_exp.items():
-                        variables = run.variables.copy()
-                        variables[var_name] = result_type
-                        vvalues.add(result_type)
-                        nr = new_run_results.copy()
-                        nr.update({'result-'+var_name: results})
-                        new_results[Run(variables)] = nr
+                    if len(new_run_results_exp) > 0:
+                        for result_type, results in new_run_results_exp.items():
+                            variables = run.variables.copy()
+                            variables[var_name] = result_type
+                            vvalues.add(result_type)
+                            nr = new_run_results.copy()
+                            nr.update({'result-'+var_name: results})
+                            new_results[Run(variables)] = nr
+                    else:
+                        new_results[run] = new_run_results
 
                 if new_results:
                     transformed_series.append((testie, build, new_results))

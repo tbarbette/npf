@@ -4,6 +4,7 @@ import sys
 import time
 import random
 import shutil
+import datetime
 from pathlib import Path
 from queue import Empty
 from typing import Tuple, Dict
@@ -260,15 +261,22 @@ class Testie:
             except OSError:
                 pass
 
-    def execute(self, build, run, v, n_runs=1, n_retry=0, allowed_types=SectionScript.ALL_TYPES_SET, do_imports=True) \
+    def execute(self, build, run, v, n_runs=1, n_retry=0, allowed_types=SectionScript.ALL_TYPES_SET, do_imports=True, test_folder = None) \
             -> Tuple[Dict[str, List], str, str, int]:
 
         # Get address definition for roles from scripts
         self.parse_script_roles()
 
         #Create temporary folder
-        test_folder = "testie" + str(random.randint(1, 2 << 32))
-        os.mkdir(test_folder)
+        v_internals = {'NPF_ROOT':'../'}
+        v.update(v_internals)
+        if test_folder is None:
+            test_folder = self.make_test_folder()
+            f_mine = True
+        else:
+            f_mine = False
+        if not os.path.exists(test_folder):
+            os.mkdir(test_folder)
         os.chdir(test_folder)
 
         #Build file list
@@ -371,7 +379,7 @@ class Testie:
                             imp.testie.cleanup()
                         self.cleanup()
                     os.chdir('..')
-                    if not self.options.preserve_temp:
+                    if not self.options.preserve_temp and f_mine:
                         shutil.rmtree(test_folder)
                     sys.exit(1)
 
@@ -469,7 +477,7 @@ class Testie:
                 imp.testie.cleanup()
             self.cleanup()
         os.chdir('..')
-        if not self.options.preserve_temp:
+        if not self.options.preserve_temp and f_mine:
             shutil.rmtree(test_folder)
         return results, output, err, n_exec
 
@@ -494,7 +502,7 @@ class Testie:
     #                return None
     #        return all_results
 
-    def do_init_all(self, build, options, do_test, allowed_types=SectionScript.ALL_TYPES_SET):
+    def do_init_all(self, build, options, do_test, allowed_types=SectionScript.ALL_TYPES_SET,test_folder=None):
         if not build.build(options.force_build, options.no_build, options.quiet_build, options.show_build_cmd):
             raise ScriptInitException()
 
@@ -502,31 +510,14 @@ class Testie:
             raise ScriptInitException()
 
         if (allowed_types is None or "init" in allowed_types) and options.do_init:
-            #            if len(self.imports) > 0:
-            #                msg_shown = options.quiet
-            #                for imp in self.imports:
-            #                    if len([script for script in imp.testie.scripts if script.get_type() == "init"]) == 0:
-            #                        continue
-            #                    if not msg_shown:
-            #                        print("Executing imports init scripts...")
-            #                        msg_shown = True
-            #                    imp_res, sub_init_done = imp.testie.execute_all(build, options=options, do_test=do_test,
-            #                                                                    allowed_types={"init"})
-            #                if msg_shown:
-            #                    print("All imports passed successfully...")
-            #
-            #                print("Sub done")
-
-            #           init_scripts = [script for script in self.scripts if script.get_type() == "init"]
-            #            if len(init_scripts) > 0:
-
             if not options.quiet:
                 print("Executing init scripts...")
             vs = {}
             for k, v in self.variables.statics().items():
                 vs[k] = v.makeValues()[0]
             all_results, output, err, num_exec = self.execute(build, Run(vs), v=vs, n_runs=1, n_retry=0,
-                                                              allowed_types={"init"}, do_imports=True)
+                                                              allowed_types={"init"}, do_imports=True,test_folder=test_folder)
+            print(output,err)
             num_ok = 0
             for result_type, results in all_results.items():
                 for n in results:
@@ -553,6 +544,7 @@ class Testie:
         """
 
         init_done = False
+        test_folder=self.make_test_folder()
 
         if not SectionScript.TYPE_SCRIPT in allowed_types:
             # If scripts is not in allowed_types, we have to run the init by force now
@@ -601,14 +593,15 @@ class Testie:
                 [len(results) for result_type, results in run_results.items()]))
             if n_runs > 0 and do_test:
                 if not init_done:
-                    self.do_init_all(build, options, do_test, allowed_types=allowed_types)
+                    self.do_init_all(build, options, do_test, allowed_types=allowed_types,test_folder=test_folder)
                     init_done = True
                 if not self.options.quiet:
                     print(run.format_variables(self.config["var_hide"]))
 
                 new_results, output, err, n_exec = self.execute(build, run, variables, n_runs,
                                                                 n_retry=self.config["n_retry"],
-                                                                allowed_types={SectionScript.TYPE_SCRIPT})
+                                                                allowed_types={SectionScript.TYPE_SCRIPT},
+                                                                test_folder=test_folder)
                 if new_results:
                     if self.options.show_full:
                         print("stdout:")
@@ -639,6 +632,11 @@ class Testie:
                     build.writeversion(self, prev_results, allow_overwrite=True)
                 else:
                     build.writeversion(self, all_results, allow_overwrite=True)
+
+        if not self.options.preserve_temp:
+            shutil.rmtree(test_folder)
+        else:
+            print("Test files have been kept in folder %s" % test_folder)
 
         return all_results, init_done
 
@@ -722,3 +720,8 @@ class Testie:
 
     def get_late_variables(self) -> List[SectionLateVariable]:
         return self.late_variables
+
+    def make_test_folder(self):
+        test_folder = "testie%s-%05d" % (datetime.datetime.now().strftime("%y%d%m%H%M"), random.randint(1, 2 << 16))
+        os.mkdir(test_folder)
+        return test_folder

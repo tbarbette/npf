@@ -4,16 +4,18 @@ Module to set the IRQ affinity for a given device
 %variables
 N=1
 NIC=0
+OFFSET=0
 
-%init
+%init sudo=true
 chmod +x set_irq_affinity.sh
-bash ./set_irq_affinity.sh ${self:$NIC:ifname} && echo "RESULT 1"
+bash ./set_irq_affinity.sh $OFFSET ${self:$NIC:ifname} && echo "RESULT 1"
 
-%file set_irq_affinity.sh noparse
+%init-file set_irq_affinity.sh noparse
 #!/bin/bash
 # setting up irq affinity according to /proc/interrupts
 # 2008-11-25 Robert Olsson
 # 2009-02-19 updated by Jesse Brandeburg
+# Updated by Tom Barbette to allow offsets
 #
 # > Dave Miller:
 # (To get consistent naming in /proc/interrups)
@@ -36,7 +38,7 @@ bash ./set_irq_affinity.sh ${self:$NIC:ifname} && echo "RESULT 1"
 
 set_affinity()
 {
-    MASK=$((1<<$VEC))
+    MASK=$((1<<$(($VEC + $OFFSET))))
     printf "%s mask=%X for /proc/irq/%d/smp_affinity\n" $DEV $MASK $IRQ
     printf "%X" $MASK > /proc/irq/$IRQ/smp_affinity
     #echo $DEV mask=$MASK for /proc/irq/$IRQ/smp_affinity
@@ -48,7 +50,7 @@ if [ "$1" = "" ] ; then
         echo "    This script attempts to bind each queue of a multi-queue NIC"
         echo "    to the same numbered core, ie tx0|rx0 --> cpu0, tx1|rx1 --> cpu1"
         echo "usage:"
-        echo "    $0 eth0 [eth1 eth2 eth3]"
+        echo "    $0 OFFSET eth0 [eth1 eth2 eth3]"
 fi
 
 
@@ -65,6 +67,9 @@ fi
 # Set up the desired devices.
 #
 
+OFFSET=$1
+shift
+
 for DEV in $*
 do
   for DIR in rx tx TxRx
@@ -74,7 +79,7 @@ do
        MAX=`egrep -i "$DEV:.*$DIR" /proc/interrupts | wc -l`
      fi
      if [ "$MAX" == "0" ] ; then
-       echo no $DIR vectors found on $DEV
+       echo "no $DIR vectors found on '$DEV'"
        continue
        #exit 1
      fi
