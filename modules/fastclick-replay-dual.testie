@@ -20,6 +20,7 @@ NIC_OUT=1
 NBUF=1048576
 GEN_PROMISC=false
 GEN_ENDAFTER=8
+GEN_RESERVE=5000000
 nolinktest=0
 
 %script sudo=true deps=fastclick
@@ -62,14 +63,14 @@ replay :: MultiReplayUnqueue(STOP 0,QUICK_CLONE $quick, VERBOSE true, ACTIVE tru
 StaticThreadSched(replay 0)
 
 elementclass Numberise {
-    input-> Strip(14) -> check :: CheckIPHeader -> nPacket :: NumberPacket(40) -> SetIPChecksum -> doublecheck :: CheckIPHeader -> Unstrip(14) -> triplecheck::CheckIPHeader(OFFSET 14) -> output
+    input -> Strip(14) -> CheckIPHeader -> nPacket :: NumberPacket(40) -> SetIPChecksum -> Unstrip(14) -> output
 }
 
 fdIN -> rwIN :: EtherRewrite($INsrcmac,$INdstmac)
   -> NIN :: Numberise
   ->  EnsureDPDKBuffer
   -> [0]replay[0]
-  -> rt :: RecordTimestamp(N 1048576,OFFSET 54)
+  -> rt :: RecordTimestamp(N $GEN_RESERVE,OFFSET 54)
   -> avgSIN :: AverageCounter(IGNORE $ignore)
   -> tdIN
 
@@ -226,6 +227,8 @@ DriverManager(pause,
                 print "RESULT-TOTALTHROUGHPUT $(add $(avgROUT.link_rate) $(avgRIN.link_rate))",
                 print "Mean Delay: $(tsd.average) µs",
                 print "Min Delay: $(tsd.min) µs",
+                print "25 percentile Delay: $(tsd.perc25) µs",
+                print "75 percentile Delay: $(tsd.perc75) µs",
                 print "Max Delay: $(tsd.max) µs",
                 print "Delay StdDev: $(tsd.stddev) µs",
 //                print "Delay dump:",

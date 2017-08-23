@@ -65,6 +65,11 @@ FNTcounter:COUNTER={CounterMP,CounterRxWMP,CounterAtomic,CounterLock,CounterRW,C
 %dpdk,-nobind:import@dut dpdk-bind NIC=1
 %dpdk,-nobind:import@dut dpdk-bind NIC=2
 %dpdk,-nobind:import@dut dpdk-bind NIC=3
+%pcap,-nobind:import@dut dpdk-bind NIC=0 DRIVER=ixgbe
+%pcap,-nobind:import@dut dpdk-bind NIC=1 DRIVER=ixgbe
+%pcap,-nobind:import@dut dpdk-bind NIC=2 DRIVER=ixgbe
+%pcap,-nobind:import@dut dpdk-bind NIC=3 DRIVER=ixgbe
+
 %cpufreq:import@dut cpufreq
 
 %late_variables
@@ -96,13 +101,22 @@ done < results
 %udp:script@dut 0:ip=10.1.0.1 1:ip=10.2.0.1 2:ip=10.3.0.1 3:ip=10.4.0.1 sudo=true autokill=false
 
 
+
 %-click,dpdk:script@dut sudo=true
 bwtest -l 0,1,2,3 -n 4 -- 0:e:0 1:e:1 2:e:2 3:e:3
 
-%click,dpdk:script@dut sudo=true
+%fastclick,dpdk:script@dut sudo=true
 cat CONFIG | click --dpdk -n 4 -l 0-$(( $CPU - 1 ))
 
-%file CONFIG
+%pcap:script@dut sudo=true
+ifconfig ${dut:0:ifname} up
+ifconfig ${dut:1:ifname} up
+ifconfig ${dut:2:ifname} up
+ifconfig ${dut:3:ifname} up
+sleep 1
+cat CONFIG | click -j $CPU -a
+
+%fastclick:file CONFIG
 define ($MTU 1500)
 define ($bout ${BURSTOUT})
 define ($bin ${BURSTIN})
@@ -199,3 +213,46 @@ DriverManager(wait,
             read td2.count,
             read td3.count,
             );
+
+%pcap:file CLICK
+elementclass Processer {
+        input->
+        /*    Strip(14) ->
+            CheckIPHeader(CHECKSUM false) ->
+                Unstrip(14)->*/
+                    Queue()->
+                        output
+}
+
+define ($b 16)
+define ($o 128)
+define ($method PCAP)
+
+in1::FromDevice(${dut:0:ifname}, SNIFFER false, PROMISC 1, BURST $b, METHOD $method)
+in2::FromDevice(${dut:1:ifname}, SNIFFER false, PROMISC 1, BURST $b, METHOD $method)
+in3::FromDevice(${dut:2:ifname}, SNIFFER false, PROMISC 1, BURST $b, METHOD $method)
+in4::FromDevice(${dut:3:ifname}, SNIFFER false, PROMISC 1, BURST $b, METHOD $method)
+
+out1 :: ToDevice(${dut:0:ifname}, BURST $o, METHOD $method)
+out2 :: ToDevice(${dut:1:ifname}, BURST $o, METHOD $method)
+out3 :: ToDevice(${dut:2:ifname}, BURST $o, METHOD $method)
+out4 :: ToDevice(${dut:3:ifname}, BURST $o, METHOD $method)
+
+
+in1 -> p1 :: Processer() -> out1
+in2 -> p2 :: Processer() -> out2
+in3 -> p3 :: Processer() -> out3
+in4 -> p4 :: Processer() -> out4
+
+StaticThreadSched(in1 0)
+StaticThreadSched(in2 1)
+StaticThreadSched(in3 2)
+StaticThreadSched(in4 3)
+StaticThreadSched(out1 0)
+StaticThreadSched(out2 1)
+StaticThreadSched(out3 2)
+StaticThreadSched(out4 3)
+StaticThreadSched(p1 0)
+StaticThreadSched(p2 1)
+StaticThreadSched(p3 2)
+StaticThreadSched(p4 3)
