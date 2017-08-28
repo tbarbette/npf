@@ -1,0 +1,45 @@
+%info
+Give the Link rate and PPS through Linux API
+
+%script
+bash get_th.sh ${self:0:ifname}
+
+%file get_th.sh unparse
+#!/bin/sh
+intif=$1
+old_bytes=$(cat /sys/class/net/$intif/statistics/rx_bytes)
+old_len=$(cat /sys/class/net/$intif/statistics/rx_packets)
+start=`date +%s%N`
+acc=0
+total_th=0
+total_pps=0
+while true; do
+    sleep 1
+    t=`date +%s%N`
+    n_bytes=$(cat /sys/class/net/$intif/statistics/rx_bytes)
+    n_len=$(cat /sys/class/net/$intif/statistics/rx_packets)
+    diff_bytes=$(( $n_bytes - $old_bytes ))
+    diff_len=$(( $n_len - $old_len ))
+    diff_t=$(( $t - $start))
+    echo "$diff_bytes $diff_len $diff_t"
+    throughput=$(( ( ( $diff_len * 24 ) + ( $diff_bytes * 8 ) ) * 1000000000 / $diff_t ))
+    pps=$(( $diff_len * 1000000000 / $diff_t ))
+    echo "Throughput $throughput"
+    if [ $acc -eq 1 ] ; then
+        if [ $throughput -lt 1000000 ] ; then
+            break
+        fi
+        total_th=$(( $total_th + $throughput))
+        total_pps=$(( $total_pps + $pps))
+        n_total=$(( $n_total + 1 ))
+    else
+        if [ $throughput -ge 1000000 ] ; then
+            acc=1
+        fi
+    fi
+    start=$t
+    old_bytes=$n_bytes
+    old_len=$n_len
+done
+echo "RESULT-LINK $(( $total_th / $n_total ))"
+echo "RESULT-PPS $(( $total_pps / $n_total ))"

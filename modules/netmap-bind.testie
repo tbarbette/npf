@@ -1,0 +1,22 @@
+%info
+Insert netmap module and drivers
+
+Support i40e and ixgbe
+
+%init sudo=true deps=netmap
+lsmod | grep netmap &> /dev/null
+if [ $? -ne 0 ] ; then
+    insmod ../build/netmap/netmap.ko
+fi
+
+//Unbind from dpdk by removing UIO drivers
+rmmod igb_uio &> /dev/null
+rmmod uio_pci_generic &> /dev/null
+
+rmmod i40e
+rmmod ixgbe
+
+insmod ../build/netmap/i40e/i40e.ko
+insmod ../build/netmap/ixgbe/ixgbe.ko
+
+echo "RESULT 1"

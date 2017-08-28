@@ -54,8 +54,10 @@ fastregression:BURSTIN={32,256}
 fastregression:BURSTOUT={32,256}
 fastregression,udp:GEN_LENGTH={64,1500}
 
-lengthonly:BURSTIN=32
-lengthonly:BURSTOUT=32
+descin=1024
+descout=256
+ring:descin=[16*4096]
+ring:descout=[16*4096]
 
 FNTIN=
 FNTOUT=
@@ -108,7 +110,7 @@ $GLOBAL_ELEMENTS
 
 elementclass Input { $device,$ip,$eth |
 
-    FromDPDKDevice($device, BURST $bin, PROMISC false, THREADOFFSET $thoffset, VERBOSE 3, MAXTHREADS $maxthreads) ->
+    fd :: FromDPDKDevice($device, BURST $bin, PROMISC false, THREADOFFSET $thoffset, VERBOSE 3, MAXTHREADS $maxthreads, NDESC $descin) ->
 
     c0 :: Classifier(    12/0806 20/0001,
                          12/0806 20/0002,
@@ -129,12 +131,12 @@ elementclass Input { $device,$ip,$eth |
     c0[2] -> [0]output;
 
     // Unknown ethernet type numbers.
-    c0[3] -> Print() -> Discard();
+    c0[3] -> Print("Unknown ethernet") -> Discard();
 }
 
 
-td0 :: ToDPDKDevice(${dut:0:pci} , BURST $bout, IQUEUE $i, BLOCKING true, VERBOSE 3)
-td1 :: ToDPDKDevice(${dut:1:pci} , BURST $bout, IQUEUE $i, BLOCKING true)
+td0 :: ToDPDKDevice(${dut:0:pci} , BURST $bout, IQUEUE $i, BLOCKING true, VERBOSE 3, NDESC $descout)
+td1 :: ToDPDKDevice(${dut:1:pci} , BURST $bout, IQUEUE $i, BLOCKING true, VERBOSE 3, NDESC $descout)
 
 input0 :: Input(${dut:0:pci}, ${dut:0:ip}, ${dut:0:mac});
 input1 :: Input(${dut:1:pci}, ${dut:1:ip}, ${dut:1:mac});
@@ -194,3 +196,12 @@ output1[1] -> ICMPError(${dut:1:ip}, redirect, host, SET_FIX_ANNO 0) -> IPPrint(
 
 output0[0] -> arpq0;
 output1[0] -> arpq1;
+
+DriverManager(wait,
+            read input0/fd.hw_count,
+            read input1/fd.hw_count,
+            read input0/fd.mac,
+            read input1/fd.mac,
+            read td0.count,
+            read td1.count,
+            );

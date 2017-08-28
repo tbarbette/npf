@@ -431,14 +431,29 @@ class Testie:
                         if result_type is None:
                             result_type = ''
                         n = float(nr.group("value"))
-                        mult = nr.group("multiplier").lower()
-                        if mult == "k":
-                            n *= 1024
-                        elif mult == "m":
-                            n *= 1024 * 1024
-                        elif mult == "g":
-                            n *= 1024 * 1024 * 1024
+                        mult = nr.group("multiplier")
+                        unit = ""
+                        if nr.group("unit"):
+                            unit = nr.group("unit")
+                        if unit.lower() == "sec" or unit.lower() == "s":
+                            unit = "s"
+                        print(mult,unit)
+                        if unit == "s":
+                            if mult == "m":
+                                n = n / 1000 #Keep all results in seconds
+                            elif mult == "u" or mult=="µ":
+                                n = n / 1000000
+                            elif mult == "n":
+                                n = n / 1000000000
+                        else:
+                            mult = mult.upper()
 
+                        if mult == "K":
+                            n *= 1024
+                        elif mult == "M":
+                            n *= 1024 * 1024
+                        elif mult == "G":
+                            n *= 1024 * 1024 * 1024
                         if n != 0 or (self.config.match("accept_zero", result_type)):
                             if result_type in result_types:
                                 result_types[result_type] += n
@@ -562,9 +577,9 @@ class Testie:
                 if not self.options.quiet:
                     print("Requirement not met for %s" % run.format_variables(self.config["var_hide"]))
                     if r_out.strip():
-                        print(output.strip())
+                        print(r_out.strip())
                     if r_err.strip():
-                        print(err.strip())
+                        print(r_err.strip())
 
                 continue
 

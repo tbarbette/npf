@@ -1,19 +1,22 @@
 %info
-4 port Router
+4*10G Forwarder
 
 
 %config
 //Timeout for a single script
 //timeout=30
 timeout=-1
+title=
 
 //Axis names
-var_names={LENGTH:Length,result:Throughput,TXCPU:Transmit CPU,RXCPU:Receive CPU,GEN_LENGTH:Packet length,BURSTOUT:Output burst,BURSTIN:Input burst}
+var_names={LENGTH:Length,result:Throughput (Mbps),TXCPU:Transmit CPU,RXCPU:Receive CPU,GEN_LENGTH:Packet length,BURSTOUT:Output burst,BURSTIN:Input burst,napi:NAPI Budget (Packets),sched:Priority}
+
 role_exclude={client+dut}
 default_role_map={server:dut}
 var_unit={result: }
+var_log={napi}
 udp:var_divider={result:1000000000}
-graph_series_sort=-avg
+-sched:graph_series_sort=-avg
 graph_result_as_variable={THROUGHPUT-(.*):THROUGHPUT,LOSS-(.*):LOSS,PERF-(.*):PERF}
 
 %variables
@@ -48,8 +51,8 @@ fastregression:BURSTOUT={32,256}
 fastregression,udp:GEN_LENGTH={64,1500}
 
 pcap:sniffer=true
-pcap:napi=[1*300]
-pcap:sched={-f 1:SCHED_FIFO,-r 1:SCHED_RR,-b 0:SCHED_BATCH,-o 0 nice -n -19:SCHED_OTHER -19,-o 0 nice -n 0:SCHED_OTHER 0,-o 0 nice -n 20:SCHED_OTHER 20}
+sched,pcap:napi=[1*1024]
+sched,pcap:sched={-f 1:FIFO,-r 1:RR,-b 0:BATCH,-o 0 nice -n -19:Nice -19,-o 0 nice -n 0:Default,-o 0 nice -n 20:Nice 20}
 
 lengthonly:BURSTIN=32
 lengthonly:BURSTOUT=32
@@ -118,7 +121,6 @@ done < results
 bwtest -l 0,1,2,3 -n 4 -- 0:e:0 1:e:1 2:e:2 3:e:3
 
 %fastclick,dpdk:script@dut sudo=true
-echo $napi > /proc/sys/net/core/netdev_budget
 cat CONFIG | click --dpdk -n 4 -l 0-$(( $CPU - 1 ))
 
 %pcap:script@dut sudo=true
@@ -127,6 +129,7 @@ ifconfig ${dut:1:ifname} up
 ifconfig ${dut:2:ifname} up
 ifconfig ${dut:3:ifname} up
 sleep 1
+echo $napi > /proc/sys/net/core/netdev_budget
 cat CONFIG | chrt $sched click -j $CPU -a
 
 %fastclick:file CONFIG

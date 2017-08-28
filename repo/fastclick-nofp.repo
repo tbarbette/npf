@@ -1,0 +1,4 @@
+parent=fastclick
+name=FastClick - No FP
+configure+= --disable-fullpush-nonatomic
+tags=fastclick,nofp

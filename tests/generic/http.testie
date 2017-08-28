@@ -3,10 +3,6 @@ HTTP Requests for different sizes
 
 Use WRK to requests file ranging from 1K to 1G using WRK.
 
-Note that the HTTP server to use is not included in this test, only
-the request maker (WRK) and creating the file for the server in the
-HTTP_ROOT path
-
 Roles to set : client, server and dut. Dut is probably equal to server in most cases and hence it is the default, but some times you want to address a NAT or PROXY (which would be the DUT) and not the server directly.
 
 %config

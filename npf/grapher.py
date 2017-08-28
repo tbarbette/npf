@@ -112,6 +112,12 @@ class Grapher:
     def bits(self, x, pos):
         return self.formatb(x, pos, "Bits")
 
+    def us(self, x, pos):
+        return self.formats(x, pos, 1000000)
+
+    def formats(self,x,pos,mult):
+        return "%d" % (x * mult)
+
     def bytes(self, x, pos):
         return self.formatb(x, pos, "Bytes")
 
@@ -528,7 +534,7 @@ class Grapher:
                 elif len(figure) > 0:
                     plt.ylabel(result_type)
 
-                var_lim = self.scriptconfig("var_lim", "result" + type_config, None)
+                var_lim = self.scriptconfig("var_lim", "result", result_type=type_config, default=None)
                 if var_lim:
                     n = var_lim.split('-')
                     if len(n) == 2:
@@ -683,6 +689,10 @@ class Grapher:
         elif (yunit.lower() == "bps" or yunit.lower() == "byteps"):
             formatter = FuncFormatter(self.bits if yunit.lower() == "bps" else self.bytes)
             ax.yaxis.set_major_formatter(formatter)
+        elif (yunit.lower() == "us" or yunit.lower() == "µs"):
+            formatter = FuncFormatter(self.us)
+            ax.yaxis.set_major_formatter(formatter)
+
         elif (yunit.lower() == "%" or yunit.lower().startswith("percent")):
             def to_percent(y, position):
                 s = str(100 * y)

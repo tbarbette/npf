@@ -1,0 +1,5 @@
+parent=fastclick
+name=FastClick - No batch, no ZC, FP
+configure+= --disable-batch --disable-zerocopy --enable-fullpush-nonatomic 
+tags=fastclick,nobatch,nozc,fp
+branch=fp

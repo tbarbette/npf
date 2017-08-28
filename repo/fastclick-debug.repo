@@ -1,0 +1,3 @@
+parent=fastclick
+name=FastClick - Debug
+configure+=--enable-dpdk CFLAGS="-O1 -g" CXXFLAGS="-std=gnu++11 -O1 -g" --disable-bound-port-transfer

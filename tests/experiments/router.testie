@@ -45,8 +45,10 @@ fastregression:BURSTIN={32,256}
 fastregression:BURSTOUT={32,256}
 fastregression,udp:GEN_LENGTH={64,1500}
 
-lengthonly:BURSTIN=32
-lengthonly:BURSTOUT=32
+descin=1024
+descout=256
+ring:descin=[4*4096]
+ring:descout=[4*4096]
 
 FNTIN=
 FNTOUT=
@@ -99,7 +101,7 @@ $GLOBAL_ELEMENTS
 
 elementclass Input { $device,$ip,$eth |
 
-    fd :: FromDPDKDevice($device, BURST $bin, PROMISC false, THREADOFFSET $thoffset, VERBOSE 3, MAXTHREADS $maxthreads) ->
+    fd :: FromDPDKDevice($device, BURST $bin, PROMISC false, THREADOFFSET $thoffset, VERBOSE 3, MAXTHREADS $maxthreads, NDESC $descin) ->
 
     c0 :: Classifier(    12/0806 20/0001,
                          12/0806 20/0002,
@@ -124,10 +126,10 @@ elementclass Input { $device,$ip,$eth |
 }
 
 
-td0 :: ToDPDKDevice(${dut:0:pci} , BURST $bout, IQUEUE $i, BLOCKING true, VERBOSE 3)
-td1 :: ToDPDKDevice(${dut:1:pci} , BURST $bout, IQUEUE $i, BLOCKING true, VERBOSE 3)
-td2 :: ToDPDKDevice(${dut:2:pci} , BURST $bout, IQUEUE $i, BLOCKING true, VERBOSE 3)
-td3 :: ToDPDKDevice(${dut:3:pci} , BURST $bout, IQUEUE $i, BLOCKING true, VERBOSE 3)
+td0 :: ToDPDKDevice(${dut:0:pci} , BURST $bout, IQUEUE $i, BLOCKING true, VERBOSE 3, NDESC $descout)
+td1 :: ToDPDKDevice(${dut:1:pci} , BURST $bout, IQUEUE $i, BLOCKING true, VERBOSE 3, NDESC $descout)
+td2 :: ToDPDKDevice(${dut:2:pci} , BURST $bout, IQUEUE $i, BLOCKING true, VERBOSE 3, NDESC $descout)
+td3 :: ToDPDKDevice(${dut:3:pci} , BURST $bout, IQUEUE $i, BLOCKING true, VERBOSE 3, NDESC $descout)
 
 input0 :: Input(${dut:0:pci}, ${dut:0:ip}, ${dut:0:mac});
 input1 :: Input(${dut:1:pci}, ${dut:1:ip}, ${dut:1:mac});
