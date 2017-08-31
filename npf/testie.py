@@ -309,12 +309,12 @@ class Testie:
         #Launching the tests in itself
         results = {}
         m = multiprocessing.Manager()
+        output = ''
+        err = ''
         for i in range(n_runs):
             for i_try in range(n_retry + 1):
                 if i_try > 0 and not self.options.quiet:
                     print("Re-try tests %d/%d..." % (i_try, n_retry + 1))
-                output = ''
-                err = ''
 
                 queue = m.Queue()
                 terminated_event = m.Event()

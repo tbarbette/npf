@@ -15,7 +15,8 @@ mkdir -p $NGINX_ROOT
 echo "RESULT 1"
 
 %script sudo=true
-killall nginx
+killall nginx || true
+sleep 0.5
 nginx -c $(pwd)/nginx.conf -p $(pwd)
 exit 0
 

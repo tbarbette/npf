@@ -442,7 +442,7 @@ class SectionConfig(SectionVariable):
         self.__add("n_runs", 3)
         self.__add("n_retry", 0)
         self.__add_list("result_regex", [
-            r"RESULT(:?-(?P<type>[A-Z0-9_:~-]+))?[ \t]+(?P<value>[0-9.]+)[ ]*(?P<multiplier>[nµgmk]?)(?P<unit>s|b|byte|bits)?"])
+            r"RESULT(:?-(?P<type>[A-Z0-9_:~-]+))?[ \t]+(?P<value>[0-9.]+)[ ]*(?P<multiplier>[nµugmkKGT]?)(?P<unit>s|sec|b|byte|bits)?"])
         self.__add_list("results_expect", [])
         self.__add("autokill", True)
         self.__add_dict("env", {}) #Unimplemented yet

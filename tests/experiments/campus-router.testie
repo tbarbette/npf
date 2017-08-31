@@ -11,7 +11,7 @@ As for any DPDK application, you must be root on the node executing DPDK or allo
 
 %config
 //Timeout for a single script
-timeout=30
+timeout=20
 
 //Axis names
 var_names={LENGTH:Length,result:Throughput,TXCPU:Transmit CPU,RXCPU:Receive CPU,GEN_LENGTH:Packet length,BURSTOUT:Output burst,BURSTIN:Input burst}
@@ -21,6 +21,7 @@ default_role_map={server:dut}
 var_unit={result: }
 var_divider={result:1000000000}
 graph_series_sort=-avg
+var_log={descin,descout}
 
 %variables
 //Parameters for the router itself
@@ -54,10 +55,10 @@ fastregression:BURSTIN={32,256}
 fastregression:BURSTOUT={32,256}
 fastregression,udp:GEN_LENGTH={64,1500}
 
-descin=1024
+descin=256
 descout=256
-ring:descin=[16*4096]
-ring:descout=[16*4096]
+ring:descin=[64*4096]
+ring:descout=[64*4096]
 
 FNTIN=
 FNTOUT=
