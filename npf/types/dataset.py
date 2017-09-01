@@ -131,7 +131,7 @@ def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list
                 xval = run.print_variable(key,build.pretty_name())
             results_types = all_results.get(run, {})
             for result_type in all_result_types:
-                ydiv = var_divider(testie, "result", result_type)
+                #ydiv = var_divider(testie, "result", result_type) results are now divided before
                 xdiv = var_divider(testie, key)
                 result = results_types.get(result_type,None)
 
@@ -141,7 +141,7 @@ def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list
                     x.setdefault(result_type, []).append(xval)
 
                 if result is not None:
-                    result = np.asarray(result) / ydiv
+                    #result = np.asarray(result) / ydiv
                     y.setdefault(result_type, []).append(np.mean(result))
                     e.setdefault(result_type, []).append(np.std(result))
                 else:

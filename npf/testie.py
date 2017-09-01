@@ -309,12 +309,15 @@ class Testie:
         #Launching the tests in itself
         results = {}
         m = multiprocessing.Manager()
-        output = ''
-        err = ''
+        all_output = []
+        all_err = []
         for i in range(n_runs):
             for i_try in range(n_retry + 1):
                 if i_try > 0 and not self.options.quiet:
                     print("Re-try tests %d/%d..." % (i_try, n_retry + 1))
+                output = ''
+                err = ''
+
 
                 queue = m.Queue()
                 terminated_event = m.Event()
@@ -417,6 +420,10 @@ class Testie:
                         worked = True
                         output += o
                         err += e
+
+                all_output.append(output)
+                all_err.append(err)
+
                 if not worked:
                     continue
 
@@ -494,7 +501,7 @@ class Testie:
         os.chdir('..')
         if not self.options.preserve_temp and f_mine:
             shutil.rmtree(test_folder)
-        return results, output, err, n_exec
+        return results, all_output, all_err, n_exec
 
     #    def has_all(self, prev_results, build):
     #        if prev_results is None:
@@ -542,9 +549,9 @@ class Testie:
                 if not options.quiet:
                     print("Aborting as init scripts did not run correctly !")
                     print("Stdout:")
-                    print(output)
+                    print("\n".join(output))
                     print("Stderr:")
-                    print(err)
+                    print("\n".join(err))
                 raise ScriptInitException()
 
     def execute_all(self, build, options, prev_results: Dataset = None, do_test=True,
@@ -620,9 +627,9 @@ class Testie:
                 if new_results:
                     if self.options.show_full:
                         print("stdout:")
-                        print(output)
+                        print("\n".join(output))
                         print("stderr:")
-                        print(err)
+                        print("\n".join(err))
                     for k, v in new_results.items():
                         run_results.setdefault(k, []).extend(v)
                         have_new_results = True

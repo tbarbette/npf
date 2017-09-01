@@ -229,6 +229,7 @@ class SectionVariable(Section):
         super().__init__(name)
         self.content = ''
         self.vlist = OrderedDict()
+        self.aliases = {}
 
     @staticmethod
     def replace_variables(v, content, self_role=None, default_role_map={}):
@@ -365,12 +366,16 @@ class SectionVariable(Section):
             var, val, is_append = self.parse_variable(line, testie.tags)
             if not var is None:
                 if check_exists and not var in self.vlist:
+
                     if var.endswith('s') and var[:-1] in self.vlist:
                         var = var[:-1]
                     elif var + 's' in self.vlist:
                         var = var + 's'
                     else:
-                        raise Exception("Unknown variable %s" % var)
+                        if var in self.aliases:
+                            var = self.aliases[var]
+                        else:
+                            raise Exception("Unknown variable %s" % var)
                 if is_append:
                     self.vlist[var] += val
                 else:
@@ -425,6 +430,10 @@ class SectionConfig(SectionVariable):
         super().__init__('config')
         self.content = ''
         self.vlist = {}
+
+        self.aliases = {
+            'graph_variable_as_series' : 'graph_variables_as_series'
+        }
 
         #Environment
         self.__add("default_repo", None)
@@ -506,7 +515,6 @@ class SectionConfig(SectionVariable):
         return v
 
     def get_dict_value(self, var, key, result_type=None, default=None):
-        key = key.lower()
         if var in self:
             d = self.get_dict(var)
             if result_type is None:
@@ -518,6 +526,8 @@ class SectionConfig(SectionVariable):
                     return d.get(result_type)
                 else:
                     return d.get(key, default)
+        if key != key.lower():
+            return self.get_dict_value(var, key.lower(), result_type, default)
         return default
 
     def __contains__(self, key):
