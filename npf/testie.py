@@ -327,7 +327,7 @@ class Testie:
                         if not script.get_type() in allowed_types:
                             continue
                         param = RemoteParameters()
-                        param.commands = "cd " + test_folder + ";\n" + SectionVariable.replace_variables(v,
+                        param.commands = "mkdir -p "+test_folder+" && cd " + test_folder + ";\n" + SectionVariable.replace_variables(v,
                                                                                                          script.content,
                                                                                                          role if role else script.get_role(),
                                                                                                          self.config.get_dict(

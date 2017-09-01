@@ -17,6 +17,7 @@ echo "RESULT 1"
 %script sudo=true
 killall nginx
 nginx -c $(pwd)/nginx.conf -p $(pwd)
+exit 0
 
 //%clean
 
