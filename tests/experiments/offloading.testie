@@ -1,0 +1,225 @@
+%info
+L2 Forwarding on Monster, RSS and Workload test
+
+* Work is specified in WorkPackage
+* Fixed number of WorkPackge to be exec'ed on same thread
+* Packet length is GEN_LENGTH
+* NTHREADS increases, adding extra devices (rss)
+* Fixed pipeliner queue size (though can be changed to vary)
+  ... @sdarayan: No effect really in changing QSIZE
+  * Overall, test rss scalability with fixed work
+
+%config
+default_repo=fastclick
+n_runs=3
+var_lim={NWP:0-16,NTHREADS:0-16,result-THROUGHPUT:0-10000000000,result-Perf:0-100}
+var_unit={LATENCY:us,DROPPED:packets,result-THROUGHPUT:BPS,result-TX:BPS}
+var_names={GEN_LENGTH:Packet length,TODEV_THREAD:Output thread,result-THROUGHPUT:Throughput,result-TX:PktGen Throughput,result-PPS:PPS,result-DROPPED:Dropped,result-LATENCY:Latency,result-LOSS:Percentage,NTHREADS:Number of threads}
+accept_zero={DROPPED}
+-vary:graph_subplot_results={LATENCY,DROPPED,THROUGHPUT,PPS,TX:common}
+title=L2 Forwarding on Monster, RSS and Workload test
+graph_variables_as_series={NWP}
+graph_result_as_variable={PERF-(.*):Perf}
+graph_series_sort=-avg
+graph_max_series=10
+vary:require_tags={fastclick-next}
+vary:var_log={PPS,LATENCY,THROUGHPUT}
+vary:var_lim={PPS:0-10000000}
+
+%variables
+-campus:GEN_LENGTH=64
+NWP={1,7,14}
+QSIZE=1024
+ALWAYSUP=true
+GEN_WAIT=10
+//perf:PERF_OPT=--comms click
+//NWP=14
+softduplicate:SOFTMETHOD=RoundRobinSwitch()
+softduplicate,hash:SOFTMETHOD=HashSwitch(34,4)
+vary:S={1,10,20}
+vary:N={1,20,200} //2000
+vary:R={0,50,100}
+vary:P={true,false}
+vary:W={0}
+vary:WP=WP
+-vary:WAP=checksum
+pipeline:block=true
+NODISPATCH=0
+nodispatch:NODISPATCH=1
+
+%late_variables
+NTHREADS=EXPAND( $(( $NWP )) )
+checksum:WP=Strip(14) -> check :: CheckIPHeader -> set :: SetIPChecksum -> Unstrip(14)
+vary:WP=EXPAND(WorkPackage(S $S, N $N, R $R, PAYLOAD $P, W $W))
+bin=32
+
+%-softduplicate,-pipeline:late_variables
+todevthread=[0-15]
+
+perf:PERF_OPT=EXPAND( --cpu 0-$(( $NTHREADS - 1 )) )
+
+ALLWORK=EXPAND( -> [0]wp_$todevthread :: WorkPack()[0]  )
+WORK=HEAD($NWP, $ALLWORK)
+ALLWORK=
+
+ALLWORK2=EXPAND( -> [1]wp_$todevthread[1]  )
+WORK2=HEAD($NWP, $ALLWORK2)
+ALLWORK2=
+
+//******************** Late variables for softduplicate **************
+%softduplicate:late_variables
+
+NOFFLOADER=EXPAND( $(( $NTHREADS - 1 if $NTHREADS > 1 else 1  )) )
+
+todevthread=[0-15]
+ALLELEMENTCONNECTIONS=EXPAND(to_eth1_$todevthread :: ToDPDKDevice(${dut:0:pci}, BLOCKING true); to_eth2_$todevthread :: ToDPDKDevice(${dut:1:pci}, BLOCKING true); rr1[$todevthread] -> Offloader( $(( $todevthread + 1 if $NTHREADS > 1 else 0 )) ) -> to_eth2_$todevthread; rr2[$todevthread] -> Offloader(  $(( $todevthread + 1 if $NTHREADS > 1 else 0 ))  ) -> to_eth1_$todevthread; )
+ELEMENTCONNECTIONS=HEAD($NOFFLOADER, $ALLELEMENTCONNECTIONS)
+NOFFLOADER=
+ALLELEMENTCONNECTIONS=
+
+ALLWORK=EXPAND( -> WorkPack($todevthread)  )
+WORK=HEAD($NWP, $ALLWORK)
+ALLWORK=
+
+ALLCOUNTPRINTS=EXPAND( , print "COUNT $(to_eth1_${todevthread}.count) , $(to_eth2_${todevthread}.count)" )
+COUNTPRINTS=HEAD($NTHREADS, $ALLCOUNTPRINTS)
+ALLCOUNTPRINTS=
+
+
+%pipeline:late_variables
+//For pipeline, put WorkPack on thread 1 with one thread,  1 1 1 2 2 2 with 4, ... up to 0 1 2 3 when using 14. If nodispatch, start at 0
+nworker=[0-15]
+-nodispatch:FROMALLWORK1=EXPAND( -> [0]from_work1_$nworker :: WorkPack( $(( int(floor($nworker / ($NWP / ($NTHREADS - 1 ) ) ) + 1 ) if $NTHREADS > 1 else 0 )) ) [0]  )
+nodispatch:FROMALLWORK1=EXPAND( -> [0]from_work1_$nworker :: WorkPack( $(( int(floor($nworker / ($NWP / $NTHREADS) ) ) )) ) [0]  )
+FROMWORK1=HEAD($NWP, $FROMALLWORK1)
+FROMALLWORK1=
+
+FROMALLWORK2=EXPAND( -> [1]from_work1_$nworker[1]  )
+FROMWORK2=HEAD($NWP, $FROMALLWORK2)
+FROMALLWORK2=
+
+%import@dut dpdk-bind NIC=0
+%import@dut dpdk-bind NIC=1
+%import@client dpdk-bind NIC=0
+%import@client dpdk-bind NIC=1
+
+%perf:import@dut perf-functions delay=12
+%-perf,campus:import@client fastclick-udpgen-latency-single delay=5 GEN_REPLAY=10 LIMIT=2000000
+%campus:import@client fastclick-replay-dual 0:ip=139.165.0.1 1:ip=10.10.10.1 traceIN=/mnt/traces/201601-1_fullanon_padded.pcap traceOUT=/mnt/traces/201601-2_fullanon_padded.pcap NBUF=5000000 delay=5
+%perf,-campus:import@client fastclick-udpgen-latency-single delay=2 GEN_REPLAY=100 LIMIT=2000000
+//%perf:import@client fastclick-udpgen-single delay=5
+
+%script@dut sudo=true
+rm /tmp/click_ctl &> /dev/null
+click --dpdk -c 0xffff -- CONFIG 
+
+
+//*************************************
+// Duplicate  config file
+//*************************************
+%-pipeline,-softduplicate:file@dut CONFIG
+
+
+
+
+elementclass WorkPack {
+    input [0]
+    -> wp :: $WP
+    -> [0] output;
+
+    input [1]
+    -> [1]wp[1]
+    -> [1] output;
+};
+
+
+
+from_eth1 :: FromDPDKDevice(${dut:0:pci}, PROMISC false, MAXTHREADS $NTHREADS, THREADOFFSET 0, VERBOSE 3, BURST $bin);
+from_eth2 :: FromDPDKDevice(${dut:1:pci}, PROMISC false, MAXTHREADS $NTHREADS, THREADOFFSET 0, VERBOSE 3, BURST $bin);
+to_eth1 :: ToDPDKDevice(${dut:0:pci}, BLOCKING true);
+to_eth2 :: ToDPDKDevice(${dut:1:pci}, BLOCKING true);
+from_eth1 $WORK -> EtherRewrite(SRC ${dut:1:mac}, DST ${client:1:mac}) -> to_eth2; 
+from_eth2 $WORK2 -> EtherRewrite(SRC ${dut:0:mac}, DST ${client:0:mac}) -> to_eth1;
+
+DriverManager(wait, print "DROPPED $(from_eth1.hw_dropped) , $(from_eth2.hw_dropped)"
+, print "COUNT $(from_eth2.hw_count) , $(from_eth2.hw_count)");
+
+
+//*************************** Soft RSS **********************
+%softduplicate:file@dut CONFIG
+
+from_eth1 :: FromDPDKDevice(${dut:0:pci}, PROMISC true);
+//to_eth1 :: Pipeliner($QSIZE,BLOCKING $block) -> ToDPDKDevice(${dut:0:pci}, BLOCKING true);
+//StaticThreadSched(to_eth1 $TODEV_THREAD)
+//to_eth1 :: ToDPDKDevice(${dut:0:pci}, BLOCKING true);
+
+from_eth2 :: FromDPDKDevice(${dut:1:pci}, PROMISC true);
+//to_eth2 :: Pipeliner($QSIZE,BLOCKING $block) -> ToDPDKDevice(${dut:1:pci}, BLOCKING true);
+//StaticThreadSched(to_eth2 $TODEV_THREAD)
+//to_eth2 :: ToDPDKDevice(${dut:1:pci}, BLOCKING true);
+
+
+elementclass Offloader {
+    $thread_no |
+    input
+    -> bp :: Bypass(ACTIVE $OFFLOAD)
+    => ( [0] -> [0];
+         [1] -> p :: Pipeliner($QSIZE, ALWAYS_UP $ALWAYSUP) -> [0]; )
+    $WORK
+    -> output;
+
+    StaticThreadSched(p $thread_no)
+};
+
+from_eth1 -> rr1 :: $SOFTMETHOD;
+from_eth2 -> rr2 :: $SOFTMETHOD;
+$ELEMENTCONNECTIONS
+
+
+DriverManager(wait $COUNTPRINTS);
+
+//************************ Pipeline *****************************
+%pipeline:file@dut CONFIG
+
+from_eth1 :: FromDPDKDevice(${dut:0:pci}, PROMISC false, BURST $bin, THREADOFFSET 0, MAXTHREADS 1);
+//to_eth1 :: Pipeliner($QSIZE) -> ToDPDKDevice(${dut:0:pci}, BLOCKING true);
+//StaticThreadSched(to_eth1 $TODEV_THREAD)
+to_eth1 :: ToDPDKDevice(${dut:0:pci}, BLOCKING true);
+
+from_eth2 :: FromDPDKDevice(${dut:1:pci}, PROMISC false, BURST $bin, THREADOFFSET 0, MAXTHREADS 1);
+//to_eth2 :: Pipeliner($QSIZE) -> ToDPDKDevice(${dut:1:pci}, BLOCKING true);
+//StaticThreadSched(to_eth2 $TODEV_THREAD)
+to_eth2 :: ToDPDKDevice(${dut:1:pci}, BLOCKING true);
+
+DriverManager(wait,
+              read from_eth1.hw_count,
+              read from_eth2.hw_count,
+              read from_eth1.hw_dropped,
+              read from_eth2.hw_dropped,
+              read to_eth1.count,
+              read to_eth2.count,
+              print "RESULT-DROPPED $(add $(from_eth1.hw_dropped) $(from_eth2.hw_dropped))");
+
+
+
+elementclass WorkPack {
+    $thread_no |
+    input[0]
+    -> p0 :: Pipeliner($QSIZE, ALWAYS_UP $ALWAYSUP, BLOCKING $block)
+    -> wp :: $WP
+    -> [0]output;
+
+    StaticThreadSched(p0 $thread_no)
+
+    input[1]
+    -> p1 :: Pipeliner($QSIZE, ALWAYS_UP $ALWAYSUP, BLOCKING $block)
+    -> [1]wp[1]
+    -> [1]output;
+
+
+    StaticThreadSched(p1 $thread_no)
+};
+
+from_eth1 $FROMWORK1 -> EtherRewrite(SRC ${dut:1:mac}, DST ${client:1:mac}) -> to_eth2;
+
+from_eth2 $FROMWORK2 -> EtherRewrite(SRC ${dut:0:mac}, DST ${client:0:mac}) -> to_eth1;
