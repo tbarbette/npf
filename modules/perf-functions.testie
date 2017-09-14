@@ -5,6 +5,7 @@
 PERF_MIN=1
 PERF_OPT=
 PERF_TIME=4
+PERF_EVENT=cycles
 
 %script sudo=true
 trap : INT
@@ -12,7 +13,7 @@ sh script.sh
 
 %file script.sh
 trap : INT
-perf record -r 80 -a -g -o perf.data sleep $PERF_TIME
+perf record -r 80 -F 1000 -a -g -o perf.data -e $PERF_EVENT sleep $PERF_TIME
 perf report -s overhead -F symbol,overhead --call-graph none -t "," $PERF_OPT --no-children --percentage relative | grep -v '^#' > perf.list
 cat perf.list | while read line; do
     sym=$(echo $line | cut -d',' -f1 | xargs)
