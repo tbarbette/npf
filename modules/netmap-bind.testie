@@ -18,5 +18,8 @@ rmmod ixgbe
 
 insmod ../build/netmap/i40e/i40e.ko
 insmod ../build/netmap/ixgbe/ixgbe.ko
+insmod ../build/netmap/ixgbe/src/ixgbe.ko
+
+sleep 1
 
 echo "RESULT 1"

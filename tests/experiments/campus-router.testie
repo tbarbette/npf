@@ -14,21 +14,23 @@ As for any DPDK application, you must be root on the node executing DPDK or allo
 timeout=20
 
 //Axis names
-var_names={LENGTH:Length,result:Throughput,TXCPU:Transmit CPU,RXCPU:Receive CPU,GEN_LENGTH:Packet length,BURSTOUT:Output burst,BURSTIN:Input burst}
-require_tags={dpdk}
+var_names={LENGTH:Length,result:Throughput,result-LATENCY:Latency,TXCPU:Transmit CPU,RXCPU:Receive CPU,GEN_LENGTH:Packet length,BURSTOUT:Output burst,BURSTIN:Input burst,BURST:Burst size,DESC:Ring size}
 role_exclude={client+dut}
 default_role_map={server:dut}
-var_unit={result: }
-var_divider={result:1000000000}
+var_unit={result: ,BURST:Packets,DESC:Packets,result-LATENCY:us}
+var_divider={result:1000000000,result-LATENCY:1}
 graph_series_sort=-avg
-var_log={descin,descout}
+var_log={descin,descout,DESC,BURST}
+same:graph_combine_variables={BURSTIN+BURSTOUT:BURST,descin+descout:DESC}
+same:var_serie={DESC}
 
 %variables
 //Parameters for the router itself
 BURSTOUT=32
 BURSTIN=32
-burst:BURSTOUT=[1*256]
-burst:BURSTIN=[4*256]
+burst:BURSTOUT=[1*1024]
+burst:BURSTIN=[4*1024]
+netmap,burst:BURSTIN=[1*1024]
 CPU=1
 cpu:CPU=[1-8]
 
@@ -57,8 +59,10 @@ fastregression,udp:GEN_LENGTH={64,1500}
 
 descin=256
 descout=256
-ring:descin=[64*4096]
-ring:descout=[64*4096]
+netmap:descin=512
+netmap:descin=512
+ring:descin=[128*2048]
+ring:descout=[128*2048]
 
 FNTIN=
 FNTOUT=
@@ -66,12 +70,16 @@ FNTavg:FNTIN+=-> SetTimestamp
 FNTavg:FNTOUT+=
 FNTnat:FNTOUT+=-> IPRewriter(pattern 139.165.0.2 1024-65535 - - 0 0)
 
+BLOCKING=false
+
 FNTcounter:COUNTER={CounterMP,CounterRxWMP,CounterAtomic,CounterLock,CounterRW,CounterPRW,CounterRCU}
 
 %-nobind:import@client dpdk-bind NIC=0
 %-nobind:import@client dpdk-bind NIC=1
-%-nobind:import@dut dpdk-bind NIC=0
-%-nobind:import@dut dpdk-bind NIC=1
+%dpdk,-nobind:import@dut dpdk-bind NIC=0
+%dpdk,-nobind:import@dut dpdk-bind NIC=1
+%netmap:import@dut netmap-bind NIC=0
+%netmap:import@dut netmap-bind NIC=0
 %cpufreq:import@dut cpufreq
 
 %late_variables
@@ -83,8 +91,20 @@ FNTcounter:FNTOUT=EXPAND( -> $COUNTER(NO_RATE true) )
 maxthreads=-1
 parallel:maxthreads=EXPAND( $CPU )
 
+%require
+[ $descin -ge $BURSTIN ]
+
+%require
+[ $descout -ge $BURSTOUT ]
+
+%same:require
+[ $descin -eq $descout ]
+
+%same:require
+[ $BURSTIN -eq $BURSTOUT ]
+
 %udp:import@client fastclick-udpgen-dual 0:ip=10.120.0.100 1:ip=10.121.0.100
-%-udp:import@client fastclick-replay-dual 0:ip=139.165.0.1 1:ip=10.10.10.1 traceIN=/mnt/traces/201601-1_fullanon_padded.pcap traceOUT=/mnt/traces/201601-2_fullanon_padded.pcap NBUF=5000000
+%-udp:import@client fastclick-replay-dual 0:ip=139.165.0.1 1:ip=10.10.10.1 traceIN=/mnt/traces/201601-1_fullanon_padded.pcap traceOUT=/mnt/traces/201601-2_fullanon_padded.pcap NBUF=5000000 delay=2
 
 %udp:script@dut 0:ip=10.120.0.1 1:ip=10.121.0.1 sudo=true autokill=false
 %-udp:script@dut 0:ip=139.165.0.2 1:ip=10.10.10.2 sudo=true autokill=false
@@ -95,23 +115,53 @@ AddressInfo(INTERNALNET 139.165.0.0/16)
 %udp:file NET
 AddressInfo(INTERNALNET 10.120.0.0/24)
 
-%file IO
+%dpdk:file IO
+define ($i 1024)
+define ($bout ${BURSTOUT})
+define ($bin ${BURSTIN})
 
-%script@dut sudo=true
+
+fd0 :: FromDPDKDevice(${dut:0:pci}, BURST $bin, PROMISC false, THREADOFFSET $thoffset, VERBOSE 3, MAXTHREADS $maxthreads, NDESC $descin)
+fd1 :: FromDPDKDevice(${dut:1:pci}, BURST $bin, PROMISC false, THREADOFFSET $thoffset, VERBOSE 3, MAXTHREADS $maxthreads, NDESC $descin)
+td0 :: ToDPDKDevice(${dut:0:pci} , BURST $bout, IQUEUE $i, BLOCKING $BLOCKING, VERBOSE 3, NDESC $descout)
+td1 :: ToDPDKDevice(${dut:1:pci} , BURST $bout, IQUEUE $i, BLOCKING $BLOCKING, VERBOSE 3, NDESC $descout)
+
+%netmap:file IO
+define ($i 1024)
+define ($bout ${BURSTOUT})
+define ($bin ${BURSTIN})
+
+
+fd0 :: FromNetmapDevice(netmap:${dut:0:ifname}, BURST $bin, PROMISC false, THREADOFFSET $thoffset, VERBOSE 3, MAXTHREADS $maxthreads)
+fd1 :: FromNetmapDevice(netmap:${dut:1:ifname}, BURST $bin, PROMISC false, THREADOFFSET $thoffset, VERBOSE 3, MAXTHREADS $maxthreads)
+td0 :: ToNetmapDevice(netmap:${dut:0:ifname} , BURST $bout, IQUEUE $i, BLOCKING $BLOCKING, VERBOSE 3)
+td1 :: ToNetmapDevice(netmap:${dut:1:ifname} , BURST $bout, IQUEUE $i, BLOCKING $BLOCKING, VERBOSE 3)
+
+
+%dpdk:script@dut sudo=true
 cat IO NET CONFIG | click --dpdk -n 4 -l 0-$(( $CPU - 1 ))
+
+%netmap:script@dut sudo=true
+ethtool -L ${self:0:ifname} combined $CPU
+ethtool -L ${self:1:ifname} combined $CPU
+ethtool -G ${self:0:ifname} rx $descin tx $descout
+ethtool -G ${self:1:ifname} rx $descin tx $descout
+
+ifconfig ${self:0:ifname} up
+ifconfig ${self:1:ifname} up
+
+cat IO NET CONFIG | click --dpdk -j $CPU -a
 
 %file CONFIG
 define ($MTU 1500)
-define ($bout ${BURSTOUT})
-define ($bin ${BURSTIN})
-define ($i 1024)
+
 tol :: Discard(); //ToHost normally
 
 $GLOBAL_ELEMENTS
 
-elementclass Input { $device,$ip,$eth |
+elementclass Input { $ip,$eth |
 
-    fd :: FromDPDKDevice($device, BURST $bin, PROMISC false, THREADOFFSET $thoffset, VERBOSE 3, MAXTHREADS $maxthreads, NDESC $descin) ->
+    input ->
 
     c0 :: Classifier(    12/0806 20/0001,
                          12/0806 20/0002,
@@ -135,12 +185,10 @@ elementclass Input { $device,$ip,$eth |
     c0[3] -> Print("Unknown ethernet") -> Discard();
 }
 
-
-td0 :: ToDPDKDevice(${dut:0:pci} , BURST $bout, IQUEUE $i, BLOCKING true, VERBOSE 3, NDESC $descout)
-td1 :: ToDPDKDevice(${dut:1:pci} , BURST $bout, IQUEUE $i, BLOCKING true, VERBOSE 3, NDESC $descout)
-
-input0 :: Input(${dut:0:pci}, ${dut:0:ip}, ${dut:0:mac});
-input1 :: Input(${dut:1:pci}, ${dut:1:ip}, ${dut:1:mac});
+fd0 ->
+input0 :: Input(${dut:0:ip}, ${dut:0:mac});
+fd1 ->
+input1 :: Input(${dut:1:ip}, ${dut:1:mac});
 
 //arpq0 :: ARPQuerier(${dut:0:ip}, ${dut:0:mac});
 //arpq1 :: ARPQuerier(${dut:1:ip}, ${dut:1:mac});

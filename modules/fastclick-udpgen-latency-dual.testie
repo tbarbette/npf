@@ -24,13 +24,13 @@ GEN_INIT_WAIT=5
 LIMIT=1024000
 
 %late_variables
-NBBUF=EXPAND( $(( ($LIMIT * 2) + 8192 )) )
+NBBUF=EXPAND( $(( (($LIMIT + ($GEN_BURST * 2) ) * 2) + 8192 )) )
 
 %script deps=fastclick sudo=true delay=2
 click --dpdk -c 0xf -- PKTGEN_CONFIG
 
 %file PKTGEN_CONFIG
-DPDKInfo($NBBUF)
+d :: DPDKInfo($NBBUF)
 
 define($replay_count $GEN_REPLAY)
 
@@ -42,12 +42,12 @@ elementclass Numberise {
 elementclass Generator { $port, $srcmac, $dstmac, $srcip, $dstip, $e |
     tdOUT::ToDPDKDevice($port, BLOCKING $GEN_BLOCKING);
 
-    adv1 :: FastUDPFlows(RATE 0, LIMIT $LIMIT, LENGTH $GEN_LENGTH, SRCETH $srcmac, DSTETH $dstmac, SRCIP $srcip, DSTIP $dstip, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST)
+    fastudp :: FastUDPFlows(RATE 0, LIMIT $LIMIT, LENGTH $GEN_LENGTH, SRCETH $srcmac, DSTETH $dstmac, SRCIP $srcip, DSTIP $dstip, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST)
     -> MarkMACHeader
 	-> Numberise
     -> EnsureDPDKBuffer
     -> replay :: ReplayUnqueue(STOP 0, QUICK_CLONE true)
-    -> rt :: RecordTimestamp(N $LIMIT)
+    -> rt :: RecordTimestamp(N $LIMIT, OFFSET 54)
     -> sndavg :: AverageCounter()
     -> tdOUT;
 
@@ -84,7 +84,7 @@ DriverManager(
     pause,
     pause,
     wait ${GEN_INIT_WAIT}s,
-
+    read d.pool_count,
     print "Launching replay",
     write gen0/avg.reset,
     write gen0/sndavg.reset,
@@ -93,8 +93,11 @@ DriverManager(
     write gen1/avg.reset,
     write gen1/replay.stop $replay_count,
     write gen1/replay.active true,
+    set starttime $(now),
     pause,
     pause,
+    read d.pool_count,
+    print "RESULT-TESTTIME $(sub $(now) $starttime)",
     print "SAVG0 $(gen0/sndavg.link_rate)",
     print "SAVG1 $(gen1/sndavg.link_rate)",
     print "AVG0 $(gen0/avg.link_rate) $(gen0/avg.count) $(gen0/fd.hw_count)",

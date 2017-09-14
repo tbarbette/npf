@@ -18,9 +18,17 @@ FILE_PATH=index.htm
 HTTP_PORT=80
 GEN_TIME=2
 WRKNIC=0
+WRK_HOST=EXPAND( ${dut:0:ip} )
 
-%script deps=wrk
-wrk -c $GEN_CONCURRENT -t $GEN_THREADS -d${GEN_TIME}s http://${dut:0:ip}:${HTTP_PORT}/${FILE_PATH} | tee wrk_results
-cat wrk_results | grep "Transfer/sec" | awk '{printf "RESULT-THROUGHPUT %s\n", $2}'
-cat wrk_results | grep "Latency" | awk '{printf "RESULT-LATENCY %s\n", $2}'
-rm wrk_results
+%late_variables
+
+
+%script deps=wrk title=WRKClient
+fname=$RANDOM
+wrk -c $GEN_CONCURRENT -t $GEN_THREADS -d${GEN_TIME}s http://${WRK_HOST}:${HTTP_PORT}/${FILE_PATH} | tee $fname
+stat=$?
+cat $fname | grep "Transfer/sec" | awk '{printf "RESULT-THROUGHPUT %s\n", $2}'
+cat $fname | grep "Requests/sec" | awk '{printf "RESULT-REQUEST %s\n", $2}'
+cat $fname | grep "Latency" | awk '{printf "RESULT-LATENCY %s\n", $2}'
+rm $fname
+exit $stat

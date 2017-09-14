@@ -51,13 +51,13 @@ def _parallel_exec(param: RemoteParameters):
                                  sudo=param.sudo,
                                  testdir=param.testdir)
     if pid == 0:
-        return False, o, e, c, param.commands
+        return False, o, e, c, param.script
     else:
         if param.autokill or pid == -1:
             Testie.killall(param.queue, param.terminated_event)
         if pid == -1:
-            return -1, o, e, c, param.commands
-        return True, o, e, c, param.commands
+            return -1, o, e, c, param.script
+        return True, o, e, c, param.script
 
 
 class ScriptInitException(Exception):
@@ -205,7 +205,7 @@ class Testie:
             list.append((s.filename, p, role))
         return list
 
-    def create_files(self, file_list):
+    def create_files(self, file_list, path_to_root):
         unique_list = {}
         for filename, p, role in file_list:
             if filename in unique_list:
@@ -220,7 +220,8 @@ class Testie:
                 print("File %s:" % filename)
                 print(p.strip())
             for node in npf.nodes(role):
-                node.executor.writeFile(filename, p)
+                if not node.executor.writeFile(filename,path_to_root, p):
+                    raise Exception("Could not create file %s on %s",filename,node.name)
 
     def test_require(self, v, build):
         for require in self.requirements:
@@ -304,7 +305,7 @@ class Testie:
             else:
                 file_list.extend(imp.testie.build_file_list(imp.imp_v, imp.get_role()))
 
-        self.create_files(file_list)
+        self.create_files(file_list,test_folder)
 
         #Launching the tests in itself
         results = {}
@@ -347,6 +348,8 @@ class Testie:
                         param.bin_paths = deps_bin_path + [build.get_bin_folder()]
                         param.sudo = script.params.get("sudo", False)
                         param.testdir = test_folder
+                        param.script = script
+                        param.name = script.get_name()
                         autokill = script.params.get("autokill", t.config["autokill"])
                         if type(autokill) is str and autokill.lower() == "false":
                             autokill = False
@@ -392,7 +395,7 @@ class Testie:
                 worked = False
                 for iscript, (r, o, e, c, script) in enumerate(parallel_execs):
                     if r == 0:
-                        print("Timeout expired...")
+                        print("Timeout expired for script %s on %s..." % (script.get_name(),script.get_role()))
                         if not self.options.quiet:
                             print("stdout:")
                             print(o)
@@ -402,7 +405,7 @@ class Testie:
                     if r == -1:
                         sys.exit(1)
                     if c != 0:
-                        print("Bad return code ! Something probably went wrong...")
+                        print("Bad return code for script %s on %s ! Something probably went wrong..." % (script.get_name(),script.get_role()))
                         if not self.options.quiet:
                             print("stdout:")
                             print(o)
@@ -413,8 +416,8 @@ class Testie:
 
                 for iparallel, (r, o, e, c, script) in enumerate(parallel_execs):
                     if len(self.scripts) > 1:
-                        output += "Output of script %d :\n" % i
-                        err += "Output of script %d :\n" % i
+                        output += "stdout of script %s on %s :\n" % (script.get_name(),script.get_role())
+                        err += "stderr of script %s on %s :\n" % (script.get_name(),script.get_role())
 
                     if r:
                         worked = True
@@ -444,7 +447,7 @@ class Testie:
                             unit = nr.group("unit")
                         if unit.lower() == "sec" or unit.lower() == "s":
                             unit = "s"
-                        print(mult,unit)
+
                         if unit == "s":
                             if mult == "m":
                                 n = n / 1000 #Keep all results in seconds
@@ -574,7 +577,9 @@ class Testie:
             return {}, True
 
         all_results = {}
+        n=0
         for variables in self.variables:
+            n += 1
             run = Run(variables)
             variables = variables.copy()
             for late_variables in self.get_late_variables():
@@ -597,7 +602,7 @@ class Testie:
             else:
                 run_results = {}
 
-            if not run_results and options.use_last:
+            if not run_results and options.use_last and build.repo.url:
                 for version in build.repo.method.get_history(build.version, limit=100):
                     oldb = Build(build.repo, version)
                     r = oldb.load_results(self)
@@ -618,7 +623,7 @@ class Testie:
                     self.do_init_all(build, options, do_test, allowed_types=allowed_types,test_folder=test_folder)
                     init_done = True
                 if not self.options.quiet:
-                    print(run.format_variables(self.config["var_hide"]))
+                    print(run.format_variables(self.config["var_hide"]),"[%d/%d]" % (n,len(self.variables)))
 
                 new_results, output, err, n_exec = self.execute(build, run, variables, n_runs,
                                                                 n_retry=self.config["n_retry"],

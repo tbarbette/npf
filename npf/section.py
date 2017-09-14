@@ -107,6 +107,7 @@ class SectionScript(Section):
     TYPE_SCRIPT = "script"
     ALL_TYPES_SET = {TYPE_INIT, TYPE_SCRIPT}
 
+    num = 0
 
     def __init__(self, role=None, params=None):
         super().__init__('script')
@@ -115,9 +116,16 @@ class SectionScript(Section):
         self.params = params
         self._role = role
         self.init = False
+        self.index = ++self.num
 
     def get_role(self):
         return self._role
+
+    def get_name(self):
+        if 'name' in self.params:
+            return self.params['name']
+        else:
+            return str(self.index)
 
     def get_type(self):
         return SectionScript.TYPE_INIT if self.init else SectionScript.TYPE_SCRIPT
@@ -467,6 +475,7 @@ class SectionConfig(SectionVariable):
         self.__add_list("graph_display_statics", [])
         self.__add_list("graph_variables_as_series", [])
         self.__add_dict('graph_result_as_variable',{})
+        self.__add("graph_subplot_type", "subplot")
         self.__add("graph_max_series", None)
         self.__add("graph_series_sort", None)
         self.__add("graph_series_label", None)
@@ -477,7 +486,8 @@ class SectionConfig(SectionVariable):
         self.__add("legend_loc", "best")
         self.__add("legend_ncol", 1)
         self.__add("var_hide", {})
-        self.__add("var_log", [])
+        self.__add_list("var_log", [])
+        self.__add_dict("var_log_base", {})
         self.__add_dict("var_divider", {'result':1})
         self.__add_dict("var_lim", {})
         self.__add_dict("var_format", {})

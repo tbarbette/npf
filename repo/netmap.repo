@@ -1,0 +1,7 @@
+name=Netmap
+url=https://github.com/luigirizzo/netmap.git
+configure=
+branch=v11.3
+make=make
+bin_name=netmap.ko
+bin_folder=

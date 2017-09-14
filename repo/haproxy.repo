@@ -1,0 +1,7 @@
+url=http://git.haproxy.org/git/haproxy-1.7.git/
+name=HAProxy
+configure=
+make=make TARGET=native USE_CPU_AFFINITY=true
+clean=make clean
+tags+=haproxy
+bin_folder=

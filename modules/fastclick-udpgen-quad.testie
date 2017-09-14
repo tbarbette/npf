@@ -21,11 +21,11 @@ GEN_WAIT=5
 GEN_TOT=EXPAND( $(( $GEN_BURST * $GEN_FLOWS )) )
 
 %script deps=fastclick sudo=true delay=2
-click --dpdk -c 0xff -- PKTGEN_CONFIG
+click --dpdk -c 0xffff -- PKTGEN_CONFIG
 
 %file PKTGEN_CONFIG
 
-elementclass Generator { $port, $srcmac, $dstmac, $srcip, $dstip |
+elementclass Generator { $port,$th, $srcmac, $dstmac, $srcip, $dstip |
     tdOUT::ToDPDKDevice($port, BLOCKING true);
 
     adv1 :: FastUDPFlows(RATE 0, LIMIT $GEN_TOT, LENGTH $GEN_LENGTH, SRCETH $srcmac, DSTETH $dstmac, SRCIP $srcip, DSTIP $dstip, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST)
@@ -35,7 +35,7 @@ elementclass Generator { $port, $srcmac, $dstmac, $srcip, $dstip |
     -> sndavg :: AverageCounter()
     -> tdOUT;
 
-    StaticThreadSched(replay $port)
+    StaticThreadSched(replay $th)
 
     fd :: FromDPDKDevice($port, MAC $srcmac, MAXTHREADS 1, VERBOSE 99)
     -> c0 :: Classifier(12/0806 20/0001,
@@ -49,10 +49,10 @@ elementclass Generator { $port, $srcmac, $dstmac, $srcip, $dstip |
     c0[1] -> Discard;
 }
 
-gen0 :: Generator(0, ${client:0:mac}, ${dut:1:mac}, ${client:0:ip}, ${client:1:ip})
-gen1 :: Generator(1, ${client:1:mac}, ${dut:0:mac}, ${client:1:ip}, ${client:0:ip})
-gen2 :: Generator(2, ${client:2:mac}, ${dut:3:mac}, ${client:2:ip}, ${client:3:ip})
-gen3 :: Generator(3, ${client:3:mac}, ${dut:2:mac}, ${client:3:ip}, ${client:2:ip})
+gen0 :: Generator(${client:0:pci}, 0, ${client:0:mac}, ${dut:0:mac}, ${client:0:ip}, ${client:1:ip})
+gen1 :: Generator(${client:1:pci}, 2, ${client:1:mac}, ${dut:1:mac}, ${client:1:ip}, ${client:0:ip})
+gen2 :: Generator(${client:2:pci}, 1, ${client:2:mac}, ${dut:2:mac}, ${client:2:ip}, ${client:3:ip})
+gen3 :: Generator(${client:3:pci}, 3, ${client:3:mac}, ${dut:3:mac}, ${client:3:ip}, ${client:2:ip})
 
 DriverManager(
     wait 2s,

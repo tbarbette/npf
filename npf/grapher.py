@@ -7,7 +7,7 @@ from orderedset._orderedset import OrderedSet
 
 from collections import OrderedDict
 from typing import List
-from matplotlib.ticker import LinearLocator,ScalarFormatter
+from matplotlib.ticker import LinearLocator, ScalarFormatter, Formatter
 import matplotlib
 import numpy as np
 
@@ -23,6 +23,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter, FormatStrFormatter
 import math
 import os
+import webcolors
 
 graphcolor = [(31, 119, 180), (174, 199, 232), (255, 127, 14), (255, 187, 120),
               (44, 160, 44), (152, 223, 138), (214, 39, 40), (255, 152, 150),
@@ -33,6 +34,26 @@ for i in range(len(graphcolor)):
     r, g, b = graphcolor[i]
     graphcolor[i] = (r / 255., g / 255., b / 255.)
 
+def hexToList(s):
+    l = []
+    for c in s.split(' '):
+        l.append(tuple(a / 255. for a in webcolors.hex_to_rgb(c)))
+    return l
+def lighter(c, p, n):
+    n = n / 255.
+    return tuple(a * p + (1-p) * n for a in c)
+
+graphcolorseries = [graphcolor]
+graphcolorseries.append(hexToList("#144c73 #185a88 #1b699e #1f77b4 #2385ca #2b93db #419ede"))
+graphcolorseries.append(hexToList("#1c641c #217821 #278c27 #2ca02c #32b432 #37c837 #4bce4b"))
+graphcolorseries.append(hexToList("#c15a00 #da6600 #f47200 #ff7f0e #ff8d28 #ff9a41 #ffa85b"))
+
+gridcolors = [ None ]
+legendcolors = [ None ]
+for clist in graphcolorseries[1:]:
+    gridcolors.append(lighter(clist[(int)(len(clist) / 2)], 0.25, 200))
+    legendcolors.append(lighter(clist[(int)(len(clist) / 2)], 0.45, 25))
+
 graphlines = ['-', '--', '-.', ':']
 
 
@@ -41,6 +62,16 @@ def all_num(l):
         if type(x) is not int and type(x) is not float:
             return False
     return True
+
+
+def find_base(ax):
+    if ax[0] == 0 and len(ax) > 2:
+        base = ax[2] / ax[1]
+    else:
+        base = ax[1] / ax[0]
+    if base != 2:
+        base = 10
+    return base
 
 
 class Grapher:
@@ -104,13 +135,12 @@ class Grapher:
         return default
 
     def result_in_list(self, var, result_type):
-        return "result-" + result_type in self.config(var, []) or "result" in self.config(var, [])
+        l = self.configlist(var, [])
+        return (result_type in l) or ("result-" + result_type in l) or ("result" in l)
 
-    def var_name(self, key, result_type=None):
-        return self.scriptconfig("var_names", key, key, result_type)
+    def var_name(self, key, result_type=None) -> str:
+        return self.scriptconfig("var_names", key, key if not result_type else result_type, result_type)
 
-    def bits(self, x, pos):
-        return self.formatb(x, pos, "Bits")
 
     def us(self, x, pos):
         return self.formats(x, pos, 1000000)
@@ -118,18 +148,37 @@ class Grapher:
     def formats(self,x,pos,mult):
         return "%d" % (x * mult)
 
-    def bytes(self, x, pos):
-        return self.formatb(x, pos, "Bytes")
 
-    def formatb(self, x, pos, unit):
-        if (x >= 1000000000):
-            return "%.2f G%s/s" % (x / 1000000000, unit)
-        elif (x >= 1000000):
-            return "%.2f M%s/s" % (x / 1000000, unit)
-        elif (x >= 1000):
-            return "%.2f K%s/s" % (x / 1000, unit)
-        else:
-            return "%.2f %s/s" % (x, unit)
+
+    class ByteFormatter(Formatter):
+        def __init__(self,unit,ps="",compact=False,k=1000,mult=1):
+            self.unit = unit
+            self.ps = ps
+            self.compact = compact
+            self.k = k
+            self.mult = mult
+
+        def __call__(self, x, pos=None):
+            """
+            Return the value of the user defined function.
+
+            `x` and `pos` are passed through as-is.
+            """
+            return self.formatb(x * self.mult, pos,self.unit,self.ps,self.compact,self.k)
+
+        def formatb(self, x, pos, unit, ps, compact, k):
+            if compact:
+                pres="%d"
+            else:
+                pres="%.2f"
+            if x >= (k*k*k):
+                return (pres + "G%s"+ps) % (x / (k*k*k), unit)
+            elif x >= (k*k):
+                return (pres + "M%s"+ps) % (x / (k*k), unit)
+            elif x >= k:
+                return (pres+ "K%s"+ps) % (x / k, unit)
+            else:
+                return (pres+ "%s"+ps) % (x, unit)
 
     def combine_variables(self, run_list, variables_to_merge):
         ss = []
@@ -177,8 +226,16 @@ class Grapher:
         for i, (testie, build, all_results) in enumerate(series):
             self.scripts.add(testie)
 
+
+        graphmarkers = self.configlist("graph_markers")
+
         # Combine variables as per the graph_combine_variables config parameter
         for tocombine in self.configlist('graph_combine_variables', []):
+            if type(tocombine) is tuple:
+                toname = tocombine[1]
+                tocombine = tocombine[0]
+            else:
+                toname = tocombine
             tomerge = tocombine.split('+')
             newgraph_variables = []
             run_map = {}
@@ -189,7 +246,10 @@ class Grapher:
                     if var in tomerge:
                         del newrun.variables[var]
                         vals.append(str(val[1] if type(val) is tuple else val))
-                newrun.variables[tocombine] = ', '.join(OrderedSet(vals))
+                combname = ', '.join(OrderedSet(vals))
+                if is_numeric(combname):
+                    combname = get_numeric(combname)
+                newrun.variables[toname] = combname
                 newgraph_variables.append(newrun)
                 run_map[run] = newrun
 
@@ -205,9 +265,9 @@ class Grapher:
                 newseries.append((testie, build, new_all_results))
             series = newseries
 
-        graphmarkers = self.configlist("graph_markers")
 
-        # Data transformation : reject outliers, transform list to arrays, filter according to graph_variables, count var_alls and vars_values
+        # Data transformation : reject outliers, transform list to arrays, filter according to graph_variables
+        #   and divide results as per the var_divider
         filtered_series = []
         vars_values = {}
         for i, (testie, build, all_results) in enumerate(series):
@@ -219,7 +279,8 @@ class Grapher:
                             results = self.reject_outliers(np.asarray(results), testie)
                         else:
                             results = np.asarray(results)
-                        new_results.setdefault(run, {})[result_type] = results
+                        ydiv = dataset.var_divider(testie, "result", result_type)
+                        new_results.setdefault(run, {})[result_type] = results / ydiv
                     for k, v in run.variables.items():
                         vars_values.setdefault(k, set()).add(v)
 
@@ -233,9 +294,12 @@ class Grapher:
 
         # Transform results to variables as the graph_result_as_variable config
         #  option. It is a dict in the format
-        #  result-a+result-b+result-c:new_name
+        #  a+b+c:var_name
         #  i.e. the first is a + separated list of result and the second member
         #  a new name for the combined variable
+        # or
+        # a-(.*):var_name
+        # Both will create a variable with a/b/c as values or all regex mateched values
         for result_types, var_name in self.configdict('graph_result_as_variable', {}).items():
             result_to_variable_map = []
 
@@ -287,7 +351,6 @@ class Grapher:
         for i, (script, build, all_results) in enumerate(series):
             build._line = graphlines[i % len(graphlines)]
             build.statics = {}
-
         # graph_variables_as_series will force a variable to be considered as
         # a serie. This is different from var_serie which will define
         # what variable to use as a serie when there is only one serie
@@ -397,7 +460,7 @@ class Grapher:
                 if len(graphmarkers) > 0:
                     nb._marker = graphmarkers[i % len(graphmarkers)]
                 series.append((script, nb, newserie))
-                legend_title = self.var_name(key)
+                glob_legend_title = self.var_name(key)
             nseries = len(series)
             vars_all = list(new_varsall)
             vars_all.sort()
@@ -409,7 +472,7 @@ class Grapher:
                 do_sort = False
 
         else:
-            legend_title = None
+            glob_legend_title = None
             if ndyn == 0:
                 key = "version"
                 do_sort = False
@@ -467,6 +530,7 @@ class Grapher:
                 plots[result_type] = ([result_type],1)
 
         ret = {}
+        subplot_type=self.config("graph_subplot_type")
         for i, (figure,n_cols) in plots.items():
             text = self.config("graph_text")
 
@@ -482,66 +546,102 @@ class Grapher:
                 data = data_types[result_type]
                 ymin, ymax = (float('inf'), 0)
 
-                plt.subplot(n_lines, n_cols, isubplot + 1)
+                if subplot_type=="subplot":
+                    axis = plt.subplot(n_lines, n_cols, isubplot + 1)
+                    shift = 0
+                else:
+                    if isubplot == 0:
+                        fix,axis=plt.subplots()
+                    else:
+                        axis=axis.twinx()
+                    if len(figure) > 1:
+                        shift = isubplot + 1
+                        for i, (x, y, e, build) in enumerate(data):
+                            build._line=graphlines[isubplot]
+                    else:
+                        shift = 0
+
+                for i, (x, y, e, build) in enumerate(data):
+                    if shift == 0:
+                        build._color=graphcolorseries[0][i]
+                    else:
+                        n = len(graphcolorseries[shift]) / (len(data) + 1)
+                        build._color=graphcolorseries[shift][(i + 1) * int(n)]
+
+
 
                 if ndyn == 0:
                     """No dynamic variables : do a barplot X=version"""
-                    self.do_simple_barplot(result_type, data)
+                    self.do_simple_barplot(axis,result_type, data, shift)
                 elif ndyn == 1 and len(vars_all) > 2 and all_num(vars_values[key]):
                     """One dynamic variable used as X, series are version line plots"""
-                    self.do_line_plot(key, result_type, data)
+                    self.do_line_plot(axis, key, result_type, data,shift)
                 else:
                     """Barplot. X is all seen variables combination, series are version"""
-                    self.do_barplot(vars_all, dyns, result_type, data)
+                    self.do_barplot(axis,vars_all, dyns, result_type, data, shift)
 
                 type_config = "" if not result_type else "-" + result_type
 
                 lgd = None
                 if ndyn > 0 and bool(self.config_bool('graph_legend', True)):
                     loc = self.config("legend_loc")
-                    if loc.startswith("outer"):
-                        loc = loc[5:].strip()
-                        lgd = plt.legend(loc=loc,bbox_to_anchor=(0., 1, 1., .0), mode=self.config("legend_mode"), borderaxespad=0.,ncol=self.config("legend_ncol"), title=legend_title,bbox_transform=plt.gcf().transFigure)
+                    if subplot_type=="axis" and len(figure) > 1:
+                        if isubplot == 0:
+                            loc = 'upper left'
+                        else:
+                            loc = 'lower right'
+                        legend_title = self.var_name("result",result_type=result_type)
                     else:
-                        lgd = plt.legend(loc=loc,ncol=self.config("legend_ncol"), title=legend_title)
-
-                if key in self.config('var_log', {}):
+                        legend_title = glob_legend_title
+                    if loc and loc.startswith("outer"):
+                        loc = loc[5:].strip()
+                        lgd = axis.legend(loc=loc,bbox_to_anchor=(0., 1, 1., .0), mode=self.config("legend_mode"), borderaxespad=0.,ncol=self.config("legend_ncol"), title=legend_title,bbox_transform=plt.gcf().transFigure)
+                    else:
+                        lgd = axis.legend(loc=loc,ncol=self.config("legend_ncol"), title=legend_title)
+                if legendcolors[shift]:
+                    axis.yaxis.label.set_color(legendcolors[shift])
+                    axis.tick_params(axis='y',colors=legendcolors[shift])
+                xunit = self.scriptconfig("var_unit", key, default="")
+                xformat = self.scriptconfig("var_format", key, default="")
+                isLog = key in self.config('var_log', {})
+                if isLog:
                     ax = data[0][0]
                     if ax is not None and len(ax) > 1:
-                        if ax[0] == 0 and len(ax) > 2:
-                            base = ax[2] / ax[1]
-                        else:
-                            base = ax[1] / ax[0]
-                        if base != 2:
-                            base = 10
+                        base = find_base(ax)
                         plt.xscale('symlog',basex=base)
-                        plt.xticks(data[0][0])
+                        xticks = data[0][0]
+                        if len(xticks) > 8:
+                            n =int(math.ceil(len(xticks) / 8))
+                            index = np.array(range(len(xticks)))[1::n]
+                            if index[-1] != len(xticks) -1:
+                                index = np.append(index,[len(xticks)-1])
+                            xticks = np.delete(xticks,np.delete(np.array(range(len(xticks))),index))
+                        plt.xticks(xticks)
                     else:
                         plt.xscale('symlog')
-
-
-                    xticks = self.scriptconfig("var_ticks", key, default=None)
-                    if xticks:
-                        plt.xticks([variable.get_numeric(x) for x in xticks.split('+')])
                     plt.gca().xaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%d'))
+                formatterSet, unithandled = self.set_axis_formatter(plt.gca().xaxis, xformat, xunit.strip(), isLog, True)
+
+
+                xticks = self.scriptconfig("var_ticks", key, default=None)
+                if xticks:
+                    plt.xticks([variable.get_numeric(x) for x in xticks.split('+')])
 
 
                 plt.xlabel(self.var_name(key))
 
-                yname = self.var_name("result", result_type=result_type)
-                if yname != "result":
-                    plt.ylabel(yname)
-                elif len(figure) > 0:
-                    plt.ylabel(result_type)
-
-                var_lim = self.scriptconfig("var_lim", "result", result_type=type_config, default=None)
+                var_lim = self.scriptconfig("var_lim", "result", result_type=result_type, default=None)
                 if var_lim:
                     n = var_lim.split('-')
                     if len(n) == 2:
                         ymin, ymax = (float(x) for x in n)
                         plt.ylim(ymin=ymin, ymax=ymax)
                     else:
-                        plt.ylim(ymax=float(n[0]))
+                        f=float(n[0])
+                        if f==0:
+                            plt.ylim(ymin=f)
+                        else:
+                            plt.ylim(ymax=f)
                 else:
                     if (ymin >= 0 > plt.ylim()[0]):
                         plt.ylim(0, plt.ylim()[1])
@@ -595,7 +695,7 @@ class Grapher:
     def reject_outliers(self, result, testie):
         return testie.reject_outliers(result)
 
-    def do_simple_barplot(self, result_type, data):
+    def do_simple_barplot(self,axis, result_type, data,shift=0):
         i = 0
         interbar = 0.1
         x = [s[0][0] for s in data]
@@ -607,8 +707,8 @@ class Grapher:
 
         ticks = np.arange(ndata) + 0.5
 
-        self.format_figure(result_type)
-        rects = plt.bar(ticks, y, label=x, color=graphcolor[i % len(graphcolor)], width=width, yerr=e)
+        self.format_figure(axis,result_type,shift)
+        rects = plt.bar(ticks, y, label=x, color=data[0][3]._color, width=width, yerr=e)
         if self.config('graph_show_values',False):
             def autolabel(rects, ax):
                 for rect in rects:
@@ -620,12 +720,12 @@ class Grapher:
         plt.xticks(ticks, x, rotation='vertical' if (ndata > 8) else 'horizontal')
         plt.gca().set_xlim(0, len(x))
 
-    def do_line_plot(self, key, result_type, data : XYEB):
+    def do_line_plot(self, axis, key, result_type, data : XYEB,shift=0):
         xmin, xmax = (float('inf'), 0)
 
         for i, (x, y, e, build) in enumerate(data):
-            self.format_figure(result_type)
-            c = graphcolor[i % len(graphcolor)]
+            self.format_figure(axis, result_type, shift)
+            c = build._color
 
             if not all_num(x):
                 if variable.numericable(x):
@@ -645,8 +745,8 @@ class Grapher:
             lab = build.pretty_name()
             while lab.startswith('_'):
                 lab = lab[1:]
-            plt.plot(ax, y, label=lab, color=c, linestyle=build._line, marker=build._marker)
-            plt.errorbar(ax, y, yerr=e, marker=' ', label=None, linestyle=' ', color=c)
+            axis.plot(ax, y, label=lab, color=c, linestyle=build._line, marker=build._marker)
+            axis.errorbar(ax, y, yerr=e, marker=' ', label=None, linestyle=' ', color=c)
             xmin = min(xmin, min(ax))
             xmax = max(xmax, max(ax))
 
@@ -671,48 +771,77 @@ class Grapher:
             # plt.gca().set_xlim(xmin, xmax)
 
 
-    def format_figure(self, result_type):
-        ax = plt.gca()
-
-        yunit = self.scriptconfig("var_unit", "result", default="", result_type=result_type)
-        yformat = self.scriptconfig("var_format", "result", default=None, result_type=result_type)
-        yticks = self.scriptconfig("var_ticks", "result", default=None, result_type=result_type)
-        if self.result_in_list('var_grid',result_type):
-            plt.grid(True)
-        isLog = False
-        if self.result_in_list('var_log', result_type):
-            plt.yscale('symlog' if yformat else 'log')
-            isLog = True
-        if yformat is not None:
-            formatter = FormatStrFormatter(yformat)
-            ax.yaxis.set_major_formatter(formatter)
-        elif (yunit.lower() == "bps" or yunit.lower() == "byteps"):
-            formatter = FuncFormatter(self.bits if yunit.lower() == "bps" else self.bytes)
-            ax.yaxis.set_major_formatter(formatter)
-        elif (yunit.lower() == "us" or yunit.lower() == "µs"):
+    def set_axis_formatter(self, axis, format, unit, isLog, compact=False):
+        mult=1
+        if (unit and unit[0] == 'k'):
+            mult=1024
+            unit=unit[1:]
+        if format:
+            formatter = FormatStrFormatter(format)
+            axis.set_major_formatter(formatter)
+            return True, False
+        elif unit.lower() == "byte":
+            axis.set_major_formatter(Grapher.ByteFormatter(unit="B",compact=compact,k=1024,mult=mult))
+            return True, True
+        elif (unit.lower() == "bps" or unit.lower() == "byteps"):
+            if compact:
+                u= "b" if unit.lower() == "bps" else "B"
+            else:
+                u = "Bits" if unit.lower() == "bps" else "Bytes"
+            k = 1000 if unit.lower() == "bps" else 1024
+            axis.set_major_formatter(Grapher.ByteFormatter(unit,"/s", compact=compact, k=k, mult=mult))
+            return True, True
+        elif (unit.lower() == "us" or unit.lower() == "µs"):
             formatter = FuncFormatter(self.us)
-            ax.yaxis.set_major_formatter(formatter)
-
-        elif (yunit.lower() == "%" or yunit.lower().startswith("percent")):
+            axis.set_major_formatter(formatter)
+            return True, True
+        elif (unit.lower() == "%" or unit.lower().startswith("percent")):
             def to_percent(y, position):
                 s = str(100 * y)
-
                 if matplotlib.rcParams['text.usetex'] is True:
                     return s + r'$\%$'
                 else:
                     return s + '%'
-
-            ax.yaxis.set_major_formatter(FuncFormatter(to_percent))
+            axis.set_major_formatter(FuncFormatter(to_percent))
+            return True,False
         else:
             if not isLog:
-                ax.get_yaxis().get_major_formatter().set_useOffset(False)
+                try:
+                    axis.get_major_formatter().set_useOffset(False)
+                except:
+                    pass
+                return True,False
+        return False, False
+
+    def format_figure(self, axis, result_type, shift):
+        yunit = self.scriptconfig("var_unit", "result", default="", result_type=result_type)
+        yformat = self.scriptconfig("var_format", "result", default=None, result_type=result_type)
+        yticks = self.scriptconfig("var_ticks", "result", default=None, result_type=result_type)
+        if self.result_in_list('var_grid',result_type):
+            axis.grid(True,linestyle=graphlines[( shift - 1 if shift > 0 else 0) % len(graphlines)],color=gridcolors[shift])
+        isLog = False
+        baseLog = self.scriptconfig('var_log_base', "result",result_type=result_type, default=None)
+        if baseLog:
+            plt.yscale('symlog', basey=float(baseLog))
+            isLog = True
+        elif self.result_in_list('var_log', result_type):
+            plt.yscale('symlog' if yformat else 'log')
+            isLog = True
+        whatever, handled = self.set_axis_formatter(axis.yaxis,yformat,yunit,isLog)
+
+        yname = self.var_name("result", result_type=result_type)
+        if yname != "result":
+            if not handled and not '(' in yname and yunit and yunit.strip():
+                yname = yname + ' (' + yunit + ')'
+            plt.ylabel(yname)
+
         if yticks:
             plt.yticks([variable.get_numeric(y) for y in yticks.split('+')])
 
-    def do_barplot(self, vars_all, dyns, result_type, data):
+    def do_barplot(self, axis,vars_all, dyns, result_type, data, shift):
         nseries = len(data)
 
-        self.format_figure(result_type)
+        self.format_figure(axis,result_type,shift)
 
         # If more than 20 bars, do not print bar edges
         maxlen = max([len(serie_data[0]) for serie_data in data])
@@ -728,8 +857,8 @@ class Grapher:
         ind = np.arange(len(vars_all))
 
         for i, (x, y, e, build) in enumerate(data):
-            plt.bar(interbar + ind + (i * width), y, width,
-                    label=str(build.pretty_name()), color=graphcolor[i % len(graphcolor)], yerr=e,
+            axis.bar(interbar + ind + (i * width), y, width,
+                    label=str(build.pretty_name()), color=build._color, yerr=e,
                     edgecolor=edgecolor)
 
         ss = self.combine_variables(vars_all, dyns)

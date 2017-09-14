@@ -14,3 +14,4 @@ cryptography
 gitdb
 pyasn1
 natsort
+webcolors

@@ -1,0 +1,5 @@
+url=https://github.com/tbarbette/dpdktest.git
+configure=
+make=make
+bin_folder=build/app/
+bin_name=bwtest

@@ -44,6 +44,7 @@ class SSHExecutor:
 
         ssh = self.get_connection()
 
+
         ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command(pre + cmd,timeout=timeout, get_pty=True)
 
         if stdin is not None:
@@ -104,7 +105,7 @@ class SSHExecutor:
         #     os.killpg(pgpid, signal.SIGKILL)
         #     return -1, s_output, s_err, p.returncode
 
-    def writeFile(self,filename,content):
+    def writeFile(self,filename,path_to_root,content):
         f = open(filename, "w")
         f.write(content)
         f.close()
@@ -125,5 +126,11 @@ class SSHExecutor:
 
             transport = ssh.get_transport()
             with transport.open_channel(kind='session') as channel:
-                channel.exec_command('cat > %s/%s' % (self.path,filename))
+                channel.exec_command('mkdir -p %s/%s' % (self.path, path_to_root))
+                if channel.recv_exit_status() != 0:
+                    return False
+            with transport.open_channel(kind='session') as channel:
+                channel.exec_command('cat > %s/%s/%s' % (self.path,path_to_root,filename))
                 channel.sendall(content)
+                channel.shutdown_write()
+                return channel.recv_exit_status() == 0
