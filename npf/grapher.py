@@ -54,7 +54,6 @@ for clist in graphcolorseries[1:]:
     gridcolors.append(lighter(clist[(int)(len(clist) / 2)], 0.25, 200))
     legendcolors.append(lighter(clist[(int)(len(clist) / 2)], 0.45, 25))
 
-graphlines = ['-', '--', '-.', ':']
 
 
 def all_num(l):
@@ -228,6 +227,7 @@ class Grapher:
 
 
         graphmarkers = self.configlist("graph_markers")
+        self.graphlines = self.configlist("graph_lines")
 
         # Combine variables as per the graph_combine_variables config parameter
         for tocombine in self.configlist('graph_combine_variables', []):
@@ -373,7 +373,7 @@ class Grapher:
 
         # Set lines types
         for i, (script, build, all_results) in enumerate(series):
-            build._line = graphlines[i % len(graphlines)]
+            build._line = self.graphlines[i % len(self.graphlines)]
             build.statics = {}
         # graph_variables_as_series will force a variable to be considered as
         # a serie. This is different from var_serie which will define
@@ -404,7 +404,7 @@ class Grapher:
                     if len(graphmarkers) > 0:
                         nbuild._marker = graphmarkers[i % len(graphmarkers)]
                     if len(series) == 1: #If there is one serie, expand the line types
-                        nbuild._line = graphlines[i % len(graphlines)]
+                        nbuild._line = self.graphlines[i % len(self.graphlines)]
                     nbuild.statics[to_get_out] = value
                     transformed_series.append((testie, nbuild, data))
 
@@ -582,7 +582,7 @@ class Grapher:
                     if len(figure) > 1:
                         shift = isubplot + 1
                         for i, (x, y, e, build) in enumerate(data):
-                            build._line=graphlines[isubplot]
+                            build._line=self.graphlines[isubplot]
                     else:
                         shift = 0
 
@@ -843,7 +843,7 @@ class Grapher:
         yformat = self.scriptconfig("var_format", "result", default=None, result_type=result_type)
         yticks = self.scriptconfig("var_ticks", "result", default=None, result_type=result_type)
         if self.result_in_list('var_grid',result_type):
-            axis.grid(True,linestyle=graphlines[( shift - 1 if shift > 0 else 0) % len(graphlines)],color=gridcolors[shift])
+            axis.grid(True,linestyle=self.graphlines[( shift - 1 if shift > 0 else 0) % len(self.graphlines)],color=gridcolors[shift])
         isLog = False
         baseLog = self.scriptconfig('var_log_base', "result",result_type=result_type, default=None)
         if baseLog:

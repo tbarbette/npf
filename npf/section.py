@@ -484,6 +484,7 @@ class SectionConfig(SectionVariable):
         self.__add("graph_legend",True)
         self.__add("graph_mode",None)
         self.__add_list("graph_markers",  ['o', '^', 's', 'D', '*', 'x', '.', '_', 'H', '>', '<', 'v', 'd'])
+        self.__add_list("graph_lines",  ['-', '--', '-.', ':'])
         self.__add("legend_loc", "best")
         self.__add("legend_ncol", 1)
         self.__add("var_hide", {})

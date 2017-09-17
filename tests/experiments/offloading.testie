@@ -29,7 +29,10 @@ var_log={S}
 var_grid={PPS}
 prop:var_divider={result-PPS:100}
 prop:graph_series_prop=True
+-prop:var_divider={result-PPS:1000000}
+-prop:var_format+={result-PPS:%dM}
 //vary,-prop:var_lim={PPS:0-10000000}
+results_expect={PPS}
 
 %variables
 -campus:GEN_LENGTH=64
@@ -52,10 +55,10 @@ vary:WP=WP
 pipeline:block=true
 NODISPATCH=1
 dispatch:NODISPATCH=0
-pipeline,back:B={0,1}
 
 %late_variables
--back:B=1
+back:B=1
+-back:B=0
 -dispatch:NTHREADS=EXPAND( $(( $NWP )) )
 dispatch:NTHREADS=EXPAND( $(( $NWP + 1 )) )
 checksum:WP=Strip(14) -> check :: CheckIPHeader -> set :: SetIPChecksum -> Unstrip(14)
@@ -114,7 +117,7 @@ FROMALLWORK2=
 %import@client dpdk-bind NIC=1
 
 %perf:import@dut perf-functions delay=12
-%-perf,-campus:import@client fastclick-udpgen-latency-single delay=6 GEN_REPLAY=10 LIMIT=2000000
+%-perf,-campus:import@client fastclick-udpgen-latency-single delay=8 GEN_REPLAY=10 LIMIT=2000000
 %campus:import@client fastclick-replay-dual 0:ip=139.165.0.1 1:ip=10.10.10.1 traceIN=/mnt/traces/201601-1_fullanon_padded.pcap traceOUT=/mnt/traces/201601-2_fullanon_padded.pcap NBUF=5000000 delay=5
 %perf,-campus:import@client fastclick-udpgen-latency-single delay=5 GEN_REPLAY=100 LIMIT=2000000
 //%perf:import@client fastclick-udpgen-single delay=5

@@ -193,10 +193,15 @@ fd0 :: FromNetmapDevice(netmap:${dut:0:ifname}, BURST $bin, PROMISC false, THREA
 fd1 :: FromNetmapDevice(netmap:${dut:1:ifname}, BURST $bin, PROMISC false, THREADOFFSET $thoffset, VERBOSE 3, MAXTHREADS $maxthreads, NUMA false);
 fd2 :: FromNetmapDevice(netmap:${dut:2:ifname}, BURST $bin, PROMISC false, THREADOFFSET $thoffset, VERBOSE 3, MAXTHREADS $maxthreads, NUMA false);
 fd3 :: FromNetmapDevice(netmap:${dut:3:ifname}, BURST $bin, PROMISC false, THREADOFFSET $thoffset, VERBOSE 3, MAXTHREADS $maxthreads, NUMA false);
-td0 :: Queue -> ToNetmapDevice(netmap:${dut:0:ifname} , BURST $bout, IQUEUE $i, BLOCKING true, VERBOSE 3)
-td1 :: Queue -> ToNetmapDevice(netmap:${dut:1:ifname} , BURST $bout, IQUEUE $i, BLOCKING true, VERBOSE 3)
-td2 :: Queue -> ToNetmapDevice(netmap:${dut:2:ifname} , BURST $bout, IQUEUE $i, BLOCKING true, VERBOSE 3)
-td3 :: Queue -> ToNetmapDevice(netmap:${dut:3:ifname} , BURST $bout, IQUEUE $i, BLOCKING true, VERBOSE 3)
+td0 :: Queue -> t0 :: ToNetmapDevice(netmap:${dut:0:ifname} , BURST $bout, IQUEUE $i, BLOCKING true, VERBOSE 3)
+td1 :: Queue -> t1 :: ToNetmapDevice(netmap:${dut:1:ifname} , BURST $bout, IQUEUE $i, BLOCKING true, VERBOSE 3)
+td2 :: Queue -> t2 :: ToNetmapDevice(netmap:${dut:2:ifname} , BURST $bout, IQUEUE $i, BLOCKING true, VERBOSE 3)
+td3 :: Queue -> t3 :: ToNetmapDevice(netmap:${dut:3:ifname} , BURST $bout, IQUEUE $i, BLOCKING true, VERBOSE 3)
+
+StaticThreadSched(fd0 0, td0 0, t0 0);
+StaticThreadSched(fd1 1, td1 1, t1 1);
+StaticThreadSched(fd2 2, td2 2, t2 2);
+StaticThreadSched(fd3 3, td3 3, t3 3);
 
 
 %fastclick,dpdk:file IO
