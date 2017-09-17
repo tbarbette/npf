@@ -124,7 +124,7 @@ def add_building_options(parser):
     return b
 
 nodePattern = regex.compile(
-    "(?P<role>[a-zA-Z0-9]+)=(:?(?P<user>[a-zA-Z0-9]+)@)?(?P<addr>[a-zA-Z0-9.]+)(:?[:](?P<path>path))?")
+    "(?P<role>[a-zA-Z0-9]+)=(:?(?P<user>[a-zA-Z0-9]+)@)?(?P<addr>[a-zA-Z0-9.-]+)(:?[:](?P<path>path))?")
 roles = {}
 
 
