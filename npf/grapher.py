@@ -48,7 +48,7 @@ graphcolorseries.append(hexToList("#144c73 #185a88 #1b699e #1f77b4 #2385ca #2b93
 graphcolorseries.append(hexToList("#1c641c #217821 #278c27 #2ca02c #32b432 #37c837 #4bce4b"))
 graphcolorseries.append(hexToList("#c15a00 #da6600 #f47200 #ff7f0e #ff8d28 #ff9a41 #ffa85b"))
 
-gridcolors = [ None ]
+gridcolors = [ (0.7,0.7,0.7) ]
 legendcolors = [ None ]
 for clist in graphcolorseries[1:]:
     gridcolors.append(lighter(clist[(int)(len(clist) / 2)], 0.25, 200))
@@ -245,7 +245,7 @@ class Grapher:
                 for var, val in run.variables.items():
                     if var in tomerge:
                         del newrun.variables[var]
-                        vals.append(str(val[1] if type(val) is tuple else val))
+                        vals.append(str(val[1] if type(val) is tuple else val).strip())
                 combname = ', '.join(OrderedSet(vals))
                 if is_numeric(combname):
                     combname = get_numeric(combname)
@@ -344,6 +344,30 @@ class Grapher:
                 vars_values[var_name] = vvalues
             series = transformed_series
 
+        if self.config('graph_series_prop'):
+            newseries = []
+            base_results=series[0][2]
+            for i, (script, build, all_results) in enumerate(series[1:]):
+                new_results={}
+                for run,run_results in all_results.items():
+                    if not run in base_results:
+                        print(run,"not in base")
+                        continue
+
+                    for result_type, results in run_results.items():
+                        base = base_results[run][result_type]
+                        if len(base) > len(results):
+                            base = base[:len(results)]
+                        elif len(results) > len(base):
+                            results = results[:len(base)]
+                        results = results / base
+                        print(result_type,results)
+                        run_results[result_type] = results
+                    new_results[run] = run_results
+                newseries.append((script, build, new_results))
+            series = newseries
+
+
         # List of static variables to use in filename
         statics = {}
 
@@ -394,6 +418,7 @@ class Grapher:
                 vars_all.add(run)
         vars_all = list(vars_all)
         vars_all.sort()
+
 
         dyns = []
         for k, v in vars_values.items():

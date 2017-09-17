@@ -128,7 +128,7 @@ def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list
             if len(run) == 0:
                 xval = build.pretty_name()
             else:
-                xval = run.print_variable(key,build.pretty_name())
+                xval = run.print_variable(key, build.pretty_name())
             results_types = all_results.get(run, {})
             for result_type in all_result_types:
                 #ydiv = var_divider(testie, "result", result_type) results are now divided before

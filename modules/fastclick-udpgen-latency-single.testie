@@ -27,31 +27,41 @@ LIMIT=1024000
 NBBUF=EXPAND( $(( (($LIMIT + ($GEN_BURST * 2) ) * 2) + 8192 )) )
 
 %script deps=fastclick sudo=true delay=2
-click --dpdk -c 0x3 -- PKTGEN_CONFIG
+click --dpdk -c 0xf -- PKTGEN_CONFIG
 
 %file PKTGEN_CONFIG
 d :: DPDKInfo($NBBUF)
 
 define($replay_count $GEN_REPLAY)
 
-elementclass Numberise {
-    input-> Strip(14) -> check :: CheckIPHeader -> nPacket :: NumberPacket(40) -> SetIPChecksum -> Unstrip(14) -> output
+elementclass Numberise { $magic |
+    input-> Strip(14) -> check :: CheckIPHeader -> StoreData(36,$magic) ->  nPacket :: NumberPacket(40) -> SetIPChecksum -> Unstrip(14) -> output
 }
 
 
-elementclass Generator { $port, $outPort, $srcmac, $dstmac, $outSrcmac, $srcip, $dstip |
+elementclass DualThreadGenerator { $port, $outPort, $srcmac, $dstmac, $outSrcmac, $srcip, $dstip |
     tdOUT::ToDPDKDevice($port, BLOCKING $GEN_BLOCKING);
 
-    fastudp :: FastUDPFlows(RATE 0, LIMIT $LIMIT, LENGTH $GEN_LENGTH, SRCETH $srcmac, DSTETH $dstmac, SRCIP $srcip, DSTIP $dstip, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST)
+    fastudpA :: FastUDPFlows(RATE 0, LIMIT $LIMIT, LENGTH $GEN_LENGTH, SRCETH $srcmac, DSTETH $dstmac, SRCIP $srcip, DSTIP $dstip, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST)
     -> MarkMACHeader
-	-> Numberise
+	-> Numberise(\<12340001>)
     -> EnsureDPDKBuffer
-    -> replay :: ReplayUnqueue(STOP 0, QUICK_CLONE true)
-    -> rt :: RecordTimestamp(N $LIMIT, OFFSET 54)
-    -> sndavg :: AverageCounter()
+    -> replayA :: ReplayUnqueue(STOP 0, QUICK_CLONE true)
+    -> rtA :: RecordTimestamp(N $LIMIT, OFFSET 54)
+    -> sndavgA :: AverageCounter()
     -> tdOUT;
 
-    StaticThreadSched(replay $port)
+    fastudpB :: FastUDPFlows(RATE 0, LIMIT $LIMIT, LENGTH $GEN_LENGTH, SRCETH $srcmac, DSTETH $dstmac, SRCIP $srcip, DSTIP $dstip, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST)
+    -> MarkMACHeader
+	-> Numberise(\<12340002>)
+    -> EnsureDPDKBuffer
+    -> replayB :: ReplayUnqueue(STOP 0, QUICK_CLONE true)
+    -> rtB :: RecordTimestamp(N $LIMIT, OFFSET 54)
+    -> sndavgB :: AverageCounter()
+    -> tdOUT;
+
+    StaticThreadSched(replayA 0)
+    StaticThreadSched(replayB 1)
 
     fd :: FromDPDKDevice($outPort, MAC $outSrcmac, MAXTHREADS 1, PROMISC false, VERBOSE 99)
     -> c0 :: Classifier(12/0806 20/0001,
@@ -59,25 +69,39 @@ elementclass Generator { $port, $outPort, $srcmac, $dstmac, $outSrcmac, $srcip, 
                         12/0800,
                         -)[2]
     -> Strip(14)
-    -> tsd :: TimestampDiff(rt)
+    -> magic :: Classifier(36/12340001, 36/12340002,-)
+
+    magic[0]
+    -> tsdA :: TimestampDiff(rtA)
     -> Unstrip(14)
-    -> avg :: AverageCounter
+    -> avgA :: AverageCounter
     -> Discard;
 
-    tsd[1]
-    -> Print("WARNING: Untimestamped packet", -1)
-    -> Discard
+    magic[1]
+    -> tsdB :: TimestampDiff(rtB)
+    -> Unstrip(14)
+    -> avgB :: AverageCounter
+    -> Discard;
+
+    magic[2]
+    -> Print("WARNING: Unknown magic / untimestamped packet", -1)
+    -> Discard;
+
+    unt :: Print("WARNING: Untimestamped packet", -1)
+    -> Discard;
+    tsdA[1] -> unt;
+    tsdB[1] -> unt;
 
     c0[3]
     -> Print("WARNING: Non-IP packet !")
-    -> Discard
+    -> Discard;
 
     c0[0] -> ARPResponder($srcip $srcmac)
           -> tdOUT;
     c0[1] -> Discard;
 }
 
-gen0 :: Generator(0, 1, ${client:0:mac}, ${dut:0:mac}, ${client:1:mac}, ${client:0:ip}, ${dut:0:ip})
+gen0 :: DualThreadGenerator(0, 1, ${client:0:mac}, ${dut:0:mac}, ${client:1:mac}, ${client:0:ip}, ${dut:0:ip})
 
 //Advertise return MAC address
 adv :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH 60, SRCETH ${client:1:mac}, DSTETH ${dut:1:mac}, SRCIP ${client:1:ip}, DSTIP ${dut:1:ip}, FLOWS 1, FLOWSIZE 1)
@@ -86,20 +110,25 @@ adv :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH 60, SRCETH ${client:1:mac}, DSTETH 
 
 DriverManager(
     pause,
+    pause,
     wait ${GEN_INIT_WAIT}s,
     read d.pool_count,
     print "Launching replay",
-    write gen0/avg.reset,
-    write gen0/sndavg.reset,
-    write gen0/replay.stop $replay_count,
-    write gen0/replay.active true,
+    write gen0/avgA.reset,
+    write gen0/sndavgA.reset,
+    write gen0/replayA.stop $replay_count,
+    write gen0/replayA.active true,
+    write gen0/avgB.reset,
+    write gen0/sndavgB.reset,
+    write gen0/replayB.stop $replay_count,
+    write gen0/replayB.active true,
     set starttime $(now),
     pause,
     read d.pool_count,
     print "RESULT-TESTTIME $(sub $(now) $starttime)",
-    print "SAVG0 $(gen0/sndavg.link_rate)",
-    print "AVG0 $(gen0/avg.link_rate) $(gen0/avg.count)",
-    print "RESULT-LATENCY $(gen0/tsd.average)",
-    print "RESULT-TX $(gen0/sndavg.link_rate)",
-    print "RESULT-PPS $(gen0/avg.rate)",
-    print "RESULT-THROUGHPUT $(gen0/avg.link_rate)")
+    print "AVG0 $(gen0/avgA.link_rate) $(gen0/avgA.count)",
+    print "AVG0 $(gen0/avgB.link_rate) $(gen0/avgB.count)",
+    print "RESULT-LATENCY $(div $(add $(gen0/tsdA.average) $(gen0/tsdB.average) 2))",
+    print "RESULT-TX $(add $(gen0/sndavgA.link_rate) $(gen0/sndavgB.link_rate))",
+    print "RESULT-PPS $(add $(gen0/avgA.rate) $(gen0/avgB.rate))",
+    print "RESULT-THROUGHPUT $(add $(gen0/avgA.link_rate) $(gen0/avgB.link_rate))")
