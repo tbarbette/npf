@@ -595,7 +595,7 @@ class Testie:
 
                 continue
 
-            if prev_results and prev_results is not None and not options.force_test:
+            if prev_results and prev_results is not None and not (options.force_test or options.force_retest):
                 run_results = prev_results.get(run, None)
                 if run_results is None:
                     run_results = {}
@@ -616,7 +616,7 @@ class Testie:
 
             have_new_results = False
 
-            n_runs = self.config["n_runs"] - (0 if options.force_test or len(run_results) == 0 else min(
+            n_runs = self.config["n_runs"] - (0 if (options.force_test or options.force_retest) or len(run_results) == 0 else min(
                 [len(results) for result_type, results in run_results.items()]))
             if n_runs > 0 and do_test:
                 if not init_done:
@@ -636,7 +636,10 @@ class Testie:
                         print("stderr:")
                         print("\n".join(err))
                     for k, v in new_results.items():
-                        run_results.setdefault(k, []).extend(v)
+                        if options.force_retest:
+                            run_results[k] = v
+                        else:
+                            run_results.setdefault(k, []).extend(v)
                         have_new_results = True
             else:
                 if not self.options.quiet:

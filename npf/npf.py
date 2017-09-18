@@ -63,7 +63,11 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
                     default=True)
     tf.add_argument('--force-test',
                     help='Force re-doing all tests even if data for the given version and '
-                         'variables is already known', dest='force_test', action='store_true',
+                         'variables is already known, but append the new data to exesting one', dest='force_test', action='store_true',
+                    default=False)
+    tf.add_argument('--force-retest',
+                    help='Force re-doing all tests even if data for the given version and '
+                         'variables is already known, and replace it', dest='force_retest', action='store_true',
                     default=False)
     t.add_argument('--no-init',
                    help='Do not run any init scripts', dest='do_init', action='store_false',
