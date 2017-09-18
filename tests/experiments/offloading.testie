@@ -1,20 +1,13 @@
 %info
-L2 Forwarding on Monster, RSS and Workload test
-
-* Work is specified in WorkPackage
-* Fixed number of WorkPackge to be exec'ed on same thread
-* Packet length is GEN_LENGTH
-* NTHREADS increases, adding extra devices (rss)
-* Fixed pipeliner queue size (though can be changed to vary)
-  ... @sdarayan: No effect really in changing QSIZE
-  * Overall, test rss scalability with fixed work
+Distribution approach study
 
 %config
 default_repo=fastclick
 n_runs=3
 var_lim={NWP:0-16,NTHREADS:0-16,result-THROUGHPUT:0-10000000000,result-Perf:0-100}
 var_unit={LATENCY:us,DROPPED:packets,result-THROUGHPUT:BPS,result-TX:BPS}
-var_names={GEN_LENGTH:Packet length,TODEV_THREAD:Output thread,result-THROUGHPUT:Throughput,result-TX:PktGen Throughput,result-PPS:PPS,result-DROPPED:Dropped,result-LATENCY:Latency,result-LOSS:Percentage,NTHREADS:Number of threads,W:Amount of random numbers generated per packet}
+var_names={GEN_LENGTH:Packet length,TODEV_THREAD:Output thread,result-THROUGHPUT:Throughput,result-TX:PktGen Throughput,result-PPS:PPS,result-DROPPED:Dropped,result-LATENCY:Latency,result-LOSS:Percentage,NTHREADS:Number of threads}
+//,W:Amount of pseudo-random numbers computed per processing stage}
 prop:var_names={result-PPS:PPS improvement over pipelining}
 accept_zero={DROPPED}
 -vary:graph_subplot_results={LATENCY,DROPPED,THROUGHPUT,PPS,TX:common}
@@ -25,14 +18,17 @@ perf:graph_result_as_variable={PERF-(.*):Perf}
 -vary:graph_max_series=10
 vary:require_tags={fastclick-next}
 -prop,vary:var_log={PPS,LATENCY,THROUGHPUT}
-var_log={S}
+var_log={result-LATENCY,S}
+var_log_base={W:4}
 var_grid={PPS}
 prop:var_divider={result-PPS:100}
 prop:graph_series_prop=True
--prop:var_divider={result-PPS:1000000}
+-prop:var_divider={result-PPS:1000000,result-LATENCY:1000000}
 -prop:var_format+={result-PPS:%dM}
 //vary,-prop:var_lim={PPS:0-10000000}
 results_expect={PPS}
+dual:graph_subplot_results={PPS+LATENCY:common}
+dual:graph_subplot_type=axis
 
 %variables
 -campus:GEN_LENGTH=64
@@ -61,6 +57,7 @@ back:B=1
 -back:B=0
 -dispatch:NTHREADS=EXPAND( $(( $NWP )) )
 dispatch:NTHREADS=EXPAND( $(( $NWP + 1 )) )
+dispatch,dualdispatch:NTHREADS=EXPAND( $(( $NWP + 2 )) )
 checksum:WP=Strip(14) -> check :: CheckIPHeader -> set :: SetIPChecksum -> Unstrip(14)
 vary:WP=EXPAND(WorkPackage(S $S, N $N, R $R, PAYLOAD $P, W $W))
 bin=32
@@ -98,11 +95,17 @@ ALLCOUNTPRINTS=EXPAND( , print "COUNT $(to_eth1_${todevthread}.count) , $(to_eth
 COUNTPRINTS=HEAD($NTHREADS, $ALLCOUNTPRINTS)
 ALLCOUNTPRINTS=
 
+%dispatch,pipeline:require
+[ $NWP -lt 16 ]
+
+%dualdispatch,pipeline:require
+[ $NWP -lt 15 ]
 
 %pipeline:late_variables
 //For pipeline, put WorkPack on thread 1 with one thread,  1 1 1 2 2 2 with 4, ... up to 0 1 2 3 when using 14. If nodispatch, start at 0
 nworker=[0-15]
 dispatch:FROMALLWORK1=EXPAND( -> [0]from_work1_$nworker :: WorkPack( $(( int(floor($nworker / ($NWP / ($NTHREADS - 1 ) ) ) + 1 ) if $NTHREADS > 1 else 0 )) ) [0]  )
+dualdispatch:FROMALLWORK1=EXPAND( -> [0]from_work1_$nworker :: WorkPack( $(( int(floor($nworker / ($NWP / ($NTHREADS - 2 ) ) ) + 1 ) if $NTHREADS > 1 else 0 )) ) [0]  )
 -dispatch:FROMALLWORK1=EXPAND( -> [0]from_work1_$nworker :: WorkPack( $(( int(floor($nworker / ($NWP / $NTHREADS) ) ) )) ) [0]  )
 FROMWORK1=HEAD($NWP, $FROMALLWORK1)
 FROMALLWORK1=
@@ -116,11 +119,11 @@ FROMALLWORK2=
 %import@client dpdk-bind NIC=0
 %import@client dpdk-bind NIC=1
 
-%perf:import@dut perf-functions delay=12
-%-perf,-campus:import@client fastclick-udpgen-latency-single delay=8 GEN_REPLAY=10 LIMIT=2000000
-%campus:import@client fastclick-replay-dual 0:ip=139.165.0.1 1:ip=10.10.10.1 traceIN=/mnt/traces/201601-1_fullanon_padded.pcap traceOUT=/mnt/traces/201601-2_fullanon_padded.pcap NBUF=5000000 delay=5
-%perf,-campus:import@client fastclick-udpgen-latency-single delay=5 GEN_REPLAY=100 LIMIT=2000000
-//%perf:import@client fastclick-udpgen-single delay=5
+%perf:import@dut perf-functions delay=10
+%-perf,-campus:import@client fastclick-udpgen-latency-single delay=6 GEN_REPLAY=20 LIMIT=1000000
+%campus:import@client fastclick-replay-dual 0:ip=139.165.0.1 1:ip=10.10.10.1 traceIN=/mnt/traces/201601-1_fullanon_padded.pcap traceOUT=/mnt/traces/201601-2_fullanon_padded.pcap NBUF=5000000 delay=6
+%perf,-campus:import@client fastclick-udpgen-latency-single delay=6 GEN_REPLAY=100 LIMIT=1000000
+//%perf:import@client fastclick-udpgen-single delay=6
 
 %script@dut sudo=true
 click --dpdk -n 4 -l 0-$(( $NTHREADS - 1 )) -- CONFIG
@@ -152,7 +155,7 @@ from_eth1 $WORK -> EtherRewrite(SRC ${dut:1:mac}, DST ${client:1:mac}) -> to_eth
 from_eth2 $WORK2 -> EtherRewrite(SRC ${dut:0:mac}, DST ${client:0:mac}) -> to_eth1;
 
 DriverManager(wait, print "DROPPED $(from_eth1.hw_dropped) , $(from_eth2.hw_dropped)"
-, print "COUNT $(from_eth2.hw_count) , $(from_eth2.hw_count)");
+, print "COUNT $(from_eth1.hw_count) , $(from_eth2.hw_count)");
 
 
 //*************************** Soft RSS **********************
@@ -192,12 +195,12 @@ DriverManager(wait $COUNTPRINTS);
 %pipeline:file@dut CONFIG
 
 from_eth1 :: FromDPDKDevice(${dut:0:pci}, PROMISC false, BURST $bin, THREADOFFSET 0, MAXTHREADS 1, VERBOSE 3);
-to_eth1 :: Pipeliner($QSIZE) -> ToDPDKDevice(${dut:0:pci}, BLOCKING true);
+to_eth1 :: Pipeliner($QSIZE) -> EtherRewrite(SRC ${dut:0:mac}, DST ${client:0:mac}) -> ToDPDKDevice(${dut:0:pci}, BLOCKING true);
 StaticThreadSched(to_eth1 $TODEV_THREAD)
 //to_eth1 :: ToDPDKDevice(${dut:0:pci}, BLOCKING true);
 
 from_eth2 :: FromDPDKDevice(${dut:1:pci}, PROMISC false, BURST $bin, THREADOFFSET 0, MAXTHREADS 1, VERBOSE 3);
-to_eth2 :: Pipeliner($QSIZE) -> ToDPDKDevice(${dut:1:pci}, BLOCKING true);
+to_eth2 :: Pipeliner($QSIZE) -> EtherRewrite(SRC ${dut:1:mac}, DST ${client:1:mac}) ->   ToDPDKDevice(${dut:1:pci}, BLOCKING true);
 StaticThreadSched(to_eth2 $TODEV_THREAD)
 //to_eth2 :: ToDPDKDevice(${dut:1:pci}, BLOCKING true);
 
@@ -230,6 +233,6 @@ elementclass WorkPack {
     StaticThreadSched(p1 $thread_no)
 };
 
-from_eth1 $FROMWORK1 -> EtherRewrite(SRC ${dut:1:mac}, DST ${client:1:mac}) -> to_eth2;
+from_eth1 $FROMWORK1 -> to_eth2;
 
-from_eth2 $FROMWORK2 -> EtherRewrite(SRC ${dut:0:mac}, DST ${client:0:mac}) -> to_eth1;
+from_eth2 $FROMWORK2 ->to_eth1;
