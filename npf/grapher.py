@@ -629,10 +629,16 @@ class Grapher:
                 xunit = self.scriptconfig("var_unit", key, default="")
                 xformat = self.scriptconfig("var_format", key, default="")
                 isLog = key in self.config('var_log', {})
+                baseLog = self.scriptconfig('var_log_base', key, default=None)
+                if baseLog:
+                    isLog = True
                 if isLog:
                     ax = data[0][0]
                     if ax is not None and len(ax) > 1:
-                        base = find_base(ax)
+                        if baseLog:
+                            base = float(baseLog)
+                        else:
+                            base = find_base(ax)
                         plt.xscale('symlog',basex=base)
                         xticks = data[0][0]
                         if len(xticks) > 8:
