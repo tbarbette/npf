@@ -7,7 +7,7 @@ import regex
 
 from npf.node import Node
 from .variable import VariableFactory
-
+from .section import SectionVariable
 
 class ExtendAction(argparse.Action):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
@@ -166,18 +166,25 @@ def parse_nodes(options):
         roles[match.group('role')] = node
 
 
-def parse_variables(args_variables) -> Dict:
+def parse_variables(args_variables, tags) -> Dict:
     variables = {}
     for variable in args_variables:
         var, val = variable.split('=', 1)
-        variables[var] = VariableFactory.build(var, val)
+        tagsvar = var.split(':', 1)
+        if len(tagsvar) == 1:
+            tag = ''
+            var = tagsvar[0]
+        else:
+            tag,var = tagsvar
+        if SectionVariable.match_tags(tag, tags):
+            variables[var] = VariableFactory.build(var, val)
     return variables
 
 
 def override(args, testies):
-    overriden_variables = parse_variables(args.variables)
-    overriden_config = parse_variables(args.config)
     for testie in testies:
+        overriden_variables = parse_variables(args.variables, testie.tags)
+        overriden_config = parse_variables(args.config, testie.tags)
         testie.variables.override_all(overriden_variables)
         testie.config.override_all(overriden_config)
     return testies
