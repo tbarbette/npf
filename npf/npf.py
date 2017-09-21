@@ -7,7 +7,6 @@ import regex
 
 from npf.node import Node
 from .variable import VariableFactory
-from .section import SectionVariable
 
 class ExtendAction(argparse.Action):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
@@ -51,6 +50,11 @@ def add_graph_options(parser: ArgumentParser):
     g.add_argument('--graph-filename', metavar='graph_filename', type=str, default=None, dest='graph_filename',
                    help='path to the file to output the graph')
     g.add_argument('--graph-reject-outliers', dest='graph_reject_outliers', action='store_true', default=False)
+
+    g.add_argument('--iterative', dest='iterative', action='store_true', default=False,
+                   help='Graph after each results, allowing to get a faster glimpse at the results')
+    g.add_argument('--onefirst', dest='onefirst', action='store_true', default=False,
+                   help='Do a first pass with one run per variables, then do the last runs')
 
     return g
 
@@ -170,25 +174,39 @@ def parse_nodes(options):
         roles[match.group('role')] = node
 
 
-def parse_variables(args_variables, tags) -> Dict:
+def parse_variables(args_variables, tags, sec) -> Dict:
     variables = {}
     for variable in args_variables:
-        var, val = variable.split('=', 1)
-        tagsvar = var.split(':', 1)
-        if len(tagsvar) == 1:
-            tag = ''
-            var = tagsvar[0]
-        else:
-            tag,var = tagsvar
-        if SectionVariable.match_tags(tag, tags):
-            variables[var] = VariableFactory.build(var, val)
+        var, val, is_append = sec.parse_variable(variable,tags)
+        if var:
+            if is_append:
+                val.is_append = True
+            variables[var] = val
+        # var, val = variable.split('=', 1)
+        # append = False
+        # if var[-1] == '+':
+        #     var = var[:-1]
+        #     append = True
+        #
+        # tagsvar = var.split(':', 1)
+        # if len(tagsvar) == 1:
+        #     tag = ''
+        #     var = tagsvar[0]
+        # else:
+        #     tag,var = tagsvar
+        # if SectionVariable.match_tags(tag, tags):
+        #     v = VariableFactory.build(var, val)
+        #     variables[var] = v
+        #     if append:
+        #         v.append = True
+
     return variables
 
 
 def override(args, testies):
     for testie in testies:
-        overriden_variables = parse_variables(args.variables, testie.tags)
-        overriden_config = parse_variables(args.config, testie.tags)
+        overriden_variables = parse_variables(args.variables, testie.tags, testie.variables)
+        overriden_config = parse_variables(args.config, testie.tags, testie.config)
         testie.variables.override_all(overriden_variables)
         testie.config.override_all(overriden_config)
     return testies

@@ -319,13 +319,18 @@ class SectionVariable(Section):
             if v.count() <= 1: dyn[k] = v
         return dyn
 
-    def override_all(self, dict):
-        for k, v in dict.items():
+    def override_all(self, d):
+        for k, v in d.items():
             self.override(k, v)
 
     def override(self, var, val):
+        if not var in self.vlist:
+            print("WARNING : %s does not override anything" % var)
         if isinstance(val, Variable):
-            self.vlist[var] = val
+            if val.is_append:
+                self.vlist[var] += val
+            else:
+                self.vlist[var] = val
         else:
             self.vlist[var] = SimpleVariable(var, val)
 
@@ -351,7 +356,8 @@ class SectionVariable(Section):
                 break
         return valid
 
-    def parse_variable(self, line, tags):
+    @staticmethod
+    def parse_variable(line, tags, vsection=None):
         try:
             if not line:
                 return None, None, False
@@ -360,18 +366,18 @@ class SectionVariable(Section):
                 line)
             if not match:
                 raise Exception("Invalid variable '%s'" % line)
-            if not self.match_tags(match.group('tags'), tags):
+            if not SectionVariable.match_tags(match.group('tags'), tags):
                 return None, None, False
 
             name = match.group('name')
-            return name, VariableFactory.build(name, match.group('value'), self), match.group('assignType') == '+='
+            return name, VariableFactory.build(name, match.group('value'), vsection), match.group('assignType') == '+='
         except:
             print("Error parsing line %s" % line)
             raise
 
     def build(self, content, testie, check_exists=False):
         for line in content.split("\n"):
-            var, val, is_append = self.parse_variable(line, testie.tags)
+            var, val, is_append = self.parse_variable(line, testie.tags, self)
             if not var is None:
                 if check_exists and not var in self.vlist:
 

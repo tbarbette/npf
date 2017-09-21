@@ -87,6 +87,9 @@ class VariableFactory:
 # raise Exception("Unkown variable type : " + valuedata)
 
 class Variable:
+    def __init__(self):
+        self.is_append = None
+
     NAME_REGEX = r'[a-zA-Z0-9._-]+'
     TAGS_REGEX = r'[a-zA-Z0-9._,|!-]+'
     VALUE_REGEX = r'[a-zA-Z0-9._/,{}-]+'
@@ -145,6 +148,7 @@ class ExpandVariable(Variable):
 
 class SimpleVariable(Variable):
     def __init__(self, name, value):
+        super().__init__()
         self.value = get_numeric(value)
 
     def makeValues(self):
@@ -166,6 +170,7 @@ class SimpleVariable(Variable):
 
 class ListVariable(Variable):
     def __init__(self, name, l):
+        super().__init__()
         all_num = True
         for x in l:
             if not is_numeric(x):
@@ -208,6 +213,7 @@ class ListVariable(Variable):
 
 class DictVariable(Variable):
     def __init__(self, name, data):
+        super().__init__()
         if type(data) is dict:
             self.vdict = data
         else:
@@ -237,6 +243,7 @@ class DictVariable(Variable):
 
 class RangeVariable(Variable):
     def __init__(self, name, valuestart, valueend, log):
+        super().__init__()
         if (valuestart > valueend):
             self.a = valueend
             self.b = valuestart

@@ -355,13 +355,15 @@ class Grapher:
                         continue
 
                     for result_type, results in run_results.items():
+                        if not result_type in base_results[run]:
+                            run_results[result_type] = None
+                            continue
                         base = base_results[run][result_type]
                         if len(base) > len(results):
                             base = base[:len(results)]
                         elif len(results) > len(base):
                             results = results[:len(base)]
                         results = results / base
-                        print(result_type,results)
                         run_results[result_type] = results
                     new_results[run] = run_results
                 newseries.append((script, build, new_results))
@@ -588,7 +590,7 @@ class Grapher:
 
                 for i, (x, y, e, build) in enumerate(data):
                     if shift == 0:
-                        build._color=graphcolorseries[0][i]
+                        build._color=graphcolorseries[0][i % len(graphcolorseries[0])]
                     else:
                         n = len(graphcolorseries[shift]) / (len(data) + 1)
                         build._color=graphcolorseries[shift][(i + 1) * int(n)]
@@ -777,7 +779,7 @@ class Grapher:
             while lab.startswith('_'):
                 lab = lab[1:]
             axis.plot(ax, y, label=lab, color=c, linestyle=build._line, marker=build._marker)
-            axis.errorbar(ax, y, yerr=e, marker=' ', label=None, linestyle=' ', color=c)
+            axis.errorbar(ax, y, yerr=e, marker=' ', label=None, linestyle=' ', color=c, capsize=3)
             xmin = min(xmin, min(ax))
             xmax = max(xmax, max(ax))
 

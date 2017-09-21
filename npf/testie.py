@@ -1,6 +1,7 @@
 import multiprocessing
 import os
 import sys
+import threading
 import time
 import random
 import shutil
@@ -557,7 +558,7 @@ class Testie:
                     print("\n".join(err))
                 raise ScriptInitException()
 
-    def execute_all(self, build, options, prev_results: Dataset = None, do_test=True,
+    def execute_all(self, build, options, prev_results: Dataset = None, do_test=True, on_finish = None,
                     allowed_types=SectionScript.ALL_TYPES_SET) -> Tuple[Dataset, bool]:
         """Execute script for all variables combinations. All tools reliy on this function for execution of the testie
         :param allowed_types:Tyeps of scripts allowed to run. Set with either init, scripts or both
@@ -577,91 +578,104 @@ class Testie:
             return {}, True
 
         all_results = {}
-        n=0
-        for variables in self.variables:
-            n += 1
-            run = Run(variables)
-            variables = variables.copy()
-            for late_variables in self.get_late_variables():
-                variables.update(late_variables.execute(variables, self))
-            r_status, r_out, r_err = self.test_require(variables, build)
-            if not r_status:
-                if not self.options.quiet:
-                    print("Requirement not met for %s" % run.format_variables(self.config["var_hide"]))
-                    if r_out.strip():
-                        print(r_out.strip())
-                    if r_err.strip():
-                        print(r_err.strip())
+        #If one first, we first ensure 1 result per variables then n_runs
+        if options.onefirst:
+            total_runs = [1,self.config["n_runs"]]
+        else:
+            total_runs = [self.config["n_runs"]]
+        for runs_this_pass in total_runs: #Number of results to ensure for this run
+            n = 0
+            for variables in self.variables:
+                n += 1
+                run = Run(variables)
+                variables = variables.copy()
+                for late_variables in self.get_late_variables():
+                    variables.update(late_variables.execute(variables, self))
+                r_status, r_out, r_err = self.test_require(variables, build)
+                if not r_status:
+                    if not self.options.quiet:
+                        print("Requirement not met for %s" % run.format_variables(self.config["var_hide"]))
+                        if r_out.strip():
+                            print(r_out.strip())
+                        if r_err.strip():
+                            print(r_err.strip())
 
-                continue
+                    continue
 
-            if prev_results and prev_results is not None and not (options.force_test or options.force_retest):
-                run_results = prev_results.get(run, None)
-                if run_results is None:
-                    run_results = {}
-            else:
-                run_results = {}
-
-            if not run_results and options.use_last and build.repo.url:
-                for version in build.repo.method.get_history(build.version, limit=100):
-                    oldb = Build(build.repo, version)
-                    r = oldb.load_results(self)
-                    if r and run in r:
-                        run_results = r[run]
-                        break
-
-            for result_type in self.config.get_list('results_expect'):
-                if result_type not in run_results:
-                    run_results = {}
-
-            have_new_results = False
-
-            n_runs = self.config["n_runs"] - (0 if (options.force_test or options.force_retest) or len(run_results) == 0 else min(
-                [len(results) for result_type, results in run_results.items()]))
-            if n_runs > 0 and do_test:
-                if not init_done:
-                    self.do_init_all(build, options, do_test, allowed_types=allowed_types,test_folder=test_folder)
-                    init_done = True
-                if not self.options.quiet:
-                    print(run.format_variables(self.config["var_hide"]),"[%d/%d]" % (n,len(self.variables)))
-
-                new_results, output, err, n_exec = self.execute(build, run, variables, n_runs,
-                                                                n_retry=self.config["n_retry"],
-                                                                allowed_types={SectionScript.TYPE_SCRIPT},
-                                                                test_folder=test_folder)
-                if new_results:
-                    if self.options.show_full:
-                        print("stdout:")
-                        print("\n".join(output))
-                        print("stderr:")
-                        print("\n".join(err))
-                    for k, v in new_results.items():
-                        if options.force_retest:
-                            run_results[k] = v
-                        else:
-                            run_results.setdefault(k, []).extend(v)
-                        have_new_results = True
-            else:
-                if not self.options.quiet:
-                    print(run.format_variables(self.config["var_hide"]))
-
-            if len(run_results) > 0:
-                if not self.options.quiet:
-                    if len(run_results) == 1:
-                        print(list(run_results.values())[0])
-                    else:
-                        print(run_results)
-                all_results[run] = run_results
-            else:
-                all_results[run] = {}
-
-            # Save results
-            if all_results and have_new_results:
-                if prev_results:
-                    prev_results[run] = all_results[run]
-                    build.writeversion(self, prev_results, allow_overwrite=True)
+                if prev_results and prev_results is not None and not (options.force_test or options.force_retest):
+                    run_results = prev_results.get(run, None)
+                    if run_results is None:
+                        run_results = {}
                 else:
-                    build.writeversion(self, all_results, allow_overwrite=True)
+                    run_results = {}
+
+                if not run_results and options.use_last and build.repo.url:
+                    for version in build.repo.method.get_history(build.version, limit=100):
+                        oldb = Build(build.repo, version)
+                        r = oldb.load_results(self)
+                        if r and run in r:
+                            run_results = r[run]
+                            break
+
+                for result_type in self.config.get_list('results_expect'):
+                    if result_type not in run_results:
+                        run_results = {}
+
+                have_new_results = False
+
+                n_runs = runs_this_pass - (0 if (options.force_test or options.force_retest) or len(run_results) == 0 else min(
+                    [len(results) for result_type, results in run_results.items()]))
+                if n_runs > 0 and do_test:
+                    if not init_done:
+                        self.do_init_all(build, options, do_test, allowed_types=allowed_types,test_folder=test_folder)
+                        init_done = True
+                    if not self.options.quiet:
+                        print(run.format_variables(self.config["var_hide"]),"[%d runs for %d/%d]" % (n_runs,n,len(self.variables)))
+
+                    new_results, output, err, n_exec = self.execute(build, run, variables, n_runs,
+                                                                    n_retry=self.config["n_retry"],
+                                                                    allowed_types={SectionScript.TYPE_SCRIPT},
+                                                                    test_folder=test_folder)
+                    if new_results:
+                        if self.options.show_full:
+                            print("stdout:")
+                            print("\n".join(output))
+                            print("stderr:")
+                            print("\n".join(err))
+                        for k, v in new_results.items():
+                            if options.force_retest:
+                                run_results[k] = v
+                            else:
+                                run_results.setdefault(k, []).extend(v)
+                            have_new_results = True
+                else:
+                    if not self.options.quiet:
+                        print(run.format_variables(self.config["var_hide"]))
+
+                if len(run_results) > 0:
+                    if not self.options.quiet:
+                        if len(run_results) == 1:
+                            print(list(run_results.values())[0])
+                        else:
+                            print(run_results)
+                    all_results[run] = run_results
+                else:
+                    all_results[run] = {}
+
+                if on_finish and have_new_results:
+                    def call_finish():
+                        on_finish(all_results)
+                    thread = threading.Thread(target=call_finish, args=())
+                    thread.daemon = True
+                    thread.start()
+
+                # Save results
+                if all_results and have_new_results:
+                    if prev_results:
+                        prev_results[run] = all_results[run]
+                        build.writeversion(self, prev_results, allow_overwrite=True)
+                    else:
+                        build.writeversion(self, all_results, allow_overwrite=True)
 
         if not self.options.preserve_temp:
             shutil.rmtree(test_folder)

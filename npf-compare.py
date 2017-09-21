@@ -19,66 +19,31 @@ from npf.testie import Testie
 class Comparator():
     def __init__(self, repo_list: List[Repository]):
         self.repo_list = repo_list
+        self.graphs_series = []
 
-    def run(self, testie_name, options, tags):
-        graphs_series = []
+    def build_list(self, on_finish, testie, build,datasets):
+        on_finish(self.graphs_series + [(testie,build,datasets[0])])
+
+    def run(self, testie_name, options, tags, on_finish=None):
         for repo in self.repo_list:
             regressor = Regression(repo)
             testies = Testie.expand_folder(testie_name, options=options, tags=repo.tags + tags)
             testies = npf.override(options, testies)
             for testie in testies:
-                build, datasets = regressor.regress_all_testies(testies=[testie], options=options)
-                if not build is None:
-                    build._pretty_name = repo.name
-                    graphs_series.append((testie, build, datasets[0]))
-
-        if len(graphs_series) == 0:
+                build, datasets = regressor.regress_all_testies(testies=[testie], options=options, on_finish=lambda b,d: self.build_list(on_finish,testie,b,d) if on_finish else None)
+            if not build is None:
+                build._pretty_name = repo.name
+                self.graphs_series.append((testie, build, datasets[0]))
+        if len(self.graphs_series) == 0:
             print("No valid tags/testie/repo combination.")
             return
 
-        return graphs_series
+        return self.graphs_series
 
-
-def main():
-    parser = argparse.ArgumentParser(description='NPF cross-repository comparator')
-
-    npf.add_verbosity_options(parser)
-
-    parser.add_argument('repos', metavar='repo', type=str, nargs='+', help='names of the repositories to watch')
-
-
-    parser.add_argument('--graph-title', type=str, nargs='?', help='Graph title')
-
-    b = npf.add_building_options(parser)
-    t = npf.add_testing_options(parser)
-    g = npf.add_graph_options(parser)
-    args = parser.parse_args()
-
-    npf.parse_nodes(args)
-
-    # Parsing repo list and getting last_build
-    repo_list = []
-    for repo_name in args.repos:
-        repo = Repository.get_instance(repo_name, args)
-        repo.last_build = None
-        repo_list.append(repo)
-
-    comparator = Comparator(repo_list)
-
-    series = comparator.run(testie_name=args.testie, tags=args.tags, options=args)
+def do_graph(filename,args,series):
 
     if series is None:
         return
-
-    if args.graph_filename is None:
-        filename = 'compare/' + os.path.splitext(os.path.basename(args.testie))[0] + '_' + '_'.join(
-            ["%s" % repo.reponame for repo in repo_list]) + '.pdf'
-    else:
-        filename = args.graph_filename[0]
-
-    dir = Path(os.path.dirname(filename))
-    if not dir.exists():
-        os.makedirs(dir.as_posix())
 
     # We must find the common variables to all repo, and change dataset to reflect only those
     all_variables = []
@@ -122,6 +87,46 @@ def main():
                       options=args,
                       title=args.graph_title)
 
+def main():
+    parser = argparse.ArgumentParser(description='NPF cross-repository comparator')
+
+    npf.add_verbosity_options(parser)
+
+    parser.add_argument('repos', metavar='repo', type=str, nargs='+', help='names of the repositories to watch')
+
+
+    parser.add_argument('--graph-title', type=str, nargs='?', help='Graph title')
+
+    b = npf.add_building_options(parser)
+    t = npf.add_testing_options(parser)
+    g = npf.add_graph_options(parser)
+    args = parser.parse_args()
+
+    npf.parse_nodes(args)
+
+    # Parsing repo list and getting last_build
+    repo_list = []
+    for repo_name in args.repos:
+        repo = Repository.get_instance(repo_name, args)
+        repo.last_build = None
+        repo_list.append(repo)
+
+    comparator = Comparator(repo_list)
+
+
+    if args.graph_filename is None:
+        filename = 'compare/' + os.path.splitext(os.path.basename(args.testie))[0] + '_' + '_'.join(
+            ["%s" % repo.reponame for repo in repo_list]) + '.pdf'
+    else:
+        filename = args.graph_filename[0]
+
+    dir = Path(os.path.dirname(filename))
+    if not dir.exists():
+        os.makedirs(dir.as_posix())
+
+    series = comparator.run(testie_name=args.testie, tags=args.tags, options=args, on_finish=lambda series:do_graph(filename,args,series) if args.iterative else None)
+
+    do_graph(filename,args,series)
 
 if __name__ == "__main__":
     main()

@@ -115,7 +115,7 @@ class Regression:
             build.writeversion(testie, all_results, allow_overwrite = True)
         return tests_passed, tests_total
 
-    def regress_all_testies(self, testies: List['Testie'], options, history: int = 1) -> Tuple[Build, List[Dataset]]:
+    def regress_all_testies(self, testies: List['Testie'], options, history: int = 1, on_finish = None) -> Tuple[Build, List[Dataset]]:
         """
         Execute all testies passed in argument for the last build of the regressor associated repository
         :param history: Start regression at last build + 1 - history
@@ -145,8 +145,13 @@ class Regression:
             else:
                 old_all_results = None
             try:
+                if on_finish:
+                    def early_results(all_results):
+                        on_finish(build,(datasets + [all_results]))
+                else:
+                    early_results = None
                 all_results,init_done = testie.execute_all(build, prev_results=build.load_results(testie), options=options,
-                                                 do_test=options.do_test)
+                                                 do_test=options.do_test, on_finish=early_results)
                 if all_results is None:
                     return None, None
             except ScriptInitException:
