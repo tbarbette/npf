@@ -617,9 +617,11 @@ class Testie:
                             run_results = r[run]
                             break
 
-                for result_type in self.config.get_list('results_expect'):
-                    if result_type not in run_results:
-                        run_results = {}
+                if run_results:
+                    for result_type in self.config.get_list('results_expect'):
+                        if result_type not in run_results:
+                            print("Missing result type %s, re-doing the run" % result_type)
+                            run_results = {}
 
                 have_new_results = False
 
