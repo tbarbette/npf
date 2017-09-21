@@ -17,12 +17,10 @@ PKTGEN_BURST_OUT=32
 PKTGEN_REPLAY_COUNT=1
 NIC=0
 CLIENT_NIC=0
-TRACE_TIME=8
-LIMIT=1024000
-GEN_THREADS=2
+LIMIT=200000
+GEN_THREADS=4
 
 nolinktest=0
-
 
 %late_variables
 NBBUF=EXPAND( $(( ( ( $LIMIT * $GEN_THREADS ) + ($PKTGEN_BURST_OUT * 2) ) + 8192 )) )
@@ -48,36 +46,37 @@ define($quick true)
 define($txverbose 99)
 define($rxverbose 99)
 
-fdIN :: FromDump($trace, STOP false, TIMING false, END_AFTER $TRACE_TIME)
+fdIN :: FromDump($trace, STOP false, TIMING false)
 tdIN :: ToDPDKDevice($port, BLOCKING true, BURST $bout, VERBOSE $txverbose)
 
 
 elementclass Numberise { $magic |
-    input-> Strip(14) -> check :: CheckIPHeader -> StoreData(36,$magic) ->  nPacket :: NumberPacket(40) -> SetIPChecksum -> Unstrip(14) -> output
+    input-> Strip(14) -> check :: CheckIPHeader -> nPacket :: NumberPacket(42) -> StoreData(40, $magic) -> SetIPChecksum -> Unstrip(14) -> output
 }
 
 fdIN
 	-> rwIN :: EtherRewrite($INsrcmac,$INdstmac)
-	-> rr :: RoundRobinSched();
+    -> EnsureDPDKBuffer
+    -> rr :: PathSpinlock;
 
-rr
-  -> Numberise(\<56780001>)
-  ->  EnsureDPDKBuffer
-  -> replayA :: ReplayUnqueue(STOP 0, QUICK_CLONE $quick, VERBOSE true, ACTIVE true)
-  -> rtA :: RecordTimestamp(N 1048576)
-  -> avgSINA :: AverageCounter(IGNORE $ignore)
-  -> tdIN;
+elementclass Generator { $magic |
+input
+  -> Numberise($magic)
+  -> replay :: ReplayUnqueue(STOP 0, QUICK_CLONE $quick, VERBOSE true, ACTIVE true, LIMIT 200000)
+  -> rt :: RecordTimestamp(N $LIMIT, OFFSET 56)
+  -> avgSIN :: AverageCounter(IGNORE $ignore)
+  -> output;
+}
 
-rr
-  -> Numberise(\<56780002>)
-  ->  EnsureDPDKBuffer
-  -> replayB :: ReplayUnqueue(STOP 0, QUICK_CLONE $quick, VERBOSE true, ACTIVE true)
-  -> rtB :: RecordTimestamp(N 1048576)
-  -> avgSINB :: AverageCounter(IGNORE $ignore)
-  -> tdIN;
+rr -> gen0 :: Generator(\<5601>) -> tdIN;
+rr -> gen1 :: Generator(\<5602>) -> tdIN;
+rr -> gen2 :: Generator(\<5603>) -> tdIN;
+rr -> gen3 :: Generator(\<5604>) -> tdIN;
 
-StaticThreadSched(replayA 0)
-StaticThreadSched(replayB 1)
+StaticThreadSched(gen0/replay 0)
+StaticThreadSched(gen1/replay 2)
+StaticThreadSched(gen2/replay 4)
+StaticThreadSched(gen3/replay 6)
 
 receiveIN :: FromDPDKDevice($port, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC false)
 
@@ -86,21 +85,41 @@ elementclass Receiver { $mac, $dir |
     -> c::Classifier(0/$mac,-) //Ignore broadcasts
     -> Strip(14)
     -> CheckIPHeader
-    -> magic :: Classifier(36/56780001, 36/56780002,-);
+    -> magic :: Classifier( 40/5601,
+                            40/5602,
+                            40/5603,
+                            40/5604,
+                            -);
+
+    c[1] //Not for this computer or broadcasts
+    -> Discard;
 
     magic[0]
-    -> tsdA :: TimestampDiff(rtA)
+    -> tsdA :: TimestampDiff(gen0/rt, OFFSET 42, N $LIMIT )
     -> Unstrip(14)
     -> avgA :: AverageCounterMP
     -> Discard;
 
     magic[1]
-    -> tsdB :: TimestampDiff(rtB)
+    -> tsdB :: TimestampDiff(gen1/rt, OFFSET 42, N $LIMIT )
     -> Unstrip(14)
     -> avgB :: AverageCounterMP
     -> Discard;
 
     magic[2]
+    -> tsdC :: TimestampDiff(gen2/rt, OFFSET 42, N $LIMIT )
+    -> Unstrip(14)
+    -> avgC :: AverageCounterMP
+    -> Discard;
+
+    magic[3]
+    -> tsdD :: TimestampDiff(gen3/rt, OFFSET 42, N $LIMIT )
+    -> Unstrip(14)
+    -> avgD :: AverageCounterMP
+    -> Discard;
+
+    magic[4]
+    -> Unstrip(14)
     -> Print("WARNING: Unknown magic / untimestamped packet", -1)
     -> Discard;
 
@@ -142,19 +161,27 @@ link_initialized :: Script(TYPE PACKET,
     print "Link initialized !",
     write RINswitch.switch -1,
     print "IN has $(NIN/nPacket.count) packets",
-    write RIN/chPacket.count $(NIN/nPacket.count),
     wait 1s,
 
     print "Starting replay...",
-    write avgSINA.reset,
-    write avgSINB.reset,
+    write gen0/avgSIN.reset,
+    write gen1/avgSIN.reset,
+    write gen2/avgSIN.reset,
+    write gen3/avgSIN.reset,
     write RIN/avgA.reset,
     write RIN/avgB.reset,
+    write RIN/avgC.reset,
+    write RIN/avgD.reset,
     write RINswitch.switch 0 ,
-    write replayA.stop $replay_count,
-    write replayB.stop $replay_count,
-    write replayA.active true,
-    write replayB.active true
+    write gen0/replay.stop $replay_count,
+    write gen1/replay.stop $replay_count,
+    write gen2/replay.stop $replay_count,
+    write gen3/replay.stop $replay_count,
+    write gen0/replay.active true,
+    write gen1/replay.active true,
+    write gen2/replay.active true,
+    write gen3/replay.active true,
+    print "Time is $(now)",
 );
 
 
@@ -162,32 +189,42 @@ RINswitch[1]->Print(LATEIN) -> Discard;
 
 DriverManager(  pause,
 		pause,
-                goto waitagain $(eq $nolinktest 0),
+                pause,
+                pause,
+                goto waitagain $(eq 1 0),
                 wait 2s,
                 write advq0.active false,
                 write adv0.active false,
                 write link_initialized.run,
                 label waitagain,
+                set starttime $(now),
                 pause,
-		pause,
-                print "Replay finished. Waiting for last packets for $wait seconds...",
-                wait $wait,
-                write RINswitch.switch 1,
-                print "Checking if packets are still coming in..",
-                wait 2s,
-                print "$(RIN/chPacket.min)/$(RIN/chPacket.max)",
+                set stoptime $(now),
                 print "Rate : ",
-                print $(avgSINA.link_rate),
-                print $(avgSINB.link_rate),
+                print $(gen0/avgSIN.link_rate),
+                print $(gen1/avgSIN.link_rate),
+                print $(gen2/avgSIN.link_rate),
+                print $(gen3/avgSIN.link_rate),
                 print $(RIN/avgA.link_rate),
                 print $(RIN/avgB.link_rate),
+                print $(RIN/avgC.link_rate),
+                print $(RIN/avgD.link_rate),
                 print "Count :",
-                print $(avgSINA.count),
-                print $(avgSINB.count),
+                print $(gen0/avgSIN.count),
+                print $(gen1/avgSIN.count),
+                print $(gen2/avgSIN.count),
+                print $(gen3/avgSIN.count),
                 print $(RIN/avgA.count),
                 print $(RIN/avgB.count),
-                print "RESULT-LATENCY $(div $(add $(RIN/tsdA.average) $(RIN/tsdB.average)) 2)",
-                print "RESULT-THROUGHPUT $(add $(RIN/avgA.link_rate) $(RIN/avgB.link_rate))",
+                print $(RIN/avgC.count),
+                print $(RIN/avgD.count),
+                print "RESULT-TESTTIME $(sub $stoptime $starttime)",
+                print "RESULT-RCVTIME $(RIN/avgA.time)",
+                print "RESULT-LATENCY $(div $(add $(RIN/tsdA.average) $(RIN/tsdB.average) $(RIN/tsdC.average) $(RIN/tsdD.average)) 4)",
+                print "RESULT-THROUGHPUT $(add $(RIN/avgA.link_rate) $(RIN/avgB.link_rate) $(RIN/avgC.link_rate) $(RIN/avgD.link_rate) )",
+                print "RESULT-COUNT $(add $(RIN/avgA.count) $(RIN/avgB.count) $(RIN/avgC.count) $(RIN/avgD.count) )",
+                print "RESULT-TX $(add $(gen0/avgSIN.link_rate)  $(gen1/avgSIN.link_rate) $(gen2/avgSIN.link_rate) $(gen3/avgSIN.link_rate))",
+                print "RESULT-PPS $(add $(RIN/avgA.rate)  $(RIN/avgB.rate) $(RIN/avgC.rate) $(RIN/avgD.rate))",
                 print "Mean Delay: $(tsd.average) µs",
                 print "Min Delay: $(tsd.min) µs",
                 print "Max Delay: $(tsd.max) µs",
