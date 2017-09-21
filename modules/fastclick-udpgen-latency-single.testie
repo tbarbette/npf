@@ -140,6 +140,7 @@ DriverManager(
     pause,
     read d.pool_count,
     print "RESULT-TESTTIME $(sub $(now) $starttime)",
+    print "RESULT-RCVTIME $(gen0/rcv0/avg.time)",
     print "RESULT-LATENCY $(div $(add $ALL_AVG 0) $GEN_THREADS)",
     print "RESULT-TX $(add $ALL_SND )",
     print "RESULT-PPS $(add $ALL_RATE )",

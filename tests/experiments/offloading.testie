@@ -6,7 +6,7 @@ default_repo=fastclick
 n_runs=3
 var_lim={NWP:0-16,NTHREADS:0-16,result-THROUGHPUT:0-10000000000,result-Perf:0-100}
 var_unit={LATENCY:us,DROPPED:packets,result-THROUGHPUT:BPS,result-TX:BPS}
-var_names={GEN_LENGTH:Packet length,TODEV_THREAD:Output thread,result-THROUGHPUT:Throughput,result-TX:PktGen Throughput,result-PPS:PPS,result-DROPPED:Dropped,result-LATENCY:Latency,result-LOSS:Percentage,NTHREADS:Number of threads}
+var_names={GEN_LENGTH:Packet length,TODEV_THREAD:Output thread,result-THROUGHPUT:Throughput,result-TX:PktGen Throughput,result-PPS:PPS,result-DROPPED:Dropped,result-LATENCY:Latency,result-LOSS:Percentage,NTHREADS:Number of threads,NWP:Number of processing stages}
 //,W:Amount of pseudo-random numbers computed per processing stage}
 prop:var_names={result-PPS:PPS improvement over pipelining}
 accept_zero={DROPPED}
@@ -23,8 +23,8 @@ var_log_base={W:4}
 var_grid={PPS}
 prop:var_divider={result-PPS:100}
 prop:graph_series_prop=True
--prop:var_divider={result-PPS:1000000,result-LATENCY:1000000}
--prop:var_format+={result-PPS:%dM}
+ppsm:var_divider={result-PPS:1000000}
+ppsm:var_format+={result-PPS:%dM}
 //vary,-prop:var_lim={PPS:0-10000000}
 results_expect={PPS}
 dual:graph_subplot_results={PPS+LATENCY:common}
@@ -95,10 +95,10 @@ ALLCOUNTPRINTS=EXPAND( , print "COUNT $(to_eth1_${todevthread}.count) , $(to_eth
 COUNTPRINTS=HEAD($NTHREADS, $ALLCOUNTPRINTS)
 ALLCOUNTPRINTS=
 
-%dispatch,pipeline:require
+%dispatch:require
 [ $NWP -lt 16 ]
 
-%dualdispatch,pipeline:require
+%dualdispatch:require
 [ $NWP -lt 15 ]
 
 %pipeline:late_variables
