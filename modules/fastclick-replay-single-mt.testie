@@ -24,9 +24,10 @@ nolinktest=0
 
 %late_variables
 NBBUF=EXPAND( $(( ( ( $LIMIT * $GEN_THREADS ) + ($PKTGEN_BURST_OUT * 2) ) + 8192 )) )
+NRECORD=EXPAND( $(( $LIMIT * $PKTGEN_REPLAY_COUNT  * 2 )) )
 
 %script deps=fastclick sudo=true delay=2
-click --dpdk -c 0xf -- PKTGEN_CONFIG
+click --dpdk -l 0-15 -- PKTGEN_CONFIG
 
 %file PKTGEN_CONFIG
 d :: DPDKInfo($NBBUF)
@@ -62,7 +63,7 @@ fdIN
 elementclass Generator { $magic |
 input
   -> Numberise($magic)
-  -> replay :: ReplayUnqueue(STOP 0, QUICK_CLONE $quick, VERBOSE true, ACTIVE true, LIMIT 200000)
+  -> replay :: ReplayUnqueue(STOP 0, QUICK_CLONE $quick, VERBOSE true, ACTIVE true, LIMIT $LIMIT)
   -> rt :: RecordTimestamp(N $LIMIT, OFFSET 56)
   -> avgSIN :: AverageCounter(IGNORE $ignore)
   -> output;
@@ -95,25 +96,25 @@ elementclass Receiver { $mac, $dir |
     -> Discard;
 
     magic[0]
-    -> tsdA :: TimestampDiff(gen0/rt, OFFSET 42, N $LIMIT )
+    -> tsdA :: TimestampDiff(gen0/rt, OFFSET 42, N $NRECORD )
     -> Unstrip(14)
     -> avgA :: AverageCounterMP
     -> Discard;
 
     magic[1]
-    -> tsdB :: TimestampDiff(gen1/rt, OFFSET 42, N $LIMIT )
+    -> tsdB :: TimestampDiff(gen1/rt, OFFSET 42, N $NRECORD )
     -> Unstrip(14)
     -> avgB :: AverageCounterMP
     -> Discard;
 
     magic[2]
-    -> tsdC :: TimestampDiff(gen2/rt, OFFSET 42, N $LIMIT )
+    -> tsdC :: TimestampDiff(gen2/rt, OFFSET 42, N $NRECORD )
     -> Unstrip(14)
     -> avgC :: AverageCounterMP
     -> Discard;
 
     magic[3]
-    -> tsdD :: TimestampDiff(gen3/rt, OFFSET 42, N $LIMIT )
+    -> tsdD :: TimestampDiff(gen3/rt, OFFSET 42, N $NRECORD )
     -> Unstrip(14)
     -> avgD :: AverageCounterMP
     -> Discard;
