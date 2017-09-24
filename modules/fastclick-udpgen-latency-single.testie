@@ -23,6 +23,7 @@ GEN_REPLAY=1
 GEN_INIT_WAIT=5
 GEN_THREADS=4 //Change not supported as of now
 LIMIT=1000000
+RCVNIC=1
 
 %late_variables
 NBBUF=EXPAND( $(( (($LIMIT + ($GEN_BURST * 2) ) * $GEN_THREADS ) + 8192 )) )
@@ -120,7 +121,7 @@ elementclass MultiThreadGenerator { $port, $outPort, $srcmac, $dstmac, $outSrcma
     c0[1] -> Discard;
 }
 
-gen0 :: MultiThreadGenerator(0, 1, ${client:0:mac}, ${dut:0:mac}, ${client:1:mac}, ${client:0:ip}, ${dut:0:ip})
+gen0 :: MultiThreadGenerator(${client:0:pci}, ${client:$RCVNIC:pci}, ${client:0:mac}, ${dut:0:mac}, ${client:$RCVNIC:mac}, ${client:0:ip}, ${dut:0:ip})
 
 //Advertise return MAC address
 adv :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH 60, SRCETH ${client:1:mac}, DSTETH ${dut:1:mac}, SRCIP ${client:1:ip}, DSTIP ${dut:1:ip}, FLOWS 1, FLOWSIZE 1)
