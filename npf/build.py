@@ -145,6 +145,7 @@ class Build:
             print("Could not parse %s. The program will stop to avoid erasing data. Please correct or delete the file.\nLine %d : %s" % (filename,iline, line))
             raise
         f.close()
+        self.cache[filename] = all_results
         return all_results
 
     def hasResults(self, script=None):
