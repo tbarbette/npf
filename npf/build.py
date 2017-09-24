@@ -35,6 +35,7 @@ class Build:
         self._pretty_name = None
         self._marker = '.'
         self._line = '-'
+        self.cache = {}
 
     def copy(self):
         return copy.copy(self)
@@ -104,11 +105,14 @@ class Build:
                 type_results.append(t+':'+(','.join(str_results)))
             f.write(','.join(v) + "={" + '},{'.join(type_results) + "}\n")
         f.close()
+        self.cache[filename] = all_results
 
     def load_results(self, testie):
         filename = self.__resultFilename(testie)
         if not Path(filename).exists():
             return None
+        if filename in self.cache:
+            return self.cache[filename]
         f = open(filename, 'r')
         all_results = {}
         try:
