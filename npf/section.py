@@ -481,6 +481,7 @@ class SectionConfig(SectionVariable):
         self.__add_list("graph_display_statics", [])
         self.__add_list("graph_variables_as_series", [])
         self.__add_dict('graph_result_as_variable',{})
+        self.__add_dict('graph_map', {})
         self.__add("graph_subplot_type", "subplot")
         self.__add("graph_max_series", None)
         self.__add("graph_series_prop",False)

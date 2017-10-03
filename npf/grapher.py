@@ -73,6 +73,24 @@ def find_base(ax):
     return base
 
 
+class Map(dict):
+    def __init__(self, fname):
+        super().__init__()
+        f = open(fname, 'r')
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith('//') or line.startswith('#'):
+                continue
+            k,v = line.split(':',1)
+            self[re.compile(k.strip())] = v.strip()
+
+    def search(self, map_v):
+        for k,v in self.items():
+            if re.match(k,map_v):
+                return v
+        return None
+
+
 class Grapher:
     def __init__(self):
         self.scripts = set()
@@ -411,6 +429,29 @@ class Grapher:
                     transformed_series.append((testie, nbuild, data))
 
             series = transformed_series
+
+        #Map and combine variables values
+        for map_k, fmap in self.configdict('graph_map',{}).items():
+            print(map_k,fmap)
+            fmap = Map(fmap)
+            transformed_series = []
+            for i, (testie, build, all_results) in enumerate(series):
+                new_results={}
+                for run, run_results in all_results.items():
+                    if not map_k in run:
+                        continue
+                    map_v = run[map_k]
+                    new_v = fmap.search(map_v)
+                    if new_v:
+                        run[map_k] = new_v
+                        if run in new_results:
+                            for result_type, results in new_results[run].items():
+                                results += run_results[result_type]
+                        else:
+                            new_results[run] = run_results
+                transformed_series.append((testie, build, new_results))
+            series = transformed_series
+
 
         versions = []
         vars_all = set()
