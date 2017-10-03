@@ -7,7 +7,7 @@ from orderedset._orderedset import OrderedSet
 
 from collections import OrderedDict
 from typing import List
-from matplotlib.ticker import LinearLocator, ScalarFormatter, Formatter
+from matplotlib.ticker import LinearLocator, ScalarFormatter, Formatter, MultipleLocator
 import matplotlib
 import numpy as np
 
@@ -362,8 +362,11 @@ class Grapher:
                 vars_values[var_name] = vvalues
             series = transformed_series
 
-        if self.config('graph_series_prop'):
+        prop = self.config('graph_series_prop')
+        if prop:
             newseries = []
+            if not is_numeric(prop):
+                prop=1
             base_results=series[0][2]
             for i, (script, build, all_results) in enumerate(series[1:]):
                 new_results={}
@@ -381,7 +384,7 @@ class Grapher:
                             base = base[:len(results)]
                         elif len(results) > len(base):
                             results = results[:len(base)]
-                        results = results / base
+                        results = results / base * prop
                         run_results[result_type] = results
                     new_results[run] = run_results
                 newseries.append((script, build, new_results))
@@ -629,12 +632,25 @@ class Grapher:
                     else:
                         shift = 0
 
+                gcolor = self.configlist('graph_color')
+                gi = {} #Index per-color
                 for i, (x, y, e, build) in enumerate(data):
-                    if shift == 0:
+                    if not gcolor and shift == 0:
                         build._color=graphcolorseries[0][i % len(graphcolorseries[0])]
                     else:
-                        n = len(graphcolorseries[shift]) / (len(data) + 1)
-                        build._color=graphcolorseries[shift][(i + 1) * int(n)]
+                        if gcolor:
+                            s=gcolor[i]
+                            tot = gcolor.count(s) + 1
+                        else:
+                            s=shift
+                            tot = len(data) + 1
+                        gi.setdefault(s,0)
+                        slen = len(graphcolorseries[s])
+                        n = slen / tot
+                        f = int((gi[s] + 1) * n)
+                        print(i,f,slen)
+                        gi[s]+=1
+                        build._color=graphcolorseries[s][f]
 
 
 
@@ -699,8 +715,9 @@ class Grapher:
 
                 xticks = self.scriptconfig("var_ticks", key, default=None)
                 if xticks:
+                    if isLog:
+                        plt.gca().xaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
                     plt.xticks([variable.get_numeric(x) for x in xticks.split('+')])
-
 
                 plt.xlabel(self.var_name(key))
 
@@ -812,15 +829,18 @@ class Grapher:
             order = np.argsort(ax)
 
             ax = [ax[i] for i in order]
-            y = [y[i] for i in order]
-            e = [e[i] for i in order]
+            y = np.array([y[i] for i in order])
+            e = np.array([e[i] for i in order])
 
 
             lab = build.pretty_name()
             while lab.startswith('_'):
                 lab = lab[1:]
             axis.plot(ax, y, label=lab, color=c, linestyle=build._line, marker=build._marker)
-            axis.errorbar(ax, y, yerr=e, marker=' ', label=None, linestyle=' ', color=c, capsize=3)
+            if not self.config('graph_error_fill'):
+                axis.errorbar(ax, y, yerr=e, marker=' ', label=None, linestyle=' ', color=c, capsize=3)
+            else:
+                axis.fill_between(ax, y-e, y+e, color=c, alpha=.4, linewidth=0)
             xmin = min(xmin, min(ax))
             xmax = max(xmax, max(ax))
 
@@ -842,7 +862,7 @@ class Grapher:
             #         if (xmax > 0):
             #             xmax = int(math.ceil(xmax / base)) * base
             #
-            # plt.gca().set_xlim(xmin, xmax)
+                axis.set_xlim(xmin, xmax)
 
 
     def set_axis_formatter(self, axis, format, unit, isLog, compact=False):
@@ -910,7 +930,8 @@ class Grapher:
             plt.ylabel(yname)
 
         if yticks:
-            plt.yticks([variable.get_numeric(y) for y in yticks.split('+')])
+            ticks = [variable.get_numeric(y) for y in yticks.split('+')]
+            plt.yticks(ticks)
 
     def do_barplot(self, axis,vars_all, dyns, result_type, data, shift):
         nseries = len(data)

@@ -6,12 +6,12 @@ default_repo=fastclick
 n_runs=3
 var_lim={NWP:0-16,NTHREADS:0-16,result-THROUGHPUT:0-10000000000,result-Perf:0-100}
 var_unit={LATENCY:us,DROPPED:packets,result-THROUGHPUT:BPS,result-TX:BPS}
-var_names={GEN_LENGTH:Packet length,TODEV_THREAD:Output thread,result-THROUGHPUT:Throughput,result-TX:PktGen Throughput,result-PPS:PPS,result-DROPPED:Dropped,result-LATENCY:Latency,result-LOSS:Percentage,NTHREADS:Number of threads,NWP:Number of processing stages}
+var_names={GEN_LENGTH:Packet length,TODEV_THREAD:Output thread,result-THROUGHPUT:Throughput,result-TX:PktGen Throughput,result-PPS:PPS,result-DROPPED:Dropped,result-LATENCY:Latency,result-LOSS:Percentage,NTHREADS:Number of logical cores,NWP:Number of processing stages,RATE:Emitter rate,RXDESC:Input queue size}
+var_unit+={PPS:Packets/s,result-LATENCY:us,RATE:Packets/s}
+var_names+={result-LATENCY:Latency (µs)}
+
 //,W:Amount of pseudo-random numbers computed per processing stage}
-prop:var_names={result-PPS:PPS improvement over pipelining}
 accept_zero={DROPPED}
--vary:graph_subplot_results={LATENCY,DROPPED,THROUGHPUT,PPS,TX:common}
-title=L2 Forwarding on Monster, RSS and Workload test
 //graph_variables_as_series={NWP}
 perf:graph_result_as_variable={PERF-(.*):Perf}
 -vary:graph_series_sort=-avg
@@ -20,15 +20,32 @@ vary:require_tags={fastclick-next}
 -prop,vary:var_log={PPS,LATENCY,THROUGHPUT}
 var_log={result-LATENCY,S}
 var_log_base={W:4}
-var_grid={PPS}
-prop:var_divider={result-PPS:100}
-prop:graph_series_prop=True
-ppsm:var_divider={result-PPS:1000000}
+-dual:var_grid={PPS,result-LATENCY}
+dual:var_grid={PPS}
+
+prop:var_names+={result-PPS:Throughput,result-LATENCY:Latency penalty}
+prop:graph_series_prop=100
+prop:var_log={PPS,LATENCY}
+prop:var_unit={RATE: }
+prop:var_format+={PPS:%d%%,RATE:%d%%,LATENCY:%d%%}
+
+rate:var_format+={RATE:%dM}
+rate:var_divider+={RATE:1000000}
+ppsm:var_divider+={result-PPS:1000000}
 ppsm:var_format+={result-PPS:%dM}
-//vary,-prop:var_lim={PPS:0-10000000}
+//var_divider+={result-LATENCY:1000000}
 results_expect={PPS}
+
+//Dual axis
 dual:graph_subplot_results={PPS+LATENCY:common}
 dual:graph_subplot_type=axis
+//Two graphSide by side
+sidebyside:legend_loc=outer lower center
+sidebyside:graph_subplot_results={PPS+LATENCY:2}
+
+selfthread:var_log={PPS,LATENCY}
+selfthread:legend_ncol=2
+//selfthread:graph_variables_as_series=NWP
 
 %variables
 -campus:GEN_LENGTH=64
@@ -47,24 +64,39 @@ vary:R={0,50,100}
 vary:P={true,false}
 vary:W={1}
 vary:WP=WP
--vary:WAP=checksum
+-vary:WP=checksum
 pipeline:block=true
 NODISPATCH=1
 dispatch:NODISPATCH=0
 
+selfthread:NTHREADS=2
+selfthread:P=false
+selfthread:S=2
+selfthread:N=100
+selfthread:R=0
+selfthread:W=1
+
+rate:RATE={1000,10000,100000,1000000,10000000}
+
+half:RXDESC=128
+manualrx:RXDESC=256
+
 %late_variables
+-half,-manualrx:RXDESC=256
 back:B=1
 -back:B=0
--dispatch:NTHREADS=EXPAND( $(( $NWP )) )
-dispatch:NTHREADS=EXPAND( $(( $NWP + 1 )) )
-dispatch,dualdispatch:NTHREADS=EXPAND( $(( $NWP + 2 )) )
+-selfthread,-dispatch:NTHREADS=EXPAND( $(( $NWP )) )
+-selfthread,dispatch:NTHREADS=EXPAND( $(( $NWP + 1 )) )
+-selfthread,dispatch,dualdispatch:NTHREADS=EXPAND( $(( $NWP + 2 )) )
 checksum:WP=Strip(14) -> check :: CheckIPHeader -> set :: SetIPChecksum -> Unstrip(14)
 vary:WP=EXPAND(WorkPackage(S $S, N $N, R $R, PAYLOAD $P, W $W))
 bin=32
 pipeline:TODEV_THREAD=EXPAND( $(( (1 - $B) * ( $NTHREADS - 1 ) )) )
 
-%-softduplicate,-pipeline:late_variables
-todevthread=[0-15]
+
+//Parallel approach
+%parallel:late_variables
+todevthread=[0-31]
 
 perf:PERF_OPT=EXPAND( --cpu 0-$(( $NTHREADS - 1 )) )
 
@@ -77,11 +109,12 @@ WORK2=HEAD($NWP, $ALLWORK2)
 ALLWORK2=
 
 //******************** Late variables for softduplicate **************
+//Software parallel approach
 %softduplicate:late_variables
 
 NOFFLOADER=EXPAND( $(( $NTHREADS - 1 if $NTHREADS > 1 else 1  )) )
 
-todevthread=[0-15]
+todevthread=[0-31]
 ALLELEMENTCONNECTIONS=EXPAND(to_eth1_$todevthread :: ToDPDKDevice(${dut:0:pci}, BLOCKING true); to_eth2_$todevthread :: ToDPDKDevice(${dut:1:pci}, BLOCKING true); rr1[$todevthread] -> Offloader( $(( $todevthread + 1 if $NTHREADS > 1 else 0 )) ) -> to_eth2_$todevthread; rr2[$todevthread] -> Offloader(  $(( $todevthread + 1 if $NTHREADS > 1 else 0 ))  ) -> to_eth1_$todevthread; )
 ELEMENTCONNECTIONS=HEAD($NOFFLOADER, $ALLELEMENTCONNECTIONS)
 NOFFLOADER=
@@ -103,7 +136,7 @@ ALLCOUNTPRINTS=
 
 %pipeline:late_variables
 //For pipeline, put WorkPack on thread 1 with one thread,  1 1 1 2 2 2 with 4, ... up to 0 1 2 3 when using 14. If nodispatch, start at 0
-nworker=[0-15]
+nworker=[0-31]
 dispatch:FROMALLWORK1=EXPAND( -> [0]from_work1_$nworker :: WorkPack( $(( int(floor($nworker / ($NWP / ($NTHREADS - 1 ) ) ) + 1 ) if $NTHREADS > 1 else 0 )) ) [0]  )
 dualdispatch:FROMALLWORK1=EXPAND( -> [0]from_work1_$nworker :: WorkPack( $(( int(floor($nworker / ($NWP / ($NTHREADS - 2 ) ) ) + 1 ) if $NTHREADS > 1 else 0 )) ) [0]  )
 -dispatch:FROMALLWORK1=EXPAND( -> [0]from_work1_$nworker :: WorkPack( $(( int(floor($nworker / ($NWP / $NTHREADS) ) ) )) ) [0]  )
@@ -114,15 +147,25 @@ FROMALLWORK2=EXPAND( -> [1]from_work1_$nworker[1]  )
 FROMWORK2=HEAD($NWP, $FROMALLWORK2)
 FROMALLWORK2=
 
+
+%-parallel,-pipeline:require
+echo "Please choose an approach !"
+exit -1
+
+%require
+[ $NWP -le 32 ]
+//Unsupported above 32
+
 %import@dut dpdk-bind NIC=0
 %import@dut dpdk-bind NIC=1
 %import@client dpdk-bind NIC=0
 %import@client dpdk-bind NIC=1
 
 %perf:import@dut perf-functions delay=10
-%-perf,-campus:import@client fastclick-udpgen-latency-single delay=6 GEN_REPLAY=20 LIMIT=1000000
+%-perf,-campus,-rate:import@client fastclick-udpgen-latency-single delay=6 GEN_REPLAY=20 LIMIT=1000000
+%-perf,-campus,rate:import@client fastclick-udpgen-latency-single delay=6
+
 %campus:import@client fastclick-replay-dual 0:ip=139.165.0.1 1:ip=10.10.10.1 traceIN=/mnt/traces/201601-1_fullanon_padded.pcap traceOUT=/mnt/traces/201601-2_fullanon_padded.pcap NBUF=5000000 delay=6
-%perf,-campus:import@client fastclick-udpgen-latency-single delay=6 GEN_REPLAY=100 LIMIT=1000000
 //%perf:import@client fastclick-udpgen-single delay=6
 
 %script@dut sudo=true
@@ -147,8 +190,8 @@ elementclass WorkPack {
 
 
 
-from_eth1 :: FromDPDKDevice(${dut:0:pci}, PROMISC false, MAXTHREADS $NTHREADS, THREADOFFSET 0, VERBOSE 3, BURST $bin);
-from_eth2 :: FromDPDKDevice(${dut:1:pci}, PROMISC false, MAXTHREADS $NTHREADS, THREADOFFSET 0, VERBOSE 3, BURST $bin);
+from_eth1 :: FromDPDKDevice(${dut:0:pci}, PROMISC false, MAXTHREADS $NTHREADS, THREADOFFSET 0, VERBOSE 3, BURST $bin, NDESC $RXDESC);
+from_eth2 :: FromDPDKDevice(${dut:1:pci}, PROMISC false, MAXTHREADS $NTHREADS, THREADOFFSET 0, VERBOSE 3, BURST $bin, NDESC $RXDESC);
 to_eth1 :: ToDPDKDevice(${dut:0:pci}, BLOCKING true);
 to_eth2 :: ToDPDKDevice(${dut:1:pci}, BLOCKING true);
 from_eth1 $WORK -> EtherRewrite(SRC ${dut:1:mac}, DST ${client:1:mac}) -> to_eth2; 
@@ -161,12 +204,12 @@ DriverManager(wait, print "DROPPED $(from_eth1.hw_dropped) , $(from_eth2.hw_drop
 //*************************** Soft RSS **********************
 %softduplicate:file@dut CONFIG
 
-from_eth1 :: FromDPDKDevice(${dut:0:pci}, PROMISC true);
+from_eth1 :: FromDPDKDevice(${dut:0:pci}, PROMISC true, NDESC $RXDESC);
 //to_eth1 :: Pipeliner($QSIZE,BLOCKING $block) -> ToDPDKDevice(${dut:0:pci}, BLOCKING true);
 //StaticThreadSched(to_eth1 $TODEV_THREAD)
 //to_eth1 :: ToDPDKDevice(${dut:0:pci}, BLOCKING true);
 
-from_eth2 :: FromDPDKDevice(${dut:1:pci}, PROMISC true);
+from_eth2 :: FromDPDKDevice(${dut:1:pci}, PROMISC true, NDESC $RXDESC);
 //to_eth2 :: Pipeliner($QSIZE,BLOCKING $block) -> ToDPDKDevice(${dut:1:pci}, BLOCKING true);
 //StaticThreadSched(to_eth2 $TODEV_THREAD)
 //to_eth2 :: ToDPDKDevice(${dut:1:pci}, BLOCKING true);
@@ -194,12 +237,12 @@ DriverManager(wait $COUNTPRINTS);
 //************************ Pipeline *****************************
 %pipeline:file@dut CONFIG
 
-from_eth1 :: FromDPDKDevice(${dut:0:pci}, PROMISC false, BURST $bin, THREADOFFSET 0, MAXTHREADS 1, VERBOSE 3);
+from_eth1 :: FromDPDKDevice(${dut:0:pci}, PROMISC false, BURST $bin, THREADOFFSET 0, MAXTHREADS 1, VERBOSE 3, NDESC $RXDESC);
 to_eth1 :: Pipeliner($QSIZE) -> EtherRewrite(SRC ${dut:0:mac}, DST ${client:0:mac}) -> ToDPDKDevice(${dut:0:pci}, BLOCKING true);
 StaticThreadSched(to_eth1 $TODEV_THREAD)
 //to_eth1 :: ToDPDKDevice(${dut:0:pci}, BLOCKING true);
 
-from_eth2 :: FromDPDKDevice(${dut:1:pci}, PROMISC false, BURST $bin, THREADOFFSET 0, MAXTHREADS 1, VERBOSE 3);
+from_eth2 :: FromDPDKDevice(${dut:1:pci}, PROMISC false, BURST $bin, THREADOFFSET 0, MAXTHREADS 1, VERBOSE 3, NDESC $RXDESC);
 to_eth2 :: Pipeliner($QSIZE) -> EtherRewrite(SRC ${dut:1:mac}, DST ${client:1:mac}) ->   ToDPDKDevice(${dut:1:pci}, BLOCKING true);
 StaticThreadSched(to_eth2 $TODEV_THREAD)
 //to_eth2 :: ToDPDKDevice(${dut:1:pci}, BLOCKING true);

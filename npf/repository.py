@@ -164,7 +164,12 @@ class Repository:
         self.name = None
         self._current_build = None
 
-        overwrite_name = repo.split(':')
+        version = repo.split('@')
+        if len(version) > 1:
+            self.version=version[1]
+        else:
+            self.version=None
+        overwrite_name = version[0].split(':')
         add_tags = overwrite_name[0].split('+')
         overwrite_branch = add_tags[0].split('/')
 
@@ -303,7 +308,10 @@ class Repository:
         return self.get_bin_folder(version) + bin_name
 
     def get_last_build(self, history: int = 1, stop_at: Build = None, with_results=False, force_fetch=False) -> Build:
-        versions = self.method.get_last_versions(100, force_fetch=force_fetch)
+        if self.version:
+            versions = [self.version]
+        else:
+            versions = self.method.get_last_versions(100, force_fetch=force_fetch)
 
         last_build = None
         for i, version in enumerate(versions):
