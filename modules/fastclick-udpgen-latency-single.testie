@@ -22,10 +22,20 @@ GEN_BLOCKING=true
 GEN_REPLAY=1
 GEN_INIT_WAIT=5
 GEN_THREADS=4 //Change not supported as of now
-LIMIT=1000000
+-rate:LIMIT=1000000
+rate:RATE=1000
 
 %late_variables
+rate:LIMIT=EXPAND( $(( $RATE * 10 if $RATE < 100000 else 1000000 )) )
 NBBUF=EXPAND( $(( (($LIMIT + ($GEN_BURST * 2) ) * $GEN_THREADS ) + 8192 )) )
+
+REPLAY=ReplayUnqueue
+PULL=
+PULLASSIGN=Idle -> puller::Null -> Discard;
+rate:REPLAY=Replay
+rate:PULL=EXPAND( -> puller :: RatedUnqueue( $(( int($RATE / $GEN_THREADS) )) ) )
+rate:PULLASSIGN=
+
 NG=[0-3]
 LAUNCH_CODE=EXPAND( write gen0/rcv$NG/avg.reset, write gen0/gen$NG/sndavg.reset, write gen0/gen$NG/replay.stop $replay_count, write gen0/gen$NG/replay.active true, )
 LAUNCH_CODE=HEAD($GEN_THREADS, $LAUNCH_CODE)
@@ -54,15 +64,18 @@ elementclass Numberise { $magic |
     input-> Strip(14) -> check :: CheckIPHeader -> StoreData(36,$magic) ->  nPacket :: NumberPacket(40) -> SetIPChecksum -> Unstrip(14) -> output
 }
 
-elementclass Generator { $NUM, $srcmac, $dstmac, $srcip, $dstip |
+elementclass Generator { $NUM, $srcmac, $dstmac, $srcip, $dstip, $th |
     fastudp :: FastUDPFlows(RATE 0, LIMIT $LIMIT, LENGTH $GEN_LENGTH, SRCETH $srcmac, DSTETH $dstmac, SRCIP $srcip, DSTIP $dstip, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST)
     -> MarkMACHeader
 	-> Numberise(\<123400>$NUM)
     -> EnsureDPDKBuffer
-    -> replay :: ReplayUnqueue(STOP 0, QUICK_CLONE true)
+    -> replay :: $REPLAY(STOP 0, QUICK_CLONE true)
+$PULL
     -> rt :: RecordTimestamp(N $LIMIT, OFFSET 54)
     -> sndavg :: AverageCounter() //Single thread here
     -> output;
+$PULLASSIGN
+    StaticThreadSched(replay $th,puller $th);
 }
 
 elementclass Receiver { $rt |
@@ -80,15 +93,10 @@ elementclass Receiver { $rt |
 elementclass MultiThreadGenerator { $port, $outPort, $srcmac, $dstmac, $outSrcmac, $srcip, $dstip |
     tdOUT::ToDPDKDevice($port, BLOCKING $GEN_BLOCKING);
 
-    gen0 :: Generator(\<01>, $srcmac, $dstmac, $srcip, $dstip) -> tdOUT;
-    gen1 :: Generator(\<02>, $srcmac, $dstmac, $srcip, $dstip) -> tdOUT;
-    gen2 :: Generator(\<03>, $srcmac, $dstmac, $srcip, $dstip) -> tdOUT;
-    gen3 :: Generator(\<04>, $srcmac, $dstmac, $srcip, $dstip) -> tdOUT;
-
-    StaticThreadSched(gen0/replay 0)
-    StaticThreadSched(gen1/replay 1)
-    StaticThreadSched(gen2/replay 2)
-    StaticThreadSched(gen3/replay 3)
+    gen0 :: Generator(\<01>, $srcmac, $dstmac, $srcip, $dstip, 0) -> tdOUT;
+    gen1 :: Generator(\<02>, $srcmac, $dstmac, $srcip, $dstip, 1) -> tdOUT;
+    gen2 :: Generator(\<03>, $srcmac, $dstmac, $srcip, $dstip, 2) -> tdOUT;
+    gen3 :: Generator(\<04>, $srcmac, $dstmac, $srcip, $dstip, 3) -> tdOUT;
 
     fd :: FromDPDKDevice($outPort, MAC $outSrcmac, PROMISC false, VERBOSE 99)
     -> c0 :: Classifier(12/0806 20/0001,
