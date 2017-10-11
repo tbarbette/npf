@@ -75,20 +75,21 @@ def find_base(ax):
     return base
 
 
-class Map(dict):
+class Map(OrderedDict):
     def __init__(self, fname):
         super().__init__()
-        f = open(fname, 'r')
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith('//') or line.startswith('#'):
-                continue
-            k,v = line.split(':',1)
-            self[re.compile(k.strip())] = v.strip()
+        for fn in fname.split('+'):
+            f = open(fn, 'r')
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('//') or line.startswith('#'):
+                    continue
+                k,v = [x.strip() for x in line.split(':',1)]
+                self[re.compile(k)] = v
 
     def search(self, map_v):
         for k,v in self.items():
-            if re.match(k,map_v):
+            if re.search(k,map_v):
                 return v
         return None
 
@@ -312,6 +313,18 @@ class Grapher:
                 print("No valid data for %s" % build)
         series = filtered_series
 
+
+        #If graph_series_as_variables, take the series and make them as variables
+        if self.config_bool('graph_series_as_variables',False):
+            new_results = {}
+            vars_values['serie'] = set()
+            for i, (testie, build, all_results) in enumerate(series):
+                for run, run_results in all_results.items():
+                    run.variables['serie'] = build.pretty_name()
+                    vars_values['serie'] = build.pretty_name()
+                    new_results[run] = run_results
+            series = [(testie, build, new_results)]
+
         # Transform results to variables as the graph_result_as_variable config
         #  option. It is a dict in the format
         #  a+b+c:var_name
@@ -346,15 +359,30 @@ class Grapher:
                             new_run_results_exp[match] = results
                         else:
                             new_run_results[result_type] = results
-
                     if len(new_run_results_exp) > 0:
+                        u = self.scriptconfig("var_unit", var_name, default="")
+                        mult = u == 'percent' or u == '%'
+                        if mult:
+                            tot = 0
+                            for result_type, results in new_run_results_exp.items():
+                                tot += np.mean(results)
+                            if tot <= 99:
+                                new_run_results_exp['Other'] = [100-tot]
+
                         for result_type, results in new_run_results_exp.items():
                             variables = run.variables.copy()
                             variables[var_name] = result_type
                             vvalues.add(result_type)
                             nr = new_run_results.copy()
+                            #If unit is percent, we multiply the value per the result
+                            if mult:
+                                m = np.mean(results)
+                                tot += m
+                                for result_type in nr:
+                                    nr[result_type] = nr[result_type].copy() * m / 100
                             nr.update({'result-'+var_name: results})
                             new_results[Run(variables)] = nr
+
                     else:
                         new_results[run] = new_run_results
 
@@ -437,23 +465,30 @@ class Grapher:
 
         #Map and combine variables values
         for map_k, fmap in self.configdict('graph_map',{}).items():
-            print(map_k,fmap)
             fmap = Map(fmap)
             transformed_series = []
             for i, (testie, build, all_results) in enumerate(series):
                 new_results={}
                 for run, run_results in all_results.items():
-                    if not map_k in run:
+                    if not map_k in run.variables:
+                        new_results[run] = run_results
                         continue
-                    map_v = run[map_k]
+                    map_v = run.variables[map_k]
                     new_v = fmap.search(map_v)
                     if new_v:
-                        run[map_k] = new_v
+                        if map_v in vars_values[map_k]:
+                            vars_values[map_k].remove(map_v)
+                        run.variables[map_k] = new_v
+                        vars_values[map_k].add(new_v)
                         if run in new_results:
                             for result_type, results in new_results[run].items():
-                                results += run_results[result_type]
+                                nr = run_results[result_type]
+                                for i in range(min(len(results),len(nr))):
+                                    results[i] += nr[i]
                         else:
                             new_results[run] = run_results
+                    else:
+                        new_results[run] = run_results
                 transformed_series.append((testie, build, new_results))
             series = transformed_series
 
@@ -519,7 +554,7 @@ class Grapher:
                 for run, run_results in all_results.items():
                     #                    if (graph_variables and not run in graph_variables):
                     #                        continue
-                    if (run.variables[key] == value):
+                    if run.variables[key] == value:
                         newrun = run.copy()
                         del newrun.variables[key]
                         newserie[newrun] = run_results
@@ -640,15 +675,21 @@ class Grapher:
                     else:
                         if gcolor:
                             s=gcolor[i]
-                            tot = gcolor.count(s) + 1
+                            tot = gcolor.count(s)
                         else:
                             s=shift
-                            tot = len(data) + 1
+                            tot = len(data)
                         gi.setdefault(s,0)
                         slen = len(graphcolorseries[s])
                         n = slen / tot
-                        f = int((gi[s] + 1) * n)
-                        print(i,f,slen)
+                        if n < 0:
+                            n = 1
+                        print(slen,n)
+                        #For the default colors we take them in order
+                        if s == 0:
+                            f = gi[s]
+                        else:
+                            f = round((gi[s] + (0.33 if gi[s] < tot / 2 else 0.66)) * n)
                         gi[s]+=1
                         build._color=graphcolorseries[s][f]
 
@@ -948,17 +989,33 @@ class Grapher:
             edgecolor = None
             interbar = 0.1
 
-        width = (1 - (2 * interbar)) / len(data)
-        ind = np.arange(len(vars_all))
+        stack = self.config_bool('graph_bar_stack')
+        n_series = len(vars_all)
+        bars_per_serie = 1 if stack else len(data)
+        ind = np.arange(n_series)
 
-        for i, (x, y, e, build) in enumerate(data):
-            axis.bar(interbar + ind + (i * width), y, width,
+        width = (1 - (2 * interbar)) / bars_per_serie
+        if stack:
+            last = 0
+            for i, (x, y, e, build) in enumerate(data):
+                y = np.asarray([0.0 if np.isnan(x) else x for x in y])
+                last = last + y
+
+            for i, (x, y, e, build) in enumerate(data):
+                y = np.asarray([0.0 if np.isnan(x) else x for x in y])
+                axis.bar(ind, last, width,
+                    label=str(build.pretty_name()), color=build._color, yerr=e,
+                    edgecolor=edgecolor)
+                last = last - y
+        else:
+            for i, (x, y, e, build) in enumerate(data):
+                axis.bar(interbar + ind + (i * width), y, width,
                     label=str(build.pretty_name()), color=build._color, yerr=e,
                     edgecolor=edgecolor)
 
         ss = self.combine_variables(vars_all, dyns)
 
         if not bool(self.config_bool('graph_x_label', True)):
-            ss = ["" for i in range(len(vars_all))]
-        plt.xticks(interbar + ind + (width * len(data) / 2.0), ss,
+            ss = ["" for i in range(n_series)]
+        plt.xticks(ind if stack else interbar + ind + (width * len(data) / 2.0), ss,
                    rotation='vertical' if (sum([len(s) for s in ss]) > 80) else 'horizontal')
