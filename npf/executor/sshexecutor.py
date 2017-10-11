@@ -72,10 +72,13 @@ class SSHExecutor:
                 ssh_stdin.channel.send(chr(3))
                 i=0
                 ssh_stdout.channel.status_event.wait(timeout=1)
+            ret = 0 #Ignore return code because we kill it before completion.
             ssh.close()
+        else:
+            ret = ssh_stdout.channel.recv_exit_status()
         out = ssh_stdout.read().decode()
         err = ssh_stderr.read().decode()
-        ret = ssh_stdout.channel.recv_exit_status()
+
 
         return pid,out,err,ret
 

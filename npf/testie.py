@@ -412,7 +412,7 @@ class Testie:
                     if r == -1:
                         sys.exit(1)
                     if c != 0:
-                        print("Bad return code for script %s on %s ! Something probably went wrong..." % (script.get_name(),script.get_role()))
+                        print("Bad return code (%d) for script %s on %s ! Something probably went wrong..." % (c,script.get_name(),script.get_role()))
                         if not self.options.quiet:
                             print("stdout:")
                             print(o)

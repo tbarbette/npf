@@ -5,7 +5,7 @@ Distribution approach study
 default_repo=fastclick
 n_runs=3
 var_lim={NWP:0-16,NTHREADS:0-16,result-THROUGHPUT:0-10000000000,result-Perf:0-100}
-var_unit={LATENCY:us,DROPPED:packets,result-THROUGHPUT:BPS,result-TX:BPS}
+var_unit={LATENCY:us,DROPPED:packets,result-THROUGHPUT:BPS,result-TX:BPS,result-perf:percent}
 var_names={GEN_LENGTH:Packet length,TODEV_THREAD:Output thread,result-THROUGHPUT:Throughput,result-TX:PktGen Throughput,result-PPS:PPS,result-DROPPED:Dropped,result-LATENCY:Latency,result-LOSS:Percentage,NTHREADS:Number of logical cores,NWP:Number of processing stages,RATE:Emitter rate,RXDESC:Input queue size}
 var_unit+={PPS:Packets/s,result-LATENCY:us,RATE:Packets/s}
 var_names+={result-LATENCY:Latency (µs)}

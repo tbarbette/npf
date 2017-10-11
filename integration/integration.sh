@@ -59,7 +59,9 @@ else
     python=python
 fi
 
-#try tests/tcp/01-iperf.testie $python
-#compare integration-01 $python
-#compare integration-02 $python
-compare_watcher $python
+try tests/tcp/01-iperf.testie $python
+compare integration-01 $python
+compare integration-02 $python
+compare timeout $python
+compare timeout-overwrite $python
+#compare_watcher $python
