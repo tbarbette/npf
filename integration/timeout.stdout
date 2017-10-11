@@ -1,0 +1,11 @@
+Executing testie timeout.testie
+Timeout test
+Executing init scripts...
+[] []
+ [1 runs for 1/0]
+Timeout expired for script 0 on None...
+stdout:
+
+stderr:
+
+No valid data for Build(repo = click-2017, version = bbec36c)

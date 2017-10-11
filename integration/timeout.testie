@@ -1,0 +1,12 @@
+%info
+Timeout test
+
+%config
+timeout=1
+n_runs=1
+
+%script
+sleep 3
+echo "RESULT 1"
+
+

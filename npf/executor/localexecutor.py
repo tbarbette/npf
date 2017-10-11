@@ -62,7 +62,7 @@ class LocalExecutor:
             p.stdout.close()
             if testdir is not None:
                 os.chdir(testdir)
-            return pid, s_output, s_err, 0 if terminated_event.is_set() else p.returncode
+            return pid, s_output, s_err, 0 if terminated_event and terminated_event.is_set() else p.returncode
         except TimeoutExpired:
             print("Test expired")
             p.terminate()
