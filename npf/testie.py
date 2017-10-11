@@ -154,6 +154,9 @@ class Testie:
             imp.testie = Module(imp.module, options, tags, imp.get_role())
             if len(imp.testie.variables.dynamics()) > 0:
                 raise Exception("Imports cannot have dynamic variables. Their parents decides what's dynamic.")
+            if 'as_init' in imp.params:
+                for script in imp.testie.scripts:
+                    script.init = True
             if 'delay' in imp.params:
                 for script in imp.testie.scripts:
                     delay = script.params.setdefault('delay', 0)
@@ -341,7 +344,10 @@ class Testie:
                         param.options = self.options
                         param.queue = queue
                         param.stdin = t.stdin.content
-                        param.timeout = t.config['timeout'] if t.config['timeout'] > 0 else None
+                        timeout = t.config['timeout'] if t.config['timeout'] > 0 else None
+                        if 'timeout' in script.params:
+                            timeout = float(script.params['timeout'])
+                        param.timeout = timeout
                         param.role = script.get_role()
                         param.default_role_map = self.config.get_dict("default_role_map")
                         param.delay = script.delay()
