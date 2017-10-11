@@ -75,6 +75,7 @@ def do_graph(filename,args,series):
         else:
             useful_variables.append(variable)
 
+    #Keep only the variables in Run that are usefull as defined above
     for i, (testie, build, dataset) in enumerate(series):
         ndataset = {}
         for run, results in dataset.items():

@@ -247,6 +247,9 @@ class Build:
     def get_bin_folder(self):
         return self.repo.get_bin_folder(self.version)
 
+    def __str__(self):
+        return "Build(repo = %s, version = %s)" % (self.repo,self.version)
+
     @staticmethod
     def get_current_version(repo):
         return Build.__read_file(Build.__get_build_version_path(repo))

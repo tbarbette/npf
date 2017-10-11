@@ -543,7 +543,7 @@ class Testie:
                 vs[k] = v.makeValues()[0]
             all_results, output, err, num_exec = self.execute(build, Run(vs), v=vs, n_runs=1, n_retry=0,
                                                               allowed_types={"init"}, do_imports=True,test_folder=test_folder)
-            print(output,err)
+
             num_ok = 0
             for result_type, results in all_results.items():
                 for n in results:

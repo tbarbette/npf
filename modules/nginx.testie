@@ -14,7 +14,7 @@ mkdir -p nginx
 mkdir -p $NGINX_ROOT
 echo "RESULT 1"
 
-%script sudo=true
+%script sudo=true name=nginx
 killall -9 nginx &> /dev/null || true
 sleep 1
 nginx -c $(pwd)/nginx.conf -p $(pwd)

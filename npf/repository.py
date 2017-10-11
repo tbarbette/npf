@@ -360,6 +360,9 @@ class Repository:
             return build.version
         return Build.get_current_version(self)
 
+    def __str__(self):
+        return self.get_reponame()
+
     @classmethod
     def get_instance(cls, dep, options):
         if dep in cls._repo_cache:

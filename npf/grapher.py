@@ -47,6 +47,8 @@ graphcolorseries = [graphcolor]
 graphcolorseries.append(hexToList("#144c73 #185a88 #1b699e #1f77b4 #2385ca #2b93db #419ede"))
 graphcolorseries.append(hexToList("#1c641c #217821 #278c27 #2ca02c #32b432 #37c837 #4bce4b"))
 graphcolorseries.append(hexToList("#c15a00 #da6600 #f47200 #ff7f0e #ff8d28 #ff9a41 #ffa85b"))
+graphcolorseries.append(hexToList("#951b1c #ab1f20 #c02324 #d62728 #db3b3c #df5152 #e36667"))
+graphcolorseries.append(hexToList("#6e4196 #7b49a8 #8755b5 #9467bd #a179c5 #ad8bcc #ba9cd4"))
 
 gridcolors = [ (0.7,0.7,0.7) ]
 legendcolors = [ None ]
@@ -243,7 +245,7 @@ class Grapher:
         for i, (testie, build, all_results) in enumerate(series):
             self.scripts.add(testie)
 
-
+        #Overwrite markers and lines from user
         graphmarkers = self.configlist("graph_markers")
         self.graphlines = self.configlist("graph_lines")
 
@@ -332,7 +334,7 @@ class Grapher:
                 for run, run_results in all_results.items():
                     new_run_results = {}
                     new_run_results_exp = {}
-                    nodata = True
+
                     for result_type, results in run_results.items():
                         match = False
                         for stripout in result_to_variable_map:
@@ -557,8 +559,6 @@ class Grapher:
         graph_series_label = self.config("graph_series_label")
         if graph_series_label:
             for i, (testie, build, all_results) in enumerate(series):
-                print(statics)
-                print(graph_series_label)
                 v = {}
                 v.update(statics)
                 v.update(build.statics)
