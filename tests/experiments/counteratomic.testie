@@ -1,10 +1,10 @@
 %info
 
 %config
-var_unit={PPS:packets,OPPS:operations}
-var_divider={PPS:1000000,OPPS:1000000,GEN:1000000,LOST:1000000}
-var_format={PPS:%dMPps,OPPS:%dM,LOST:%dM}
-var_name={PPS:PPS,OPPS:Operations per seconds,COUNTER:Counter type,RATE:Amount of reads per write,CPU:Cores,LOST:Uncounted packets}
+var_unit={PPS:packets}
+var_divider={PPS:1000000,OPPS:1000000,GEN:1000000,LOST:1000000,ROPPS:1000000,LOSTRATE:1000000}
+var_format={PPS:%dMPps,OPPS:%dM,LOST:%dM,ROPPS:%dM,LOSTRATE:%dM}
+var_name={PPS:PPS,OPPS:Operations per seconds,COUNTER:Counter type,RATE:Amount of reads per write,CPU:Cores,LOST:Uncounted packets,ROPPS:Operations per seconds,LOSTRATE:Packets unaccounted for per seconds}
 paper:graph_markers={}
 //graph_combine_variable={ATOMIC+COUNTER}
 paper:graph_series_sort=-avg
@@ -104,6 +104,9 @@ d :: DriverManager(
     print "RESULT-OPPS $(div $ops $ttime)",
     set tot $(add $COUNTS),
     print "RESULT-GEN $tot",
+    set rops $(mul $(div $tot $GEN_BURST) $(add $RATE 1)),
+    print "RESULT-ROPPS $(div $rops $ttime)",
     print "RESULT-LOST $(sub $tot $(cnt.count))",
+    print "RESULT-LOSTRATE $(div $(sub $tot $(cnt.count)) $ttime)",
 )
 StaticThreadSched(d $CPU)

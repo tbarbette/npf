@@ -1,25 +1,26 @@
 Executing testie integration-02.testie
 Integration Test
-BURST = 32, LENGTH = 1
+Executing init scripts...
+BURST = 32, LENGTH = 1 [3 runs for 1/11]
 [32.0, 32.0, 32.0]
-BURST = 32, LENGTH = 2
+BURST = 32, LENGTH = 2 [3 runs for 2/11]
 [32.0, 32.0, 32.0]
-BURST = 32, LENGTH = 4
+BURST = 32, LENGTH = 4 [3 runs for 3/11]
 [32.0, 32.0, 32.0]
-BURST = 32, LENGTH = 8
+BURST = 32, LENGTH = 8 [3 runs for 4/11]
 [32.0, 32.0, 32.0]
-BURST = 32, LENGTH = 16
+BURST = 32, LENGTH = 16 [3 runs for 5/11]
 [32.0, 32.0, 32.0]
-BURST = 32, LENGTH = 32
+BURST = 32, LENGTH = 32 [3 runs for 6/11]
 [32.0, 32.0, 32.0]
-BURST = 32, LENGTH = 64
+BURST = 32, LENGTH = 64 [3 runs for 7/11]
 [32.0, 32.0, 32.0]
-BURST = 32, LENGTH = 128
+BURST = 32, LENGTH = 128 [3 runs for 8/11]
 [32.0, 32.0, 32.0]
-BURST = 32, LENGTH = 256
+BURST = 32, LENGTH = 256 [3 runs for 9/11]
 [32.0, 32.0, 32.0]
-BURST = 32, LENGTH = 512
+BURST = 32, LENGTH = 512 [3 runs for 10/11]
 [32.0, 32.0, 32.0]
-BURST = 32, LENGTH = 1024
+BURST = 32, LENGTH = 1024 [3 runs for 11/11]
 [32.0, 32.0, 32.0]
 Graph of test written to results/click-2017/bbec36c/integration-02BURST=32.pdf

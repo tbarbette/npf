@@ -154,6 +154,9 @@ class Testie:
             imp.testie = Module(imp.module, options, tags, imp.get_role())
             if len(imp.testie.variables.dynamics()) > 0:
                 raise Exception("Imports cannot have dynamic variables. Their parents decides what's dynamic.")
+            if 'as_init' in imp.params:
+                for script in imp.testie.scripts:
+                    script.init = True
             if 'delay' in imp.params:
                 for script in imp.testie.scripts:
                     delay = script.params.setdefault('delay', 0)
@@ -341,7 +344,10 @@ class Testie:
                         param.options = self.options
                         param.queue = queue
                         param.stdin = t.stdin.content
-                        param.timeout = t.config['timeout'] if t.config['timeout'] > 0 else None
+                        timeout = t.config['timeout'] if t.config['timeout'] > 0 else None
+                        if 'timeout' in script.params:
+                            timeout = float(script.params['timeout'])
+                        param.timeout = timeout
                         param.role = script.get_role()
                         param.default_role_map = self.config.get_dict("default_role_map")
                         param.delay = script.delay()
@@ -406,7 +412,7 @@ class Testie:
                     if r == -1:
                         sys.exit(1)
                     if c != 0:
-                        print("Bad return code for script %s on %s ! Something probably went wrong..." % (script.get_name(),script.get_role()))
+                        print("Bad return code (%d) for script %s on %s ! Something probably went wrong..." % (c,script.get_name(),script.get_role()))
                         if not self.options.quiet:
                             print("stdout:")
                             print(o)
@@ -543,7 +549,7 @@ class Testie:
                 vs[k] = v.makeValues()[0]
             all_results, output, err, num_exec = self.execute(build, Run(vs), v=vs, n_runs=1, n_retry=0,
                                                               allowed_types={"init"}, do_imports=True,test_folder=test_folder)
-            print(output,err)
+
             num_ok = 0
             for result_type, results in all_results.items():
                 for n in results:

@@ -1,0 +1,12 @@
+%info
+Timeout overwrite test
+
+%config
+timeout=1
+n_runs=1
+
+%script timeout=4
+sleep 3
+echo "RESULT 1"
+
+

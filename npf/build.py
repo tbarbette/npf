@@ -35,6 +35,7 @@ class Build:
         self._pretty_name = None
         self._marker = '.'
         self._line = '-'
+        self.cache = {}
 
     def copy(self):
         return copy.copy(self)
@@ -104,11 +105,14 @@ class Build:
                 type_results.append(t+':'+(','.join(str_results)))
             f.write(','.join(v) + "={" + '},{'.join(type_results) + "}\n")
         f.close()
+        self.cache[filename] = all_results
 
     def load_results(self, testie):
         filename = self.__resultFilename(testie)
         if not Path(filename).exists():
             return None
+        if filename in self.cache:
+            return self.cache[filename]
         f = open(filename, 'r')
         all_results = {}
         try:
@@ -141,6 +145,7 @@ class Build:
             print("Could not parse %s. The program will stop to avoid erasing data. Please correct or delete the file.\nLine %d : %s" % (filename,iline, line))
             raise
         f.close()
+        self.cache[filename] = all_results
         return all_results
 
     def hasResults(self, script=None):
@@ -241,6 +246,9 @@ class Build:
 
     def get_bin_folder(self):
         return self.repo.get_bin_folder(self.version)
+
+    def __str__(self):
+        return "Build(repo = %s, version = %s)" % (self.repo,self.version)
 
     @staticmethod
     def get_current_version(repo):

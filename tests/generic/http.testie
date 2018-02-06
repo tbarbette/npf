@@ -18,6 +18,6 @@ FILE_PATH=EXPAND(bin-${FSIZE}K)
 %import@client wrk HTTP_PORT=8088 delay=1
 %import@server nginx NGINX_PORT=8088
 
-%script@merry autokill=false
+%script@server autokill=false
 dd if=/dev/urandom of=${NGINX_ROOT}/bin-${FSIZE}K bs=1K count=$FSIZE
 

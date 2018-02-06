@@ -76,9 +76,10 @@ class Regression:
                 if not init_done:
                     testie.do_init_all(build=build, options=testie.options, do_test=testie.options.do_test)
                     init_done = True
-                if hasattr(testie, 'late_variables'):
-                    v = testie.late_variables.execute(v, testie)
-                new_results_types, output, err = testie.execute(build, run, v,
+                variables = v.copy()
+                for late_variables in testie.get_late_variables():
+                    variables.update(late_variables.execute(variables, self))
+                new_results_types, output, err, n_exec = testie.execute(build, run, variables,
                                                                 n_runs=testie.config["n_supplementary_runs"],
                                                                 allowed_types={SectionScript.TYPE_SCRIPT})
 

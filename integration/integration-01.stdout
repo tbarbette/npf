@@ -1,245 +1,246 @@
 Executing testie integration-01.testie
 Integration Test
-BURST = 1, LENGTH = 1
+Executing init scripts...
+BURST = 1, LENGTH = 1 [3 runs for 1/121]
 [1.0, 1.0, 1.0]
-BURST = 2, LENGTH = 1
+BURST = 2, LENGTH = 1 [3 runs for 2/121]
 [2.0, 2.0, 2.0]
-BURST = 4, LENGTH = 1
+BURST = 4, LENGTH = 1 [3 runs for 3/121]
 [4.0, 4.0, 4.0]
-BURST = 8, LENGTH = 1
+BURST = 8, LENGTH = 1 [3 runs for 4/121]
 [8.0, 8.0, 8.0]
-BURST = 16, LENGTH = 1
+BURST = 16, LENGTH = 1 [3 runs for 5/121]
 [16.0, 16.0, 16.0]
-BURST = 32, LENGTH = 1
+BURST = 32, LENGTH = 1 [3 runs for 6/121]
 [32.0, 32.0, 32.0]
-BURST = 64, LENGTH = 1
+BURST = 64, LENGTH = 1 [3 runs for 7/121]
 [64.0, 64.0, 64.0]
-BURST = 128, LENGTH = 1
+BURST = 128, LENGTH = 1 [3 runs for 8/121]
 [128.0, 128.0, 128.0]
-BURST = 256, LENGTH = 1
+BURST = 256, LENGTH = 1 [3 runs for 9/121]
 [256.0, 256.0, 256.0]
-BURST = 512, LENGTH = 1
+BURST = 512, LENGTH = 1 [3 runs for 10/121]
 [512.0, 512.0, 512.0]
-BURST = 1024, LENGTH = 1
+BURST = 1024, LENGTH = 1 [3 runs for 11/121]
 [1024.0, 1024.0, 1024.0]
-BURST = 1, LENGTH = 2
+BURST = 1, LENGTH = 2 [3 runs for 12/121]
 [1.0, 1.0, 1.0]
-BURST = 2, LENGTH = 2
+BURST = 2, LENGTH = 2 [3 runs for 13/121]
 [2.0, 2.0, 2.0]
-BURST = 4, LENGTH = 2
+BURST = 4, LENGTH = 2 [3 runs for 14/121]
 [4.0, 4.0, 4.0]
-BURST = 8, LENGTH = 2
+BURST = 8, LENGTH = 2 [3 runs for 15/121]
 [8.0, 8.0, 8.0]
-BURST = 16, LENGTH = 2
+BURST = 16, LENGTH = 2 [3 runs for 16/121]
 [16.0, 16.0, 16.0]
-BURST = 32, LENGTH = 2
+BURST = 32, LENGTH = 2 [3 runs for 17/121]
 [32.0, 32.0, 32.0]
-BURST = 64, LENGTH = 2
+BURST = 64, LENGTH = 2 [3 runs for 18/121]
 [64.0, 64.0, 64.0]
-BURST = 128, LENGTH = 2
+BURST = 128, LENGTH = 2 [3 runs for 19/121]
 [128.0, 128.0, 128.0]
-BURST = 256, LENGTH = 2
+BURST = 256, LENGTH = 2 [3 runs for 20/121]
 [256.0, 256.0, 256.0]
-BURST = 512, LENGTH = 2
+BURST = 512, LENGTH = 2 [3 runs for 21/121]
 [512.0, 512.0, 512.0]
-BURST = 1024, LENGTH = 2
+BURST = 1024, LENGTH = 2 [3 runs for 22/121]
 [1024.0, 1024.0, 1024.0]
-BURST = 1, LENGTH = 4
+BURST = 1, LENGTH = 4 [3 runs for 23/121]
 [1.0, 1.0, 1.0]
-BURST = 2, LENGTH = 4
+BURST = 2, LENGTH = 4 [3 runs for 24/121]
 [2.0, 2.0, 2.0]
-BURST = 4, LENGTH = 4
+BURST = 4, LENGTH = 4 [3 runs for 25/121]
 [4.0, 4.0, 4.0]
-BURST = 8, LENGTH = 4
+BURST = 8, LENGTH = 4 [3 runs for 26/121]
 [8.0, 8.0, 8.0]
-BURST = 16, LENGTH = 4
+BURST = 16, LENGTH = 4 [3 runs for 27/121]
 [16.0, 16.0, 16.0]
-BURST = 32, LENGTH = 4
+BURST = 32, LENGTH = 4 [3 runs for 28/121]
 [32.0, 32.0, 32.0]
-BURST = 64, LENGTH = 4
+BURST = 64, LENGTH = 4 [3 runs for 29/121]
 [64.0, 64.0, 64.0]
-BURST = 128, LENGTH = 4
+BURST = 128, LENGTH = 4 [3 runs for 30/121]
 [128.0, 128.0, 128.0]
-BURST = 256, LENGTH = 4
+BURST = 256, LENGTH = 4 [3 runs for 31/121]
 [256.0, 256.0, 256.0]
-BURST = 512, LENGTH = 4
+BURST = 512, LENGTH = 4 [3 runs for 32/121]
 [512.0, 512.0, 512.0]
-BURST = 1024, LENGTH = 4
+BURST = 1024, LENGTH = 4 [3 runs for 33/121]
 [1024.0, 1024.0, 1024.0]
-BURST = 1, LENGTH = 8
+BURST = 1, LENGTH = 8 [3 runs for 34/121]
 [1.0, 1.0, 1.0]
-BURST = 2, LENGTH = 8
+BURST = 2, LENGTH = 8 [3 runs for 35/121]
 [2.0, 2.0, 2.0]
-BURST = 4, LENGTH = 8
+BURST = 4, LENGTH = 8 [3 runs for 36/121]
 [4.0, 4.0, 4.0]
-BURST = 8, LENGTH = 8
+BURST = 8, LENGTH = 8 [3 runs for 37/121]
 [8.0, 8.0, 8.0]
-BURST = 16, LENGTH = 8
+BURST = 16, LENGTH = 8 [3 runs for 38/121]
 [16.0, 16.0, 16.0]
-BURST = 32, LENGTH = 8
+BURST = 32, LENGTH = 8 [3 runs for 39/121]
 [32.0, 32.0, 32.0]
-BURST = 64, LENGTH = 8
+BURST = 64, LENGTH = 8 [3 runs for 40/121]
 [64.0, 64.0, 64.0]
-BURST = 128, LENGTH = 8
+BURST = 128, LENGTH = 8 [3 runs for 41/121]
 [128.0, 128.0, 128.0]
-BURST = 256, LENGTH = 8
+BURST = 256, LENGTH = 8 [3 runs for 42/121]
 [256.0, 256.0, 256.0]
-BURST = 512, LENGTH = 8
+BURST = 512, LENGTH = 8 [3 runs for 43/121]
 [512.0, 512.0, 512.0]
-BURST = 1024, LENGTH = 8
+BURST = 1024, LENGTH = 8 [3 runs for 44/121]
 [1024.0, 1024.0, 1024.0]
-BURST = 1, LENGTH = 16
+BURST = 1, LENGTH = 16 [3 runs for 45/121]
 [1.0, 1.0, 1.0]
-BURST = 2, LENGTH = 16
+BURST = 2, LENGTH = 16 [3 runs for 46/121]
 [2.0, 2.0, 2.0]
-BURST = 4, LENGTH = 16
+BURST = 4, LENGTH = 16 [3 runs for 47/121]
 [4.0, 4.0, 4.0]
-BURST = 8, LENGTH = 16
+BURST = 8, LENGTH = 16 [3 runs for 48/121]
 [8.0, 8.0, 8.0]
-BURST = 16, LENGTH = 16
+BURST = 16, LENGTH = 16 [3 runs for 49/121]
 [16.0, 16.0, 16.0]
-BURST = 32, LENGTH = 16
+BURST = 32, LENGTH = 16 [3 runs for 50/121]
 [32.0, 32.0, 32.0]
-BURST = 64, LENGTH = 16
+BURST = 64, LENGTH = 16 [3 runs for 51/121]
 [64.0, 64.0, 64.0]
-BURST = 128, LENGTH = 16
+BURST = 128, LENGTH = 16 [3 runs for 52/121]
 [128.0, 128.0, 128.0]
-BURST = 256, LENGTH = 16
+BURST = 256, LENGTH = 16 [3 runs for 53/121]
 [256.0, 256.0, 256.0]
-BURST = 512, LENGTH = 16
+BURST = 512, LENGTH = 16 [3 runs for 54/121]
 [512.0, 512.0, 512.0]
-BURST = 1024, LENGTH = 16
+BURST = 1024, LENGTH = 16 [3 runs for 55/121]
 [1024.0, 1024.0, 1024.0]
-BURST = 1, LENGTH = 32
+BURST = 1, LENGTH = 32 [3 runs for 56/121]
 [1.0, 1.0, 1.0]
-BURST = 2, LENGTH = 32
+BURST = 2, LENGTH = 32 [3 runs for 57/121]
 [2.0, 2.0, 2.0]
-BURST = 4, LENGTH = 32
+BURST = 4, LENGTH = 32 [3 runs for 58/121]
 [4.0, 4.0, 4.0]
-BURST = 8, LENGTH = 32
+BURST = 8, LENGTH = 32 [3 runs for 59/121]
 [8.0, 8.0, 8.0]
-BURST = 16, LENGTH = 32
+BURST = 16, LENGTH = 32 [3 runs for 60/121]
 [16.0, 16.0, 16.0]
-BURST = 32, LENGTH = 32
+BURST = 32, LENGTH = 32 [3 runs for 61/121]
 [32.0, 32.0, 32.0]
-BURST = 64, LENGTH = 32
+BURST = 64, LENGTH = 32 [3 runs for 62/121]
 [64.0, 64.0, 64.0]
-BURST = 128, LENGTH = 32
+BURST = 128, LENGTH = 32 [3 runs for 63/121]
 [128.0, 128.0, 128.0]
-BURST = 256, LENGTH = 32
+BURST = 256, LENGTH = 32 [3 runs for 64/121]
 [256.0, 256.0, 256.0]
-BURST = 512, LENGTH = 32
+BURST = 512, LENGTH = 32 [3 runs for 65/121]
 [512.0, 512.0, 512.0]
-BURST = 1024, LENGTH = 32
+BURST = 1024, LENGTH = 32 [3 runs for 66/121]
 [1024.0, 1024.0, 1024.0]
-BURST = 1, LENGTH = 64
+BURST = 1, LENGTH = 64 [3 runs for 67/121]
 [1.0, 1.0, 1.0]
-BURST = 2, LENGTH = 64
+BURST = 2, LENGTH = 64 [3 runs for 68/121]
 [2.0, 2.0, 2.0]
-BURST = 4, LENGTH = 64
+BURST = 4, LENGTH = 64 [3 runs for 69/121]
 [4.0, 4.0, 4.0]
-BURST = 8, LENGTH = 64
+BURST = 8, LENGTH = 64 [3 runs for 70/121]
 [8.0, 8.0, 8.0]
-BURST = 16, LENGTH = 64
+BURST = 16, LENGTH = 64 [3 runs for 71/121]
 [16.0, 16.0, 16.0]
-BURST = 32, LENGTH = 64
+BURST = 32, LENGTH = 64 [3 runs for 72/121]
 [32.0, 32.0, 32.0]
-BURST = 64, LENGTH = 64
+BURST = 64, LENGTH = 64 [3 runs for 73/121]
 [64.0, 64.0, 64.0]
-BURST = 128, LENGTH = 64
+BURST = 128, LENGTH = 64 [3 runs for 74/121]
 [128.0, 128.0, 128.0]
-BURST = 256, LENGTH = 64
+BURST = 256, LENGTH = 64 [3 runs for 75/121]
 [256.0, 256.0, 256.0]
-BURST = 512, LENGTH = 64
+BURST = 512, LENGTH = 64 [3 runs for 76/121]
 [512.0, 512.0, 512.0]
-BURST = 1024, LENGTH = 64
+BURST = 1024, LENGTH = 64 [3 runs for 77/121]
 [1024.0, 1024.0, 1024.0]
-BURST = 1, LENGTH = 128
+BURST = 1, LENGTH = 128 [3 runs for 78/121]
 [1.0, 1.0, 1.0]
-BURST = 2, LENGTH = 128
+BURST = 2, LENGTH = 128 [3 runs for 79/121]
 [2.0, 2.0, 2.0]
-BURST = 4, LENGTH = 128
+BURST = 4, LENGTH = 128 [3 runs for 80/121]
 [4.0, 4.0, 4.0]
-BURST = 8, LENGTH = 128
+BURST = 8, LENGTH = 128 [3 runs for 81/121]
 [8.0, 8.0, 8.0]
-BURST = 16, LENGTH = 128
+BURST = 16, LENGTH = 128 [3 runs for 82/121]
 [16.0, 16.0, 16.0]
-BURST = 32, LENGTH = 128
+BURST = 32, LENGTH = 128 [3 runs for 83/121]
 [32.0, 32.0, 32.0]
-BURST = 64, LENGTH = 128
+BURST = 64, LENGTH = 128 [3 runs for 84/121]
 [64.0, 64.0, 64.0]
-BURST = 128, LENGTH = 128
+BURST = 128, LENGTH = 128 [3 runs for 85/121]
 [128.0, 128.0, 128.0]
-BURST = 256, LENGTH = 128
+BURST = 256, LENGTH = 128 [3 runs for 86/121]
 [256.0, 256.0, 256.0]
-BURST = 512, LENGTH = 128
+BURST = 512, LENGTH = 128 [3 runs for 87/121]
 [512.0, 512.0, 512.0]
-BURST = 1024, LENGTH = 128
+BURST = 1024, LENGTH = 128 [3 runs for 88/121]
 [1024.0, 1024.0, 1024.0]
-BURST = 1, LENGTH = 256
+BURST = 1, LENGTH = 256 [3 runs for 89/121]
 [1.0, 1.0, 1.0]
-BURST = 2, LENGTH = 256
+BURST = 2, LENGTH = 256 [3 runs for 90/121]
 [2.0, 2.0, 2.0]
-BURST = 4, LENGTH = 256
+BURST = 4, LENGTH = 256 [3 runs for 91/121]
 [4.0, 4.0, 4.0]
-BURST = 8, LENGTH = 256
+BURST = 8, LENGTH = 256 [3 runs for 92/121]
 [8.0, 8.0, 8.0]
-BURST = 16, LENGTH = 256
+BURST = 16, LENGTH = 256 [3 runs for 93/121]
 [16.0, 16.0, 16.0]
-BURST = 32, LENGTH = 256
+BURST = 32, LENGTH = 256 [3 runs for 94/121]
 [32.0, 32.0, 32.0]
-BURST = 64, LENGTH = 256
+BURST = 64, LENGTH = 256 [3 runs for 95/121]
 [64.0, 64.0, 64.0]
-BURST = 128, LENGTH = 256
+BURST = 128, LENGTH = 256 [3 runs for 96/121]
 [128.0, 128.0, 128.0]
-BURST = 256, LENGTH = 256
+BURST = 256, LENGTH = 256 [3 runs for 97/121]
 [256.0, 256.0, 256.0]
-BURST = 512, LENGTH = 256
+BURST = 512, LENGTH = 256 [3 runs for 98/121]
 [512.0, 512.0, 512.0]
-BURST = 1024, LENGTH = 256
+BURST = 1024, LENGTH = 256 [3 runs for 99/121]
 [1024.0, 1024.0, 1024.0]
-BURST = 1, LENGTH = 512
+BURST = 1, LENGTH = 512 [3 runs for 100/121]
 [1.0, 1.0, 1.0]
-BURST = 2, LENGTH = 512
+BURST = 2, LENGTH = 512 [3 runs for 101/121]
 [2.0, 2.0, 2.0]
-BURST = 4, LENGTH = 512
+BURST = 4, LENGTH = 512 [3 runs for 102/121]
 [4.0, 4.0, 4.0]
-BURST = 8, LENGTH = 512
+BURST = 8, LENGTH = 512 [3 runs for 103/121]
 [8.0, 8.0, 8.0]
-BURST = 16, LENGTH = 512
+BURST = 16, LENGTH = 512 [3 runs for 104/121]
 [16.0, 16.0, 16.0]
-BURST = 32, LENGTH = 512
+BURST = 32, LENGTH = 512 [3 runs for 105/121]
 [32.0, 32.0, 32.0]
-BURST = 64, LENGTH = 512
+BURST = 64, LENGTH = 512 [3 runs for 106/121]
 [64.0, 64.0, 64.0]
-BURST = 128, LENGTH = 512
+BURST = 128, LENGTH = 512 [3 runs for 107/121]
 [128.0, 128.0, 128.0]
-BURST = 256, LENGTH = 512
+BURST = 256, LENGTH = 512 [3 runs for 108/121]
 [256.0, 256.0, 256.0]
-BURST = 512, LENGTH = 512
+BURST = 512, LENGTH = 512 [3 runs for 109/121]
 [512.0, 512.0, 512.0]
-BURST = 1024, LENGTH = 512
+BURST = 1024, LENGTH = 512 [3 runs for 110/121]
 [1024.0, 1024.0, 1024.0]
-BURST = 1, LENGTH = 1024
+BURST = 1, LENGTH = 1024 [3 runs for 111/121]
 [1.0, 1.0, 1.0]
-BURST = 2, LENGTH = 1024
+BURST = 2, LENGTH = 1024 [3 runs for 112/121]
 [2.0, 2.0, 2.0]
-BURST = 4, LENGTH = 1024
+BURST = 4, LENGTH = 1024 [3 runs for 113/121]
 [4.0, 4.0, 4.0]
-BURST = 8, LENGTH = 1024
+BURST = 8, LENGTH = 1024 [3 runs for 114/121]
 [8.0, 8.0, 8.0]
-BURST = 16, LENGTH = 1024
+BURST = 16, LENGTH = 1024 [3 runs for 115/121]
 [16.0, 16.0, 16.0]
-BURST = 32, LENGTH = 1024
+BURST = 32, LENGTH = 1024 [3 runs for 116/121]
 [32.0, 32.0, 32.0]
-BURST = 64, LENGTH = 1024
+BURST = 64, LENGTH = 1024 [3 runs for 117/121]
 [64.0, 64.0, 64.0]
-BURST = 128, LENGTH = 1024
+BURST = 128, LENGTH = 1024 [3 runs for 118/121]
 [128.0, 128.0, 128.0]
-BURST = 256, LENGTH = 1024
+BURST = 256, LENGTH = 1024 [3 runs for 119/121]
 [256.0, 256.0, 256.0]
-BURST = 512, LENGTH = 1024
+BURST = 512, LENGTH = 1024 [3 runs for 120/121]
 [512.0, 512.0, 512.0]
-BURST = 1024, LENGTH = 1024
+BURST = 1024, LENGTH = 1024 [3 runs for 121/121]
 [1024.0, 1024.0, 1024.0]
 Graph of test written to results/click-2017/bbec36c/integration-01.pdf

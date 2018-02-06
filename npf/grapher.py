@@ -7,7 +7,7 @@ from orderedset._orderedset import OrderedSet
 
 from collections import OrderedDict
 from typing import List
-from matplotlib.ticker import LinearLocator, ScalarFormatter, Formatter
+from matplotlib.ticker import LinearLocator, ScalarFormatter, Formatter, MultipleLocator
 import matplotlib
 import numpy as np
 
@@ -47,6 +47,8 @@ graphcolorseries = [graphcolor]
 graphcolorseries.append(hexToList("#144c73 #185a88 #1b699e #1f77b4 #2385ca #2b93db #419ede"))
 graphcolorseries.append(hexToList("#1c641c #217821 #278c27 #2ca02c #32b432 #37c837 #4bce4b"))
 graphcolorseries.append(hexToList("#c15a00 #da6600 #f47200 #ff7f0e #ff8d28 #ff9a41 #ffa85b"))
+graphcolorseries.append(hexToList("#951b1c #ab1f20 #c02324 #d62728 #db3b3c #df5152 #e36667"))
+graphcolorseries.append(hexToList("#6e4196 #7b49a8 #8755b5 #9467bd #a179c5 #ad8bcc #ba9cd4"))
 
 gridcolors = [ (0.7,0.7,0.7) ]
 legendcolors = [ None ]
@@ -71,6 +73,25 @@ def find_base(ax):
     if base != 2:
         base = 10
     return base
+
+
+class Map(OrderedDict):
+    def __init__(self, fname):
+        super().__init__()
+        for fn in fname.split('+'):
+            f = open(fn, 'r')
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('//') or line.startswith('#'):
+                    continue
+                k,v = [x.strip() for x in line.split(':',1)]
+                self[re.compile(k)] = v
+
+    def search(self, map_v):
+        for k,v in self.items():
+            if re.search(k,map_v):
+                return v
+        return None
 
 
 class Grapher:
@@ -225,7 +246,7 @@ class Grapher:
         for i, (testie, build, all_results) in enumerate(series):
             self.scripts.add(testie)
 
-
+        #Overwrite markers and lines from user
         graphmarkers = self.configlist("graph_markers")
         self.graphlines = self.configlist("graph_lines")
 
@@ -292,6 +313,18 @@ class Grapher:
                 print("No valid data for %s" % build)
         series = filtered_series
 
+
+        #If graph_series_as_variables, take the series and make them as variables
+        if self.config_bool('graph_series_as_variables',False):
+            new_results = {}
+            vars_values['serie'] = set()
+            for i, (testie, build, all_results) in enumerate(series):
+                for run, run_results in all_results.items():
+                    run.variables['serie'] = build.pretty_name()
+                    vars_values['serie'] = build.pretty_name()
+                    new_results[run] = run_results
+            series = [(testie, build, new_results)]
+
         # Transform results to variables as the graph_result_as_variable config
         #  option. It is a dict in the format
         #  a+b+c:var_name
@@ -314,7 +347,7 @@ class Grapher:
                 for run, run_results in all_results.items():
                     new_run_results = {}
                     new_run_results_exp = {}
-                    nodata = True
+
                     for result_type, results in run_results.items():
                         match = False
                         for stripout in result_to_variable_map:
@@ -326,15 +359,30 @@ class Grapher:
                             new_run_results_exp[match] = results
                         else:
                             new_run_results[result_type] = results
-
                     if len(new_run_results_exp) > 0:
+                        u = self.scriptconfig("var_unit", var_name, default="")
+                        mult = u == 'percent' or u == '%'
+                        if mult:
+                            tot = 0
+                            for result_type, results in new_run_results_exp.items():
+                                tot += np.mean(results)
+                            if tot <= 99:
+                                new_run_results_exp['Other'] = [100-tot]
+
                         for result_type, results in new_run_results_exp.items():
                             variables = run.variables.copy()
                             variables[var_name] = result_type
                             vvalues.add(result_type)
                             nr = new_run_results.copy()
+                            #If unit is percent, we multiply the value per the result
+                            if mult:
+                                m = np.mean(results)
+                                tot += m
+                                for result_type in nr:
+                                    nr[result_type] = nr[result_type].copy() * m / 100
                             nr.update({'result-'+var_name: results})
                             new_results[Run(variables)] = nr
+
                     else:
                         new_results[run] = new_run_results
 
@@ -344,8 +392,11 @@ class Grapher:
                 vars_values[var_name] = vvalues
             series = transformed_series
 
-        if self.config('graph_series_prop'):
+        prop = self.config('graph_series_prop')
+        if prop:
             newseries = []
+            if not is_numeric(prop):
+                prop=1
             base_results=series[0][2]
             for i, (script, build, all_results) in enumerate(series[1:]):
                 new_results={}
@@ -363,7 +414,7 @@ class Grapher:
                             base = base[:len(results)]
                         elif len(results) > len(base):
                             results = results[:len(base)]
-                        results = results / base
+                        results = results / base * prop
                         run_results[result_type] = results
                     new_results[run] = run_results
                 newseries.append((script, build, new_results))
@@ -411,6 +462,36 @@ class Grapher:
                     transformed_series.append((testie, nbuild, data))
 
             series = transformed_series
+
+        #Map and combine variables values
+        for map_k, fmap in self.configdict('graph_map',{}).items():
+            fmap = Map(fmap)
+            transformed_series = []
+            for i, (testie, build, all_results) in enumerate(series):
+                new_results={}
+                for run, run_results in all_results.items():
+                    if not map_k in run.variables:
+                        new_results[run] = run_results
+                        continue
+                    map_v = run.variables[map_k]
+                    new_v = fmap.search(map_v)
+                    if new_v:
+                        if map_v in vars_values[map_k]:
+                            vars_values[map_k].remove(map_v)
+                        run.variables[map_k] = new_v
+                        vars_values[map_k].add(new_v)
+                        if run in new_results:
+                            for result_type, results in new_results[run].items():
+                                nr = run_results[result_type]
+                                for i in range(min(len(results),len(nr))):
+                                    results[i] += nr[i]
+                        else:
+                            new_results[run] = run_results
+                    else:
+                        new_results[run] = run_results
+                transformed_series.append((testie, build, new_results))
+            series = transformed_series
+
 
         versions = []
         vars_all = set()
@@ -473,7 +554,7 @@ class Grapher:
                 for run, run_results in all_results.items():
                     #                    if (graph_variables and not run in graph_variables):
                     #                        continue
-                    if (run.variables[key] == value):
+                    if run.variables[key] == value:
                         newrun = run.copy()
                         del newrun.variables[key]
                         newserie[newrun] = run_results
@@ -513,8 +594,6 @@ class Grapher:
         graph_series_label = self.config("graph_series_label")
         if graph_series_label:
             for i, (testie, build, all_results) in enumerate(series):
-                print(statics)
-                print(graph_series_label)
                 v = {}
                 v.update(statics)
                 v.update(build.statics)
@@ -588,12 +667,31 @@ class Grapher:
                     else:
                         shift = 0
 
+                gcolor = self.configlist('graph_color')
+                gi = {} #Index per-color
                 for i, (x, y, e, build) in enumerate(data):
-                    if shift == 0:
+                    if not gcolor and shift == 0:
                         build._color=graphcolorseries[0][i % len(graphcolorseries[0])]
                     else:
-                        n = len(graphcolorseries[shift]) / (len(data) + 1)
-                        build._color=graphcolorseries[shift][(i + 1) * int(n)]
+                        if gcolor:
+                            s=gcolor[i]
+                            tot = gcolor.count(s)
+                        else:
+                            s=shift
+                            tot = len(data)
+                        gi.setdefault(s,0)
+                        slen = len(graphcolorseries[s])
+                        n = slen / tot
+                        if n < 0:
+                            n = 1
+                        print(slen,n)
+                        #For the default colors we take them in order
+                        if s == 0:
+                            f = gi[s]
+                        else:
+                            f = round((gi[s] + (0.33 if gi[s] < tot / 2 else 0.66)) * n)
+                        gi[s]+=1
+                        build._color=graphcolorseries[s][f]
 
 
 
@@ -658,8 +756,9 @@ class Grapher:
 
                 xticks = self.scriptconfig("var_ticks", key, default=None)
                 if xticks:
+                    if isLog:
+                        plt.gca().xaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
                     plt.xticks([variable.get_numeric(x) for x in xticks.split('+')])
-
 
                 plt.xlabel(self.var_name(key))
 
@@ -771,15 +870,18 @@ class Grapher:
             order = np.argsort(ax)
 
             ax = [ax[i] for i in order]
-            y = [y[i] for i in order]
-            e = [e[i] for i in order]
+            y = np.array([y[i] for i in order])
+            e = np.array([e[i] for i in order])
 
 
             lab = build.pretty_name()
             while lab.startswith('_'):
                 lab = lab[1:]
             axis.plot(ax, y, label=lab, color=c, linestyle=build._line, marker=build._marker)
-            axis.errorbar(ax, y, yerr=e, marker=' ', label=None, linestyle=' ', color=c, capsize=3)
+            if not self.config('graph_error_fill'):
+                axis.errorbar(ax, y, yerr=e, marker=' ', label=None, linestyle=' ', color=c, capsize=3)
+            else:
+                axis.fill_between(ax, y-e, y+e, color=c, alpha=.4, linewidth=0)
             xmin = min(xmin, min(ax))
             xmax = max(xmax, max(ax))
 
@@ -801,7 +903,7 @@ class Grapher:
             #         if (xmax > 0):
             #             xmax = int(math.ceil(xmax / base)) * base
             #
-            # plt.gca().set_xlim(xmin, xmax)
+                axis.set_xlim(xmin, xmax)
 
 
     def set_axis_formatter(self, axis, format, unit, isLog, compact=False):
@@ -869,7 +971,8 @@ class Grapher:
             plt.ylabel(yname)
 
         if yticks:
-            plt.yticks([variable.get_numeric(y) for y in yticks.split('+')])
+            ticks = [variable.get_numeric(y) for y in yticks.split('+')]
+            plt.yticks(ticks)
 
     def do_barplot(self, axis,vars_all, dyns, result_type, data, shift):
         nseries = len(data)
@@ -886,17 +989,33 @@ class Grapher:
             edgecolor = None
             interbar = 0.1
 
-        width = (1 - (2 * interbar)) / len(data)
-        ind = np.arange(len(vars_all))
+        stack = self.config_bool('graph_bar_stack')
+        n_series = len(vars_all)
+        bars_per_serie = 1 if stack else len(data)
+        ind = np.arange(n_series)
 
-        for i, (x, y, e, build) in enumerate(data):
-            axis.bar(interbar + ind + (i * width), y, width,
+        width = (1 - (2 * interbar)) / bars_per_serie
+        if stack:
+            last = 0
+            for i, (x, y, e, build) in enumerate(data):
+                y = np.asarray([0.0 if np.isnan(x) else x for x in y])
+                last = last + y
+
+            for i, (x, y, e, build) in enumerate(data):
+                y = np.asarray([0.0 if np.isnan(x) else x for x in y])
+                axis.bar(ind, last, width,
+                    label=str(build.pretty_name()), color=build._color, yerr=e,
+                    edgecolor=edgecolor)
+                last = last - y
+        else:
+            for i, (x, y, e, build) in enumerate(data):
+                axis.bar(interbar + ind + (i * width), y, width,
                     label=str(build.pretty_name()), color=build._color, yerr=e,
                     edgecolor=edgecolor)
 
         ss = self.combine_variables(vars_all, dyns)
 
         if not bool(self.config_bool('graph_x_label', True)):
-            ss = ["" for i in range(len(vars_all))]
-        plt.xticks(interbar + ind + (width * len(data) / 2.0), ss,
+            ss = ["" for i in range(n_series)]
+        plt.xticks(ind if stack else interbar + ind + (width * len(data) / 2.0), ss,
                    rotation='vertical' if (sum([len(s) for s in ss]) > 80) else 'horizontal')

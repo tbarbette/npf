@@ -187,7 +187,7 @@ def main():
     returncode = 0
 
     for build in reversed(builds):
-        if len(builds) > 1:
+        if len(builds) > 1 or repo.version:
             print("Starting tests for version %s" % build.version)
 
         nok = 0

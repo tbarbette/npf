@@ -1,7 +1,7 @@
 import os
 import pwd
 import signal
-from multiprocessing import Queue
+from multiprocessing import Queue, Event
 from subprocess import PIPE, Popen, TimeoutExpired
 from typing import List
 
@@ -26,7 +26,7 @@ class LocalExecutor:
     def __init__(self):
         pass
 
-    def exec(self, cmd, terminated_event, bin_paths : List[str]=[], queue: Queue = None, options = None, stdin = None, timeout = None, sudo = False, testdir=None):
+    def exec(self, cmd, terminated_event:Event, bin_paths : List[str]=[], queue: Queue = None, options = None, stdin = None, timeout = None, sudo = False, testdir=None):
         if testdir is not None:
             os.chdir("..")
 
@@ -51,8 +51,9 @@ class LocalExecutor:
         pid = p.pid
         pgpid = os.getpgid(pid)
 
+        killer = LocalKiller(pgpid)
         if queue:
-            queue.put(LocalKiller(pgpid))
+            queue.put(killer)
         try:
             s_output, s_err = [x.decode() for x in
                                p.communicate(input = stdin,  timeout=timeout)]
@@ -61,7 +62,7 @@ class LocalExecutor:
             p.stdout.close()
             if testdir is not None:
                 os.chdir(testdir)
-            return pid, s_output, s_err, p.returncode
+            return pid, s_output, s_err, 0 if terminated_event and terminated_event.is_set() else p.returncode
         except TimeoutExpired:
             print("Test expired")
             p.terminate()
@@ -69,8 +70,6 @@ class LocalExecutor:
             os.killpg(pgpid, signal.SIGKILL)
             os.killpg(pgpid, signal.SIGTERM)
             s_output, s_err = [x.decode() for x in p.communicate()]
-            print(s_output)
-            print(s_err)
             p.stdin.close()
             p.stderr.close()
             p.stdout.close()

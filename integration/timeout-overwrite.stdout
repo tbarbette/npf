@@ -1,0 +1,6 @@
+Executing testie timeout-overwrite.testie
+Timeout overwrite test
+Executing init scripts...
+ [1 runs for 1/0]
+[1.0]
+Graph of test written to results/click-2017/bbec36c/timeout-overwrite.pdf
