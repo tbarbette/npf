@@ -51,6 +51,8 @@ def add_graph_options(parser: ArgumentParser):
                    help='path to the file to output the graph')
     g.add_argument('--graph-reject-outliers', dest='graph_reject_outliers', action='store_true', default=False)
 
+    g.add_argument('--graph-select-max', dest='graph_select_max', type=int, default=None)
+
     g.add_argument('--iterative', dest='iterative', action='store_true', default=False,
                    help='Graph after each results, allowing to get a faster glimpse at the results')
     g.add_argument('--onefirst', dest='onefirst', action='store_true', default=False,

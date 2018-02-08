@@ -300,6 +300,9 @@ class Grapher:
                             results = self.reject_outliers(np.asarray(results), testie)
                         else:
                             results = np.asarray(results)
+                        if options.graph_select_max:
+                            results = np.sort(results)[-options.graph_select_max:]
+
                         ydiv = dataset.var_divider(testie, "result", result_type)
                         new_results.setdefault(run, {})[result_type] = results / ydiv
                     for k, v in run.variables.items():

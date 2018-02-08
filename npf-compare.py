@@ -31,7 +31,7 @@ class Comparator():
             testies = npf.override(options, testies)
             for testie in testies:
                 build, datasets = regressor.regress_all_testies(testies=[testie], options=options, on_finish=lambda b,d: self.build_list(on_finish,testie,b,d) if on_finish else None)
-            if not build is None:
+            if len(testies) > 0 and not build is None:
                 build._pretty_name = repo.name
                 self.graphs_series.append((testie, build, datasets[0]))
         if len(self.graphs_series) == 0:
