@@ -2,7 +2,9 @@ import numpy as np
 from typing import Dict, List, Tuple
 from collections import OrderedDict
 from npf.variable import is_numeric, get_numeric
+from npf import npf
 import natsort
+import csv
 
 class Run:
     def __init__(self, variables):
@@ -111,7 +113,7 @@ def var_divider(testie: 'Testie', key: str, result_type = None):
     return 1
 
 
-def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list, key, do_x_sort, max_series = None, series_sort=None) -> AllXYEB:
+def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list, key, do_x_sort, statics, options, max_series = None, series_sort=None) -> AllXYEB:
     data_types = OrderedDict()
     all_result_types = set()
 
@@ -124,6 +126,7 @@ def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list
         x = OrderedDict()
         y = OrderedDict()
         e = OrderedDict()
+        csvs = OrderedDict()
         for run in run_list:
             if len(run) == 0:
                 xval = build.pretty_name()
@@ -135,10 +138,41 @@ def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list
                 xdiv = var_divider(testie, key)
                 result = results_types.get(result_type,None)
 
+                if options.output is not None:
+                    if result_type in csvs:
+                        type_filename,csvfile,wr = csvs[result_type]
+                    else:
+                        type_filename = npf.build_filename(testie, build, options.output, statics, 'csv', result_type)
+                        csvfile = open(type_filename, 'w')
+                        wr = csv.writer(csvfile, delimiter=' ',
+                                    quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                        csvs[result_type] = (type_filename,csvfile,wr)
+
                 if xdiv != 1 and is_numeric(xval):
                     x.setdefault(result_type, []).append(get_numeric(xval) / xdiv)
                 else:
                     x.setdefault(result_type, []).append(xval)
+
+
+                if options.output is not None:
+                   row = []
+                   if result is not None:
+                       for t in options.output_columns:
+                           if t == 'x':
+                               row.append(xval)
+                           elif t == 'mean':
+                               row.append(np.mean(result))
+                           elif t == 'avg':
+                               row.append(np.average(result))
+                           elif t[:4] == 'perc':
+                               row.append(np.percentile(result, int(t[4:])))
+                           elif t == 'median':
+                               row.append(np.median(result))
+                           elif t == 'std':
+                               row.append(np.std(result))
+
+                       if row:
+                           wr.writerow(row)
 
                 if result is not None:
                     #result = np.asarray(result) / ydiv
@@ -147,7 +181,13 @@ def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list
                 else:
                     y.setdefault(result_type, []).append(np.nan)
                     e.setdefault(result_type, []).append(np.nan)
+
+
         for result_type in x.keys():
+
+            if options.output is not None:
+                print("Output written to %s" % csvs[result_type][0])
+                csvs[result_type][1].close()
             if not do_x_sort:
                 ox = x[result_type]
                 oy = y[result_type]

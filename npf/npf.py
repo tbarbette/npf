@@ -4,9 +4,14 @@ from argparse import ArgumentParser
 from typing import Dict, List
 
 import regex
+import re
 
 from npf.node import Node
 from .variable import VariableFactory
+
+def get_valid_filename(s):
+    s = str(s).strip().replace(' ', '_')
+    return re.sub(r'(?u)[^-\w.]', '', s)
 
 class ExtendAction(argparse.Action):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
@@ -43,6 +48,7 @@ def add_graph_options(parser: ArgumentParser):
     o = parser.add_argument_group('Output data')
     o.add_argument('--output',
                    help='Output data to CSV', dest='output', type=str, default=None)
+    o.add_argument('--output-columns', dest='output_columns', type=str, nargs='+', default=['x', 'mean'])
 
     g = parser.add_argument_group('Graph options')
     g.add_argument('--graph-size', metavar='INCH', type=float, nargs=2, default=[],
@@ -221,10 +227,9 @@ def find_local(path):
 
 
 def build_filename(testie, build, hint, variables, def_ext, type_str=''):
-    var_str = '_'.join(
-        ["%s=%s" % (k, (val[1] if type(val) is tuple else val)) for k, val in sorted(variables.items()) if val]).replace(' ',
-                                                                                                                  '').replace(
-        '/', '')
+    var_str = get_valid_filename('_'.join(
+        ["%s=%s" % (k, (val[1] if type(val) is tuple else val)) for k, val in sorted(variables.items()) if val]))
+
     if hint is None:
         path = build.result_path(testie.filename, def_ext, suffix=var_str + ('-' + type_str if type_str else ''))
     else:
@@ -244,6 +249,8 @@ def build_filename(testie, build, hint, variables, def_ext, type_str=''):
         if basename is None or basename is '':
             basename = var_str
 
+        if not dirname:
+            basename = get_valid_filename(build.pretty_name())+basename
         path = (dirname + '/' if dirname else '') + basename + (
         ('-' if basename else '') + type_str if type_str else '') + ext
 

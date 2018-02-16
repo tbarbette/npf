@@ -1,4 +1,3 @@
-import csv
 import io
 
 import re
@@ -602,20 +601,7 @@ class Grapher:
                 v.update(build.statics)
                 build._pretty_name=SectionVariable.replace_variables(v, graph_series_label)
 
-        data_types = dataset.convert_to_xyeb(series, vars_all, key, max_series=self.config('graph_max_series'),
-                                             do_x_sort=do_sort, series_sort=self.config('graph_series_sort'))
-
-        if options.output is not None:
-            for result_type, data in data_types.items():
-                type_filename = npf.build_filename(testie, build, options.output, statics, 'csv', result_type)
-                with open(type_filename, 'w') as csvfile:
-                    wr = csv.writer(csvfile, delimiter=' ',
-                                    quotechar='"', quoting=csv.QUOTE_MINIMAL)
-                    for i, (x, y, e, b) in enumerate(data):
-                        if (i == 0):
-                            wr.writerow(x)
-                        wr.writerow(y)
-                print("Output written to %s" % type_filename)
+        data_types = dataset.convert_to_xyeb(series, vars_all, key, max_series=self.config('graph_max_series'), do_x_sort=do_sort, series_sort=self.config('graph_series_sort'), options=options, statics=statics)
 
         plots = OrderedDict()
         matched_set = set()

@@ -11,6 +11,7 @@ Suggested usage example in your testie (omit the prefixed "//" that prevent loop
 n_retry=0
 n_runs=1
 require_tags=import,dpdk
+timeout=60
 
 %variables
 PKTGEN_BURST_OUT=32
