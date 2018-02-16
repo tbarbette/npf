@@ -170,6 +170,12 @@ def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list
                                row.append(np.median(result))
                            elif t == 'std':
                                row.append(np.std(result))
+                           elif t == 'raw':
+                               row.extend(result)
+                           elif t == 'nres':
+                               row.append(len(result))
+                           else:
+                               print("WARNING : Unknown format %s" % t)
 
                        if row:
                            wr.writerow(row)
