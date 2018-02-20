@@ -24,7 +24,7 @@ GEN_TOT=EXPAND( $(( $GEN_BURST * $GEN_FLOWS )) )
 click --dpdk -c 0x1 -- PKTGEN_CONFIG
 
 %file PKTGEN_CONFIG
-elementclass Generator { $port, $srcmac, $dstmac, $srcip, $dstip |
+elementclass Generator { $port,$th, $srcmac, $dstmac, $srcip, $dstip |
     tdOUT::ToDPDKDevice($port, BLOCKING true);
 
     adv1 :: FastUDPFlows(RATE 0, LIMIT $GEN_TOT, LENGTH $GEN_LENGTH, SRCETH $srcmac, DSTETH $dstmac, SRCIP $srcip, DSTIP $dstip, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST)
@@ -34,11 +34,11 @@ elementclass Generator { $port, $srcmac, $dstmac, $srcip, $dstip |
     -> sndavg :: AverageCounter()
     -> tdOUT;
 
-    StaticThreadSched(replay $port)
+    StaticThreadSched(replay $th)
 
 }
 
-gen0 :: Generator(0, ${client:0:mac}, ${dut:0:mac}, ${client:0:ip}, ${dut:0:ip})
+gen0 :: Generator(${client:0:pci}, 0, ${client:0:mac}, ${dut:0:mac}, ${client:0:ip}, ${dut:0:ip})
 
 DriverManager(
     wait $GEN_WAIT,

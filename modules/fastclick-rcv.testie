@@ -3,20 +3,31 @@ This is not a testie, this is a module to be imported with %import
 
 This will show the receiving rate of one port using DPDK
 
+
+%config
+accept_zero={DROPPED}
+
 %variables
+NT=1
+NDESC=256
+NB_MBUF=65536
+
+%late_variables
+AVGCNT=IF($NT > 1,AverageCounterMP,AverageCounter)
 
 %script deps=fastclick sudo=true
-click --dpdk -c 0x1 -- RCV_CONFIG
+click --dpdk -l 0-$(($NT - 1)) -- RCV_CONFIG
 
 %file RCV_CONFIG
-    fd :: FromDPDKDevice(0, MAC ${client:0:mac}, MAXTHREADS 1, VERBOSE 99)
-    -> avg :: AverageCounter
+DPDKInfo(NB_MBUF $NB_MBUF)
+    fd :: FromDPDKDevice(${self:0:pci}, MAC ${client:0:mac}, MAXTHREADS $NT, VERBOSE 99, NDESC $NDESC)
+    -> avg :: $AVGCNT
     -> Discard
 
 DriverManager(
     wait 1s,
     write avg.reset,
     wait,
-    print "FD dropped $(fd.hw_dropped)",
+    print "RESULT-DROPPED $(fd.hw_dropped)",
     print "AVG0 $(avg.link_rate) COUNT $(avg.count)",
-    print "RESULT $(avg.link_rate)")
+    print "RESULT-RX $(avg.link_rate)")
