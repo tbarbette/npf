@@ -806,7 +806,7 @@ class Grapher:
                 buf.seek(0)
                 ret[result_type] = buf.read()
             else:
-                type_filename = npf.build_filename(testie, build, options.graph_filename, statics, 'pdf', result_type)
+                type_filename = npf.build_filename(testie, build, options.graph_filename, statics, 'pdf', result_type, show_serie=False)
                 plt.savefig(type_filename, bbox_extra_artists=(lgd,) if lgd else [], bbox_inches='tight')
                 ret[result_type] = None
                 print("Graph of test written to %s" % type_filename)

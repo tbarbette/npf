@@ -142,7 +142,7 @@ def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list
                     if result_type in csvs:
                         type_filename,csvfile,wr = csvs[result_type]
                     else:
-                        type_filename = npf.build_filename(testie, build, options.output, statics, 'csv', result_type)
+                        type_filename = npf.build_filename(testie, build, options.output, statics, 'csv', result_type,show_serie=True)
                         csvfile = open(type_filename, 'w')
                         wr = csv.writer(csvfile, delimiter=' ',
                                     quotechar='"', quoting=csv.QUOTE_MINIMAL)

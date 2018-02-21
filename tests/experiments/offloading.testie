@@ -16,7 +16,6 @@ accept_zero={DROPPED}
 perf:graph_result_as_variable={PERF-(.*):Perf}
 -vary:graph_series_sort=-avg
 -vary:graph_max_series=10
-vary:require_tags={fastclick-next}
 -prop,vary:var_log={PPS,LATENCY,THROUGHPUT}
 var_log={result-LATENCY,S}
 var_log_base={W:4}
