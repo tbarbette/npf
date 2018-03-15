@@ -15,7 +15,7 @@ import re
 class SectionFactory:
     varPattern = "([a-zA-Z0-9_:-]+)[=](" + Variable.VALUE_REGEX + ")?"
     namePattern = re.compile(
-            "^(?P<tags>"+Variable.TAGS_REGEX+"[:])?(?P<name>info|config|variables|late_variables|(init-)?file(:?[@](?P<fileRole>[a-zA-Z0-9]+))? (?P<fileName>[a-zA-Z0-9_.-]+)(:? (?P<fileNoparse>noparse))?|require|"
+            "^(?P<tags>"+Variable.TAGS_REGEX+"[:])?(?P<name>info|config|variables|late_variables|include (?P<includeName>[a-zA-Z0-9_./-]+)||(init-)?file(:?[@](?P<fileRole>[a-zA-Z0-9]+))? (?P<fileName>[a-zA-Z0-9_.-]+)(:? (?P<fileNoparse>noparse))?|require|"
         "import(:?[@](?P<importRole>[a-zA-Z0-9]+))?[ \t]+(?P<importModule>" + Variable.VALUE_REGEX + ")(?P<importParams>([ \t]+" +
         varPattern + ")+)?|"
                      "(:?script|init)(:?[@](?P<scriptRole>[a-zA-Z0-9]+))?(?P<scriptParams>([ \t]+" + varPattern + ")*))$")
@@ -62,7 +62,9 @@ class SectionFactory:
         if sectionName.startswith('init-file'):
             s = SectionInitFile(matcher.group('fileName').strip(), role=matcher.group('fileRole'),noparse=matcher.group('fileNoparse'))
             return s
-
+        elif sectionName.startswith('include'):
+            s = SectionImport(None, matcher.group('includeName').strip(), {},is_include=True)
+            return s
         elif sectionName == 'require':
             s = SectionRequire()
             return s
@@ -152,12 +154,15 @@ class SectionScript(Section):
 
 
 class SectionImport(Section):
-    def __init__(self, role=None, module=None, params=None):
+    def __init__(self, role=None, module=None, params=None, is_include=False):
         super().__init__('import')
         if params is None:
             params = {}
         self.params = params
-        if module is not None and module is not '':
+        self.is_include = is_include
+        if is_include:
+            self.module = module
+        elif module is not None and module is not '':
             self.module = 'modules/' + module
         else:
             if not 'testie' in params:
@@ -468,6 +473,7 @@ class SectionConfig(SectionVariable):
             r"RESULT(:?-(?P<type>[A-Z0-9_:~-]+))?[ \t]+(?P<value>[0-9.]+)[ ]*(?P<multiplier>[nµugmkKGT]?)(?P<unit>s|sec|b|byte|bits)?"])
         self.__add_list("results_expect", [])
         self.__add("autokill", True)
+        self.__add("critical", False)
         self.__add_dict("env", {}) #Unimplemented yet
         self.__add("timeout", 30)
 

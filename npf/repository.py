@@ -91,7 +91,7 @@ class MethodGit(Method):
                     o.fetch()
                     self._fetch_done = True
             except git.exc.InvalidGitRepositoryError:
-                shutil.rmtree(self.repo.get_build_path())
+                #shutil.rmtree(self.repo.get_build_path())
                 need_clone=True
         else:
             need_clone=True
@@ -148,7 +148,9 @@ class MethodGet(UnversionedMethod):
 
 class MethodPackage(UnversionedMethod):
     def checkout(self, branch=None):
-        pass
+        if not Path(self.repo.get_build_path()).exists():
+            os.makedirs(self.repo.get_build_path())
+        return True
 
 
 repo_methods = {'git': MethodGit, 'get': MethodGet, 'package': MethodPackage}
@@ -182,6 +184,7 @@ class Repository:
         self.bin_folder = 'bin'
         self.env = {}
         self.bin_name = self.reponame  # Wild guess that may work some times...
+        self.configure = ''
 
         if self.reponame == 'None':
             self.url = None

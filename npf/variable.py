@@ -3,6 +3,7 @@ from collections import OrderedDict
 
 import regex
 
+from asteval import Interpreter
 
 def is_numeric(s):
     try:
@@ -58,9 +59,9 @@ def dtype(v):
 class VariableFactory:
     @staticmethod
     def build(name, valuedata, vsection=None):
-        result = re.match("\[(-?[0-9]+)([+-]|[*])(-?[0-9]+)\]", valuedata)
+        result = re.match("\[(-?[0-9]+)([+-]|[*])(-?[0-9]+)([#][0-9]+)?\]", valuedata)
         if result:
-            return RangeVariable(name, int(result.group(1)), int(result.group(3)), result.group(2) == "*")
+            return RangeVariable(name, int(result.group(1)), int(result.group(3)), result.group(2) == "*", (int(result.group(4)[1:]) if result.group(4) else 1))
 
         result = regex.match("\{([^:]*:[^,:]+)(?:(?:,)([^,:]*:[^,:]+))*\}", valuedata)
         if result:
@@ -80,6 +81,11 @@ class VariableFactory:
                 raise Exception("HEAD variable without vsection",vsection)
             return HeadVariable(name, vsection.vlist[result.group(1)].makeValues(),
                                 vsection.vlist[result.group(2)].makeValues())
+        result = regex.match("IF[ ]*\([ ]*([^,]+)[ ]*,[ ]*([^,]+)[ ]*,[ ]*([^,]+)[ ]*\)", valuedata)
+        if result:
+            if vsection is None:
+                raise Exception("IF variable without vsection",vsection)
+            return IfVariable(name, vsection.replace_all(result.group(1))[0], result.group(2), result.group(3))
 
         return SimpleVariable(name, valuedata)
 
@@ -242,7 +248,7 @@ class DictVariable(Variable):
 
 
 class RangeVariable(Variable):
-    def __init__(self, name, valuestart, valueend, log):
+    def __init__(self, name, valuestart, valueend, log, step = 1):
         super().__init__()
         if (valuestart > valueend):
             self.a = valueend
@@ -251,10 +257,15 @@ class RangeVariable(Variable):
             self.a = valuestart
             self.b = valueend
         self.log = log
+        self.step = step
 
     def count(self):
         """todo: think"""
-        return len(self.makeValues())
+        if self.log:
+            return len(self.makeValues())
+        else:
+            return int(self.b-self.a / self.step)
+
 
     def makeValues(self):
         vs = []
@@ -274,7 +285,7 @@ class RangeVariable(Variable):
             if i > self.b:
                 vs.append(self.b)
         else:
-            for i in range(self.a, self.b + 1):
+            for i in range(self.a, self.b, self.step):
                 vs.append(i)
         return vs
 
@@ -283,3 +294,28 @@ class RangeVariable(Variable):
 
     def is_numeric(self):
         return True
+
+class IfVariable(Variable):
+    def __init__(self, name, cond, a, b):
+        self.cond = cond
+        self.a = a
+        self.b = b
+
+    def makeValues(self):
+        vs = []
+        aeval = Interpreter()
+        if aeval(self.cond):
+            return [self.a]
+            print(self.cond,aeval(self.conf),"A")
+        else:
+            return [self.b]
+            print(self.cond,aeval(self.conf),"B")
+
+    def count(self):
+        return 1
+
+    def format(self):
+        return str
+
+    def is_numeric(self):
+        return False

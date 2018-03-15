@@ -88,6 +88,7 @@ class Testie:
         self.imports = []
         self.requirements = []
         self.filename = os.path.basename(testie_path)
+        self.path = os.path.dirname(testie_path)
         self.options = options
         self.tags = tags if tags else []
         self.role = role
@@ -151,7 +152,7 @@ class Testie:
         # Create imports testies
         for imp in self.imports:
             from npf.module import Module
-            imp.testie = Module(imp.module, options, tags, imp.get_role())
+            imp.testie = Module(imp.module, options, self, imp, tags, imp.get_role())
             if len(imp.testie.variables.dynamics()) > 0:
                 raise Exception("Imports cannot have dynamic variables. Their parents decides what's dynamic.")
             if 'as_init' in imp.params:
@@ -166,9 +167,10 @@ class Testie:
             for k, v in imp.params.items():
                 overriden_variables[k] = VariableFactory.build(k, v)
             imp.testie.variables.override_all(overriden_variables)
-            for script in imp.testie.scripts:
-                if script.get_role():
-                    raise Exception('Modules cannot have roles, their importer defines it')
+            if not imp.is_include:
+                for script in imp.testie.scripts:
+                    if script.get_role():
+                        raise Exception('Modules cannot have roles, their importer defines it')
                 script._role = imp.get_role()
 
     def build_deps(self, repo_under_test: List[Repository]):
@@ -177,7 +179,7 @@ class Testie:
         for script in self.get_scripts():
             deps = deps.union(script.get_deps())
         for dep in deps:
-            if dep in repo_under_test:
+            if dep in [repo.reponame for repo in repo_under_test]:
                 continue
             deprepo = Repository.get_instance(dep, self.options)
             if deprepo.url is None or deprepo.reponame in self.options.no_build_deps:
@@ -357,12 +359,7 @@ class Testie:
                         param.testdir = test_folder
                         param.script = script
                         param.name = script.get_name()
-                        autokill = script.params.get("autokill", t.config["autokill"])
-                        if type(autokill) is str and autokill.lower() == "false":
-                            autokill = False
-                        else:
-                            autokill = bool(autokill)
-                        param.autokill = autokill
+                        param.autokill = npf.parseBool(script.params.get("autokill", t.config["autokill"]))
 
                         remote_params.append(param)
 
@@ -396,10 +393,12 @@ class Testie:
                         shutil.rmtree(test_folder)
                     sys.exit(1)
 
+
                 if self.options.allow_mp:
                     p.close()
                     p.terminate()
                 worked = False
+                critical_failed = False
                 for iscript, (r, o, e, c, script) in enumerate(parallel_execs):
                     if r == 0:
                         print("Timeout expired for script %s on %s..." % (script.get_name(),script.get_role()))
@@ -412,6 +411,9 @@ class Testie:
                     if r == -1:
                         sys.exit(1)
                     if c != 0:
+                        if npf.parseBool(script.params.get("critical", t.config["critical"])):
+                            critical_failed=True
+                            print("[ERROR] A critical script failed ! Results will be ignored")
                         print("Bad return code (%d) for script %s on %s ! Something probably went wrong..." % (c,script.get_name(),script.get_role()))
                         if not self.options.quiet:
                             print("stdout:")
@@ -434,7 +436,7 @@ class Testie:
                 all_output.append(output)
                 all_err.append(err)
 
-                if not worked:
+                if not worked or critical_failed:
                     continue
 
                 if not self.config["result_regex"]:

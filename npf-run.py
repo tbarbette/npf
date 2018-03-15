@@ -123,7 +123,7 @@ def main():
 
     last_build = None
     if args.compare:
-        if args.compare_version and len(args.compe_version):
+        if args.compare_version and len(args.compare_version):
             compare_version = args.compare_version
             last_build = Build(repo, compare_version)
         else:
@@ -171,16 +171,17 @@ def main():
         print("Last version %s had no result. Re-executing tests for it." % b.version)
         did_something = False
         for testie in testies:
+            prev_results = b.load_results(testie)
             print("Executing testie %s" % testie.filename)
             try:
-                all_results, init_done = testie.execute_all(b,options=args)
+                all_results, init_done = testie.execute_all(b,options=args, prev_results=prev_results)
                 if all_results is None:
                     continue
             except ScriptInitException:
                 continue
             else:
                 did_something = True
-            b.writeversion(testie, all_results)
+            b.writeversion(testie, all_results, allow_overwrite=True)
         if did_something:
             b.writeResults()
 

@@ -3,9 +3,7 @@ import os
 import time
 from multiprocessing import Queue
 from typing import List
-
-
-
+import paramiko
 
 class SSHExecutor:
 
@@ -42,46 +40,49 @@ class SSHExecutor:
         else:
             pre = path_cmd + pre
 
-        ssh = self.get_connection()
+        try:
+            ssh = self.get_connection()
 
 
-        ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command(pre + cmd,timeout=timeout, get_pty=True)
+            ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command(pre + cmd,timeout=timeout, get_pty=True)
 
-        if stdin is not None:
-            ssh_stdin.write(stdin)
+            if stdin is not None:
+                ssh_stdin.write(stdin)
 
-        out=''
-        err=''
-        pid = os.getpid()
+            out=''
+            err=''
+            pid = os.getpid()
 
-        while not terminated_event.is_set() and not ssh_stdout.channel.exit_status_ready():
-            try:
-                terminated_event.wait(1)
-            except KeyboardInterrupt:
-                if terminated_event:
-                    terminated_event.set()
-                return -1, out, err
-            if timeout is not None:
-                timeout -= 1
-                if timeout < 0:
-                    terminated_event.set()
-                    pid = 0
-                    break
-        if terminated_event.is_set():
-            if not ssh_stdin.channel.closed:
-                ssh_stdin.channel.send(chr(3))
-                i=0
-                ssh_stdout.channel.status_event.wait(timeout=1)
-            ret = 0 #Ignore return code because we kill it before completion.
-            ssh.close()
-        else:
-            ret = ssh_stdout.channel.recv_exit_status()
-        out = ssh_stdout.read().decode()
-        err = ssh_stderr.read().decode()
+            while not terminated_event.is_set() and not ssh_stdout.channel.exit_status_ready():
+                try:
+                    terminated_event.wait(1)
+                except KeyboardInterrupt:
+                    if terminated_event:
+                        terminated_event.set()
+                    return -1, out, err
+                if timeout is not None:
+                    timeout -= 1
+                    if timeout < 0:
+                        terminated_event.set()
+                        pid = 0
+                        break
+            if terminated_event.is_set():
+                if not ssh_stdin.channel.closed:
+                    ssh_stdin.channel.send(chr(3))
+                    i=0
+                    ssh_stdout.channel.status_event.wait(timeout=1)
+                ret = 0 #Ignore return code because we kill it before completion.
+                ssh.close()
+            else:
+                ret = ssh_stdout.channel.recv_exit_status()
+            out = ssh_stdout.read().decode()
+            err = ssh_stderr.read().decode()
 
 
-        return pid,out,err,ret
-
+            return pid,out,err,ret
+        except paramiko.ssh_exception.SSHException as e:
+            print("Error while connecting to %s", self.addr)
+            raise e
 
         #
         # try:
@@ -116,24 +117,26 @@ class SSHExecutor:
 #            os.system("scp %s %s@%s:%s/" % (filename, self.user,self.addr,self.path))
 #        else:
 #            os.system("scp %s %s:%s/" % (filename, self.addr,self.path))
+        try:
+            with paramiko.SSHClient() as ssh:
+                ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                ssh.load_system_host_keys()
+                try:
+                    ssh.connect(self.addr, 22, username=self.user)
+                except Exception as e:
+                    print("Cannot connect to %s with username %s" % (self.addr,self.user))
+                    raise e
 
-        import paramiko
-        with paramiko.SSHClient() as ssh:
-            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            ssh.load_system_host_keys()
-            try:
-                ssh.connect(self.addr, 22, username=self.user)
-            except Exception as e:
-                print("Cannot connect to %s with username %s" % (self.addr,self.user))
-                raise e
-
-            transport = ssh.get_transport()
-            with transport.open_channel(kind='session') as channel:
-                channel.exec_command('mkdir -p %s/%s' % (self.path, path_to_root))
-                if channel.recv_exit_status() != 0:
-                    return False
-            with transport.open_channel(kind='session') as channel:
-                channel.exec_command('cat > %s/%s/%s' % (self.path,path_to_root,filename))
-                channel.sendall(content)
-                channel.shutdown_write()
-                return channel.recv_exit_status() == 0
+                transport = ssh.get_transport()
+                with transport.open_channel(kind='session') as channel:
+                    channel.exec_command('mkdir -p %s/%s' % (self.path, path_to_root))
+                    if channel.recv_exit_status() != 0:
+                        return False
+                with transport.open_channel(kind='session') as channel:
+                    channel.exec_command('cat > %s/%s/%s' % (self.path,path_to_root,filename))
+                    channel.sendall(content)
+                    channel.shutdown_write()
+                    return channel.recv_exit_status() == 0
+        except paramiko.ssh_exception.SSHException as e:
+            print("Error while connecting to %s", self.addr)
+            raise e

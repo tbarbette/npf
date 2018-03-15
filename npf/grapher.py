@@ -1,5 +1,5 @@
 import io
-
+import math
 import re
 import natsort
 from orderedset._orderedset import OrderedSet
@@ -54,15 +54,6 @@ legendcolors = [ None ]
 for clist in graphcolorseries[1:]:
     gridcolors.append(lighter(clist[(int)(len(clist) / 2)], 0.25, 200))
     legendcolors.append(lighter(clist[(int)(len(clist) / 2)], 0.45, 25))
-
-
-
-def all_num(l):
-    for x in l:
-        if type(x) is not int and type(x) is not float:
-            return False
-    return True
-
 
 def find_base(ax):
     if ax[0] == 0 and len(ax) > 2:
@@ -394,6 +385,7 @@ class Grapher:
                 vars_values[var_name] = vvalues
             series = transformed_series
 
+        #Divide a serie by another
         prop = self.config('graph_series_prop')
         if prop:
             newseries = []
@@ -515,8 +507,8 @@ class Grapher:
         ndyn = len(dyns)
         nseries = len(series)
 
-        if nseries == 1 and ndyn > 0 and not (
-                            ndyn == 1 and all_num(vars_values[dyns[0]]) and len(vars_values[dyns[0]]) > 2):
+        if nseries == 1 and ndyn > 0 and not options.graph_no_series and not (
+                            ndyn == 1 and npf.all_num(vars_values[dyns[0]]) and len(vars_values[dyns[0]]) > 2):
             """Only one serie: expand one dynamic variable as serie, but not if it was plotable as a line"""
             script, build, all_results = series[0]
             if self.config("var_serie") and self.config("var_serie") in dyns:
@@ -528,7 +520,7 @@ class Grapher:
                 nonums = []
                 for i in range(ndyn):
                     k = dyns[i]
-                    if not all_num(vars_values[k]):
+                    if not npf.all_num(vars_values[k]):
                         nonums.append(k)
                         if len(vars_values[k]) > n_val:
                             key = k
@@ -637,12 +629,19 @@ class Grapher:
             n_lines = math.ceil((len(figure) + (1 if text else 0)) / float(n_cols))
             fig_name = "subplot" + str(i)
 
+            axiseis = []
             for isubplot, result_type in enumerate(figure):
                 data = data_types[result_type]
                 ymin, ymax = (float('inf'), 0)
 
                 if subplot_type=="subplot":
-                    axis = plt.subplot(n_lines, n_cols, isubplot + 1)
+                    if isubplot > 0:
+                        axis = plt.subplot(n_lines, n_cols, isubplot + 1, sharex=axiseis[0])
+                        plt.setp(axiseis[0].get_xticklabels(), visible=False)
+                        axiseis[0].set_xlabel("")
+                    else:
+                        axis = plt.subplot(n_lines, n_cols, isubplot + 1)
+
                     shift = 0
                 else:
                     if isubplot == 0:
@@ -655,6 +654,7 @@ class Grapher:
                             build._line=self.graphlines[isubplot]
                     else:
                         shift = 0
+                axiseis.append(axis)
 
                 gcolor = self.configlist('graph_color')
                 gi = {} #Index per-color
@@ -673,21 +673,20 @@ class Grapher:
                         n = slen / tot
                         if n < 0:
                             n = 1
-                        print(slen,n)
                         #For the default colors we take them in order
                         if s == 0:
                             f = gi[s]
                         else:
                             f = round((gi[s] + (0.33 if gi[s] < tot / 2 else 0.66)) * n)
                         gi[s]+=1
-                        build._color=graphcolorseries[s][f]
+                        build._color=graphcolorseries[s % len(graphcolorseries)][f % len(graphcolorseries[s % len(graphcolorseries)])]
 
 
 
                 if ndyn == 0:
                     """No dynamic variables : do a barplot X=version"""
                     self.do_simple_barplot(axis,result_type, data, shift)
-                elif ndyn == 1 and len(vars_all) > 2 and all_num(vars_values[key]):
+                elif ndyn == 1 and len(vars_all) > 2 and npf.all_num(vars_values[key]):
                     """One dynamic variable used as X, series are version line plots"""
                     self.do_line_plot(axis, key, result_type, data,shift)
                 else:
@@ -697,21 +696,6 @@ class Grapher:
                 type_config = "" if not result_type else "-" + result_type
 
                 lgd = None
-                if ndyn > 0 and bool(self.config_bool('graph_legend', True)):
-                    loc = self.config("legend_loc")
-                    if subplot_type=="axis" and len(figure) > 1:
-                        if isubplot == 0:
-                            loc = 'upper left'
-                        else:
-                            loc = 'lower right'
-                        legend_title = self.var_name("result",result_type=result_type)
-                    else:
-                        legend_title = glob_legend_title
-                    if loc and loc.startswith("outer"):
-                        loc = loc[5:].strip()
-                        lgd = axis.legend(loc=loc,bbox_to_anchor=(0., 1, 1., .0), mode=self.config("legend_mode"), borderaxespad=0.,ncol=self.config("legend_ncol"), title=legend_title,bbox_transform=plt.gcf().transFigure)
-                    else:
-                        lgd = axis.legend(loc=loc,ncol=self.config("legend_ncol"), title=legend_title)
                 if legendcolors[shift]:
                     axis.yaxis.label.set_color(legendcolors[shift])
                     axis.tick_params(axis='y',colors=legendcolors[shift])
@@ -755,7 +739,7 @@ class Grapher:
                 if var_lim:
                     n = var_lim.split('-')
                     if len(n) == 2:
-                        ymin, ymax = (float(x) for x in n)
+                        ymin, ymax = (npf.parseUnit(x) for x in n)
                         plt.ylim(ymin=ymin, ymax=ymax)
                     else:
                         f=float(n[0])
@@ -789,6 +773,36 @@ class Grapher:
                         print(dyn)
                     return None
 
+            for isubplot, result_type in enumerate(figure):
+                axis = axiseis[isubplot]
+                if ndyn > 0 and bool(self.config_bool('graph_legend', True)):
+                    loc = self.config("legend_loc")
+                    if subplot_type=="axis" and len(figure) > 1:
+                        if not loc.startswith("outer"):
+
+                            if self.configlist("subplot_legend_loc"):
+                                loc=self.configlist("subplot_legend_loc")[isubplot]
+                            else:
+                                if isubplot == 0:
+                                    loc = 'upper left'
+                                else:
+                                    loc = 'lower right'
+
+                        else:
+                            if isubplot > 0:
+                                continue
+                        legend_title = self.var_name("result",result_type=result_type)
+                    else:
+                        legend_title = glob_legend_title
+
+                    if loc and loc.startswith("outer"):
+                        loc = loc[5:].strip()
+                        lgd = axis.legend(loc=loc,bbox_to_anchor=(0., 1, 1., .0), mode=self.config("legend_mode"), borderaxespad=0.,ncol=self.config("legend_ncol"), title=legend_title,bbox_transform=plt.gcf().transFigure)
+                    else:
+                        lgd = axis.legend(loc=loc,ncol=self.config("legend_ncol"), title=legend_title)
+
+
+
             if text:
                 plt.subplot(n_lines, n_cols, len(figure) + 1)
                 plt.axis('off')
@@ -807,7 +821,7 @@ class Grapher:
                 ret[result_type] = buf.read()
             else:
                 type_filename = npf.build_filename(testie, build, options.graph_filename, statics, 'pdf', result_type, show_serie=False)
-                plt.savefig(type_filename, bbox_extra_artists=(lgd,) if lgd else [], bbox_inches='tight')
+                plt.savefig(type_filename, bbox_extra_artists=(lgd,) if lgd else [], bbox_inches='tight', dpi=options.graph_dpi)
                 ret[result_type] = None
                 print("Graph of test written to %s" % type_filename)
             plt.clf()
@@ -830,6 +844,10 @@ class Grapher:
 
         self.format_figure(axis,result_type,shift)
         rects = plt.bar(ticks, y, label=x, color=data[0][3]._color, width=width, yerr=e)
+
+        for i, v in enumerate(y):
+            axis.text(ticks[i], v + (max(y) / 20), "%.02f" % v, color=data[0][3]._color, fontweight='bold', horizontalalignment='center')
+
         if self.config('graph_show_values',False):
             def autolabel(rects, ax):
                 for rect in rects:
@@ -848,7 +866,7 @@ class Grapher:
             self.format_figure(axis, result_type, shift)
             c = build._color
 
-            if not all_num(x):
+            if not npf.all_num(x):
                 if variable.numericable(x):
                     ax = [variable.get_numeric(v) for i, v in enumerate(x)]
                 else:
@@ -866,7 +884,7 @@ class Grapher:
             lab = build.pretty_name()
             while lab.startswith('_'):
                 lab = lab[1:]
-            axis.plot(ax, y, label=lab, color=c, linestyle=build._line, marker=build._marker)
+            axis.plot(ax, y, label=lab, color=c, linestyle=build._line, marker=build._marker,markevery=(1 if len(ax) < 20 else math.ceil(len(ax) / 20)))
             if not self.config('graph_error_fill'):
                 axis.errorbar(ax, y, yerr=e, marker=' ', label=None, linestyle=' ', color=c, capsize=3)
             else:
@@ -943,6 +961,7 @@ class Grapher:
         yticks = self.scriptconfig("var_ticks", "result", default=None, result_type=result_type)
         if self.result_in_list('var_grid',result_type):
             axis.grid(True,linestyle=self.graphlines[( shift - 1 if shift > 0 else 0) % len(self.graphlines)],color=gridcolors[shift])
+            axis.set_axisbelow(True)
         isLog = False
         baseLog = self.scriptconfig('var_log_base', "result",result_type=result_type, default=None)
         if baseLog:
@@ -960,7 +979,7 @@ class Grapher:
             plt.ylabel(yname)
 
         if yticks:
-            ticks = [variable.get_numeric(y) for y in yticks.split('+')]
+            ticks = [variable.get_numeric(npf.parseUnit(y)) for y in yticks.split('+')]
             plt.yticks(ticks)
 
     def do_barplot(self, axis,vars_all, dyns, result_type, data, shift):
@@ -996,6 +1015,8 @@ class Grapher:
                     label=str(build.pretty_name()), color=build._color, yerr=e,
                     edgecolor=edgecolor)
                 last = last - y
+
+
         else:
             for i, (x, y, e, build) in enumerate(data):
                 axis.bar(interbar + ind + (i * width), y, width,

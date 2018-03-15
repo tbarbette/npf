@@ -57,7 +57,11 @@ def add_graph_options(parser: ArgumentParser):
                    help='path to the file to output the graph')
     g.add_argument('--graph-reject-outliers', dest='graph_reject_outliers', action='store_true', default=False)
 
+    g.add_argument('--graph-no-series', dest='graph_no_series', action='store_true', default=False)
+
     g.add_argument('--graph-select-max', dest='graph_select_max', type=int, default=None)
+
+    g.add_argument('--graph-dpi', dest='graph_dpi', type=int, default=300)
 
     g.add_argument('--iterative', dest='iterative', action='store_true', default=False,
                    help='Graph after each results, allowing to get a faster glimpse at the results')
@@ -271,3 +275,34 @@ def replace_path(path, build = None):
         for var,val in build.repo.env.items():
             path = path.replace('$'+var,val)
     return path
+
+def parseBool(s):
+    if type(s) is str and s.lower() == "false":
+       return False
+    else:
+       return bool(s)
+
+def parseUnit(u):
+    r = re.match('([0-9]+)[ ]*([GMK]?)',u)
+    if r != None:
+        n = float(r.group(1))
+        unit = r.group(2)
+        if unit is None or unit == '':
+            return n
+        if unit == 'G':
+            n = n * 1000000000
+        elif unit == 'M':
+            n = n * 1000000
+        elif unit == 'K':
+            n = n * 1000
+        else:
+            raise Exception('%s is not a valid unit !' % unit)
+        return n
+    else:
+        raise Exception("%s is not a number !" % u)
+
+def all_num(l):
+    for x in l:
+        if type(x) is not int and type(x) is not float:
+            return False
+    return True

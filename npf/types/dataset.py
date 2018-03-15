@@ -159,7 +159,13 @@ def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list
                    if result is not None:
                        for t in options.output_columns:
                            if t == 'x':
-                               row.append(xval)
+                               for var,val in run.variables.items():
+                                   if var in statics:
+                                       continue
+                                   row.append(val)
+                           elif t == 'all_x':
+                               for var,val in run.variables.items():
+                                   row.append(val)
                            elif t == 'mean':
                                row.append(np.mean(result))
                            elif t == 'avg':
