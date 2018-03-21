@@ -389,8 +389,10 @@ class Testie:
                             imp.testie.cleanup()
                         self.cleanup()
                     os.chdir('..')
-                    if not self.options.preserve_temp and f_mine:
+                    if not self.options.preserve_temp:
                         shutil.rmtree(test_folder)
+                    else:
+                        print("Test files have been preserved in :" + test_folder)
                     sys.exit(1)
 
 
@@ -409,6 +411,9 @@ class Testie:
                             print(e)
                         continue
                     if r == -1:
+                        os.chdir('..')
+                        if not self.options.preserve_temp and f_mine:
+                            shutil.rmtree(test_folder)
                         sys.exit(1)
                     if c != 0:
                         if npf.parseBool(script.params.get("critical", t.config["critical"])):
@@ -539,7 +544,6 @@ class Testie:
     def do_init_all(self, build, options, do_test, allowed_types=SectionScript.ALL_TYPES_SET,test_folder=None):
         if not build.build(options.force_build, options.no_build, options.quiet_build, options.show_build_cmd):
             raise ScriptInitException()
-
         if not self.build_deps([build.repo]):
             raise ScriptInitException()
 
@@ -582,7 +586,10 @@ class Testie:
 
         if not SectionScript.TYPE_SCRIPT in allowed_types:
             # If scripts is not in allowed_types, we have to run the init by force now
+
             self.do_init_all(build, options, do_test=do_test, allowed_types=allowed_types)
+            if not self.options.preserve_temp:
+                shutil.rmtree(test_folder)
             return {}, True
 
         all_results = {}
