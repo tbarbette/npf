@@ -349,7 +349,11 @@ class Testie:
                         timeout = t.config['timeout'] if t.config['timeout'] > 0 else None
                         if 'timeout' in script.params:
                             timeout = float(script.params['timeout'])
+                        if self.config['timeout'] > timeout:
+                            timeout = self.config['timeout']
+
                         param.timeout = timeout
+                        script.timeout = timeout
                         param.role = script.get_role()
                         param.default_role_map = self.config.get_dict("default_role_map")
                         param.delay = script.delay()
@@ -403,7 +407,7 @@ class Testie:
                 critical_failed = False
                 for iscript, (r, o, e, c, script) in enumerate(parallel_execs):
                     if r == 0:
-                        print("Timeout expired for script %s on %s..." % (script.get_name(),script.get_role()))
+                        print("Timeout of %d seconds expired for script %s on %s..." % (script.timeout, script.get_name(),script.get_role()))
                         if not self.options.quiet:
                             print("stdout:")
                             print(o)

@@ -43,15 +43,20 @@ full:TEST_TIME={1,2,3}
 
 fastregression:TEST_TIME=2
 
-%script@dut
+%script@dut sudo=true
 click -n 4 -c 0xf -- CONFIG || click --dpdk -n 4 -c 0xf -- CONFIG
 
 %file@dut CONFIG
 
+define($MAC0 ${dut:0:mac})
+define($MAC1 ${dut:1:mac})
+
+define($IP0 ${dut:0:ip})
+define($IP1 ${dut:1:ip})
 //fd0 :: FromDPDKDevice(0);
-td0 :: ToDPDKDevice(0, BLOCKING $BLOCK);
-fd1 :: FromDPDKDevice(1);
-td1 :: ToDPDKDevice(1);
+td0 :: ToDPDKDevice(${dut:0:pci}, BLOCKING $BLOCK);
+fd1 :: FromDPDKDevice(${dut:1:pci});
+td1 :: ToDPDKDevice(${dut:1:pci});
 
 fu0 :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH $LENGTH, SRCETH $MAC0, DSTETH $MAC1,
 SRCIP $IP0, DSTIP $IP1, FLOWS 1, FLOWSIZE $FLOWSIZE, ACTIVE false)
@@ -69,7 +74,7 @@ adv1 :: FastUDPFlows(RATE 1, LIMIT -1, LENGTH 64, SRCETH $MAC1, DSTETH $MAC0, SR
 
 fd1
     -> s :: Switch(0) [0]
-    -> c :: Classifier(0/$RAW_MAC1 6/$RAW_MAC0)
+    -> c :: Classifier(0/${dut:1:raw_mac} 6/${dut:0:raw_mac})
 s[1]
     -> ac :: AverageCounter
     -> Discard;

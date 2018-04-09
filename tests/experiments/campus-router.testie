@@ -23,6 +23,8 @@ graph_series_sort=-avg
 var_log={descin,descout,DESC,BURST}
 same:graph_combine_variables={BURSTIN+BURSTOUT:BURST,descin+descout:DESC}
 same:var_serie={DESC}
+dual:graph_subplot_results={RXTHROUGHPUT+LATENCY:common}
+dual:graph_subplot_type=axis
 
 %variables
 //Parameters for the router itself
@@ -103,8 +105,8 @@ parallel:maxthreads=EXPAND( $CPU )
 %same:require
 [ $BURSTIN -eq $BURSTOUT ]
 
-%udp:import@client fastclick-udpgen-dual 0:ip=10.120.0.100 1:ip=10.121.0.100
-%-udp:import@client fastclick-replay-dual 0:ip=139.165.0.1 1:ip=10.10.10.1 traceIN=/mnt/traces/201601-1_fullanon_padded.pcap traceOUT=/mnt/traces/201601-2_fullanon_padded.pcap NBUF=5000000 delay=2
+%udp:import@client fastclick-udpgen-dual 0:ip=10.120.0.100 1:ip=10.121.0.100 delay=2
+%-udp:import@client fastclick-replay-dual 0:ip=139.165.0.1 1:ip=10.10.10.1 traceIN=/mnt/traces/201601-1_fullanon_padded.pcap traceOUT=/mnt/traces/201601-2_fullanon_padded.pcap NBUF=5000000 delay=2 nolinktest=1
 
 %udp:script@dut 0:ip=10.120.0.1 1:ip=10.121.0.1 sudo=true autokill=false
 %-udp:script@dut 0:ip=139.165.0.2 1:ip=10.10.10.2 sudo=true autokill=false
@@ -113,9 +115,9 @@ parallel:maxthreads=EXPAND( $CPU )
 AddressInfo(INTERNALNET 139.165.0.0/16)
 
 %udp:file NET
-AddressInfo(INTERNALNET 10.120.0.0/24)
+AddressInfo(INTERNALNET 10.121.0.0/24)
 
-%dpdk:file IO
+%dpdk,fastclick:file IO
 define ($i 1024)
 define ($bout ${BURSTOUT})
 define ($bin ${BURSTIN})
@@ -125,6 +127,20 @@ fd0 :: FromDPDKDevice(${dut:0:pci}, BURST $bin, PROMISC false, THREADOFFSET $tho
 fd1 :: FromDPDKDevice(${dut:1:pci}, BURST $bin, PROMISC false, THREADOFFSET $thoffset, VERBOSE 3, MAXTHREADS $maxthreads, NDESC $descin)
 td0 :: ToDPDKDevice(${dut:0:pci} , BURST $bout, IQUEUE $i, BLOCKING $BLOCKING, VERBOSE 3, NDESC $descout)
 td1 :: ToDPDKDevice(${dut:1:pci} , BURST $bout, IQUEUE $i, BLOCKING $BLOCKING, VERBOSE 3, NDESC $descout)
+
+%dpdk,-fastclick:file IO
+define ($i 1024)
+define ($bout ${BURSTOUT})
+define ($bin ${BURSTIN})
+
+
+fd0 :: FromDPDKDevice(${dut:0:pci}, BURST $bin, PROMISC false, NDESC $descin)
+fd1 :: FromDPDKDevice(${dut:1:pci}, BURST $bin, PROMISC false, NDESC $descin)
+td0 :: ToDPDKDevice(${dut:0:pci} , BURST $bout, IQUEUE $i, NDESC $descout)
+td1 :: ToDPDKDevice(${dut:1:pci} , BURST $bout, IQUEUE $i, NDESC $descout)
+
+StaticThreadSched(fd0 0)
+StaticThreadSched(fd1 1)
 
 %netmap:file IO
 define ($i 1024)
@@ -247,10 +263,12 @@ output0[0] -> arpq0;
 output1[0] -> arpq1;
 
 DriverManager(wait,
-            read input0/fd.hw_count,
-            read input1/fd.hw_count,
-            read input0/fd.mac,
-            read input1/fd.mac,
+            read fd0.hw_count,
+            read fd1.hw_count,
+            read fd0.count,
+            read fd1.count,
+            read fd0.mac,
+            read fd1.mac,
             read td0.count,
             read td1.count,
             );

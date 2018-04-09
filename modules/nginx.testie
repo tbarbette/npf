@@ -17,7 +17,7 @@ echo "RESULT 1"
 %script sudo=true name=nginx
 killall -9 nginx &> /dev/null || true
 sleep 1
-nginx -c $(pwd)/nginx.conf -p $(pwd)
+nginx -c $(pwd)/nginx.conf -p $NGINX_ROOT
 exit $?
 
 //%clean

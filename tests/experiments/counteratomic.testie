@@ -14,7 +14,7 @@ var_ticks={RATE:0+1+2+8+32+128+512+2048+8192+65536}
 perf:graph_result_as_variable={PERF-(.*):Perf}
 //rate:graph_series_label=$COUNTER - $CPU cores
 //rate:graph_variables_as_series={COUNTER,CPU}
-rate:var_log+={result-OPPS}
+rate:var_log+={result-OPPS,result-ROPPS}
 rate:var_lim={result-OPPS:10000}
 
 %variables

@@ -767,7 +767,7 @@ class Grapher:
                 try:
                     plt.tight_layout()
                 except ValueError:
-                    print("WARNING: Too many points or variables to graph")
+                    print("Could not make the graph fit. It may be because you have too many points or variables to graph")
                     print("Try reducing the number of dynamic variables : ")
                     for dyn in dyns:
                         print(dyn)
@@ -821,7 +821,7 @@ class Grapher:
                 ret[result_type] = buf.read()
             else:
                 type_filename = npf.build_filename(testie, build, options.graph_filename, statics, 'pdf', result_type, show_serie=False)
-                plt.savefig(type_filename, bbox_extra_artists=(lgd,) if lgd else [], bbox_inches='tight', dpi=options.graph_dpi)
+                plt.savefig(type_filename, bbox_extra_artists=(lgd,) if lgd else [], bbox_inches='tight', dpi=options.graph_dpi, transparent=True)
                 ret[result_type] = None
                 print("Graph of test written to %s" % type_filename)
             plt.clf()

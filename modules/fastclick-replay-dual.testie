@@ -41,8 +41,8 @@ define($RAW_OUTdstmac ${server:$NIC_OUT:raw_mac})
 define($ignore 0)
 define($wait 2)
 define($replay_count $PKTGEN_REPLAY_COUNT)
-define($portIN $NIC_IN)
-define($portOUT $NIC_OUT)
+define($portIN ${self:$NIC_IN:pci})
+define($portOUT ${self:$NIC_OUT:pci})
 define($quick true)
 define($txverbose 99)
 define($rxverbose 99)
@@ -201,7 +201,9 @@ DriverManager(pause,
                 write link_initialized.run,
                 write link_initialized.run,
                 label waitagain,
+                set starttime $(now),
                 pause,
+                print "RESULT-TESTTIME $(sub $(now) $starttime)",
                 print "Replay finished. Waiting for last packets for $wait seconds...",
                 wait $wait,
                 write RINswitch.switch 1 , write ROUTswitch.switch 1,

@@ -1,5 +1,5 @@
 parent=click
 name=FastClick
 url=https://github.com/tbarbette/fastclick.git
-configure+=--enable-dpdk CFLAGS="-O3" CXXFLAGS="-std=gnu++11 -O3"
+configure+=--enable-dpdk CFLAGS="-O3" CXXFLAGS="-std=gnu++11 -O3" --enable-research --enable-ftp
 tags=click,fastclick,batch,fastclickbased

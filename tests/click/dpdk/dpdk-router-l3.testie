@@ -12,6 +12,7 @@ As for any DPDK application, you must be root on the node executing DPDK or allo
 %config
 //Timeout for a single script
 timeout=120
+default_repo=fastclick
 
 //Axis names
 var_names={LENGTH:Length,result:Throughput,TXCPU:Transmit CPU,RXCPU:Receive CPU,GEN_LENGTH:Packet length,BURSTOUT:Output burst,BURSTIN:Input burst}
@@ -30,7 +31,7 @@ BURSTOUT=[1*256]
 BURSTIN=[4*256]
 CPU=1
 CHECKSUM={true,false}
-cpufreq:CPUFREQ=1200000 //Unused
+nochecksum:CHECKSUM=false
 
 //Parameters for the packet generator
 GEN_BURST=256
@@ -58,8 +59,7 @@ lengthonly:BURSTOUT=32
 
 %script@dut 0:ip=10.120.0.1 1:ip=10.121.0.1 sudo=true
 //Support for the older DPDK config style of Click
-mask=$(echo "obase=16; (2^$CPU) - 1" | bc)
-click -n 4 -c 0x$mask -- CONFIG || click --dpdk -n 4 -c 0x$mask -- CONFIG
+click -n 4 -l 0-$(($CPU - 1)) -- CONFIG || click --dpdk -n 4 -l 0-$(($CPU - 1)) -- CONFIG
 
 %file CONFIG
 define ($MTU 1500)
@@ -87,7 +87,7 @@ elementclass Input { $device,$ip,$eth |
     t[0] -> Print("Input to linux") -> [2]output;
     t[1] -> Print("Arp response received") -> [3]output;
 
-    //Normal IP tou output 0
+    //Normal IP to output 0
     c0[2] -> [0]output;
 
     // Unknown ethernet type numbers.
@@ -95,8 +95,8 @@ elementclass Input { $device,$ip,$eth |
 }
 
 
-td0 :: ToDPDKDevice(${dut:0:pci} , BURST $bout, IQUEUE $i, BLOCKING true)
-td1 :: ToDPDKDevice(${dut:1:pci} , BURST $bout, IQUEUE $i, BLOCKING true)
+td0 :: ToDPDKDevice(${dut:0:pci}, BURST $bout, IQUEUE $i, BLOCKING true)
+td1 :: ToDPDKDevice(${dut:1:pci}, BURST $bout, IQUEUE $i, BLOCKING true)
 
 input0 :: Input(${dut:0:pci}, ${dut:0:ip}, ${dut:0:mac});
 input1 :: Input(${dut:1:pci}, ${dut:1:ip}, ${dut:1:mac});
