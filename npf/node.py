@@ -25,7 +25,7 @@ class NIC:
         elif item == 'mac':
             return self.mac
         elif item == 'raw_mac':
-            return self.mac.replace(':','')
+            return self.mac.replace(':', '')
         elif item == 'ip':
             return self.ip
         elif item == 'ifname':
@@ -55,7 +55,7 @@ class Node:
     _nodes = {}
 
     NICREF_REGEX = r'(?P<role>[a-z0-9]+)[:](?P<nic_idx>[0-9]+)[:](?P<type>' + NIC.TYPES + '+)'
-    VARIABLE_NICREF_REGEX = r'(?<!\\)[$][{]'+ NICREF_REGEX +'[}]';
+    VARIABLE_NICREF_REGEX = r'(?<!\\)[$][{]' + NICREF_REGEX + '[}]'
     ALLOWED_NODE_VARS = 'path|user|addr|tags'
 
     def __init__(self, name, executor):
@@ -70,8 +70,8 @@ class Node:
         clusterFile = 'cluster/' + name + '.node'
         if (os.path.exists(clusterFile)):
             f = open(clusterFile, 'r')
-            for i,line in enumerate(f):
-                line=line.strip()
+            for i, line in enumerate(f):
+                line = line.strip()
                 if not line or line.startswith("#"):
                     continue
                 match = re.match(r'(?P<nic_idx>[0-9]+):(?P<type>' + NIC.TYPES + ')=(?P<val>[a-z0-9:.]+)', line,
@@ -84,7 +84,7 @@ class Node:
                 if match:
                     setattr(executor, match.group('var'), match.group('val'))
                     continue
-                raise Exception("%s:%d : Unknown node config line %s" % (clusterFile,i,line))
+                raise Exception("%s:%d : Unknown node config line %s" % (clusterFile, i, line))
         else:
             self._find_nics()
 
@@ -114,7 +114,7 @@ class Node:
 
     @classmethod
     def makeLocal(cls, options):
-        node = cls._nodes.get('localhost',None)
+        node = cls._nodes.get('localhost', None)
         if node is None:
             node = Node('localhost', LocalExecutor())
             cls._nodes['localhost'] = node
@@ -124,7 +124,7 @@ class Node:
     def makeSSH(cls, user, addr, path, options):
         if path is None:
             path = os.getcwd()
-        node = cls._nodes.get(addr,None)
+        node = cls._nodes.get(addr, None)
         if node is not None:
             return node
         sshex = SSHExecutor(user, addr, path)
