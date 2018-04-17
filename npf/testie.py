@@ -93,10 +93,10 @@ class Testie:
         self.tags = tags if tags else []
         self.role = role
 
+        i = -1
         try:
             section = None
             f = open(testie_path, 'r')
-
             for i, line in enumerate(f):
                 if section is None or section.noparse is False:
                     line = re.sub(r'(^|[ ])//.*$', '', line)
@@ -138,7 +138,10 @@ class Testie:
             for section in self.sections:
                 section.finish(self)
         except Exception as e:
-            raise Exception("An exception occured while parsing %s at line %d:\n%s" % (testie_path, i, e.__str__()))
+            if i == -1:
+                raise Exception("An exception occured while accessing the file %s" % (testie_path))
+            else:
+                raise Exception("An exception occured while parsing %s at line %d:\n%s" % (testie_path, i, e.__str__()))
 
         # Check that all reference roles are defined
         known_roles = {'self', 'default'}.union(set(npf.roles.keys()))
