@@ -50,7 +50,7 @@ elementclass Dual { $portIN, $portOUT, $INsrcmac,$RAW_INsrcmac,$OUTsrcmac
     StaticThreadSched(replay $rth)
 
     elementclass Numberise { $dstId |
-        input 
+        input
         -> StoreEtherAddress($GEN_MAC, dst)
         -> StoreData(4, \<0$dstId>)
         -> {
