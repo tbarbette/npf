@@ -64,7 +64,10 @@ class Run:
         for k, v in self.variables.items():
             if type(v) is tuple:
                 v = v[1]
-            n += str(v).__hash__()
+            if is_numeric(v):
+                n += get_numeric(v).__hash__()
+            else:
+                n += str(v).__hash__()
             n += k.__hash__()
         return n
 
@@ -75,6 +78,9 @@ class Run:
         for k, v in self.variables.items():
             if not k in o.variables: return 1
             ov = o.variables[k]
+            if is_numeric(v) and is_numeric(ov):
+                return get_numeric(v) - get_numeric(ov)
+
             if type(v) is str or type(ov) is str:
                 if str(v) < str(ov):
                     return -1

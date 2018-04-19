@@ -59,9 +59,9 @@ def dtype(v):
 class VariableFactory:
     @staticmethod
     def build(name, valuedata, vsection=None):
-        result = re.match("\[(-?[0-9]+)([+-]|[*])(-?[0-9]+)([#][0-9]+)?\]", valuedata)
+        result = re.match("\[(-?[0-9.]+)([+-]|[*])(-?[0-9.]+)([#][0-9]+)?\]", valuedata)
         if result:
-            return RangeVariable(name, int(result.group(1)), int(result.group(3)), result.group(2) == "*", (int(result.group(4)[1:]) if result.group(4) else 1))
+            return RangeVariable(name, result.group(1), result.group(3), result.group(2) == "*", (int(result.group(4)[1:]) if result.group(4) else 1))
 
         result = regex.match("\{([^:]*:[^,:]+)(?:(?:,)([^,:]*:[^,:]+))*\}", valuedata)
         if result:
@@ -248,16 +248,28 @@ class DictVariable(Variable):
 
 
 class RangeVariable(Variable):
-    def __init__(self, name, valuestart, valueend, log, step = 1):
+    def __init__(self, name, valuestart, valueend, log, step = None):
         super().__init__()
-        if (valuestart > valueend):
+        if is_integer(valuestart) and is_integer(valueend):
+            valuestart=int(valuestart)
+            valueend=int(valueend)
+        else:
+            valuestart=float(valuestart)
+            valueend=float(valueend)
+        if valuestart > valueend:
             self.a = valueend
             self.b = valuestart
         else:
             self.a = valuestart
             self.b = valueend
         self.log = log
-        self.step = step
+        if step is None:
+            if log:
+                self.step = 2
+            else:
+                self.step = 1
+        else:
+            self.step = step
 
     def count(self):
         """todo: think"""
@@ -268,8 +280,8 @@ class RangeVariable(Variable):
 
 
     def makeValues(self):
-        vs = []
         if self.log:
+            vs = []
             i = self.a
             while i <= self.b:
                 vs.append(i)
@@ -281,12 +293,11 @@ class RangeVariable(Variable):
                     else:
                         i = -1
                 else:
-                    i *= 2
+                    i *= self.step
             if i > self.b:
                 vs.append(self.b)
         else:
-            for i in range(self.a, self.b, self.step):
-                vs.append(i)
+            vs = range(self.a, self.b + 1, self.step)
         return vs
 
     def format(self):
