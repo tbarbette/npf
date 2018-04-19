@@ -61,7 +61,7 @@ class VariableFactory:
     def build(name, valuedata, vsection=None):
         result = re.match("\[(-?[0-9.]+)([+-]|[*])(-?[0-9.]+)([#][0-9]+)?\]", valuedata)
         if result:
-            return RangeVariable(name, result.group(1), result.group(3), result.group(2) == "*", (int(result.group(4)[1:]) if result.group(4) else 1))
+            return RangeVariable(name, result.group(1), result.group(3), result.group(2) == "*", (int(result.group(4)[1:]) if result.group(4) else None))
 
         result = regex.match("\{([^:]*:[^,:]+)(?:(?:,)([^,:]*:[^,:]+))*\}", valuedata)
         if result:
