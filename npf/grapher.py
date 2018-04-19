@@ -896,7 +896,8 @@ class Grapher:
         if not (key in self.config('var_log', {})):
             var_lim = self.scriptconfig("var_lim", key, key)
             if var_lim and var_lim is not key:
-                xmin, xmax = (float(x) for x in var_lim.split('-'))
+                matches = re.match("([-]?[0-9.]+)[-]([-]?[0-9.]+)", var_lim)
+                xmin, xmax = (float(x) for x in matches.groups())
             # else:
             #     if abs(xmin) < 10 and abs(xmax) < 10:
             #         if (xmin != 1):
