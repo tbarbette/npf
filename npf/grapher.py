@@ -797,7 +797,8 @@ class Grapher:
 
                     if loc and loc.startswith("outer"):
                         loc = loc[5:].strip()
-                        lgd = axis.legend(loc=loc,bbox_to_anchor=(0., 1, 1., .0), mode=self.config("legend_mode"), borderaxespad=0.,ncol=self.config("legend_ncol"), title=legend_title,bbox_transform=plt.gcf().transFigure)
+                        legend_bbox=self.configlist("legend_bbox")
+                        lgd = axis.legend(loc=loc,bbox_to_anchor=legend_bbox, mode=self.config("legend_mode"), borderaxespad=0.,ncol=self.config("legend_ncol"), title=legend_title,bbox_transform=plt.gcf().transFigure)
                     else:
                         lgd = axis.legend(loc=loc,ncol=self.config("legend_ncol"), title=legend_title)
 

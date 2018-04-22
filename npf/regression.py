@@ -68,39 +68,42 @@ class Regression:
                         old_all_results[run] = {}
 
             if need_supp and testie.options.do_test:
-                if not testie.options.quiet_regression:
-                    print(
-                        "Difference of %.2f%% is outside acceptable margin for %s. Running supplementary tests..." % (
-                            diff * 100, run.format_variables()))
+                try:
+                    if not testie.options.quiet_regression:
+                        print(
+                            "Difference of %.2f%% is outside acceptable margin for %s. Running supplementary tests..." % (
+                                diff * 100, run.format_variables()))
 
-                if not init_done:
-                    testie.do_init_all(build=build, options=testie.options, do_test=testie.options.do_test)
-                    init_done = True
-                variables = v.copy()
-                for late_variables in testie.get_late_variables():
-                    variables.update(late_variables.execute(variables, testie))
-                new_results_types, output, err, n_exec = testie.execute(build, run, variables,
-                                                                n_runs=testie.config["n_supplementary_runs"],
-                                                                allowed_types={SectionScript.TYPE_SCRIPT})
+                    if not init_done:
+                        testie.do_init_all(build=build, options=testie.options, do_test=testie.options.do_test)
+                        init_done = True
+                    variables = v.copy()
+                    for late_variables in testie.get_late_variables():
+                        variables.update(late_variables.execute(variables, testie))
+                    new_results_types, output, err, n_exec = testie.execute(build, run, variables,
+                                                                    n_runs=testie.config["n_supplementary_runs"],
+                                                                    allowed_types={SectionScript.TYPE_SCRIPT})
 
-                for result_type, results in new_results_types.items():
-                    results_types[result_type] += results
+                    for result_type, results in new_results_types.items():
+                        results_types[result_type] += results
 
-                if not testie.options.quiet_regression:
-                    print("Result after supplementary tests done :", results_types)
+                    if not testie.options.quiet_regression:
+                        print("Result after supplementary tests done :", results_types)
 
-                if new_results_types is not None:
-                    supp_done = True
-                    all_results[run] = results_types
-                    for result_type, result in results_types.items():
-                        old_result = old_all_results[run].get(result_type, None)
-                        if old_result is None:
-                            continue
-                        ok, diff = self.accept_diff(testie, result, old_result)
-                        if ok is False:
-                            break
-                else:
-                    ok = True
+                    if new_results_types is not None:
+                        supp_done = True
+                        all_results[run] = results_types
+                        for result_type, result in results_types.items():
+                            old_result = old_all_results[run].get(result_type, None)
+                            if old_result is None:
+                                continue
+                            ok, diff = self.accept_diff(testie, result, old_result)
+                            if ok is False:
+                                break
+                    else:
+                        ok = True
+                except ScriptInitException:
+                    pass
 
             if len(results_types) > 0:
                 if not ok:

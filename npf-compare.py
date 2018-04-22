@@ -75,6 +75,9 @@ def do_graph(filename,args,series):
         else:
             useful_variables.append(variable)
 
+    for v in series[0][0].config.get_list("graph_hide_variables"):
+        if v in useful_variables:
+            useful_variables.remove(v)
     #Keep only the variables in Run that are usefull as defined above
     for i, (testie, build, dataset) in enumerate(series):
         ndataset = {}

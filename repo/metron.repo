@@ -1,0 +1,5 @@
+parent=fastclick
+name=Metron
+branch=metron
+configure+=--enable-json --enable-ids
+tags+=metron

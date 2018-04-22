@@ -457,48 +457,55 @@ class Testie:
                 has_values = False
                 for result_regex in self.config.get_list("result_regex"):
                     result_types = OrderedDict()
-                    for nr in re.finditer(result_regex, output.strip(), re.IGNORECASE):
-                        result_type = nr.group("type")
-                        if result_type is None:
-                            result_type = ''
-                        n = float(nr.group("value"))
-                        mult = nr.group("multiplier")
-                        unit = ""
-                        if nr.group("unit"):
-                            unit = nr.group("unit")
-                        if unit.lower() == "sec" or unit.lower() == "s":
-                            unit = "s"
+                    try:
+                        for nr in re.finditer(result_regex, output.strip(), re.IGNORECASE):
+                            result_type = nr.group("type")
+                            if result_type is None:
+                                result_type = ''
+                            n = float(nr.group("value"))
+                            mult = nr.group("multiplier")
+                            unit = ""
+                            if nr.group("unit"):
+                                unit = nr.group("unit")
+                            if unit.lower() == "sec" or unit.lower() == "s":
+                                unit = "s"
 
-                        if unit == "s":
-                            if mult == "m":
-                                n = n / 1000 #Keep all results in seconds
-                            elif mult == "u" or mult=="µ":
-                                n = n / 1000000
-                            elif mult == "n":
-                                n = n / 1000000000
-                        else:
-                            mult = mult.upper()
-
-                        if mult == "K":
-                            n *= 1024
-                        elif mult == "M":
-                            n *= 1024 * 1024
-                        elif mult == "G":
-                            n *= 1024 * 1024 * 1024
-                        if n != 0 or (self.config.match("accept_zero", result_type)):
-                            if result_type in result_types:
-                                result_types[result_type] += n
+                            if unit == "s":
+                                if mult == "m":
+                                    n = n / 1000 #Keep all results in seconds
+                                elif mult == "u" or mult=="µ":
+                                    n = n / 1000000
+                                elif mult == "n":
+                                    n = n / 1000000000
                             else:
-                                result_types[result_type] = n
-                            has_values = True
-                        else:
-                            print("Result for %s is 0 !" % result_type)
-                            print("stdout:")
-                            print(output)
-                            print("stderr:")
-                            print(err)
-                    for result_type, val in result_types.items():
-                        results.setdefault(result_type, []).append(val)
+                                mult = mult.upper()
+
+                            if mult == "K":
+                                n *= 1024
+                            elif mult == "M":
+                                n *= 1024 * 1024
+                            elif mult == "G":
+                                n *= 1024 * 1024 * 1024
+                            if n != 0 or (self.config.match("accept_zero", result_type)):
+                                if result_type in result_types:
+                                    result_types[result_type] += n
+                                else:
+                                    result_types[result_type] = n
+                                has_values = True
+                            else:
+                                print("Result for %s is 0 !" % result_type)
+                                print("stdout:")
+                                print(output)
+                                print("stderr:")
+                                print(err)
+                        for result_type, val in result_types.items():
+                            results.setdefault(result_type, []).append(val)
+                    except Exception as e:
+                        print("Exception while parsing results :")
+                        print(output)
+                        raise e
+
+
                 if has_values:
                     break
 
