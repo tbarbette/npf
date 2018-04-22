@@ -1,0 +1,676 @@
+%info
+Simulate Metron offloading, but without the switch. Use 4 10G NICs
+
+%config
+require_tags={dpdk,fastclick}
+var_unit={result:bps,result-LATENCY:µs,result-DROPPED:Packets}
+var_names={CPUNR:Number of cores,result-LATENCY:Latency (µs),result:Throughput,SIZE:NF Size,result-DROPPED:Dropped at RX}
+timeout=45
+var_lim={CPUNR:0-9,THROUGHPUT:0-40}
+var_divider={THROUGHPUT:1000000000}
+var_format={THROUGHPUT:%d}
+graph_subplot_results={THROUGHPUT,LATENCY,DROPPED}
+accept_zero={DROPPED}
+results_expect={DROPPED,THROUGHPUT,LATENCY}
+
+%-udp,pipeline:import@client fastclick-replay-quad traceIN=/home/tom/traces/IN.pcap traceOUT=/home/tom/traces/IN.pcap nolinktest=1 delay=10
+%-udp,-pipeline,-hwassist:import@client fastclick-replay-quad traceIN=/home/tom/traces/IN.pcap traceOUT=/home/tom/traces/IN.pcap nolinktest=1 delay=5
+%-udp,-pipeline,hwassist:import@client fastclick-replay-vmdq-quad traceIN=/home/tom/traces/IN.pcap traceOUT=/home/tom/traces/IN.pcap nolinktest=1 delay=5
+%udp:import@client fastclick-udpgen-latency-quad delay=6
+
+
+%variables
+CPUNR=[1-8]
+FNT={FWD:Forward,SMALL_FIREWALL:Small firewall,LARGE_FIREWALL:Large firewall,LARGE_FIREWALL_DPI:Large firewall and Small DPI,LARGE_FIREWALL_DUMMY_DPI:Large firewall and Dummy DPI}
+fwd:FNT={FWD:Forward}
+largefw:FNT={LARGE_FIREWALL:Large firewall}
+largefwdummydpi:FNT={LARGE_FIREWALL_DUMMY_DPI:Large firewall and Dummy DPI}
+largefwdpi:FNT={LARGE_FIREWALL_DPI:Large firewall and DPI}
+
+BLOCKING=true
+full:BLOCKING={true,false}
+pipeline:PBLOCK=true
+full,pipeline:PBLOCK={true,false}
+pipeline:CAPACITY=8
+full,pipeline:CAPACITY=[4*128]
+IQUEUE=256
+full:IQUEUE=[32*1024]
+
+hwassist:GEN_MAC=ec:f4:b2:a6:dd:ee
+avg:AVG_ENABLED=1
+cpufreq:CPUFREQ=1200000
+
+
+%late_variables
+DUALTH=15
+RCPUNR=EXPAND( $CPUNR )
+dualpipeline:RCPUNR=EXPAND( $(( $CPUNR - 1 )) )
+-nonuma:TWICECPUNR=EXPAND( $(( $CPUNR * 2 )) )
+nonuma:TWICECPUNR=EXPAND( $(( $CPUNR )) )
+ndesc=256
+avg:AVG= -> avg :: AverageCounterMP()
+-avg:AVG=
+
+
+
+%cpufreq:import@dut cpufreq
+//-------------------------------------
+//-------------------------------------
+//Beginning of the per-experiment part-
+//-------------------------------------
+//-------------------------------------
+
+%pipeline:require
+test $CPUNR -gt 1
+
+%dualpipeline:require
+test $CPUNR -gt 2
+
+//Command line to launch. Pipeline mode need different mask, so there is two versions
+%-pipeline,-hwassist:script@server sudo=true
+cat FNT_$FNT MOT_CONFIG | tee | click --dpdk -l 0-$(echo "$RCPUNR - 1" | bc)
+
+%hwassist:script@server sudo=true
+cat FNT_${FNT}_HW HW_CONFIG | tee | click --dpdk -l 0-$(echo "$RCPUNR - 1" | bc)
+
+%pipeline:script@server sudo=true
+cat FNT_$FNT PIPELINE_OUT MOT_CONFIG PIPELINE_END | tee | click --dpdk -l 0-15 -- NQ=$(echo "$RCPUNR - 1" | bc)
+
+
+//Per-type includes
+%file FNT_FWD
+elementclass FNT {
+ input
+ -> MarkMACHeader()
+$AVG
+ -> output
+}
+
+%file FNT_LARGE_FIREWALL_HW
+elementclass FNT {
+ input
+ -> MarkMACHeader()
+$AVG
+// -> Print()
+ -> output
+}
+
+%file FNT_SMALL_FIREWALL
+define(
+	$macAddr0       ${server:0:mac},
+	$ipAddr0        10.0.0.1,
+	$ipNetHost0     10.0.0.0/32,
+	$ipBcast0       10.0.0.255/32,
+	$ipNet0         10.0.0.0/24,
+
+	$macAddr1       ${server:1:mac},
+	$ipAddr1        20.0.0.1,
+	$ipNetHost1     20.0.0.0/32,
+	$ipBcast1       20.0.0.255/32,
+	$ipNet1         20.0.0.0/24,
+
+	$gwMACAddr0     ${client:0:mac},
+	$gwMACAddr1     ${client:1:mac},
+
+	$queueSize      1024,
+	$mtuSize        9000,
+);
+
+require(library "$NPF_ROOT/libs/40G/small_firewall_in.click")
+
+elementclass FNT{
+ input
+ -> MarkMACHeader()
+$AVG
+ -> fw :: Firewall()
+ -> output
+}
+
+%file FNT_LARGE_FIREWALL
+define(
+	$macAddr0       ${server:0:mac},
+	$ipAddr0        10.0.0.1,
+	$ipNetHost0     10.0.0.0/32,
+	$ipBcast0       10.0.0.255/32,
+	$ipNet0         10.0.0.0/24,
+
+	$macAddr1       ${server:1:mac},
+	$ipAddr1        20.0.0.1,
+	$ipNetHost1     20.0.0.0/32,
+	$ipBcast1       20.0.0.255/32,
+	$ipNet1         20.0.0.0/24,
+
+	$gwMACAddr0     ${client:0:mac},
+	$gwMACAddr1     ${client:1:mac},
+
+	$queueSize      1024,
+	$mtuSize        9000,
+);
+
+require(library "$NPF_ROOT/libs/40G/large_firewall_in.click")
+
+elementclass FNT{
+ input
+ -> MarkMACHeader()
+$AVG
+ -> fw :: Firewall()
+ -> output
+}
+
+%file FNT_LARGE_FIREWALL_DPI
+define(
+	$macAddr0       ${server:0:mac},
+	$ipAddr0        10.0.0.1,
+	$ipNetHost0     10.0.0.0/32,
+	$ipBcast0       10.0.0.255/32,
+	$ipNet0         10.0.0.0/24,
+
+	$macAddr1       ${server:1:mac},
+	$ipAddr1        20.0.0.1,
+	$ipNetHost1     20.0.0.0/32,
+	$ipBcast1       20.0.0.255/32,
+	$ipNet1         20.0.0.0/24,
+
+	$gwMACAddr0     ${client:0:mac},
+	$gwMACAddr1     ${client:1:mac},
+
+	$queueSize      1024,
+	$mtuSize        9000,
+);
+
+require(library "$NPF_ROOT/libs/40G/large_firewall_in.click")
+require(library "$NPF_ROOT/libs/40G/small_dpi.click")
+
+elementclass FNT{
+ input
+ -> MarkMACHeader()
+$AVG
+ -> fw :: Firewall()
+ -> dpi :: DPI()
+ -> output
+}
+
+
+%file FNT_LARGE_FIREWALL_DUMMY_DPI
+define(
+	$macAddr0       ${server:0:mac},
+	$ipAddr0        10.0.0.1,
+	$ipNetHost0     10.0.0.0/32,
+	$ipBcast0       10.0.0.255/32,
+	$ipNet0         10.0.0.0/24,
+
+	$macAddr1       ${server:1:mac},
+	$ipAddr1        20.0.0.1,
+	$ipNetHost1     20.0.0.0/32,
+	$ipBcast1       20.0.0.255/32,
+	$ipNet1         20.0.0.0/24,
+
+	$gwMACAddr0     ${client:0:mac},
+	$gwMACAddr1     ${client:1:mac},
+
+	$queueSize      1024,
+	$mtuSize        9000,
+);
+
+require(library "$NPF_ROOT/libs/40G/large_firewall_in.click")
+require(library "$NPF_ROOT/libs/40G/dummy_dpi.click")
+
+elementclass FNT{
+ input
+ -> MarkMACHeader()
+ -> fw :: Firewall()
+ -> dpi :: DPI()
+ -> output
+}
+
+
+%file FNT_LARGE_FIREWALL_DUMMY_DPI_HW
+define(
+	$macAddr0       ${server:0:mac},
+	$ipAddr0        10.0.0.1,
+	$ipNetHost0     10.0.0.0/32,
+	$ipBcast0       10.0.0.255/32,
+	$ipNet0         10.0.0.0/24,
+
+	$macAddr1       ${server:1:mac},
+	$ipAddr1        20.0.0.1,
+	$ipNetHost1     20.0.0.0/32,
+	$ipBcast1       20.0.0.255/32,
+	$ipNet1         20.0.0.0/24,
+
+	$gwMACAddr0     ${client:0:mac},
+	$gwMACAddr1     ${client:1:mac},
+
+	$queueSize      1024,
+	$mtuSize        9000,
+);
+
+require(library "$NPF_ROOT/libs/40G/dummy_dpi.click")
+
+elementclass FNT{
+ input
+ -> MarkMACHeader()
+ -> dpi :: DPI()
+ -> output
+}
+
+%file FNT_LARGE_FIREWALL_DPI_HW
+define(
+	$macAddr0       ${server:0:mac},
+	$ipAddr0        10.0.0.1,
+	$ipNetHost0     10.0.0.0/32,
+	$ipBcast0       10.0.0.255/32,
+	$ipNet0         10.0.0.0/24,
+
+	$macAddr1       ${server:1:mac},
+	$ipAddr1        20.0.0.1,
+	$ipNetHost1     20.0.0.0/32,
+	$ipBcast1       20.0.0.255/32,
+	$ipNet1         20.0.0.0/24,
+
+	$gwMACAddr0     ${client:0:mac},
+	$gwMACAddr1     ${client:1:mac},
+
+	$queueSize      1024,
+	$mtuSize        9000,
+);
+
+require(library "$NPF_ROOT/libs/40G/small_dpi.click")
+
+elementclass FNT{
+ input
+ -> MarkMACHeader()
+ -> dpi :: DPI()
+ -> output
+}
+
+
+
+//--------------------------
+//-- Parallel mode
+//--------------------------
+%-pipeline:file MOT_CONFIG
+
+DPDKInfo(131072)
+elementclass  Forwarder{ $port,$srcmac,$dstmac |
+    fd :: FromDPDKDevice($port, MAC $srcmac, THREADOFFSET 0, MAXTHREADS $RCPUNR, NUMA false, VERBOSE 99, NDESC $ndesc)
+    -> fnt:: FNT()
+    -> output;
+
+    input
+    -> EtherRewrite($srcmac, $dstmac)
+    -> tdOUT :: ToDPDKDevice($port, BLOCKING $BLOCKING, IQUEUE $IQUEUE);
+
+    //Just advertise L2 for the switch
+    adv1 :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH 64, SRCETH $srcmac, DSTETH ff:ff:ff:ff:ff:ff, SRCIP 10.99.98.97, DSTIP 10.97.98.99, FLOWS 1, FLOWSIZE 1)
+    -> advq1 :: RatedUnqueue(1)
+    -> tdOUT;
+}
+
+f0 :: Forwarder(${server:0:pci}, ${server:0:mac}, ${client:0:mac});
+
+f1 :: Forwarder(${server:1:pci}, ${server:1:mac}, ${client:1:mac});
+f2 :: Forwarder(${server:2:pci}, ${server:2:mac}, ${client:2:mac});
+f3 :: Forwarder(${server:3:pci}, ${server:3:mac}, ${client:3:mac});
+
+f0->f1;
+f1->f0;
+f2->f3;
+f3->f2;
+
+DriverManager(wait,
+
+    print "RESULT-AVG $(add $(f0/fnt/avg.link_rate) $(f1/fnt/avg.link_rate) $(f2/fnt/avg.link_rate) $(f3/fnt/avg.link_rate))",
+    print "RESULT-COUNT $(add $(f0/fd.hw_count) $(f1/fd.hw_count) $(f2/fd.hw_count) $(f3/fd.hw_count))",
+    print "$(f0/fd.hw_count) $(f1/fd.hw_count) $(f2/fd.hw_count) $(f3/fd.hw_count)",
+    print "$(f0/tdOUT.hw_count) $(f1/tdOUT.hw_count) $(f2/tdOUT.hw_count) $(f3/tdOUT.hw_count)",
+    print "RESULT-DROPPED $(add $(f0/fd.hw_dropped) $(f1/fd.hw_dropped) $(f2/fd.hw_dropped) $(f3/fd.hw_dropped))",
+    );
+
+%pipeline:file PIPELINE_OUT
+td0 ::  EtherRewrite(SRC ${server:0:mac}, DST ${client:0:mac})
+-> ToDPDKDevice(0, BLOCKING $BLOCKING, IQUEUE $IQUEUE);
+
+td1 ::  EtherRewrite(SRC ${server:1:mac}, DST ${client:1:mac})
+-> ToDPDKDevice(1, BLOCKING $BLOCKING, IQUEUE $IQUEUE);
+
+td2 ::  EtherRewrite(SRC ${server:2:mac}, DST ${client:2:mac})
+-> ToDPDKDevice(2, BLOCKING $BLOCKING, IQUEUE $IQUEUE);
+
+td3 ::  EtherRewrite(SRC ${server:3:mac}, DST ${client:3:mac})
+-> ToDPDKDevice(3, BLOCKING $BLOCKING, IQUEUE $IQUEUE);
+
+%pipeline,dualpipeline:file PIPELINE_OUT
+td0 ::  EtherRewrite(SRC ${server:0:mac}, DST ${client:0:mac})
+-> p0 :: Pipeliner(BLOCKING $PBLOCK)
+-> ToDPDKDevice(0, BLOCKING $BLOCKING, IQUEUE $IQUEUE);
+
+td1 ::  EtherRewrite(SRC ${server:1:mac}, DST ${client:1:mac})
+-> p1 :: Pipeliner(BLOCKING $PBLOCK)
+-> ToDPDKDevice(1, BLOCKING $BLOCKING, IQUEUE $IQUEUE);
+
+td2 ::  EtherRewrite(SRC ${server:2:mac}, DST ${client:2:mac})
+-> p2 :: Pipeliner(BLOCKING $PBLOCK)
+-> ToDPDKDevice(2, BLOCKING $BLOCKING, IQUEUE $IQUEUE);
+
+td3 ::  EtherRewrite(SRC ${server:3:mac}, DST ${client:3:mac})
+-> p3 :: Pipeliner(BLOCKING $PBLOCK)
+-> ToDPDKDevice(3, BLOCKING $BLOCKING, IQUEUE $IQUEUE);
+
+StaticThreadSched(p0 $DUALTH, p1 $DUALTH, p2 $DUALTH, p3 $DUALTH)
+
+
+//--------------------------
+//-- Simple pipeline
+//--------------------------
+%fastclick,pipeline:file MOT_CONFIG
+elementclass Pipeline { $thread |
+ input[0]
+ -> pIN :: Pipeliner(BLOCKING $PBLOCK, CAPACITY $CAPACITY)
+ -> FNT()
+ -> [0]output
+
+ input[1]
+ -> pOUT :: Pipeliner(BLOCKING $PBLOCK, CAPACITY $CAPACITY)
+ -> FNT()
+ -> [1]output
+
+ input[2]
+ -> pIN2 :: Pipeliner(BLOCKING $PBLOCK, CAPACITY $CAPACITY)
+ -> FNT()
+ -> [2]output
+
+ input[3]
+ -> pOUT2 :: Pipeliner(BLOCKING $PBLOCK, CAPACITY $CAPACITY)
+ -> FNT()
+ -> [3]output
+
+
+ StaticThreadSched(pIN $thread)
+ StaticThreadSched(pOUT $thread)
+ StaticThreadSched(pIN2 $thread)
+ StaticThreadSched(pOUT2 $thread)
+
+}
+
+pipeline1 :: Pipeline(2)
+pipeline2 :: Pipeline(4)
+pipeline3 :: Pipeline(6)
+pipeline4 :: Pipeline(8)
+pipeline5 :: Pipeline(10)
+pipeline6 :: Pipeline(12)
+pipeline7 :: Pipeline(14)
+pipeline8 :: Pipeline(1)
+pipeline9 :: Pipeline(3)
+pipeline10 :: Pipeline(5)
+pipeline11 :: Pipeline(7)
+pipeline12 :: Pipeline(9)
+pipeline13 :: Pipeline(11)
+pipeline14 :: Pipeline(13)
+pipeline15 :: Pipeline(15)
+
+//We use the RSS queue as paint anno, and then dispatch to pipelines according to the paint. Kind of fast per-flow round robin
+fd0 :: FromDPDKDevice(0, N_QUEUES $NQ , MAXTHREADS 1, THREADOFFSET 0, PAINT_QUEUE true, NUMA false, VERBOSE 99, NDESC $ndesc)
+-> swINA :: PaintSwitch()
+swINA[0] -> [0]pipeline1[0] -> td1
+swINA[1] -> [0]pipeline2[0] -> td1
+swINA[2] -> [0]pipeline3[0] -> td1
+swINA[3] -> [0]pipeline4[0] -> td1
+swINA[4] -> [0]pipeline5[0] -> td1
+swINA[5] -> [0]pipeline6[0] -> td1
+swINA[6] -> [0]pipeline7[0] -> td1
+swINA[7] -> [0]pipeline8[0] -> td1
+swINA[8] -> [0]pipeline9[0] -> td1
+swINA[9] -> [0]pipeline10[0] -> td1
+swINA[10] -> [0]pipeline11[0] -> td1
+swINA[11] -> [0]pipeline12[0] -> td1
+swINA[12] -> [0]pipeline13[0] -> td1
+swINA[13] -> [0]pipeline14[0] -> td1
+swINA[14] -> [0]pipeline15[0] -> td1;
+
+StaticThreadSched(fd0 0);
+
+fd1 :: FromDPDKDevice(1, N_QUEUES $NQ, MAXTHREADS 1, THREADOFFSET 0, PAINT_QUEUE true, NUMA false, VERBOSE 99, NDESC $ndesc)
+-> swOUTA :: PaintSwitch()
+swOUTA[0] -> [1]pipeline1[1] -> td0
+swOUTA[1] -> [1]pipeline2[1] -> td0
+swOUTA[2] -> [1]pipeline3[1] -> td0
+swOUTA[3] -> [1]pipeline4[1] -> td0
+swOUTA[4] -> [1]pipeline5[1] -> td0
+swOUTA[5] -> [1]pipeline6[1] -> td0
+swOUTA[6] -> [1]pipeline7[1] -> td0
+swOUTA[7] -> [1]pipeline8[1] -> td0
+swOUTA[8] -> [1]pipeline9[1] -> td0
+swOUTA[9] -> [1]pipeline10[1] -> td0
+swOUTA[10] -> [1]pipeline11[1] -> td0
+swOUTA[11] -> [1]pipeline12[1] -> td0
+swOUTA[12] -> [1]pipeline13[1] -> td0
+swOUTA[13] -> [1]pipeline14[1] -> td0
+swOUTA[14] -> [1]pipeline15[1] -> td0
+StaticThreadSched(fd1 0);
+
+
+fd2 :: FromDPDKDevice(2, N_QUEUES $NQ , MAXTHREADS 1, THREADOFFSET 0, PAINT_QUEUE true, NUMA false, VERBOSE 99, NDESC $ndesc)
+-> swIN :: PaintSwitch()
+swIN[0] -> [2]pipeline1[2] -> td3
+swIN[1] -> [2]pipeline2[2] -> td3
+swIN[2] -> [2]pipeline3[2] -> td3
+swIN[3] -> [2]pipeline4[2] -> td3
+swIN[4] -> [2]pipeline5[2] -> td3
+swIN[5] -> [2]pipeline6[2] -> td3
+swIN[6] -> [2]pipeline7[2] -> td3
+swIN[7] -> [2]pipeline8[2] -> td3
+swIN[8] -> [2]pipeline9[2] -> td3
+swIN[9] -> [2]pipeline10[2] -> td3
+swIN[10] -> [2]pipeline11[2] -> td3
+swIN[11] -> [2]pipeline12[2] -> td3
+swIN[12] -> [2]pipeline13[2] -> td3
+swIN[13] -> [2]pipeline14[2] -> td3
+swIN[14] -> [2]pipeline15[2] -> td3;
+
+StaticThreadSched(fd2 0);
+
+fd3 :: FromDPDKDevice(3, N_QUEUES $NQ, MAXTHREADS 1, THREADOFFSET 0, PAINT_QUEUE true, NUMA false, VERBOSE 99, NDESC $ndesc)
+-> swOUT :: PaintSwitch()
+swOUT[0] -> [3]pipeline1[3] -> td2
+swOUT[1] -> [3]pipeline2[3] -> td2
+swOUT[2] -> [3]pipeline3[3] -> td2
+swOUT[3] -> [3]pipeline4[3] -> td2
+swOUT[4] -> [3]pipeline5[3] -> td2
+swOUT[5] -> [3]pipeline6[3] -> td2
+swOUT[6] -> [3]pipeline7[3] -> td2
+swOUT[7] -> [3]pipeline8[3] -> td2
+swOUT[8] -> [3]pipeline9[3] -> td2
+swOUT[9] -> [3]pipeline10[3] -> td2
+swOUT[10] -> [3]pipeline11[3] -> td2
+swOUT[11] -> [3]pipeline12[3] -> td2
+swOUT[12] -> [3]pipeline13[3] -> td2
+swOUT[13] -> [3]pipeline14[3] -> td2
+swOUT[14] -> [3]pipeline15[3] -> td2
+StaticThreadSched(fd3 0);
+
+
+%fastclick,rrpipeline:file MOT_CONFIG
+elementclass Pipeline { $thread |
+ input[0]
+ -> pIN :: Pipeliner(BLOCKING $PBLOCK, CAPACITY $CAPACITY)
+ -> fnt0 :: FNT()
+ -> [0]output
+
+ input[1]
+ -> pOUT :: Pipeliner(BLOCKING $PBLOCK, CAPACITY $CAPACITY)
+ -> fnt1::FNT()
+ -> [1]output
+
+ input[2]
+ -> pIN2 :: Pipeliner(BLOCKING $PBLOCK, CAPACITY $CAPACITY)
+ -> fnt2::FNT()
+ -> [2]output
+
+ input[3]
+ -> pOUT2 :: Pipeliner(BLOCKING $PBLOCK, CAPACITY $CAPACITY)
+ -> fnt3::FNT()
+ -> [3]output
+
+
+ StaticThreadSched(pIN $thread)
+ StaticThreadSched(pOUT $thread)
+ StaticThreadSched(pIN2 $thread)
+ StaticThreadSched(pOUT2 $thread)
+
+}
+
+pipeline1 :: Pipeline(2)
+pipeline2 :: Pipeline(4)
+pipeline3 :: Pipeline(6)
+pipeline4 :: Pipeline(8)
+pipeline5 :: Pipeline(10)
+pipeline6 :: Pipeline(12)
+pipeline7 :: Pipeline(14)
+pipeline8 :: Pipeline(1)
+pipeline9 :: Pipeline(3)
+pipeline10 :: Pipeline(5)
+pipeline11 :: Pipeline(7)
+pipeline12 :: Pipeline(9)
+pipeline13 :: Pipeline(11)
+pipeline14 :: Pipeline(13)
+pipeline15 :: Pipeline(15)
+
+fd0 :: FromDPDKDevice(0, N_QUEUES 1, MAXTHREADS 1, THREADOFFSET 0, NUMA false, VERBOSE 99, NDESC $ndesc)
+//We use the RSS queue as paint anno, and then dispatch to pipelines according to the paint. Kind of fast per-flow round robin
+-> swINA :: RoundRobinSwitch(MAX $NQ)
+swINA[0] -> [0]pipeline1[0] -> td1
+swINA[1] -> [0]pipeline2[0] -> td1
+swINA[2] -> [0]pipeline3[0] -> td1
+swINA[3] -> [0]pipeline4[0] -> td1
+swINA[4] -> [0]pipeline5[0] -> td1
+swINA[5] -> [0]pipeline6[0] -> td1
+swINA[6] -> [0]pipeline7[0] -> td1
+swINA[7] -> [0]pipeline8[0] -> td1
+swINA[8] -> [0]pipeline9[0] -> td1
+swINA[9] -> [0]pipeline10[0] -> td1
+swINA[10] -> [0]pipeline11[0] -> td1
+swINA[11] -> [0]pipeline12[0] -> td1
+swINA[12] -> [0]pipeline13[0] -> td1
+swINA[13] -> [0]pipeline14[0] -> td1
+swINA[14] -> [0]pipeline15[0] -> td1;
+
+StaticThreadSched(fd0 0);
+
+fd1 :: FromDPDKDevice(1, N_QUEUES 1, MAXTHREADS 1, THREADOFFSET 0, NUMA false, VERBOSE 99, NDESC $ndesc)
+-> swOUTA :: RoundRobinSwitch(MAX $NQ)
+swOUTA[0] -> [1]pipeline1[1] -> td0
+swOUTA[1] -> [1]pipeline2[1] -> td0
+swOUTA[2] -> [1]pipeline3[1] -> td0
+swOUTA[3] -> [1]pipeline4[1] -> td0
+swOUTA[4] -> [1]pipeline5[1] -> td0
+swOUTA[5] -> [1]pipeline6[1] -> td0
+swOUTA[6] -> [1]pipeline7[1] -> td0
+swOUTA[7] -> [1]pipeline8[1] -> td0
+swOUTA[8] -> [1]pipeline9[1] -> td0
+swOUTA[9] -> [1]pipeline10[1] -> td0
+swOUTA[10] -> [1]pipeline11[1] -> td0
+swOUTA[11] -> [1]pipeline12[1] -> td0
+swOUTA[12] -> [1]pipeline13[1] -> td0
+swOUTA[13] -> [1]pipeline14[1] -> td0
+swOUTA[14] -> [1]pipeline15[1] -> td0
+StaticThreadSched(fd1 0);
+
+
+fd2 :: FromDPDKDevice(2, N_QUEUES 1, MAXTHREADS 1, THREADOFFSET 0, NUMA false, VERBOSE 99, NDESC $ndesc)
+//We use the RSS queue as paint anno, and then dispatch to pipelines according to the paint. Kind of fast per-flow round robin
+-> swIN :: RoundRobinSwitch(MAX $NQ)
+swIN[0] -> [2]pipeline1[2] -> td3
+swIN[1] -> [2]pipeline2[2] -> td3
+swIN[2] -> [2]pipeline3[2] -> td3
+swIN[3] -> [2]pipeline4[2] -> td3
+swIN[4] -> [2]pipeline5[2] -> td3
+swIN[5] -> [2]pipeline6[2] -> td3
+swIN[6] -> [2]pipeline7[2] -> td3
+swIN[7] -> [2]pipeline8[2] -> td3
+swIN[8] -> [2]pipeline9[2] -> td3
+swIN[9] -> [2]pipeline10[2] -> td3
+swIN[10] -> [2]pipeline11[2] -> td3
+swIN[11] -> [2]pipeline12[2] -> td3
+swIN[12] -> [2]pipeline13[2] -> td3
+swIN[13] -> [2]pipeline14[2] -> td3
+swIN[14] -> [2]pipeline15[2] -> td3;
+
+StaticThreadSched(fd2 0);
+
+fd3 :: FromDPDKDevice(3, N_QUEUES 1, MAXTHREADS 1, THREADOFFSET 0, NUMA false, VERBOSE 99, NDESC $ndesc)
+-> swOUT :: RoundRobinSwitch(MAX $NQ)
+swOUT[0] -> [3]pipeline1[3] -> td2
+swOUT[1] -> [3]pipeline2[3] -> td2
+swOUT[2] -> [3]pipeline3[3] -> td2
+swOUT[3] -> [3]pipeline4[3] -> td2
+swOUT[4] -> [3]pipeline5[3] -> td2
+swOUT[5] -> [3]pipeline6[3] -> td2
+swOUT[6] -> [3]pipeline7[3] -> td2
+swOUT[7] -> [3]pipeline8[3] -> td2
+swOUT[8] -> [3]pipeline9[3] -> td2
+swOUT[9] -> [3]pipeline10[3] -> td2
+swOUT[10] -> [3]pipeline11[3] -> td2
+swOUT[11] -> [3]pipeline12[3] -> td2
+swOUT[12] -> [3]pipeline13[3] -> td2
+swOUT[13] -> [3]pipeline14[3] -> td2
+swOUT[14] -> [3]pipeline15[3] -> td2
+StaticThreadSched(fd3 0);
+
+%pipeline:file PIPELINE_END
+
+DriverManager( pause,
+    print "1 $(pipeline1/pIN.count) $(pipeline1/pOUT.count) $(pipeline1/pIN.dropped) $(pipeline1/pOUT.dropped)",
+    print "2 $(pipeline2/pIN.count) $(pipeline2/pOUT.count) $(pipeline2/pIN.dropped) $(pipeline2/pOUT.dropped)",
+    print "3 $(pipeline3/pIN.count) $(pipeline3/pOUT.count) $(pipeline3/pIN.dropped) $(pipeline3/pOUT.dropped)",
+    print "4 $(pipeline4/pIN.count) $(pipeline4/pOUT.count) $(pipeline4/pIN.dropped) $(pipeline4/pOUT.dropped)",
+    print "5 $(pipeline5/pIN.count) $(pipeline5/pOUT.count) $(pipeline5/pIN.dropped) $(pipeline5/pOUT.dropped)",
+    print "6 $(pipeline6/pIN.count) $(pipeline6/pOUT.count) $(pipeline6/pIN.dropped) $(pipeline6/pOUT.dropped)",
+    print "7 $(pipeline7/pIN.count) $(pipeline7/pOUT.count) $(pipeline7/pIN.dropped) $(pipeline7/pOUT.dropped)",
+    print "8 $(pipeline8/pIN.count) $(pipeline8/pOUT.count) $(pipeline8/pIN.dropped) $(pipeline8/pOUT.dropped)",
+    print "9 $(pipeline9/pIN.count) $(pipeline9/pOUT.count) $(pipeline9/pIN.dropped) $(pipeline9/pOUT.dropped)",
+    print "10 $(pipeline10/pIN.count) $(pipeline10/pOUT.count) $(pipeline10/pIN.dropped) $(pipeline10/pOUT.dropped)",
+    print "11 $(pipeline11/pIN.count) $(pipeline11/pOUT.count) $(pipeline11/pIN.dropped) $(pipeline11/pOUT.dropped)",
+    print "12 $(pipeline12/pIN.count) $(pipeline12/pOUT.count) $(pipeline12/pIN.dropped) $(pipeline12/pOUT.dropped)",
+    print "13 $(pipeline13/pIN.count) $(pipeline13/pOUT.count) $(pipeline13/pIN.dropped) $(pipeline13/pOUT.dropped)",
+    print "14 $(pipeline14/pIN.count) $(pipeline14/pOUT.count) $(pipeline14/pIN.dropped) $(pipeline14/pOUT.dropped)",
+    print "15 $(pipeline15/pIN.count) $(pipeline15/pOUT.count) $(pipeline15/pIN.dropped) $(pipeline15/pOUT.dropped)",
+
+    print "RESULT-AVG $(add $(f0/fnt/avg.link_rate) $(f1/fnt/avg.link_rate) $(f2/fnt/avg.link_rate) $(f3/fnt/avg.link_rate))",
+    print "RESULT-COUNT $(add $(fd0.hw_count) $(fd1.hw_count) $(fd2.hw_count) $(fd3.hw_count))",
+    print "RESULT-DROPPED $(add $(fd0.hw_dropped) $(fd1.hw_dropped) $(fd2.hw_dropped) $(fd3.hw_dropped))",
+    stop
+);
+
+%hwassist:file HW_CONFIG
+DPDKInfo(131072)
+
+elementclass  Forwarder{ $port,$srcmac,$dstmac |
+    fd :: FromDPDKDevice($port, MAC $GEN_MAC, THREADOFFSET 0, MAXTHREADS $RCPUNR, NUMA false, VERBOSE 99, MODE VMDQ, VF_POOLS 16, N_QUEUES $TWICECPUNR, NDESC $ndesc)
+    -> fnt :: FNT()
+    -> output;
+
+    input
+    -> EtherRewrite($srcmac, $dstmac)
+    -> tdOUT :: ToDPDKDevice($port, BLOCKING $BLOCKING, IQUEUE $IQUEUE);
+
+    //Just advertise L2 for the switch
+    adv1 :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH 64, SRCETH $srcmac, DSTETH ff:ff:ff:ff:ff:ff, SRCIP 10.99.98.97, DSTIP 10.97.98.99, FLOWS 1, FLOWSIZE 1)
+    -> advq1 :: RatedUnqueue(1)
+    -> tdOUT;
+}
+
+f0 :: Forwarder(0, ${server:0:mac}, ${client:0:mac});
+f1 :: Forwarder(1, ${server:1:mac}, ${client:1:mac});
+f2 :: Forwarder(2, ${server:2:mac}, ${client:2:mac});
+f3 :: Forwarder(3, ${server:3:mac}, ${client:3:mac});
+
+f0->f1;
+f1->f0;
+f2->f3;
+f3->f2;
+
+DriverManager(wait,
+    print "RESULT-AVG $(add $(f0/fnt/avg.link_rate) $(f1/fnt/avg.link_rate) $(f2/fnt/avg.link_rate) $(f3/fnt/avg.link_rate))",
+    print "RESULT-COUNT $(add $(f0/fd.hw_count) $(f1/fd.hw_count) $(f2/fd.hw_count) $(f3/fd.hw_count))",
+    print "RESULT-DROPPED $(add $(f0/fd.hw_dropped) $(f1/fd.hw_dropped) $(f2/fd.hw_dropped) $(f3/fd.hw_dropped))");

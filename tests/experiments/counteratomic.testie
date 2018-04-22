@@ -4,7 +4,7 @@
 var_unit={PPS:packets}
 var_divider={PPS:1000000,OPPS:1000000,GEN:1000000,LOST:1000000,ROPPS:1000000,LOSTRATE:1000000}
 var_format={PPS:%dMPps,OPPS:%dM,LOST:%dM,ROPPS:%dM,LOSTRATE:%dM}
-var_name={PPS:PPS,OPPS:Operations per seconds,COUNTER:Counter type,RATE:Amount of reads per write,CPU:Cores,LOST:Uncounted packets,ROPPS:Operations per seconds,LOSTRATE:Packets unaccounted for per seconds}
+var_name={PPS:PPS,OPPS:Operations per seconds,COUNTER:Counter type,RATE:Number of reads per write,CPU:Cores,LOST:Uncounted packets,ROPPS:Operations per seconds,LOSTRATE:Packets unaccounted for per seconds,RV:Proportion of reads per write}
 paper:graph_markers={}
 //graph_combine_variable={ATOMIC+COUNTER}
 paper:graph_series_sort=-avg
@@ -16,28 +16,61 @@ perf:graph_result_as_variable={PERF-(.*):Perf}
 //rate:graph_variables_as_series={COUNTER,CPU}
 rate:var_log+={result-OPPS,result-ROPPS}
 rate:var_lim={result-OPPS:10000}
+rv:var_log+={RV}
+rv:var_lim+={RV:-65536-65536}
+rv:legend_loc=outer center
+rv:legend_ncol=3
+//rv:legend_mode=expand
+rv:graph_color={5,2,1,5,2,2,2,2,3}
+rv:legend_bbox={0,1,1,.15}
+rv:var_ticks+={RV:-65536+-1024+-32+-2+0+2+32+1024+65536}
+
 
 %variables
 GEN_BURST=32
 GEN_FLOWS=128
 GEN_LENGTH=64
 GEN_WAIT=5
--rate:COUNTER={Counter,CounterMP,CounterRxWMP,CounterAtomic,CounterLock,CounterRCU}
-rate:COUNTER={CounterMP,CounterRxWMP,CounterAtomic,CounterLock,CounterRW,CounterPRW,CounterRCU}
+-rate,-rv,-update:COUNTER={CounterMP,CounterLockMP,CounterAtomic,CounterLock,CounterRCU}
+update:COUNTER={CounterMP,CounterLockMP,CounterPLockMP,CounterRWMP,CounterPRWMP,CounterRxWMP,CounterAtomic,CounterLock,CounterRW,CounterPRW,CounterRCU}
+full:COUNTER={CounterMP,CounterLockMP,CounterPLockMP,CounterRWMP,CounterPRWMP,CounterRxWMP,CounterAtomic,CounterLock,CounterRW,CounterPRW,CounterRCU}
+rv:COUNTER={CounterLockMP,CounterRxWMP,CounterLock,CounterRW,CounterPRW,CounterRCU,CounterPLockMP,CounterMP,CounterAtomic}
+rate:COUNTER={CounterMP,CounterLockMP,CounterPRWMP,CounterRWMP,CounterRxWMP,CounterAtomic,CounterLock,CounterRW,CounterPRW,CounterRCU}
+//Counter
+full:COUNTER={CounterMP,CounterLockMP,CounterPLockMP,CounterRWMP,CounterPRWMP,CounterRxWMP,CounterAtomic,CounterLock,CounterRW,CounterPRW,CounterRCU}
 //CounterRCUMP
 CPU=[1-16]
-rate:CPU=8
+rate|rv:CPU=16
 NORATE=true
-rate:RATE=[0*65536]
+rate:RATE=[1*65536]
 -rate:RATE=0
+update:RATE=1
+rv:RV={-65536,-32768,-16384,-8192,-4096,-2048,-1024,-512,-256,-128,-64,-32,-16,-8,-4,-2,0,2,4,8,16,32,64,128,256,512,1024,2048,4096,8192,16386,32768,65536}
 GEN_TOT={2048}
 
 %late_variables
-GEN_PROMISC=true
-
 CPUEX=[0-31]
 ALL_GENS=EXPAND(gen${CPUEX} :: Generator($CPUEX, ${client:0:mac}, ${dut:1:mac}, ${client:0:ip}, ${dut:1:ip}) -> cnt);
 GENS=HEAD($CPU,$ALL_GENS)
+ALL_GENS=
+
+
+%late_variables
+GEN_PROMISC=true
+-rv:PASS=1
+
+
+%rv:late_variables
+//RV = 65536 -> RATE=65536, PASS=1        Read 65536 times for 1 write
+//                                        Read 2 time for 1 write
+//RV = 1 -> RATE=1, PASS=1                Read 1 time for 1 write
+//RV = 0 -> RATE=1, PASS=1                Read 1 time for 1 write
+//RV = -1 -> RATE=1, PASS=1               Read 1 time for 1 write
+//                      PASS = 2          Read 1 time for 2 writes
+//RV = -65536 -> RATE=1 PASS=65536        Read 1 time for 65536 writes
+RATE=EXPAND( $(( $RV if ($RV > 0) else 1 )) )
+PASS=EXPAND( $(( -($RV) if ($RV < 0) else 1 )) )
+
 
 %late_variables
 CPUEX=[0-31]
@@ -76,7 +109,7 @@ elementclass Generator { $th, $srcmac, $dstmac, $srcip, $dstip |
     -> MarkMACHeader
     -> replay :: ReplayUnqueue(STOP 0, QUICK_CLONE true, BURST $GEN_BURST)
     -> c :: Counter(ATOMIC 0, NO_RATE true)
-    -> rate :: CounterTest(cnt, RATE $RATE)
+    -> rate :: CounterTest(cnt, RATE $RATE, PASS $PASS)
     -> output;
 
     StaticThreadSched(replay $th)
@@ -99,12 +132,12 @@ d :: DriverManager(
     set ttime $(sub $e $s),
     print "RESULT-PPS $(div $(cnt.count) $ttime)",
     print "RESULT-TIME $ttime",
-    set ops $(mul $(div $(cnt.count) $GEN_BURST) $(add $RATE 1)),
+    set ops $(mul $(div $(cnt.count) $GEN_BURST) $(add $(div $RATE $PASS) 1)),
     print "RESULT-OPS $ops",
     print "RESULT-OPPS $(div $ops $ttime)",
     set tot $(add $COUNTS),
     print "RESULT-GEN $tot",
-    set rops $(mul $(div $tot $GEN_BURST) $(add $RATE 1)),
+    set rops $(mul $(div $tot $GEN_BURST) $(add $(div $RATE $PASS) 1)),
     print "RESULT-ROPPS $(div $rops $ttime)",
     print "RESULT-LOST $(sub $tot $(cnt.count))",
     print "RESULT-LOSTRATE $(div $(sub $tot $(cnt.count)) $ttime)",

@@ -9,8 +9,10 @@ tilera:timeout=-1
 title=
 
 //Axis names
-var_names={LENGTH:Length,result:Throughput (Mbps),TXCPU:Transmit CPU,RXCPU:Receive CPU,GEN_LENGTH:Packet length,BURSTOUT:Output burst,BURSTIN:Input burst,napi:NAPI Budget (Packets),sched:Priority}
+var_names={LENGTH:Length,result:Throughput (Mbps),TXCPU:Transmit CPU,RXCPU:Receive CPU,GEN_LENGTH:Packet length (Bytes),BURSTOUT:Output burst,BURSTIN:Input burst,napi:NAPI Budget (Packets),sched:Priority,CPU:Number of cores}
 
+accept_zero={LOSS}
+results_expect={THROUGHPUT}
 role_exclude={client+dut}
 default_role_map={server:dut}
 var_unit={result: }
@@ -19,6 +21,7 @@ udp:var_divider={result:1000000000}
 graph_series_sort=-avg
 same:graph_combine_variables={BURSTIN+BURSTOUT:BURST,descin+descout:DESC}
 same:var_serie={DESC}
+var_lim={THROUGHPUT:0-40000}
 
 %variables
 //Parameters for the router itself
@@ -95,8 +98,8 @@ parallel:maxthreads=EXPAND( $CPU )
 while read line; do
     LENGTH=$(echo $line | grep RES | cut -d' ' -f2)
     if [ -n "$LENGTH" ] ; then
-        echo "RESULT-THROUGHPUT-$LENGTH $(echo $line | grep RES | cut -d' ' -f11)"
-        echo "RESULT-LOSS-$LENGTH $(echo $line | grep RES | cut -d' ' -f12)"
+        echo "RESULT-THROUGHPUT $(echo $line | grep RES | cut -d' ' -f11)"
+        echo "RESULT-LOSS $(echo $line | grep RES | cut -d' ' -f12)"
     fi
 done < results
 //TH=$(cat results | grep RES | cut -d' ' -f11)

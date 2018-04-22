@@ -16,11 +16,12 @@ require_tags=import,dpdk
 PKTGEN_BURST_OUT=32
 PKTGEN_REPLAY_COUNT=1
 NQ=0
+mt=3 //3 threads per FD, as out of 16 we can use 3, this will force every FD to have the same amount
 
 nolinktest=0
 
 %script sudo=true deps=fastclick
-click --dpdk -c 0xff -- PKTGEN-CONFIG
+click --dpdk -c 0xffff -- PKTGEN-CONFIG
 
 %file PKTGEN-CONFIG
 define($bout $PKTGEN_BURST_OUT)
@@ -97,18 +98,19 @@ elementclass Dual { $portIN, $portOUT, $INsrcmac,$RAW_INsrcmac,$OUTsrcmac
       ->  EnsureDPDKBuffer
       -> [0]replay[0]
       -> tr :: RecordTimestamp(N 1048576)
-      -> avgSIN :: AverageCounter(IGNORE $ignore)
+      -> avgSIN :: AverageCounterMP(IGNORE $ignore)
       -> tdIN
 
     fdOUT -> rwOUT :: EtherRewrite($OUTsrcmac,$OUTdstmac)
       -> NOUT :: Numberise($portOUT)
       -> EnsureDPDKBuffer
       -> [1]replay[1]
-      -> avgSOUT :: AverageCounter(IGNORE $ignore)
+      -> trOUT :: RecordTimestamp(N 1048576)
+      -> avgSOUT :: AverageCounterMP(IGNORE $ignore)
       -> tdOUT
 
-    receiveIN :: FromDPDKDevice($portIN, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC false)
-    receiveOUT :: FromDPDKDevice($portOUT, VERBOSE $rxverbose, MAC $OUTsrcmac, PROMISC false)
+    receiveIN :: FromDPDKDevice($portIN, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC false, MAXTHREADS $mt)
+    receiveOUT :: FromDPDKDevice($portOUT, VERBOSE $rxverbose, MAC $OUTsrcmac, PROMISC false, MAXTHREADS $mt)
 
     elementclass Receiver { $mac, $dir |
         input ->
@@ -117,7 +119,7 @@ elementclass Dual { $portIN, $portOUT, $INsrcmac,$RAW_INsrcmac,$OUTsrcmac
 
         Strip(14) ->
         CheckIPHeader ->
-        chPacket :: CheckNumberPacket() ->
+//        chPacket :: CheckNumberPacket() ->
         Unstrip(14) ->
         output;
 
@@ -125,22 +127,23 @@ elementclass Dual { $portIN, $portOUT, $INsrcmac,$RAW_INsrcmac,$OUTsrcmac
     //    -> Print("Bad MAC received $dir :",MAXLENGTH -1)
         -> Discard;
 
-        chPacket[1] -> Unstrip(14)
+     /*   chPacket[1] -> Unstrip(14)
     //    -> Print("Bad Packet number in $dir", -1)
-        -> Discard;
+        -> Discard;*/
     }
 
     receiveIN
     //-> Print("INBACK $INsrcmac")
     -> RINswitch :: Switch(2) -> RIN :: Receiver($RAW_INsrcmac,"IN")
     //-> IPPrint(IN)
-    -> avgRIN :: AverageCounter(IGNORE $ignore) -> Discard;
+    -> Strip(14) -> tsdIN :: TimestampDiff(RECORDER trOUT, N 1048576) -> Unstrip(14)
+    -> avgRIN :: AverageCounterMP(IGNORE $ignore) -> Discard;
     receiveOUT
     //-> Print("OUTBACK $OUTsrcmac")
     -> ROUTswitch :: Switch(2) -> ROUT :: Receiver($RAW_OUTsrcmac,"OUT")
     //-> IPPrint(OUT)
-      -> Strip(14) -> tsd :: TimestampDiff(RECORDER tr) -> Unstrip(14)
-    -> avgROUT :: AverageCounter(IGNORE $ignore) -> Discard;
+      -> Strip(14) -> tsd :: TimestampDiff(RECORDER tr, N 1048576) -> Unstrip(14)
+    -> avgROUT :: AverageCounterMP(IGNORE $ignore) -> Discard;
 
 
     //----------------
@@ -225,7 +228,7 @@ ${server:2:mac},${server:2:raw_mac},${server:3:mac},${server:3:raw_mac}, ${clien
 
 DriverManager(pause, pause,
                 goto waitagain $(eq $nolinktest 0),
-                wait 2s,
+                wait 4s,
                 write d0/advq0.active false,
                 write d0/adv0.active false,
                 write d0/advq1.active false,
@@ -237,7 +240,9 @@ DriverManager(pause, pause,
                 write d0/link_initialized.run,
                 write d1/link_initialized.run,
                 label waitagain,
+                set starttime $(now),
                 pause, pause,
+                set stoptime $(now),
                 print "Replay finished. Waiting for last packets for $wait seconds...",
                 wait $wait,
                 write d0/RINswitch.switch 1 , write d0/ROUTswitch.switch 1,
@@ -253,7 +258,7 @@ DriverManager(pause, pause,
                 print $(d0/avgSIN.count),
                 print $(d0/avgSOUT.count),
                 print $(d0/avgROUT.count),
-                print $(d0/avgRIN.count),
+                print $(d0/avgRIN.count) $(d0/receiveIN.hw_count) $(d0/receiveIN.hw_dropped),
                 print "Rate 2: ",
                 print $(d1/avgSIN.link_rate),
                 print $(d1/avgSOUT.link_rate),
@@ -263,7 +268,8 @@ DriverManager(pause, pause,
                 print $(d1/avgSIN.count),
                 print $(d1/avgSOUT.count),
                 print $(d1/avgROUT.count),
-                print $(d1/avgRIN.count),
+                print $(d1/avgRIN.count) $(d1/receiveIN.hw_count) $(d1/receiveIN.hw_dropped),
+                print "RESULT-TESTTIME $(sub $stoptime $starttime)",
                 print "RESULT-LATENCY $(div $(add $(d0/tsd.average) $(d1/tsd.average)) 2)",
                 print "RESULT-RXTHROUGHPUT $(add $(d0/avgROUT.link_rate) $(d1/avgROUT.link_rate))",
                 print "RESULT-TXTHROUGHPUT $(add $(d0/avgRIN.link_rate) $(d1/avgRIN.link_rate))",
