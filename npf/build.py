@@ -117,7 +117,9 @@ class Build:
         all_results = {}
         try:
             for iline,line in enumerate(f):
-                variables_data, results_data = line.split('=')
+                if not line.strip():
+                    continue
+                variables_data, results_data = line.strip().split('=')
 
                 variables = OrderedDict()
 

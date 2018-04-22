@@ -632,7 +632,7 @@ class Testie:
                     run_results = {}
 
                 if not run_results and options.use_last and build.repo.url:
-                    for version in build.repo.method.get_history(build.version, limit=100):
+                    for version in build.repo.method.get_history(build.version, limit=options.use_last):
                         oldb = Build(build.repo, version)
                         r = oldb.load_results(self)
                         if r and run in r:

@@ -97,7 +97,7 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
                    default=False)
     t.add_argument('--use-last',
                    help='Use data from previous version instead of running test if possible', dest='use_last',
-                   action='store_true',
+                   nargs='?',
                    default=False)
 
     t.add_argument('--tags', metavar='tag', type=str, nargs='+', help='list of tags', default=[], action=ExtendAction)
@@ -172,6 +172,10 @@ def executor(role, default_role_map):
 
 
 def parse_nodes(options):
+    if options.use_last is not False:
+        if not options.use_last:
+            options.use_last = 100
+
     roles['default'] = Node.makeLocal(options)
 
     for mapping in options.cluster:
