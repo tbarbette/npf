@@ -18,14 +18,21 @@ PKTGEN_BURST_OUT=32
 PKTGEN_REPLAY_COUNT=1
 NIC=0
 CLIENT_NIC=0
+RCV_NIC=0
 LIMIT=200000
 GEN_THREADS=4
+PROMISC=false
+promisc:PROMISC=true
 
 nolinktest=0
 
 %late_variables
 NBBUF=EXPAND( $(( ( ( $LIMIT * $GEN_THREADS ) + ($PKTGEN_BURST_OUT * 2) ) + 8192 )) )
 NRECORD=EXPAND( $(( $LIMIT * $PKTGEN_REPLAY_COUNT  * 2 )) )
+BROADCAST_IGNORE= -> c :: Classifier(0/$mac,-) //Ignore broadcasts
+
+%promisc:late_variables
+BROADCAST_IGNORE= -> c :: Classifier(-, 0/ffffffffffff)
 
 %script deps=fastclick sudo=true delay=2
 click --dpdk -l 0-15 -- PKTGEN_CONFIG
@@ -43,7 +50,7 @@ define($RAW_INdstmac ${server:$NIC:raw_mac})
 define($ignore 0)
 define($wait 2)
 define($replay_count $PKTGEN_REPLAY_COUNT)
-define($port ${self:$NIC:pci})
+define($port ${self:$RCV_NIC:pci})
 define($quick true)
 define($txverbose 99)
 define($rxverbose 99)
@@ -80,11 +87,11 @@ StaticThreadSched(gen1/replay 2)
 StaticThreadSched(gen2/replay 4)
 StaticThreadSched(gen3/replay 6)
 
-receiveIN :: FromDPDKDevice($port, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC false)
+receiveIN :: FromDPDKDevice($port, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC)
 
 elementclass Receiver { $mac, $dir |
     input[0]
-    -> c::Classifier(0/$mac,-) //Ignore broadcasts
+$BROADCAST_IGNORE
     -> Strip(14)
     -> CheckIPHeader
     -> magic :: Classifier( 40/5601,
@@ -190,7 +197,7 @@ link_initialized :: Script(TYPE PACKET,
 RINswitch[1]->Print(LATEIN) -> Discard;
 
 DriverManager(  pause,
-		pause,
+                pause,
                 pause,
                 pause,
                 goto waitagain $(eq 1 0),
@@ -220,6 +227,8 @@ DriverManager(  pause,
                 print $(RIN/avgB.count),
                 print $(RIN/avgC.count),
                 print $(RIN/avgD.count),
+                read receiveIN.hw_count,
+                read receiveIN.count,
                 print "RESULT-TESTTIME $(sub $stoptime $starttime)",
                 print "RESULT-RCVTIME $(RIN/avgA.time)",
                 print "RESULT-LATENCY $(div $(add $(RIN/tsdA.average) $(RIN/tsdB.average) $(RIN/tsdC.average) $(RIN/tsdD.average)) 4)",

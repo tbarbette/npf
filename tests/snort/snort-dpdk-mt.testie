@@ -1,0 +1,43 @@
+%info
+Blackbox Test
+
+Snort must be already installed along with DPDK daqs
+
+YOU MUST ADD THE promisc TAG
+
+For Snort to work in MT mode, we must launch multiple instance of Snort. However, for that purpose DPDK must run
+in secondary mode. One solution would be to have one of the snort instance be the primary one, and open one queue for
+each of the other instance. But that would require specific code.
+Instead, we launch a FastClick simple config to open the device with $CPU queues.
+Each snort then run as secondary process.
+
+
+%config
+
+
+%variables
+LIMIT=1000000
+PKTGEN_REPLAY_COUNT=25
+CPU=[1-16]
+
+%late_variables
+VIRTADDR=0x7ffb40000000
+
+%import@client fastclick-replay-single-mt trace=/home/tom/traces/IN.pcap nolinktest=1 delay=5
+%import@dut snort
+
+%script@dut sudo=true autokill=true deps=fastclick
+echo "FromDPDKDevice(0, N_QUEUES $CPU, ACTIVE false) -> ToDPDKDevice(0, N_QUEUES $CPU);" | click --dpdk -l 0-$((CPU - 1)) --base-virtaddr $VIRTADDR -- &
+
+sleep 2
+
+echo "Launching Snort..."
+for l in $(seq $CPU); do
+    echo "Launching instance $l/$CPU"
+    LD_LIBRARY_PATH=/home/tom/dpdk-shared/x86_64-native-linuxapp-gcc/lib/:/home/tom/dpdk-shared/x86_64-native-linuxapp-gcc/:/usr/local/lib/ /usr/local/bin/snort --daq dpdk --daq-mode inline --daq-var dpdk_args="-l $(echo "$l - 1" | bc) --proc-type secondary -d librte_pmd_mlx4.so -d librte_pmd_mlx5.so -d librte_mempool.so -d librte_mempool_ring.so" -i dpdk0:dpdk0 -c snort.conf &
+    pids[${i}]=$!
+done
+
+for pid in ${pids[*]}; do
+        wait $pid
+done

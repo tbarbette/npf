@@ -1,0 +1,12 @@
+name=Snort
+method=get
+url=https://snort.org/downloads/snort/snort-$version.tar.gz
+tags=snort
+version=2.9.11.1
+
+bin_folder=snort-$version/src/
+bin_name=snort
+configure=cd snort-$version/ && ./configure --with-daq-includes=/usr/local/include/ --with-daq-libraries=/usr/local/lib/ --enable-sourcefire
+make=cd snort-$version && make
+//Do not clean after configure as this breaks netperf build
+clean=
