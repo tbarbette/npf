@@ -21,7 +21,7 @@ class Comparator():
         self.repo_list = repo_list
         self.graphs_series = []
 
-    def build_list(self, on_finish, testie, build,datasets):
+    def build_list(self, on_finish, testie, build, datasets):
         on_finish(self.graphs_series + [(testie,build,datasets[0])])
 
     def run(self, testie_name, options, tags, on_finish=None):
