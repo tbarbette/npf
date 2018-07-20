@@ -49,15 +49,6 @@ def main():
                    help='A version to compare against the last version. Default is the first parent of the last version containing some results.')
 
 
-    s = parser.add_argument_group('Statistics options')
-    s.add_argument('--statistics',
-                   help='Give some statistics output', dest='statistics', action='store_true',
-                   default=False)
-    s.add_argument('--statistics-maxdepth',
-                   help='Max depth of learning tree', dest='statistics_maxdepth', type=int, default=None)
-    s.add_argument('--statistics-filename',
-                   help='Output of learning tree', dest='statistics_filename', type=str, default=None)
-
     a = npf.add_graph_options(parser)
     af = a.add_mutually_exclusive_group()
     af.add_argument('--graph-version', metavar='version', type=str, nargs='*',

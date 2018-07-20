@@ -68,6 +68,16 @@ def add_graph_options(parser: ArgumentParser):
     g.add_argument('--onefirst', dest='onefirst', action='store_true', default=False,
                    help='Do a first pass with one run per variables, then do the last runs')
 
+
+    s = parser.add_argument_group('Statistics options')
+    s.add_argument('--statistics',
+                   help='Give some statistics output', dest='statistics', action='store_true',
+                   default=False)
+    s.add_argument('--statistics-maxdepth',
+                   help='Max depth of learning tree', dest='statistics_maxdepth', type=int, default=None)
+    s.add_argument('--statistics-filename',
+                   help='Output of learning tree', dest='statistics_filename', type=str, default=None)
+
     return g
 
 

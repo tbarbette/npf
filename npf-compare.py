@@ -15,6 +15,7 @@ from pathlib import Path
 
 from npf.testie import Testie
 
+from npf.statistics import Statistics
 
 class Comparator():
     def __init__(self, repo_list: List[Repository]):
@@ -52,6 +53,9 @@ def do_graph(filename,args,series):
         for name, variable in testie.variables.vlist.items():
             v_list.add(name)
         all_variables.append(v_list)
+
+        if args.statistics:
+            Statistics.run(build,dataset, testie, max_depth=args.statistics_maxdepth, filename=args.statistics_filename)
     common_variables = set.intersection(*map(set, all_variables))
 
     #Remove variables that are totally defined by the series, that is
@@ -130,7 +134,7 @@ def main():
 
     if not os.path.isabs(filename):
         filename = os.getcwd() + os.sep + filename
-    print(filename)
+
     series = comparator.run(testie_name=args.testie, tags=args.tags, options=args, on_finish=lambda series:do_graph(filename,args,series) if args.iterative else None)
 
     do_graph(filename,args,series)
