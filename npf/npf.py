@@ -126,6 +126,7 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
     t.add_argument('--no-mp', dest='allow_mp', action='store_false',
                    default=True, help='Run tests in the same thread. If there is multiple script, they will run '
                                       'one after the other, hence breaking most of the tests.')
+    t.add_argument('--expand', type=str, default=None, dest="expand")
 
     return t
 

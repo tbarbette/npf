@@ -9,6 +9,7 @@ from .variable import *
 from collections import OrderedDict
 
 from asteval import Interpreter
+from random import shuffle
 
 import re
 
@@ -233,8 +234,19 @@ class BruteVariableExpander:
             self.expanded = newList
         self.it = self.expanded.__iter__()
 
+
+    def __iter__(self):
+        return self.expanded.__iter__()
+
     def __next__(self):
         return self.it.__next__()
+
+class RandomVariableExpander(BruteVariableExpander):
+    """Same as BruteVariableExpander but shuffle the series to test"""
+    def __init__(self, vlist):
+        super().__init__(vlist)
+        shuffle(self.expanded)
+        self.it == self.expanded.__iter__()
 
 
 class SectionVariable(Section):
@@ -292,6 +304,12 @@ class SectionVariable(Section):
         for v in self:
             values.append(SectionVariable.replace_variables(v, value))
         return values
+
+    def expand(self, method = None):
+        if method == "shuffle" or method == "rand" or method=="random":
+            return RandomVariableExpander(self.vlist)
+        else:
+            return BruteVariableExpander(self.vlist)
 
     def __iter__(self):
         return BruteVariableExpander(self.vlist)

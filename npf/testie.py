@@ -614,7 +614,7 @@ class Testie:
             total_runs = [self.config["n_runs"]]
         for runs_this_pass in total_runs: #Number of results to ensure for this run
             n = 0
-            for variables in self.variables:
+            for variables in self.variables.expand(method = options.expand):
                 n += 1
                 run = Run(variables)
                 variables = variables.copy()
