@@ -122,12 +122,15 @@ def main():
         filename = 'compare/' + os.path.splitext(os.path.basename(args.testie))[0] + '_' + '_'.join(
             ["%s" % repo.reponame for repo in repo_list]) + '.pdf'
     else:
-        filename = args.graph_filename[0]
+        filename = args.graph_filename
 
-    dir = Path(os.path.dirname(filename))
-    if not dir.exists():
-        os.makedirs(dir.as_posix())
+    savedir = Path(os.path.dirname(filename))
+    if not savedir.exists():
+        os.makedirs(savedir.as_posix())
 
+    if not os.path.isabs(filename):
+        filename = os.getcwd() + os.sep + filename
+    print(filename)
     series = comparator.run(testie_name=args.testie, tags=args.tags, options=args, on_finish=lambda series:do_graph(filename,args,series) if args.iterative else None)
 
     do_graph(filename,args,series)
