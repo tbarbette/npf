@@ -16,7 +16,6 @@ from npf.node import NIC
 from npf.section import *
 from npf.types.dataset import Run, Dataset
 
-
 class RemoteParameters:
     def __init__(self):
         self.default_role_map = None
@@ -35,12 +34,38 @@ class RemoteParameters:
         self.stdin = None
         self.commands = None
         self.testdir = None
+        self.waitfor = None
+        self.event = None
 
     pass
+
+class EventBus:
+    def __init__(self, m):
+        self.c = m.Condition()
+        self.list = m.list()
+
+    def post(self, ev):
+        self.c.acquire()
+        self.list.append(ev)
+        self.c.notify_all()
+        self.c.release()
+
+    def listen(self, ev):
+        self.c.acquire()
+        i = 0
+        if len(self.list) == 0:
+            self.c.wait()
+        while self.list[i] != ev:
+            i += 1
+            if i == len(self.list):
+                self.c.wait()
+        self.c.release()
 
 
 def _parallel_exec(param: RemoteParameters):
     executor = npf.executor(param.role, param.default_role_map)
+    if param.waitfor:
+        param.event.listen(param.waitfor)
     time.sleep(param.delay)
     pid, o, e, c = executor.exec(cmd=param.commands,
                                  stdin=param.stdin,
@@ -50,7 +75,8 @@ def _parallel_exec(param: RemoteParameters):
                                  options=param.options,
                                  terminated_event=param.terminated_event,
                                  sudo=param.sudo,
-                                 testdir=param.testdir)
+                                 testdir=param.testdir,
+                                 event=param.event)
     if pid == 0:
         return False, o, e, c, param.script
     else:
@@ -271,7 +297,7 @@ class Testie:
             except OSError:
                 pass
 
-    def execute(self, build, run, v, n_runs=1, n_retry=0, allowed_types=SectionScript.ALL_TYPES_SET, do_imports=True, test_folder = None) \
+    def execute(self, build, run, v, n_runs=1, n_retry=0, allowed_types=SectionScript.ALL_TYPES_SET, do_imports=True, test_folder = None, event = None) \
             -> Tuple[Dict[str, List], str, str, int]:
 
         # Get address definition for roles from scripts
@@ -332,6 +358,8 @@ class Testie:
                 queue = m.Queue()
                 terminated_event = m.Event()
 
+                event = EventBus(m)
+
                 remote_params = []
                 for t, v, role in (
                 [(imp.testie, imp.imp_v, imp.get_role()) for imp in self.imports] if do_imports else []) + [
@@ -364,9 +392,13 @@ class Testie:
                         param.bin_paths = deps_bin_path + [build.get_bin_folder()]
                         param.sudo = script.params.get("sudo", False)
                         param.testdir = test_folder
+                        param.event = event
                         param.script = script
                         param.name = script.get_name()
                         param.autokill = npf.parseBool(script.params.get("autokill", t.config["autokill"]))
+
+                        if 'waitfor' in script.params:
+                            param.waitfor = script.params['waitfor']
 
                         remote_params.append(param)
 
@@ -661,7 +693,10 @@ class Testie:
                         self.do_init_all(build, options, do_test, allowed_types=allowed_types,test_folder=test_folder)
                         init_done = True
                     if not self.options.quiet:
-                        print(run.format_variables(self.config["var_hide"]),"[%d runs for %d/%d]" % (n_runs,n,len(self.variables)))
+                        if len(self.variables) > 0:
+                            print(run.format_variables(self.config["var_hide"]),"[%d runs for %d/%d]" % (n_runs,n,len(self.variables)))
+                        else:
+                            print("Executing single run...")
 
                     new_results, output, err, n_exec = self.execute(build, run, variables, n_runs,
                                                                     n_retry=self.config["n_retry"],

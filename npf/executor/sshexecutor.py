@@ -21,7 +21,7 @@ class SSHExecutor:
         ssh.connect(self.addr, username=self.user)
         return ssh
 
-    def exec(self, cmd, terminated_event = None, bin_paths : List[str] = None, queue: Queue = None, options = None, stdin = None, timeout=None, sudo=False, testdir=None):
+    def exec(self, cmd, terminated_event = None, bin_paths : List[str] = None, queue: Queue = None, options = None, stdin = None, timeout=None, sudo=False, testdir=None, event=None):
         if terminated_event is None:
             terminated_event = multiprocessing.Event()
 
@@ -76,6 +76,7 @@ class SSHExecutor:
             else:
                 ret = ssh_stdout.channel.recv_exit_status()
             out = ssh_stdout.read().decode()
+            self.searchEvent(out, event)
             err = ssh_stderr.read().decode()
 
 

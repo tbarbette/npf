@@ -1,0 +1,16 @@
+%info
+Event test
+
+%script autokill=false
+echo "EVENT tost"
+sleep 1
+echo "EVENT test"
+
+%script waitfor=tost
+echo "RESULT-Y 1"
+
+%script waitfor=test
+echo "RESULT-X 1"
+
+%script waitfor=test
+echo "RESULT-Z 1"

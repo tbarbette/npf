@@ -4,6 +4,7 @@ import signal
 from multiprocessing import Queue, Event
 from subprocess import PIPE, Popen, TimeoutExpired
 from typing import List
+from .executor import Executor
 
 class LocalKiller:
     def __init__(self, pgpid):
@@ -22,11 +23,11 @@ class LocalKiller:
             return False
         return True
 
-class LocalExecutor:
+class LocalExecutor(Executor):
     def __init__(self):
         pass
 
-    def exec(self, cmd, terminated_event:Event, bin_paths : List[str]=[], queue: Queue = None, options = None, stdin = None, timeout = None, sudo = False, testdir=None):
+    def exec(self, cmd, terminated_event:Event, bin_paths : List[str]=[], queue: Queue = None, options = None, stdin = None, timeout = None, sudo = False, testdir=None, event=None):
         if testdir is not None:
             os.chdir("..")
 
@@ -57,6 +58,7 @@ class LocalExecutor:
         try:
             s_output, s_err = [x.decode() for x in
                                p.communicate(input = stdin,  timeout=timeout)]
+            self.searchEvent(s_output, event)
             p.stdin.close()
             p.stderr.close()
             p.stdout.close()
