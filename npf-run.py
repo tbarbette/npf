@@ -251,7 +251,7 @@ def main():
                     print("Previous build %s could not be found, we will not graph it !" % g_build.version)
             grapher.graph(series=[(testie, build, all_results)] + g_series,
                           title=testie.get_title(),
-                          filename=args.graph_filename,
+                          filename=True,
                           graph_variables=[Run(x) for x in testie.variables],
                           options = args)
         if last_build and args.graph_num > 0:
