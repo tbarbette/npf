@@ -1,23 +1,27 @@
 #!/bin/bash
 
+
+ret=0
+
 #Function that launch a testie on click-2017 and compare the expected output
 compare() {
     test=$1
     python=$2
     echo "Executing testie $test..."
-    $python npf-run.py click-2017 --force-test --testie integration/$test.testie --quiet-build &> int_res
+    $python npf-run.py click-2017 --force-test --testie integration/$test.testie --quiet-build &> res$test
     if [ $? -ne 0 ] ; then
         echo "npf-run.py returned an error for test $test !"
-        cat int_res
+        cat res$test
         exit 1
     fi
-    cmp int_res integration/$test.stdout
+    cmp res$test integration/$test.stdout
     if [ $? -eq 0 ] ; then
         echo "$test passed !"
     else
         echo "Error for $test : expected output does not match !"
         echo "Command : $python npf-run.py click-2017 --force-test --testie integration/$test.testie --quiet-build"
-        diff int_res integration/$test.stdout
+        diff res$test integration/$test.stdout
+        ret=1
     fi
 }
 
@@ -39,6 +43,7 @@ compare_watcher() {
         echo "Error for $test : expected output does not match !"
         echo "Command : $python npf-run.py click-2017 --force-test --testie integration/$test.testie --quiet-build"
         diff int_res integration/$test.stdout
+        ret=1
     fi
 }
 
@@ -46,7 +51,8 @@ compare_watcher() {
 try() {
     test=$1
     python=$2
-    $python npf-run.py --force-test --testie $test --config n_runs=1 --tags fastregression
+    params=$3
+    $python npf-run.py --force-test --testie $test --config n_runs=1 --tags fastregression $3
     if [ $? -ne 0 ] ; then
         echo "npf-run.py returned an error for test $test !"
         exit 1
@@ -59,9 +65,13 @@ else
     python=python
 fi
 
-try tests/tcp/01-iperf.testie $python
+try tests/tcp/01-iperf.testie $python "--variables TIME=1"
 compare integration-01 $python
 compare integration-02 $python
 compare timeout $python
 compare timeout-overwrite $python
+compare event $python
+compare math $python
 #compare_watcher $python
+
+exit $ret

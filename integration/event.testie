@@ -6,11 +6,11 @@ echo "EVENT tost"
 sleep 1
 echo "EVENT test"
 
-%script waitfor=tost
+%script waitfor=tost autokill=false
 echo "RESULT-Y 1"
 
-%script waitfor=test
+%script waitfor=test autokill=false
 echo "RESULT-X 1"
 
-%script waitfor=test
+%script waitfor=test autokill=false
 echo "RESULT-Z 1"

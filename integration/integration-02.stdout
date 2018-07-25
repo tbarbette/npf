@@ -23,4 +23,4 @@ BURST = 32, LENGTH = 512 [3 runs for 10/11]
 [32.0, 32.0, 32.0]
 BURST = 32, LENGTH = 1024 [3 runs for 11/11]
 [32.0, 32.0, 32.0]
-Graph of test written to results/click-2017/bbec36c/integration-02BURST=32.pdf
+Graph of test written to results/click-2017/bbec36c/integration-02BURST32.pdf

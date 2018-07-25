@@ -612,7 +612,7 @@ class Grapher:
                 if not matched:
                     print("WARNING: Unknown data type to include as subplot : %s" % result_type)
 
-        for result_type, data in data_types.items():
+        for result_type, data in sorted(data_types.items()):
             if result_type not in matched_set:
                 plots[result_type] = ([result_type],1)
 

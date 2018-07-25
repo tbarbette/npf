@@ -1,0 +1,8 @@
+Executing testie event.testie
+Event test
+Executing init scripts...
+Executing single run...
+X: [1.0, 1.0, 1.0], Y: [1.0, 1.0, 1.0], Z: [1.0, 1.0, 1.0]
+Graph of test written to results/click-2017/bbec36c/event-X.pdf
+Graph of test written to results/click-2017/bbec36c/event-Y.pdf
+Graph of test written to results/click-2017/bbec36c/event-Z.pdf

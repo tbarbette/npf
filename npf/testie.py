@@ -10,7 +10,6 @@ from pathlib import Path
 from queue import Empty
 from typing import Tuple, Dict
 import numpy as np
-
 from npf.build import Build
 from npf.node import NIC
 from npf.section import *
@@ -723,7 +722,7 @@ class Testie:
                         if len(run_results) == 1:
                             print(list(run_results.values())[0])
                         else:
-                            print(run_results)
+                            print(", ".join(['{0}: {1}'.format(k, run_results[k]) for k in sorted(run_results)]))
                     all_results[run] = run_results
                 else:
                     all_results[run] = {}
