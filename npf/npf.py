@@ -268,7 +268,7 @@ def build_filename(testie, build, hint, variables, def_ext, type_str='', show_se
         if basename is None or basename is '':
             basename = var_str
 
-        if not dirname:
+        if not dirname or show_serie:
             basename = (get_valid_filename(build.pretty_name()) if show_serie else '') + basename
         path = (dirname + '/' if dirname else '') + basename + (
         ('-' if basename else '') + type_str if type_str else '') + ext

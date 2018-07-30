@@ -4,8 +4,9 @@ import time
 from multiprocessing import Queue
 from typing import List
 import paramiko
+from .executor import Executor
 
-class SSHExecutor:
+class SSHExecutor(Executor):
 
     def __init__(self, user,addr,path):
         self.user = user
