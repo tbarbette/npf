@@ -124,9 +124,11 @@ class SectionScript(Section):
     def get_role(self):
         return self._role
 
-    def get_name(self):
+    def get_name(self, full=False):
         if 'name' in self.params:
             return self.params['name']
+        elif full:
+            return "%s [%s]" % (self.get_role() , str(self.index))
         else:
             return str(self.index)
 

@@ -8,15 +8,15 @@ from .executor import Executor
 from ..eventbus import EventBus
 from paramiko.buffered_pipe import PipeTimeout
 import socket
-
-last = None
+from colorama import Fore, Back, Style
 
 class SSHExecutor(Executor):
 
-    def __init__(self, user,addr,path):
+    def __init__(self, user, addr, path):
         self.user = user
         self.addr = addr
         self.path = path
+
         #Executor should not make any connection in init as parameters can be overwritten afterward
 
     def get_connection(self):
@@ -27,7 +27,9 @@ class SSHExecutor(Executor):
         ssh.connect(self.addr, username=self.user)
         return ssh
 
-    def exec(self, cmd, bin_paths : List[str] = None, queue: Queue = None, options = None, stdin = None, timeout=None, sudo=False, testdir=None, event=None):
+    def exec(self, cmd, bin_paths : List[str] = None, queue: Queue = None, options = None, stdin = None, timeout=None, sudo=False, testdir=None, event=None, title=None):
+        if not title:
+            title = self.addr
         if not event:
             event = EventBus()
         path_list = [p if os.path.isabs(p) else self.path+'/'+p for p in (bin_paths if bin_paths is not None else [])]
@@ -65,11 +67,7 @@ class SSHExecutor(Executor):
                     while ssh_stdout.channel.recv_ready():
                          line = ssh_stdout.readline()
                          if options and options.show_full:
-                             global last
-                             if last != self:
-                                 print(self.addr + " :")
-                                 last = self
-                             print(line, end='')
+                             print(Fore.GREEN + title + Style.RESET_ALL + ' ' + line, end='')
                          self.searchEvent(line, event)
                          out = out + line
                     else:
@@ -103,9 +101,11 @@ class SSHExecutor(Executor):
             else:
                 ret = ssh_stdout.channel.recv_exit_status()
 
-            line = ssh_stdout.read().decode()
-            self.searchEvent(line, event)
-            out = out + line
+            for line in ssh_stdout.readlines():
+                if options and options.show_full:
+                    print(Fore.GREEN + title + Style.RESET_ALL + ' ' + line, end='')
+                self.searchEvent(line, event)
+                out = out + line
             err = ssh_stderr.read().decode()
 
 

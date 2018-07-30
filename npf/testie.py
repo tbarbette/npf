@@ -34,6 +34,7 @@ class RemoteParameters:
         self.testdir = None
         self.waitfor = None
         self.event = None
+        self.title = None
 
     pass
 
@@ -52,7 +53,8 @@ def _parallel_exec(param: RemoteParameters):
                                  options=param.options,
                                  sudo=param.sudo,
                                  testdir=param.testdir,
-                                 event=param.event)
+                                 event=param.event,
+                                 title=param.name)
     if pid == 0:
         return False, o, e, c, param.script
     else:
@@ -372,7 +374,7 @@ class Testie:
                         param.testdir = test_folder
                         param.event = event
                         param.script = script
-                        param.name = script.get_name()
+                        param.name = script.get_name(True)
                         param.autokill = npf.parseBool(script.params.get("autokill", t.config["autokill"]))
 
                         if 'waitfor' in script.params:
@@ -467,6 +469,7 @@ class Testie:
                     break
 
                 has_values = False
+                has_err = False
                 for result_regex in self.config.get_list("result_regex"):
                     result_types = OrderedDict()
                     try:
@@ -506,15 +509,12 @@ class Testie:
                                 has_values = True
                             else:
                                 print("Result for %s is 0 !" % result_type)
-                                print("stdout:")
-                                print(output)
-                                print("stderr:")
-                                print(err)
+                                has_err = True
                         for result_type, val in result_types.items():
                             results.setdefault(result_type, []).append(val)
                     except Exception as e:
                         print("Exception while parsing results :")
-                        print(output)
+                        has_err = True
                         raise e
 
 
@@ -524,21 +524,20 @@ class Testie:
                 for result_type in self.config.get_list('results_expect'):
                     if result_type not in results:
                         print("Could not find expected result '%s' !" % result_type)
-                        if not self.options.show_full:
-                            print("stdout:")
-                            print(output)
-                        print("stderr:")
-                        print(err)
+                        has_err = True
 
                 if len(results) == 0:
                     print("Could not find results !")
 
+                    has_err = True
+                    continue
+
+                if has_err:
                     if not self.options.show_full:
                         print("stdout:")
                         print(output)
                     print("stderr:")
                     print(err)
-                    continue
 
         if not self.options.preserve_temp:
             for imp in self.imports:

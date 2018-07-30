@@ -27,7 +27,7 @@ class LocalExecutor(Executor):
     def __init__(self):
         pass
 
-    def exec(self, cmd, bin_paths : List[str]=[], queue: Queue = None, options = None, stdin = None, timeout = None, sudo = False, testdir=None, event=None):
+    def exec(self, cmd, bin_paths : List[str]=[], queue: Queue = None, options = None, stdin = None, timeout = None, sudo = False, testdir=None, event=None, title=None):
         if testdir is not None:
             os.chdir("..")
 
