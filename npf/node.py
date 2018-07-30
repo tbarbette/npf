@@ -132,8 +132,8 @@ class Node:
         cls._nodes[addr] = node
         if options.do_test and options.do_conntest:
             print("Testing connection to %s..." % node.executor.addr)
-            pid, out, err, ret = sshex.exec(cmd="echo \"test\"", terminated_event=None)
+            pid, out, err, ret = sshex.exec(cmd="echo \"test\"")
             out = out.strip()
             if ret != 0 or out != "test":
-                raise Exception("Could not communicate with node %s, got %s", sshex.addr, out)
+                raise Exception("Could not communicate with node %s, got %s" %  (sshex.addr, out))
         return node

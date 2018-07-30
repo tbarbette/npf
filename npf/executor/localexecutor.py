@@ -27,7 +27,7 @@ class LocalExecutor(Executor):
     def __init__(self):
         pass
 
-    def exec(self, cmd, terminated_event:Event, bin_paths : List[str]=[], queue: Queue = None, options = None, stdin = None, timeout = None, sudo = False, testdir=None, event=None):
+    def exec(self, cmd, bin_paths : List[str]=[], queue: Queue = None, options = None, stdin = None, timeout = None, sudo = False, testdir=None, event=None):
         if testdir is not None:
             os.chdir("..")
 
@@ -64,7 +64,7 @@ class LocalExecutor(Executor):
             p.stdout.close()
             if testdir is not None:
                 os.chdir(testdir)
-            return pid, s_output, s_err, 0 if terminated_event and terminated_event.is_set() else p.returncode
+            return pid, s_output, s_err, 0 if event and event.is_terminated() else p.returncode
         except TimeoutExpired:
             print("Test expired")
             p.terminate()

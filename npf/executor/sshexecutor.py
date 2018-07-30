@@ -5,6 +5,11 @@ from multiprocessing import Queue
 from typing import List
 import paramiko
 from .executor import Executor
+from ..eventbus import EventBus
+from paramiko.buffered_pipe import PipeTimeout
+import socket
+
+last = None
 
 class SSHExecutor(Executor):
 
@@ -22,10 +27,9 @@ class SSHExecutor(Executor):
         ssh.connect(self.addr, username=self.user)
         return ssh
 
-    def exec(self, cmd, terminated_event = None, bin_paths : List[str] = None, queue: Queue = None, options = None, stdin = None, timeout=None, sudo=False, testdir=None, event=None):
-        if terminated_event is None:
-            terminated_event = multiprocessing.Event()
-
+    def exec(self, cmd, bin_paths : List[str] = None, queue: Queue = None, options = None, stdin = None, timeout=None, sudo=False, testdir=None, event=None):
+        if not event:
+            event = EventBus()
         path_list = [p if os.path.isabs(p) else self.path+'/'+p for p in (bin_paths if bin_paths is not None else [])]
         if options and options.show_cmd:
             print("Executing on %s%s (PATH+=%s) :\n%s" % (self.addr,(' with sudo' if sudo and self.user != "root" else ''),':'.join(path_list), cmd.strip()))
@@ -53,21 +57,43 @@ class SSHExecutor(Executor):
             out=''
             err=''
             pid = os.getpid()
-
-            while not terminated_event.is_set() and not ssh_stdout.channel.exit_status_ready():
+            step = 0.2
+            ssh_stdout.channel.setblocking(False)
+            while not event.is_terminated() and not ssh_stdout.channel.exit_status_ready():
                 try:
-                    terminated_event.wait(1)
+                    line = None
+                    while ssh_stdout.channel.recv_ready():
+                         line = ssh_stdout.readline()
+                         if options and options.show_full:
+                             global last
+                             if last != self:
+                                 print(self.addr + " :")
+                                 last = self
+                             print(line, end='')
+                         self.searchEvent(line, event)
+                         out = out + line
+                    else:
+                        event.wait_for_termination(step)
+                        if timeout is not None:
+                            timeout -= step
+                except PipeTimeout:
+                    print("PipeT")
+                    pass
+                except socket.timeout:
+                    print("SocketT")
+                    event.wait_for_termination(step)
+                    if timeout is not None:
+                        timeout -= step
                 except KeyboardInterrupt:
-                    if terminated_event:
-                        terminated_event.set()
+                    event.terminate()
                     return -1, out, err
                 if timeout is not None:
-                    timeout -= 1
                     if timeout < 0:
-                        terminated_event.set()
+                        print("TIMEOUT")
+                        event.terminate()
                         pid = 0
                         break
-            if terminated_event.is_set():
+            if event.is_terminated():
                 if not ssh_stdin.channel.closed:
                     ssh_stdin.channel.send(chr(3))
                     i=0
@@ -76,8 +102,10 @@ class SSHExecutor(Executor):
                 ssh.close()
             else:
                 ret = ssh_stdout.channel.recv_exit_status()
-            out = ssh_stdout.read().decode()
-            self.searchEvent(out, event)
+
+            line = ssh_stdout.read().decode()
+            self.searchEvent(line, event)
+            out = out + line
             err = ssh_stderr.read().decode()
 
 

@@ -14,6 +14,7 @@ from npf.build import Build
 from npf.node import NIC
 from npf.section import *
 from npf.types.dataset import Run, Dataset
+from npf.eventbus import EventBus
 
 class RemoteParameters:
     def __init__(self):
@@ -23,11 +24,9 @@ class RemoteParameters:
         self.executor = None
         self.bin_paths = None
         self.queue = None
-        self.terminated_event = None
         self.sudo = None
         self.autokill = None
         self.queue = None
-        self.terminated_event = None
         self.timeout = None
         self.options = None
         self.stdin = None
@@ -38,41 +37,19 @@ class RemoteParameters:
 
     pass
 
-class EventBus:
-    def __init__(self, m):
-        self.c = m.Condition()
-        self.list = m.list()
-
-    def post(self, ev):
-        self.c.acquire()
-        self.list.append(ev)
-        self.c.notify_all()
-        self.c.release()
-
-    def listen(self, ev):
-        self.c.acquire()
-        i = 0
-        if len(self.list) == 0:
-            self.c.wait()
-        while self.list[i] != ev:
-            i += 1
-            if i == len(self.list):
-                self.c.wait()
-        self.c.release()
-
-
 def _parallel_exec(param: RemoteParameters):
     executor = npf.executor(param.role, param.default_role_map)
     if param.waitfor:
         param.event.listen(param.waitfor)
-    time.sleep(param.delay)
+    param.event.wait_for_termination(param.delay)
+    if param.event.is_terminated():
+        return 1, 'Killed before execution', 'Killed before execution', 0, param.script
     pid, o, e, c = executor.exec(cmd=param.commands,
                                  stdin=param.stdin,
                                  timeout=param.timeout,
                                  bin_paths=param.bin_paths,
                                  queue=param.queue,
                                  options=param.options,
-                                 terminated_event=param.terminated_event,
                                  sudo=param.sudo,
                                  testdir=param.testdir,
                                  event=param.event)
@@ -80,7 +57,7 @@ def _parallel_exec(param: RemoteParameters):
         return False, o, e, c, param.script
     else:
         if param.autokill or pid == -1:
-            Testie.killall(param.queue, param.terminated_event)
+            Testie.killall(param.queue, param.event)
         if pid == -1:
             return -1, o, e, c, param.script
         return True, o, e, c, param.script
@@ -187,10 +164,14 @@ class Testie:
                 for script in imp.testie.scripts:
                     script.init = True
             if 'delay' in imp.params:
+                delay = script.params.setdefault('delay', 0)
                 for script in imp.testie.scripts:
-                    delay = script.params.setdefault('delay', 0)
                     script.params['delay'] = float(delay) + float(imp.params['delay'])
                 del imp.params['delay']
+            if 'waitfor' in imp.params:
+                for script in imp.testie.scripts:
+                    script.params['waitfor'] = imp.params['waitfor']
+                del imp.params['waitfor']
             overriden_variables = {}
             for k, v in imp.params.items():
                 overriden_variables[k] = VariableFactory.build(k, v)
@@ -262,7 +243,7 @@ class Testie:
             p = SectionVariable.replace_variables(v, require.content, require.role(),
                                                   self.config.get_dict("default_role_map"))
             pid, output, err, returncode = npf.executor(require.role(), self.config.get_dict("default_role_map")).exec(
-                cmd=p, bin_paths=[build.get_bin_folder()], options=self.options, terminated_event=None, testdir=None)
+                cmd=p, bin_paths=[build.get_bin_folder()], options=self.options, event=None, testdir=None)
             if returncode != 0:
                 return False, output, err
             continue
@@ -275,8 +256,8 @@ class Testie:
                 path.unlink()
 
     @staticmethod
-    def killall(queue, terminated_event):
-        terminated_event.set()
+    def killall(queue, event):
+        event.terminate()
         while not queue.empty():
             try:
                 killer = queue.get(block=False)
@@ -355,7 +336,6 @@ class Testie:
 
 
                 queue = m.Queue()
-                terminated_event = m.Event()
 
                 event = EventBus(m)
 
@@ -372,7 +352,6 @@ class Testie:
                                                                                                          role if role else script.get_role(),
                                                                                                          self.config.get_dict(
                                                                                                              "default_role_map"))
-                        param.terminated_event = terminated_event
                         param.options = self.options
                         param.queue = queue
                         param.stdin = t.stdin.content
@@ -702,11 +681,11 @@ class Testie:
                                                                     allowed_types={SectionScript.TYPE_SCRIPT},
                                                                     test_folder=test_folder)
                     if new_results:
-                        if self.options.show_full:
-                            print("stdout:")
-                            print("\n".join(output))
-                            print("stderr:")
-                            print("\n".join(err))
+#                        if self.options.show_full:
+#                            print("stdout:")
+#                            print("\n".join(output))
+#                            print("stderr:")
+#                            print("\n".join(err))
                         for k, v in new_results.items():
                             if options.force_retest:
                                 run_results[k] = v

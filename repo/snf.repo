@@ -1,0 +1,3 @@
+parent=metron
+name=SNF
+tags+=snf,parallel,fastclick
