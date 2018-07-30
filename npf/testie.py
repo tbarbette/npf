@@ -422,8 +422,9 @@ class Testie:
                     if r == 0:
                         print("Timeout of %d seconds expired for script %s on %s..." % (script.timeout, script.get_name(),script.get_role()))
                         if not self.options.quiet:
-                            print("stdout:")
-                            print(o)
+                            if not not self.options.show_full:
+                                print("stdout:")
+                                print(o)
                             print("stderr:")
                             print(e)
                         continue
@@ -438,8 +439,9 @@ class Testie:
                             print("[ERROR] A critical script failed ! Results will be ignored")
                         print("Bad return code (%d) for script %s on %s ! Something probably went wrong..." % (c,script.get_name(),script.get_role()))
                         if not self.options.quiet:
-                            print("stdout:")
-                            print(o)
+                            if not self.options.show_full:
+                                print("stdout:")
+                                print(o)
                             print("stderr:")
                             print(e)
                         continue
@@ -522,15 +524,18 @@ class Testie:
                 for result_type in self.config.get_list('results_expect'):
                     if result_type not in results:
                         print("Could not find expected result '%s' !" % result_type)
-                        print("stdout:")
-                        print(output)
+                        if not self.options.show_full:
+                            print("stdout:")
+                            print(output)
                         print("stderr:")
                         print(err)
 
                 if len(results) == 0:
                     print("Could not find results !")
-                    print("stdout:")
-                    print(output)
+
+                    if not self.options.show_full:
+                        print("stdout:")
+                        print(output)
                     print("stderr:")
                     print(err)
                     continue
