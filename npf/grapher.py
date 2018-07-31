@@ -918,8 +918,8 @@ class Grapher:
     def set_axis_formatter(self, axis, format, unit, isLog, compact=False):
         mult=1
         if (unit and unit[0] == 'k'):
-            mult=1024
             unit=unit[1:]
+            mult = 1024 if unit[0] == "B" else 1000
         if format:
             formatter = FormatStrFormatter(format)
             axis.set_major_formatter(formatter)
