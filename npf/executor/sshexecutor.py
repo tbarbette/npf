@@ -8,15 +8,14 @@ from .executor import Executor
 from ..eventbus import EventBus
 from paramiko.buffered_pipe import PipeTimeout
 import socket
-from colorama import Fore, Back, Style
 
 class SSHExecutor(Executor):
 
     def __init__(self, user, addr, path):
+        super().__init__()
         self.user = user
         self.addr = addr
         self.path = path
-
         #Executor should not make any connection in init as parameters can be overwritten afterward
 
     def get_connection(self):
@@ -26,6 +25,7 @@ class SSHExecutor(Executor):
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         ssh.connect(self.addr, username=self.user)
         return ssh
+
 
     def exec(self, cmd, bin_paths : List[str] = None, queue: Queue = None, options = None, stdin = None, timeout=None, sudo=False, testdir=None, event=None, title=None):
         if not title:
@@ -67,7 +67,7 @@ class SSHExecutor(Executor):
                     while ssh_stdout.channel.recv_ready():
                          line = ssh_stdout.readline()
                          if options and options.show_full:
-                             print(Fore.GREEN + title + Style.RESET_ALL + ' ' + line, end='')
+                            self._print(title, line, False)
                          self.searchEvent(line, event)
                          out = out + line
                     else:
@@ -75,10 +75,9 @@ class SSHExecutor(Executor):
                         if timeout is not None:
                             timeout -= step
                 except PipeTimeout:
-                    print("PipeT")
                     pass
                 except socket.timeout:
-                    print("SocketT")
+                    self._print(title, "Interrupted by timeout", True)
                     event.wait_for_termination(step)
                     if timeout is not None:
                         timeout -= step
@@ -87,7 +86,6 @@ class SSHExecutor(Executor):
                     return -1, out, err
                 if timeout is not None:
                     if timeout < 0:
-                        print("TIMEOUT")
                         event.terminate()
                         pid = 0
                         break
@@ -103,7 +101,7 @@ class SSHExecutor(Executor):
 
             for line in ssh_stdout.readlines():
                 if options and options.show_full:
-                    print(Fore.GREEN + title + Style.RESET_ALL + ' ' + line, end='')
+                    self._print(title, line, False)
                 self.searchEvent(line, event)
                 out = out + line
             err = ssh_stderr.read().decode()

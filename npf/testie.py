@@ -286,7 +286,7 @@ class Testie:
         self.parse_script_roles()
 
         #Create temporary folder
-        v_internals = {'NPF_ROOT':'../'}
+        v_internals = {'NPF_ROOT':'../', 'NPF_BUILD':'../' + build.build_path()}
         v.update(v_internals)
         if test_folder is None:
             test_folder = self.make_test_folder()
