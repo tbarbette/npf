@@ -14,5 +14,5 @@ N=[1-50]
 
 %script
 echo "RESULT-N $N"
-echo "RESULT-LOG $(( log($N) ))"
-echo "RESULT-EXP $(( pow(2,$N) ))"
+echo "RESULT-LOG $(( round(log($N), 2) ))"
+echo "RESULT-EXP $(( round(pow(2,$N), 2) ))"
