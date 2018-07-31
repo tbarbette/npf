@@ -10,7 +10,7 @@ var_unit={RESULT: }
 var_format={RESULT:%d}
 
 %variables
-N=[1-50]
+N=[1-32]
 
 %script
 echo "RESULT-N $N"
