@@ -424,7 +424,7 @@ class Testie:
                     if r == 0:
                         print("Timeout of %d seconds expired for script %s on %s..." % (script.timeout, script.get_name(),script.get_role()))
                         if not self.options.quiet:
-                            if not not self.options.show_full:
+                            if not self.options.show_full:
                                 print("stdout:")
                                 print(o)
                             print("stderr:")
