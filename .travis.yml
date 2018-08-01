@@ -1,7 +1,10 @@
+cache:
+    directories:
+        - build
 language: python
 python:
 #- "3.2" there is no binary numpy for 3.2
-  - "3.5"
+    - "3.5"
 sudo: true
 install:
     - sudo apt-get install libblas-dev liblapack-dev libatlas-base-dev gfortran
