@@ -87,6 +87,9 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
     tf.add_argument('--no-test',
                     help='Do not run any tests, use previous results', dest='do_test', action='store_false',
                     default=True)
+    tf.add_argument('--no-supplementary-test',
+                    help='Do not run supplementary tests for regression, use previous results', dest='allow_supplementary', action='store_false',
+                    default=True)
     tf.add_argument('--force-test',
                     help='Force re-doing all tests even if data for the given version and '
                          'variables is already known, but append the new data to exesting one', dest='force_test', action='store_true',

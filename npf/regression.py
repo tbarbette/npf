@@ -67,7 +67,7 @@ class Regression:
                     if old_all_results:
                         old_all_results[run] = {}
 
-            if need_supp and testie.options.do_test:
+            if need_supp and testie.options.do_test and testie.options.allow_supplementary:
                 try:
                     if not testie.options.quiet_regression:
                         print(
@@ -164,7 +164,7 @@ class Regression:
             variables_passed, variables_total = regression.compare(testie, testie.variables, all_results, build,
                                                                    old_all_results,
                                                                    repo.last_build,
-                                                                   init_done=init_done)
+                                                                   init_done=init_done, allow_supplementary=options.allow_supplementary)
             if variables_passed == variables_total:
                 nok += 1
             datasets.append(all_results)

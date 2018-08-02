@@ -415,7 +415,7 @@ class SectionVariable(Section):
                             var = self.aliases[var]
                         else:
                             raise Exception("Unknown variable %s" % var)
-                if is_append:
+                if is_append and var in self.vlist:
                     self.vlist[var] += val
                 else:
                     self.vlist[var] = val
