@@ -11,7 +11,7 @@ This script copy the config, set up dependencies etc
 NPFROOT=../
 
 //TODO : solve bug that makes the script fail when it is called as init
-%script autokill=false deps=snort
+%script autokill=false deps=snort,daq
 cp $NPFROOT/libs/snort/snort*tar.gz ./
 tar -zxvf snort*tar.gz
 t=$?
@@ -281,7 +281,7 @@ dynamicpreprocessor directory /usr/local/lib/snort_dynamicpreprocessor/
 dynamicengine /usr/local/lib/snort_dynamicengine/libsf_engine.so
 
 # path to dynamic rules libraries
-dynamicdetection directory /usr/lib/snort_dynamicrules
+#dynamicdetection directory /usr/lib/snort_dynamicrules
 
 ###################################################
 # Step #5: Configure preprocessors

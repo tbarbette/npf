@@ -28,7 +28,7 @@ skipinit=0
 GEN_TOT=EXPAND( $(( $GEN_BURST * $GEN_FLOWS )) )
 
 %script deps=fastclick sudo=true delay=2
-cat REPLAYER  PKTGEN_CONFIG | click --dpdk -c 0xf --
+cat REPLAYER PKTGEN_CONFIG | click --dpdk -c 0xf --
 
 %-rate:file REPLAYER
 elementclass Replayer { $srcmac, $dstmac, $srcip, $dstip |
@@ -43,7 +43,7 @@ elementclass Replayer { $srcmac, $dstmac, $srcip, $dstip |
 %rate:file REPLAYER
 elementclass Replayer { $srcmac, $dstmac, $srcip, $dstip |
     gen :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH $GEN_LENGTH, SRCETH $srcmac, DSTETH $dstmac, SRCIP $srcip, DSTIP $dstip, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST)
-    -> replay :: RatedUnqueue($GEN_RATE)
+    -> replay :: RatedUnqueue( $(( (int)(ceil($GEN_RATE  / 2) ) )) )
     -> output
 }
 

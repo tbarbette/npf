@@ -76,12 +76,29 @@ BLOCKING=false
 
 FNTcounter:COUNTER={CounterMP,CounterRxWMP,CounterAtomic,CounterLock,CounterRW,CounterPRW,CounterRCU}
 
-%-nobind:import@client dpdk-bind NIC=0
-%-nobind:import@client dpdk-bind NIC=1
+
+%wrk:late_variables
+GEN_CONCURRENT=128
+GEN_THREADS=16
+GEN_RATE=1000000
+HTTP_PORT=80
+GEN_TIME=2
+WRKNIC=0
+WRK_HOST=10.121.0.1
+FSIZE=8
+HTTP_PORT=80
+NGINX_ROOT=/tmp/nginx/
+NGINX_PORT=80
+FILE_PATH=EXPAND(bin-${FSIZE}K)
+
+%-nobind,-wrk:import@client dpdk-bind NIC=0
+%-nobind,-wrk:import@client dpdk-bind NIC=1
 %dpdk,-nobind:import@dut dpdk-bind NIC=0
 %dpdk,-nobind:import@dut dpdk-bind NIC=1
 %netmap:import@dut netmap-bind NIC=0
 %netmap:import@dut netmap-bind NIC=0
+%-nobind,wrk:import@client dpdk-bind NIC=0 DRIVER=i40e
+%-nobind,wrk:import@server dpdk-bind NIC=0 DRIVER=i40e
 %cpufreq:import@dut cpufreq
 
 %late_variables
@@ -106,16 +123,37 @@ parallel:maxthreads=EXPAND( $CPU )
 [ $BURSTIN -eq $BURSTOUT ]
 
 %udp:import@client fastclick-udpgen-dual 0:ip=10.120.0.100 1:ip=10.121.0.100 delay=2
-%-udp:import@client fastclick-replay-dual 0:ip=139.165.0.1 1:ip=10.10.10.1 traceIN=/mnt/traces/201601-1_fullanon_padded.pcap traceOUT=/mnt/traces/201601-2_fullanon_padded.pcap NBUF=5000000 delay=2 nolinktest=1
+%-udp,-wrk:import@client fastclick-replay-dual 0:ip=139.165.0.1 1:ip=10.10.10.1 traceIN=/mnt/traces/201601-1_fullanon_padded.pcap traceOUT=/mnt/traces/201601-2_fullanon_padded.pcap NBUF=5000000 delay=2 nolinktest=1
+
+%wrk:import@client wrk2
+%wrk:import@client dev_rate NIC=0 delay=2
+%wrk:import@server nginx
 
 %udp:script@dut 0:ip=10.120.0.1 1:ip=10.121.0.1 sudo=true autokill=false
-%-udp:script@dut 0:ip=139.165.0.2 1:ip=10.10.10.2 sudo=true autokill=false
+%-udp,-wrk:script@dut 0:ip=139.165.0.2 1:ip=10.10.10.2 sudo=true autokill=false
 
-%-udp:file NET
+%wrk:script@dut autokill=false 0:ip=10.120.0.2 1:ip=10.121.0.2
+
+
+%wrk:script@client sudo=true 0:ip=10.120.0.1 autokill=false
+ifconfig ${self:0:ifname} 10.120.0.1 netmask 255.255.0.0 up
+ip route add 10.121.0.0/16 via 10.120.0.2 dev ${self:0:ifname}
+
+%wrk:script@server sudo=true 0:ip=10.121.0.1 autokill=false
+ifconfig ${self:0:ifname} 10.121.0.1 netmask 255.255.0.0 up
+ip route add 10.120.0.0/16 via 10.121.0.2 dev ${self:0:ifname}
+
+%-udp,-wrk:file NET
 AddressInfo(INTERNALNET 139.165.0.0/16)
+define($DSTMAC ${client:1:mac})
+
+%wrk:file NET
+AddressInfo(INTERNALNET 10.121.0.0/24)
+define($DSTMAC ${server:0:mac})
 
 %udp:file NET
 AddressInfo(INTERNALNET 10.121.0.0/24)
+define($DSTMAC ${client:1:mac})
 
 %dpdk,fastclick:file IO
 define ($i 1024)
@@ -209,7 +247,7 @@ input1 :: Input(${dut:1:ip}, ${dut:1:mac});
 //arpq0 :: ARPQuerier(${dut:0:ip}, ${dut:0:mac});
 //arpq1 :: ARPQuerier(${dut:1:ip}, ${dut:1:mac});
 arpq0:: EtherEncap(0x0800, SRC ${dut:0:mac}, DST ${client:0:mac});
-arpq1:: EtherEncap(0x0800, SRC ${dut:1:mac}, DST ${client:1:mac});
+arpq1:: EtherEncap(0x0800, SRC ${dut:1:mac}, DST $DSTMAC);
 
 input0[1] -> td0;
 input1[1] -> td1;

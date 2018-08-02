@@ -18,11 +18,17 @@ GEN_THREADS=16
 GEN_RATE=1000000
 FILE_PATH=index.htm
 HTTP_PORT=80
-GEN_TIME=2
-DUT_NIC=0
+GEN_TIME=10
+WRKNIC=0
+WRK_HOST=EXPAND( ${dut:0:ip} )
 
-%script deps=wrk2
-wrk -c $GEN_CONCURRENT -t $GEN_THREADS -d${GEN_TIME}s -R $GEN_RATE http://${dut:$DUT_NIC:ip}:${HTTP_PORT}/${FILE_PATH} | tee wrk_results
+%script deps=wrk2-tbarbette title=WRK2Client
+echo "wrk -c $GEN_CONCURRENT -r -t $GEN_THREADS -d${GEN_TIME}s -R $GEN_RATE http://${WRK_HOST}:${HTTP_PORT}/${FILE_PATH}"
+
+wrk -c $GEN_CONCURRENT -r -t $GEN_THREADS -d${GEN_TIME}s -R $GEN_RATE http://${WRK_HOST}:${HTTP_PORT}/${FILE_PATH} | tee wrk_results
+stat=$?
 cat wrk_results | grep "Transfer/sec" | awk '{printf "RESULT-THROUGHPUT %s\n", $2}'
+cat wrk_results | grep "Requests/sec" | awk '{printf "RESULT-REQUEST %s\n", $2}'
 cat wrk_results | grep "Latency" | awk '{printf "RESULT-LATENCY %s\n", $2}'
 rm wrk_results
+exit $stat

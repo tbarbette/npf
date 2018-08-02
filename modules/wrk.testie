@@ -16,16 +16,16 @@ GEN_CONCURRENT=128
 GEN_THREADS=16
 FILE_PATH=index.htm
 HTTP_PORT=80
-GEN_TIME=2
+GEN_TIME=10
 WRKNIC=0
 WRK_HOST=EXPAND( ${dut:0:ip} )
 
 %late_variables
 
 
-%script deps=wrk title=WRKClient
+%script deps=wrk-tbarbette title=WRKClient
 fname=$RANDOM
-wrk -c $GEN_CONCURRENT -t $GEN_THREADS -d${GEN_TIME}s http://${WRK_HOST}:${HTTP_PORT}/${FILE_PATH} | tee $fname
+wrk -r -c $GEN_CONCURRENT -t $GEN_THREADS -d${GEN_TIME}s http://${WRK_HOST}:${HTTP_PORT}/${FILE_PATH} | tee $fname
 stat=$?
 cat $fname | grep "Transfer/sec" | awk '{printf "RESULT-THROUGHPUT %s\n", $2}'
 cat $fname | grep "Requests/sec" | awk '{printf "RESULT-REQUEST %s\n", $2}'

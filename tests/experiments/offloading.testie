@@ -4,11 +4,19 @@ Distribution approach study
 %config
 default_repo=fastclick
 n_runs=3
-var_lim={NWP:0-16,NTHREADS:0-16,result-THROUGHPUT:0-10000000000,result-Perf:0-100}
-var_unit={LATENCY:us,DROPPED:packets,result-THROUGHPUT:BPS,result-TX:BPS,result-perf:percent}
-var_names={GEN_LENGTH:Packet length,TODEV_THREAD:Output thread,result-THROUGHPUT:Throughput,result-TX:PktGen Throughput,result-PPS:PPS,result-DROPPED:Dropped,result-LATENCY:Latency,result-LOSS:Percentage,NTHREADS:Number of logical cores,NWP:Number of processing stages,RATE:Emitter rate,RXDESC:Input queue size}
-var_unit+={PPS:Packets/s,result-LATENCY:us,RATE:Packets/s}
-var_names+={result-LATENCY:Latency (µs)}
+-http:results_expect={PPS}
+-http:var_lim={NWP:0-16,NTHREADS:0-16,THROUGHPUT:0-10000000000,result-Perf:0-100}
+var_unit={LATENCY:us,DROPPED:packets,THROUGHPUT:BPS,result-TX:BPS,result-perf:percent}
+var_names={GEN_LENGTH:Packet length,TODEV_THREAD:Output thread,result-THROUGHPUT:Throughput,result-TX:PktGen Throughput,result-PPS:PPS,result-DROPPED:Dropped,result-LATENCY:Latency (µs),result-LOSS:Percentage,NTHREADS:Number of logical cores,NWP:Number of processing stages,RATE:Emitter rate,RXDESC:Input queue size,GEN_RATE:HTTP Request rate (Requests/s)}
+
+var_unit+={PPS:Packets/s,RATE:Packets/s}
+
+
+http:timeout=45
+http:var_unit+={THROUGHPUT: ,LATENCY: }
+http:var_names+={result-THROUGHPUT:HTTP Throughput (Mbits/s),result-LATENCY:Avg download time (ms)}
+http:var_format+={RATE:%d,LATENCY:%d,THROUGHPUT:%d}
+http:var_divider+={LATENCY:0.001,THROUGHPUT:1000000}
 
 //,W:Amount of pseudo-random numbers computed per processing stage}
 accept_zero={DROPPED}
@@ -17,7 +25,7 @@ perf:graph_result_as_variable={PERF-(.*):Perf}
 -vary:graph_series_sort=-avg
 -vary:graph_max_series=10
 -prop,vary:var_log={PPS,LATENCY,THROUGHPUT}
-var_log={result-LATENCY,S}
+var_log={result-LATENCY,S,RATE,GEN_RATE}
 var_log_base={W:4}
 -dual:var_grid={PPS,result-LATENCY}
 dual:var_grid={PPS}
@@ -27,32 +35,39 @@ prop:graph_series_prop=100
 prop:var_log={PPS,LATENCY}
 prop:var_unit={RATE: }
 prop:var_format+={PPS:%d%%,RATE:%d%%,LATENCY:%d%%}
+prop:var_ticks={result:0+25+50+75+100+125+150+175+200}
 
-rate:var_format+={RATE:%dM}
-rate:var_divider+={RATE:1000000}
+rate:var_format+={RATE:%dM,GEN_RATE:%d}
+rate:var_divider+={RATE:1000000,GEN_RATE:1}
 ppsm:var_divider+={result-PPS:1000000}
 ppsm:var_format+={result-PPS:%dM}
 //var_divider+={result-LATENCY:1000000}
-results_expect={PPS}
+
 
 //Dual axis
 dual:graph_subplot_results={PPS+LATENCY:common}
 dual:graph_subplot_type=axis
 //Two graphSide by side
 sidebyside:legend_loc=outer lower center
-sidebyside:graph_subplot_results={PPS+LATENCY:2}
+sidebyside,-http:graph_subplot_results={PPS+LATENCY:2}
+sidebyside,http:graph_subplot_results={THROUGHPUT+LATENCY:2}
 
 selfthread:var_log={PPS,LATENCY}
 selfthread:legend_ncol=2
 //selfthread:graph_variables_as_series=NWP
 
+//default_role={server:client}
+
+http,-prop:var_log+={LATENCY,THROUGHPUT}
+
 %variables
--campus:GEN_LENGTH=64
+-campus,-http:GEN_LENGTH=64
 NWP={1,7,14}
 QSIZE=8
 nobatch:QSIZE=1024
 ALWAYSUP=true
-GEN_WAIT=10
+-http:GEN_WAIT=10
+http:GEN_TIME=20
 //perf:PERF_OPT=--comms click
 //NWP=14
 softduplicate:SOFTMETHOD=RoundRobinSwitch()
@@ -75,12 +90,20 @@ selfthread:N=100
 selfthread:R=0
 selfthread:W=1
 
-rate:RATE={1000,10000,100000,1000000,10000000}
+rate,-http:RATE={1000,10000,100000,1000000,10000000}
 
 half:RXDESC=128
 manualrx:RXDESC=256
+http:INPUT=http
+httprate:GEN_RATE=[50*25600]
+http:FSIZE=1024
+cpufreq:CPUFREQ=1200000
 
 %late_variables
+http:DSTA=${server:0:mac}
+http:DSTB=${client:0:mac}
+-http:DSTA=${server:1:mac}
+-http:DSTB=${server:0:mac}
 -half,-manualrx:RXDESC=256
 back:B=1
 -back:B=0
@@ -92,6 +115,9 @@ vary:WP=EXPAND(WorkPackage(S $S, N $N, R $R, PAYLOAD $P, W $W))
 bin=32
 pipeline:TODEV_THREAD=EXPAND( $(( (1 - $B) * ( $NTHREADS - 1 ) )) )
 
+%http:late_variables
+
+FILE_PATH=EXPAND(bin-${FSIZE}K)
 
 //Parallel approach
 %parallel:late_variables
@@ -157,14 +183,24 @@ exit -1
 
 %import@dut dpdk-bind NIC=0
 %import@dut dpdk-bind NIC=1
-%import@client dpdk-bind NIC=0
-%import@client dpdk-bind NIC=1
+%-http:import@client dpdk-bind NIC=0
+%-http:import@client dpdk-bind NIC=1
+%http:import@server dpdk-bind NIC=0 DRIVER=i40e
+%http:import@client dpdk-bind DRIVER=i40e NIC=0
+//%http:import@server nginx
+%http,-httprate:import@client wrk HTTP_PORT=80 WRK_HOST=10.120.0.2 delay=10
+%http,httprate:import@client wrk2 HTTP_PORT=80 WRK_HOST=10.120.0.2 delay=10
+
+%cpufreq:import@dut cpufreq
+
+
+%include offloading.d/http.testie
 
 %perf:import@dut perf-functions delay=10
-%-perf,-campus,-rate:import@client fastclick-udpgen-latency-single delay=6 GEN_REPLAY=20 LIMIT=1000000
-%-perf,-campus,rate:import@client fastclick-udpgen-latency-single delay=6
+%-perf,-campus,-rate,-http:import@client fastclick-udpgen-latency-single delay=6 GEN_REPLAY=20 LIMIT=1000000
+%-perf,-campus,rate,-http:import@client fastclick-udpgen-latency-single delay=6
 
-%campus:import@client fastclick-replay-dual 0:ip=139.165.0.1 1:ip=10.10.10.1 traceIN=/mnt/traces/201601-1_fullanon_padded.pcap traceOUT=/mnt/traces/201601-2_fullanon_padded.pcap NBUF=5000000 delay=6
+%campus,-http:import@client fastclick-replay-dual 0:ip=139.165.0.1 1:ip=10.10.10.1 traceIN=/mnt/traces/201601-1_fullanon_padded.pcap traceOUT=/mnt/traces/201601-2_fullanon_padded.pcap NBUF=5000000 delay=6
 //%perf:import@client fastclick-udpgen-single delay=6
 
 %script@dut sudo=true
@@ -193,8 +229,8 @@ from_eth1 :: FromDPDKDevice(${dut:0:pci}, PROMISC false, MAXTHREADS $NTHREADS, T
 from_eth2 :: FromDPDKDevice(${dut:1:pci}, PROMISC false, MAXTHREADS $NTHREADS, THREADOFFSET 0, VERBOSE 3, BURST $bin, NDESC $RXDESC);
 to_eth1 :: ToDPDKDevice(${dut:0:pci}, BLOCKING true);
 to_eth2 :: ToDPDKDevice(${dut:1:pci}, BLOCKING true);
-from_eth1 $WORK -> EtherRewrite(SRC ${dut:1:mac}, DST ${client:1:mac}) -> to_eth2; 
-from_eth2 $WORK2 -> EtherRewrite(SRC ${dut:0:mac}, DST ${client:0:mac}) -> to_eth1;
+from_eth1 $WORK -> EtherRewrite(SRC ${dut:1:mac}, DST $DSTA) -> to_eth2;
+from_eth2 $WORK2 -> EtherRewrite(SRC ${dut:0:mac}, DST $DSTB) -> to_eth1;
 
 DriverManager(wait, print "DROPPED $(from_eth1.hw_dropped) , $(from_eth2.hw_dropped)"
 , print "COUNT $(from_eth1.hw_count) , $(from_eth2.hw_count)");
@@ -237,12 +273,12 @@ DriverManager(wait $COUNTPRINTS);
 %pipeline:file@dut CONFIG
 
 from_eth1 :: FromDPDKDevice(${dut:0:pci}, PROMISC false, BURST $bin, THREADOFFSET 0, MAXTHREADS 1, VERBOSE 3, NDESC $RXDESC);
-to_eth1 :: Pipeliner($QSIZE) -> EtherRewrite(SRC ${dut:0:mac}, DST ${client:0:mac}) -> ToDPDKDevice(${dut:0:pci}, BLOCKING true);
+to_eth1 :: Pipeliner($QSIZE) -> EtherRewrite(SRC ${dut:0:mac}, DST $DSTB) -> ToDPDKDevice(${dut:0:pci}, BLOCKING true);
 StaticThreadSched(to_eth1 $TODEV_THREAD)
 //to_eth1 :: ToDPDKDevice(${dut:0:pci}, BLOCKING true);
 
 from_eth2 :: FromDPDKDevice(${dut:1:pci}, PROMISC false, BURST $bin, THREADOFFSET 0, MAXTHREADS 1, VERBOSE 3, NDESC $RXDESC);
-to_eth2 :: Pipeliner($QSIZE) -> EtherRewrite(SRC ${dut:1:mac}, DST ${client:1:mac}) ->   ToDPDKDevice(${dut:1:pci}, BLOCKING true);
+to_eth2 :: Pipeliner($QSIZE) -> EtherRewrite(SRC ${dut:1:mac}, DST $DSTA) ->   ToDPDKDevice(${dut:1:pci}, BLOCKING true);
 StaticThreadSched(to_eth2 $TODEV_THREAD)
 //to_eth2 :: ToDPDKDevice(${dut:1:pci}, BLOCKING true);
 

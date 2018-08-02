@@ -15,35 +15,39 @@ perf:graph_result_as_variable={PERF-(.*):Perf}
 //rate:graph_series_label=$COUNTER - $CPU cores
 //rate:graph_variables_as_series={COUNTER,CPU}
 rate:var_log+={result-OPPS,result-ROPPS}
-rate:var_lim={result-OPPS:10000}
+rate:var_lim={result-OPPS:10000,result-ROPPS:10000}
+-rate,-update,-rv:var_lim={result-OPPS:0-16,result-ROPPS:0-16}
 rv:var_log+={RV}
-rv:var_lim+={RV:-65536-65536}
+rv:var_lim+={RV:-65536-65536,OPPS:0-10000}
 rv:legend_loc=outer center
 rv:legend_ncol=3
 //rv:legend_mode=expand
-rv:graph_color={5,2,1,5,2,2,2,2,3}
+rv,-rxwmp:graph_color={5,2,1,5,2,2,2,2,3}
 rv:legend_bbox={0,1,1,.15}
-rv:var_ticks+={RV:-65536+-1024+-32+-2+0+2+32+1024+65536}
-
+rv|rate:var_ticks+={RV:-65536+-1024+-32+-2+0+2+32+1024+65536}
+rv,-rxwmp|rate,-rxwmp:var_ticks+={OPPS:0+1+2+10+100+1000+10000}
+update,-rxwmp|rv,-rxwmp:var_log+={ROPPS,OPPS}
+update|rv:var_grid+={OPPS,OPPS}
+update:var_ticks+={OPPS:1+2+4+6+8+10+12,ROPPS:1+2+3+4+6+8+10+12}
+rxwmp:var_lim+={OPPS:0-10}
 
 %variables
 GEN_BURST=32
 GEN_FLOWS=128
 GEN_LENGTH=64
 GEN_WAIT=5
--rate,-rv,-update:COUNTER={CounterMP,CounterLockMP,CounterAtomic,CounterLock,CounterRCU}
+-rate,-rv,-update:COUNTER={CounterMP,CounterLockMP,CounterAtomic,CounterLock}
 update:COUNTER={CounterMP,CounterLockMP,CounterPLockMP,CounterRWMP,CounterPRWMP,CounterRxWMP,CounterAtomic,CounterLock,CounterRW,CounterPRW,CounterRCU}
 full:COUNTER={CounterMP,CounterLockMP,CounterPLockMP,CounterRWMP,CounterPRWMP,CounterRxWMP,CounterAtomic,CounterLock,CounterRW,CounterPRW,CounterRCU}
 rv:COUNTER={CounterLockMP,CounterRxWMP,CounterLock,CounterRW,CounterPRW,CounterRCU,CounterPLockMP,CounterMP,CounterAtomic}
-rate:COUNTER={CounterMP,CounterLockMP,CounterPRWMP,CounterRWMP,CounterRxWMP,CounterAtomic,CounterLock,CounterRW,CounterPRW,CounterRCU}
-//Counter
-full:COUNTER={CounterMP,CounterLockMP,CounterPLockMP,CounterRWMP,CounterPRWMP,CounterRxWMP,CounterAtomic,CounterLock,CounterRW,CounterPRW,CounterRCU}
-//CounterRCUMP
+rate:COUNTER={CounterMP,CounterAtomic,CounterLock,CounterRW,CounterPRW,CounterRCU}
+rxwmp:COUNTER={CounterRxWMP:Agnostic,CounterRxWMPPR:Prefer read,CounterRxWMPPW:Prefer write}
+rxwmp:COUNTER={CounterRxWMP:Agnostic,CounterRxWMPPR:Prefer read,CounterRxWMPPW:Prefer write,CounterRWMP,CounterPRWMP,CounterLockMP,CounterPLockMP}
 CPU=[1-16]
 rate|rv:CPU=16
 NORATE=true
 rate:RATE=[1*65536]
--rate:RATE=0
+-rate,-rv:RATE=0
 update:RATE=1
 rv:RV={-65536,-32768,-16384,-8192,-4096,-2048,-1024,-512,-256,-128,-64,-32,-16,-8,-4,-2,0,2,4,8,16,32,64,128,256,512,1024,2048,4096,8192,16386,32768,65536}
 GEN_TOT={2048}
