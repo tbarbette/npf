@@ -535,8 +535,8 @@ class SectionConfig(SectionVariable):
         self.__add_dict("var_ticks", {})
         self.__add_list("var_grid", [])
         self.__add("var_serie",None)
-        self.__add_dict("var_names", {})
-        self.__add_dict("var_unit", {"result": "bps"})
+        self.__add_dict("var_names", {"result-LATENCY":"Latency (µs)","result-THROUGHPUT":"Throughput"})
+        self.__add_dict("var_unit", {"result": "bps","result-LATENCY":"us","latency":"us","throughput":"bps"})
         self.__add("title", None)
         self.__add_list("require_tags", [])
 

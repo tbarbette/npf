@@ -153,7 +153,7 @@ class Grapher:
 
 
     def us(self, x, pos):
-        return self.formats(x, pos, 1000000)
+        return self.formats(x, pos, 1)
 
     def formats(self,x,pos,mult):
         return "%d" % (x * mult)
