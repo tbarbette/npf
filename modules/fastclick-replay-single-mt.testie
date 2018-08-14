@@ -23,6 +23,8 @@ LIMIT=200000
 GEN_THREADS=4
 PROMISC=false
 promisc:PROMISC=true
+IGNORE=0
+ITERATIVE=0
 
 nolinktest=0
 
@@ -47,7 +49,7 @@ define($RAW_INsrcmac ${client:$CLIENT_NIC:raw_mac})
 define($INdstmac ${server:$NIC:mac})
 define($RAW_INdstmac ${server:$NIC:raw_mac})
 
-define($ignore 0)
+define($ignore $IGNORE)
 define($wait 2)
 define($replay_count $PKTGEN_REPLAY_COUNT)
 define($port ${self:$RCV_NIC:pci})
@@ -106,25 +108,25 @@ $BROADCAST_IGNORE
     magic[0]
     -> tsdA :: TimestampDiff(gen0/rt, OFFSET 42, N $NRECORD )
     -> Unstrip(14)
-    -> avgA :: AverageCounterMP
+    -> avgA :: AverageCounterMP(IGNORE $ignore)
     -> Discard;
 
     magic[1]
     -> tsdB :: TimestampDiff(gen1/rt, OFFSET 42, N $NRECORD )
     -> Unstrip(14)
-    -> avgB :: AverageCounterMP
+    -> avgB :: AverageCounterMP(IGNORE $ignore)
     -> Discard;
 
     magic[2]
     -> tsdC :: TimestampDiff(gen2/rt, OFFSET 42, N $NRECORD )
     -> Unstrip(14)
-    -> avgC :: AverageCounterMP
+    -> avgC :: AverageCounterMP(IGNORE $ignore)
     -> Discard;
 
     magic[3]
     -> tsdD :: TimestampDiff(gen3/rt, OFFSET 42, N $NRECORD )
     -> Unstrip(14)
-    -> avgD :: AverageCounterMP
+    -> avgD :: AverageCounterMP(IGNORE $ignore)
     -> Discard;
 
     magic[4]
@@ -193,6 +195,25 @@ link_initialized :: Script(TYPE PACKET,
     print "Time is $(now)",
 );
 
+Script(TYPE ACTIVE,
+            wait ${IGNORE}s,
+            print "Starting bandwidth computation !",
+            goto end $(eq $ITERATIVE 0),
+            write display_th.run 1,
+            label end)
+
+
+display_th :: Script(TYPE PASSIVE,
+                     set time 0,
+                     label g,
+                     print "RESULT-RTHROUGHPUT-$time $(add $(RIN/avgA.link_rate) $(RIN/avgB.link_rate) $(RIN/avgC.link_rate) $(RIN/avgD.link_rate))",
+                     write RIN/avgA.reset,
+                    write RIN/avgB.reset,
+                        write RIN/avgC.reset,
+                        write RIN/avgD.reset,
+                     set time $(add $time 1),
+                     wait 1s,
+                     goto g)
 
 RINswitch[1]->Print(LATEIN) -> Discard;
 
