@@ -192,10 +192,11 @@ link_initialized :: Script(TYPE PACKET,
     write gen1/replay.active true,
     write gen2/replay.active true,
     write gen3/replay.active true,
+    write run_test.run 1,
     print "Time is $(now)",
 );
 
-Script(TYPE ACTIVE,
+run_test :: Script(TYPE PASSIVE,
             wait ${IGNORE}s,
             print "Starting bandwidth computation !",
             goto end $(eq $ITERATIVE 0),
