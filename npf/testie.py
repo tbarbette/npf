@@ -581,6 +581,8 @@ class Testie:
             vs = {}
             for k, v in self.variables.statics().items():
                 vs[k] = v.makeValues()[0]
+            for late_variables in self.get_late_variables():
+                vs.update(late_variables.execute(vs, self))
             all_results, output, err, num_exec = self.execute(build, Run(vs), v=vs, n_runs=1, n_retry=0,
                                                               allowed_types={"init"}, do_imports=True,test_folder=test_folder)
 
