@@ -206,15 +206,31 @@ run_test :: Script(TYPE PASSIVE,
 
 display_th :: Script(TYPE PASSIVE,
                      set time 0,
+                     set indexA 0,
+                     set indexB 0,
+                     set indexC 0,
+                     set indexD 0,
                      label g,
                      print "RESULT-RTHROUGHPUT-$time $(add $(RIN/avgA.link_rate) $(RIN/avgB.link_rate) $(RIN/avgC.link_rate) $(RIN/avgD.link_rate))",
+                     print "RESULT-RLATENCY-$time $(div $(add $(RIN/tsdA.average $indexA) $(RIN/tsdB.average $indexB) $(RIN/tsdC.average $indexC) $(RIN/tsdD.average $indexD) 4) )",
+                     print "RESULT-TTHROUGHPUT-$time $(add $(gen0/avgSIN.link_rate)  $(gen1/avgSIN.link_rate) $(gen2/avgSIN.link_rate) $(gen3/avgSIN.link_rate))",
                      write RIN/avgA.reset,
-                    write RIN/avgB.reset,
-                        write RIN/avgC.reset,
-                        write RIN/avgD.reset,
+                     write RIN/avgB.reset,
+                     write RIN/avgC.reset,
+                     write RIN/avgD.reset,
+                     write gen0/avgSIN.reset,
+                     write gen1/avgSIN.reset,
+                     write gen2/avgSIN.reset,
+                     write gen3/avgSIN.reset,
                      set time $(add $time 1),
+                     set indexA $(RIN/tsdA.index),
+                     set indexB $(RIN/tsdB.index),
+                     set indexC $(RIN/tsdC.index),
+                     set indexD $(RIN/tsdD.index),
                      wait 1s,
                      goto g)
+
+StaticThreadSched(display_th 1)
 
 RINswitch[1]->Print(LATEIN) -> Discard;
 
