@@ -165,8 +165,9 @@ def main():
             prev_results = b.load_results(testie)
             print("Executing testie %s" % testie.filename)
             try:
-                all_results, init_done = testie.execute_all(b,options=args, prev_results=prev_results)
-                if all_results is None:
+                all_results, time_results, init_done = testie.execute_all(b,options=args, prev_results=prev_results)
+
+                if all_results is None and time_results is None:
                     continue
             except ScriptInitException:
                 continue
@@ -206,11 +207,11 @@ def main():
                 prev_results = None
 
             all_results = None
+            time_results = None
             try:
-                if all_results is None:
-                    all_results,init_done = testie.execute_all(build, prev_results=prev_results, do_test=args.do_test, options=args)
-
-                if not all_results:
+                if all_results is None and time_results is None:
+                    all_results, time_results, init_done = testie.execute_all(build, prev_results=prev_results, do_test=args.do_test, options=args)
+                if not all_results and not time_results:
                     continue
             except ScriptInitException:
                 continue
@@ -253,6 +254,11 @@ def main():
                           title=testie.get_title(),
                           filename=True,
                           graph_variables=[Run(x) for x in testie.variables],
+                          options = args)
+            if time_results:
+                grapher.graph(series=[(testie, build, time_results)],
+                          title=testie.get_title(),
+                          filename=True,
                           options = args)
         if last_build and args.graph_num > 0:
             graph_builds = [last_build] + graph_builds[:-1]

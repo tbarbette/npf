@@ -12,7 +12,7 @@ import numpy as np
 
 from npf.types import dataset
 from npf.types.dataset import Run, XYEB
-from npf.variable import is_numeric, get_numeric
+from npf.variable import is_numeric, get_numeric, numericable
 from npf.section import SectionVariable
 from npf import npf, variable
 from matplotlib.lines import Line2D
@@ -227,7 +227,7 @@ class Grapher:
 
         # If no graph variables, use the first serie
         if graph_variables is None:
-            graph_variables = set()
+            graph_variables = OrderedSet()
             for serie in series:
                 for run, results in serie[2].items():
                     graph_variables.add(run)
@@ -320,13 +320,18 @@ class Grapher:
 
         # Transform results to variables as the graph_result_as_variable config
         #  option. It is a dict in the format
-        #  a+b+c:var_name
+        #  a+b+c:var_name[-result_name]
         #  i.e. the first is a + separated list of result and the second member
         #  a new name for the combined variable
         # or
-        # a-(.*):var_name
+        # a-(.*):var_name[-result_name]
         # Both will create a variable with a/b/c as values or all regex mateched values
         for result_types, var_name in self.configdict('graph_result_as_variable', {}).items():
+            if len(var_name.split('-')) > 1:
+                result_name=var_name.split('-')[1]
+                var_name=var_name.split('-')[0]
+            else:
+                result_name=var_name
             result_to_variable_map = []
 
             for result_type in result_types.split('+'):
@@ -352,7 +357,14 @@ class Grapher:
                             new_run_results_exp[match] = results
                         else:
                             new_run_results[result_type] = results
+
                     if len(new_run_results_exp) > 0:
+                        if numericable(new_run_results_exp.keys()):
+                            nn = {}
+                            for k, v in  new_run_results_exp.items():
+                                nn[get_numeric(k)] = v
+                            new_run_results_exp = OrderedDict(sorted(nn.items()))
+
                         u = self.scriptconfig("var_unit", var_name, default="")
                         mult = u == 'percent' or u == '%'
                         if mult:
@@ -362,10 +374,8 @@ class Grapher:
                             if tot <= 99:
                                 new_run_results_exp['Other'] = [100-tot]
 
-                        for result_type, results in new_run_results_exp.items():
-                            variables = run.variables.copy()
-                            variables[var_name] = result_type
-                            vvalues.add(result_type)
+                        if var_name in run.variables:
+                            results = new_run_results_exp[run.variables[var_name]]
                             nr = new_run_results.copy()
                             #If unit is percent, we multiply the value per the result
                             if mult:
@@ -373,16 +383,32 @@ class Grapher:
                                 tot += m
                                 for result_type in nr:
                                     nr[result_type] = nr[result_type].copy() * m / 100
-                            nr.update({'result-'+var_name: results})
-                            new_results[Run(variables)] = nr
+                            nr.update({'result-'+result_name: results})
+
+                            new_results[run] = nr
+                        else:
+                            for result_type, results in new_run_results_exp.items():
+                                variables = run.variables.copy()
+                                variables[var_name] = result_type
+                                vvalues.add(result_type)
+                                nr = new_run_results.copy()
+                                #If unit is percent, we multiply the value per the result
+                                if mult:
+                                    m = np.mean(results)
+                                    tot += m
+                                    for result_type in nr:
+                                        nr[result_type] = nr[result_type].copy() * m / 100
+                                nr.update({'result-'+result_name: results})
+                                new_results[Run(variables)] = nr
 
                     else:
                         new_results[run] = new_run_results
 
                 if new_results:
                     transformed_series.append((testie, build, new_results))
-            if vvalues:
-                vars_values[var_name] = vvalues
+                if vvalues:
+                    assert(npf.all_num(vvalues))
+                    vars_values[var_name] = vvalues
             series = transformed_series
 
         #Divide a serie by another
@@ -488,7 +514,7 @@ class Grapher:
 
 
         versions = []
-        vars_all = set()
+        vars_all = OrderedSet()
         for i, (testie, build, all_results) in enumerate(series):
             versions.append(build.pretty_name())
             for run, run_results in all_results.items():
@@ -593,7 +619,7 @@ class Grapher:
                 v.update(build.statics)
                 build._pretty_name=SectionVariable.replace_variables(v, graph_series_label)
 
-        data_types = dataset.convert_to_xyeb(series, vars_all, key, max_series=self.config('graph_max_series'), do_x_sort=do_sort, series_sort=self.config('graph_series_sort'), options=options, statics=statics)
+        data_types = dataset.convert_to_xyeb(series, run_list = vars_all, key = key, max_series=self.config('graph_max_series'), do_x_sort=do_sort, series_sort=self.config('graph_series_sort'), options=options, statics=statics)
 
         plots = OrderedDict()
         matched_set = set()
@@ -889,7 +915,8 @@ class Grapher:
             if not self.config('graph_error_fill'):
                 axis.errorbar(ax, y, yerr=e, marker=' ', label=None, linestyle=' ', color=c, capsize=3)
             else:
-                axis.fill_between(ax, y-e, y+e, color=c, alpha=.4, linewidth=0)
+                if not np.logical_or(np.zeros(len(f)) == f, np.isnan(f)).all():
+                    axis.fill_between(ax, y-e, y+e, color=c, alpha=.4, linewidth=0)
             xmin = min(xmin, min(ax))
             xmax = max(xmax, max(ax))
 

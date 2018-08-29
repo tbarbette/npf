@@ -21,9 +21,10 @@ class Comparator():
     def __init__(self, repo_list: List[Repository]):
         self.repo_list = repo_list
         self.graphs_series = []
+        self.time_graphs_series = []
 
-    def build_list(self, on_finish, testie, build, datasets):
-        on_finish(self.graphs_series + [(testie,build,datasets[0])])
+    def build_list(self, on_finish, testie, build, data_datasets, time_datasets):
+         on_finish(self.graphs_series + [(testie,build,data_datasets[0])], self.time_graphs_series + [(testie,build,time_datasets[0])])
 
     def run(self, testie_name, options, tags, on_finish=None):
         for repo in self.repo_list:
@@ -31,17 +32,18 @@ class Comparator():
             testies = Testie.expand_folder(testie_name, options=options, tags=repo.tags + tags)
             testies = npf.override(options, testies)
             for testie in testies:
-                build, datasets = regressor.regress_all_testies(testies=[testie], options=options, on_finish=lambda b,d: self.build_list(on_finish,testie,b,d) if on_finish else None)
+                build, data_dataset, time_dataset  = regressor.regress_all_testies(testies=[testie], options=options, on_finish=lambda b,dd,td: self.build_list(on_finish,testie,b,dd,td) if on_finish else None)
             if len(testies) > 0 and not build is None:
                 build._pretty_name = repo.name
-                self.graphs_series.append((testie, build, datasets[0]))
+                self.graphs_series.append((testie, build, data_dataset[0]))
+                self.time_graphs_series.append((testie, build, time_dataset[0]))
         if len(self.graphs_series) == 0:
             print("No valid tags/testie/repo combination.")
             return
 
-        return self.graphs_series
+        return self.graphs_series, self.time_graphs_series
 
-def do_graph(filename,args,series):
+def do_graph(filename,args,series,time_series):
 
     if series is None:
         return
@@ -94,6 +96,10 @@ def do_graph(filename,args,series):
                       filename=filename,
                       options=args,
                       title=args.graph_title)
+    g = grapher.graph(series=time_series,
+                      filename=filename,
+                      options=args,
+                      title=args.graph_title)
 
 def main():
     parser = argparse.ArgumentParser(description='NPF cross-repository comparator')
@@ -135,9 +141,9 @@ def main():
     if not os.path.isabs(filename):
         filename = os.getcwd() + os.sep + filename
 
-    series = comparator.run(testie_name=args.testie, tags=args.tags, options=args, on_finish=lambda series:do_graph(filename,args,series) if args.iterative else None)
+    series, time_series = comparator.run(testie_name=args.testie, tags=args.tags, options=args, on_finish=lambda series,time_series:do_graph(filename,args,series,time_series) if args.iterative else None)
 
-    do_graph(filename,args,series)
+    do_graph(filename,args,series, time_series)
 
 if __name__ == "__main__":
     main()

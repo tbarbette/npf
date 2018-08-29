@@ -128,7 +128,8 @@ class Regression:
         :return: the lastbuild and one Dataset per testies or None if could not build
         """
         repo = self.repo
-        datasets = []
+        data_datasets = []
+        time_datasets = []
 
         if repo.url:
             build = repo.get_last_build(history=history)
@@ -144,22 +145,25 @@ class Regression:
             if repo.last_build:
                 try:
                     old_all_results = repo.last_build.load_results(testie)
+                    old_time_all_results = repo.last_build.load_results(testie, time=True)
                 except FileNotFoundError:
                     old_all_results = None
+                    old_time_all_results = None
             else:
                 old_all_results = None
+                old_time_all_results = None
             try:
                 if on_finish:
-                    def early_results(all_results):
-                        on_finish(build,(datasets + [all_results]))
+                    def early_results(all_data_results, all_time_results):
+                        on_finish(build,(data_datasets + [all_data_results]),(time_datasets + [all_data_results]))
                 else:
                     early_results = None
-                all_results,init_done = testie.execute_all(build, prev_results=build.load_results(testie), options=options,
+                all_results,time_results, init_done = testie.execute_all(build, prev_results=build.load_results(testie), prev_time_results=build.load_results(testie, time=True), options=options,
                                                  do_test=options.do_test, on_finish=early_results)
-                if all_results is None:
-                    return None, None
+                if all_results is None and time_results is None:
+                    return None, None, None
             except ScriptInitException:
-                return None, None
+                return None, None, None
 
             variables_passed, variables_total = regression.compare(testie, testie.variables, all_results, build,
                                                                    old_all_results,
@@ -167,7 +171,8 @@ class Regression:
                                                                    init_done=init_done, allow_supplementary=options.allow_supplementary)
             if variables_passed == variables_total:
                 nok += 1
-            datasets.append(all_results)
+            data_datasets.append(all_results)
+            time_datasets.append(time_results)
             testie.n_variables_passed = variables_passed
             testie.n_variables = variables_total
 
@@ -177,4 +182,4 @@ class Regression:
         build.n_passed = nok
         build.n_tests = len(testies)
 
-        return build, datasets
+        return build, data_datasets, time_datasets

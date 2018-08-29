@@ -77,8 +77,8 @@ class Build:
         else:
             return self.__result_folder() + self.version + '.results'
 
-    def writeversion(self, script, all_results: Dataset, allow_overwrite: bool = False):
-        filename = self.__resultFilename(script)
+    def writeversion(self, script, all_results: Dataset, allow_overwrite: bool = False, time = False):
+        filename = self.__resultFilename(script) + ('-time' if time else '')
         try:
             if not os.path.exists(os.path.dirname(filename)):
                 os.makedirs(os.path.dirname(filename))
@@ -107,8 +107,8 @@ class Build:
         f.close()
         self.cache[filename] = all_results
 
-    def load_results(self, testie):
-        filename = self.__resultFilename(testie)
+    def load_results(self, testie, time=False):
+        filename = self.__resultFilename(testie) + ('-time' if time else '')
         if not Path(filename).exists():
             return None
         if filename in self.cache:

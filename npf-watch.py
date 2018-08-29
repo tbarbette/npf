@@ -114,7 +114,7 @@ class Watcher():
 
                 regressor = Regression(repo)
 
-                build,datasets = regressor.regress_all_testies(testies=testies, options=options, history = self.history)
+                build,datasets,time_datasets = regressor.regress_all_testies(testies=testies, options=options, history = self.history)
 
                 if (build is None):
                     continue

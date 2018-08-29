@@ -15,6 +15,7 @@ from npf.node import NIC
 from npf.section import *
 from npf.types.dataset import Run, Dataset
 from npf.eventbus import EventBus
+from decimal import *
 
 class RemoteParameters:
     def __init__(self):
@@ -308,6 +309,7 @@ class Testie:
             file_list.extend(self.build_file_list(v, self.role))
 
         n_exec = 0
+        n_err = 0
 
         for imp in self.get_imports():
             imp.testie.parse_script_roles()
@@ -325,12 +327,14 @@ class Testie:
         self.create_files(file_list,test_folder)
 
         #Launching the tests in itself
-        results = {}
+        data_results = {} # dict of result_name -> [val, val, val]
+        time_results = {} # dict of time -> {result_name -> [val, val, val]}
         m = multiprocessing.Manager()
         all_output = []
         all_err = []
         for i in range(n_runs):
             for i_try in range(n_retry + 1):
+                new_time_results = {}
                 if i_try > 0 and not self.options.quiet:
                     print("Re-try tests %d/%d..." % (i_try, n_retry + 1))
                 output = ''
@@ -436,6 +440,7 @@ class Testie:
                             shutil.rmtree(test_folder)
                         sys.exit(1)
                     if c != 0:
+                        n_err = n_err + 1
                         if npf.parseBool(script.params.get("critical", t.config["critical"])):
                             critical_failed=True
                             print("[ERROR] A critical script failed ! Results will be ignored")
@@ -475,6 +480,8 @@ class Testie:
                     try:
                         for nr in re.finditer(result_regex, output.strip(), re.IGNORECASE):
                             result_type = nr.group("type")
+
+                            time = nr.group("time")
                             if result_type is None:
                                 result_type = ''
                             n = float(nr.group("value"))
@@ -502,21 +509,30 @@ class Testie:
                             elif mult == "G":
                                 n *= 1024 * 1024 * 1024
                             if n != 0 or (self.config.match("accept_zero", result_type)):
-                                if result_type in result_types:
-                                    result_types[result_type] += n
+                                if time:
+                                    new_time_results.setdefault(float(time),{}).setdefault(result_type, []).append(n)
                                 else:
-                                    result_types[result_type] = n
+                                    if result_type in result_types:
+                                        result_types[result_type] += n
+                                    else:
+                                        result_types[result_type] = n
                                 has_values = True
                             else:
                                 print("Result for %s is 0 !" % result_type)
                                 has_err = True
                         for result_type, val in result_types.items():
-                            results.setdefault(result_type, []).append(val)
+                            data_results.setdefault(result_type, []).append(val)
+
                     except Exception as e:
                         print("Exception while parsing results :")
                         has_err = True
                         raise e
 
+                if new_time_results:
+                    min_time = min(new_time_results.keys())
+                    for time, results in new_time_results.items():
+                        for result_type, result in results.items():
+                            time_results.setdefault(Decimal("%.02f" % round(float(time - min_time),2)),{}).setdefault(result_type, []).extend(result)
 
                 if has_values:
                     break
@@ -546,28 +562,8 @@ class Testie:
         os.chdir('..')
         if not self.options.preserve_temp and f_mine:
             shutil.rmtree(test_folder)
-        return results, all_output, all_err, n_exec
+        return data_results, time_results, all_output, all_err, n_exec, n_err
 
-    #    def has_all(self, prev_results, build):
-    #        if prev_results is None:
-    #            return None
-    #        all_results = {}
-    #        for variables in self.variables:
-    #            run = Run(variables)
-    #            if not self.test_require(variables, build):
-    #                continue
-    #
-    #            if run in prev_results:
-    #                results = prev_results[run]
-    #                if not results:
-    #                    return None
-    #                for result_type,data in results.items():
-    #                    if not data or data is None or (len(data) < self.config["n_runs"]):
-    #                        return None
-    #                all_results[run] = results
-    #            else:
-    #                return None
-    #        return all_results
 
     def do_init_all(self, build, options, do_test, allowed_types=SectionScript.ALL_TYPES_SET,test_folder=None):
         if not build.build(options.force_build, options.no_build, options.quiet_build, options.show_build_cmd):
@@ -583,15 +579,10 @@ class Testie:
                 vs[k] = v.makeValues()[0]
             for late_variables in self.get_late_variables():
                 vs.update(late_variables.execute(vs, self))
-            all_results, output, err, num_exec = self.execute(build, Run(vs), v=vs, n_runs=1, n_retry=0,
+            data_results, time_results, output, err, num_exec, num_err = self.execute(build, Run(vs), v=vs, n_runs=1, n_retry=0,
                                                               allowed_types={"init"}, do_imports=True,test_folder=test_folder)
 
-            num_ok = 0
-            for result_type, results in all_results.items():
-                for n in results:
-                    if n > 0:
-                        num_ok += n
-            if num_ok != num_exec:
+            if num_err > 0:
                 if not options.quiet:
                     print("Aborting as init scripts did not run correctly !")
                     print("Stdout:")
@@ -601,7 +592,7 @@ class Testie:
                 raise ScriptInitException()
 
     def execute_all(self, build, options, prev_results: Dataset = None, do_test=True, on_finish = None,
-                    allowed_types=SectionScript.ALL_TYPES_SET) -> Tuple[Dataset, bool]:
+            allowed_types=SectionScript.ALL_TYPES_SET, prev_time_results : Dataset = None) -> Tuple[Dataset, bool]:
         """Execute script for all variables combinations. All tools reliy on this function for execution of the testie
         :param allowed_types:Tyeps of scripts allowed to run. Set with either init, scripts or both
         :param do_test: Actually run the tests
@@ -623,6 +614,7 @@ class Testie:
             return {}, True
 
         all_results = {}
+        time_results = OrderedDict
         #If one first, we first ensure 1 result per variables then n_runs
         if options.onefirst:
             total_runs = [1,self.config["n_runs"]]
@@ -651,8 +643,16 @@ class Testie:
                     run_results = prev_results.get(run, None)
                     if run_results is None:
                         run_results = {}
+                    time_results = OrderedDict()
                 else:
                     run_results = {}
+                    time_results = OrderedDict()
+
+                time_results = OrderedDict()
+                if prev_time_results and prev_time_results is not None and not (options.force_test or options.force_retest):
+                    for trun, results in prev_time_results:
+                        if run.inside(trun):
+                            time_results[trun] = results
 
                 if not run_results and options.use_last and build.repo.url:
                     for version in build.repo.method.get_history(build.version, limit=options.use_last):
@@ -682,22 +682,19 @@ class Testie:
                         else:
                             print("Executing single run...")
 
-                    new_results, output, err, n_exec = self.execute(build, run, variables, n_runs,
+                    new_data_results, new_time_results, output, err, n_exec, n_err = self.execute(build, run, variables, n_runs,
                                                                     n_retry=self.config["n_retry"],
                                                                     allowed_types={SectionScript.TYPE_SCRIPT},
                                                                     test_folder=test_folder)
-                    if new_results:
-#                        if self.options.show_full:
-#                            print("stdout:")
-#                            print("\n".join(output))
-#                            print("stderr:")
-#                            print("\n".join(err))
-                        for k, v in new_results.items():
+                    if new_data_results:
+                        for result_type, values in new_data_results.items():
                             if options.force_retest:
-                                run_results[k] = v
+                                run_results[result_type] = values
                             else:
-                                run_results.setdefault(k, []).extend(v)
+                                run_results.setdefault(result_type, []).extend(values)
                             have_new_results = True
+                    if new_time_results:
+                        have_new_results = True
                 else:
                     if not self.options.quiet:
                         print(run.format_variables(self.config["var_hide"]))
@@ -708,13 +705,24 @@ class Testie:
                             print(list(run_results.values())[0])
                         else:
                             print(", ".join(['{0}: {1}'.format(k, run_results[k]) for k in sorted(run_results)]))
+
                     all_results[run] = run_results
                 else:
                     all_results[run] = {}
 
+                if have_new_results and len(new_time_results) > 0:
+                    for time, results in sorted(new_time_results.items()):
+                        time_run = Run(run.variables.copy())
+                        time_run.variables['time'] = time
+                        for result_type, result in results.items():
+                            rt = time_results.setdefault(time_run,{}).setdefault(result_type,[])
+                            if options.force_retest:
+                                rt.clear()
+                            rt.extend(result)
+
                 if on_finish and have_new_results:
                     def call_finish():
-                        on_finish(all_results)
+                        on_finish(all_results, time_results)
                     thread = threading.Thread(target=call_finish, args=())
                     thread.daemon = True
                     thread.start()
@@ -726,13 +734,14 @@ class Testie:
                         build.writeversion(self, prev_results, allow_overwrite=True)
                     else:
                         build.writeversion(self, all_results, allow_overwrite=True)
+                        build.writeversion(self, time_results, allow_overwrite=True, time=True)
 
         if not self.options.preserve_temp:
             shutil.rmtree(test_folder)
         else:
             print("Test files have been kept in folder %s" % test_folder)
 
-        return all_results, init_done
+        return all_results, time_results, init_done
 
     def get_title(self):
         if "title" in self.config and self.config["title"] is not None:

@@ -8,6 +8,7 @@ import re
 
 from npf.node import Node
 from .variable import VariableFactory
+from decimal import Decimal
 
 def get_valid_filename(s):
     s = str(s).strip().replace(' ', '_')
@@ -321,6 +322,6 @@ def parseUnit(u):
 
 def all_num(l):
     for x in l:
-        if type(x) is not int and type(x) is not float:
+        if type(x) is not int and type(x) is not float and type(x) is not Decimal:
             return False
     return True
