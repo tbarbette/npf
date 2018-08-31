@@ -249,7 +249,7 @@ class Grapher:
                 toname = tocombine
             tomerge = tocombine.split('+')
             newgraph_variables = []
-            run_map = {}
+            run_map = OrderedDict()
             for run in graph_variables:
                 newrun = run.copy()
                 vals = []
@@ -276,13 +276,12 @@ class Grapher:
                 newseries.append((testie, build, new_all_results))
             series = newseries
 
-
         # Data transformation : reject outliers, transform list to arrays, filter according to graph_variables
         #   and divide results as per the var_divider
         filtered_series = []
-        vars_values = {}
+        vars_values = OrderedDict()
         for i, (testie, build, all_results) in enumerate(series):
-            new_results = {}
+            new_results = OrderedDict()
             for run, run_results in all_results.items():
                 if run in graph_variables:
                     for result_type, results in run_results.items():
@@ -294,9 +293,9 @@ class Grapher:
                             results = np.sort(results)[-options.graph_select_max:]
 
                         ydiv = dataset.var_divider(testie, "result", result_type)
-                        new_results.setdefault(run, {})[result_type] = results / ydiv
+                        new_results.setdefault(run, OrderedDict())[result_type] = results / ydiv
                     for k, v in run.variables.items():
-                        vars_values.setdefault(k, set()).add(v)
+                        vars_values.setdefault(k, OrderedSet()).add(v)
 
             if new_results:
                 if len(graphmarkers) > 0:
@@ -707,17 +706,19 @@ class Grapher:
                         gi[s]+=1
                         build._color=graphcolorseries[s % len(graphcolorseries)][f % len(graphcolorseries[s % len(graphcolorseries)])]
 
-
-
+                r = True
                 if ndyn == 0:
                     """No dynamic variables : do a barplot X=version"""
-                    self.do_simple_barplot(axis,result_type, data, shift)
+                    r = self.do_simple_barplot(axis,result_type, data, shift)
                 elif ndyn == 1 and len(vars_all) > 2 and npf.all_num(vars_values[key]):
                     """One dynamic variable used as X, series are version line plots"""
-                    self.do_line_plot(axis, key, result_type, data,shift)
+                    r = self.do_line_plot(axis, key, result_type, data,shift)
                 else:
                     """Barplot. X is all seen variables combination, series are version"""
                     self.do_barplot(axis,vars_all, dyns, result_type, data, shift)
+
+                if not r:
+                    continue
 
                 type_config = "" if not result_type else "-" + result_type
 
@@ -860,10 +861,17 @@ class Grapher:
     def do_simple_barplot(self,axis, result_type, data,shift=0):
         i = 0
         interbar = 0.1
-        x = [s[0][0] for s in data]
-        y = [s[1][0] for s in data]
-        e = [s[2][0] for s in data]
+        x = np.asarray([s[0][0] for s in data])
+        y = np.asarray([s[1][0] for s in data])
+        e = np.asarray([s[2][0] for s in data])
+
         ndata = len(x)
+
+        mask = np.isfinite(y)
+
+        if len(x[mask]) == 0:
+            return False
+
         nseries = 1
         width = (1 - (2 * interbar)) / nseries
 
@@ -873,7 +881,9 @@ class Grapher:
         rects = plt.bar(ticks, y, label=x, color=data[0][3]._color, width=width, yerr=e)
 
         for i, v in enumerate(y):
-            axis.text(ticks[i], v + (max(y) / 20), "%.02f" % v, color=data[0][3]._color, fontweight='bold', horizontalalignment='center')
+            if np.isnan(v):
+                continue
+            axis.text(ticks[i], v + (np.nanmax(y) / 20), "%.02f" % v, color=data[0][3]._color, fontweight='bold', horizontalalignment='center')
 
         if self.config('graph_show_values',False):
             def autolabel(rects, ax):
@@ -885,6 +895,7 @@ class Grapher:
             autolabel(rects, plt)
         plt.xticks(ticks, x, rotation='vertical' if (ndata > 8) else 'horizontal')
         plt.gca().set_xlim(0, len(x))
+        return True
 
     def do_line_plot(self, axis, key, result_type, data : XYEB,shift=0):
         xmin, xmax = (float('inf'), 0)
@@ -903,22 +914,30 @@ class Grapher:
 
             order = np.argsort(ax)
 
-            ax = [ax[i] for i in order]
+            ax = np.asarray([float(ax[i]) for i in order])
             y = np.array([y[i] for i in order])
             e = np.array([e[i] for i in order])
 
+            mask = np.isfinite(y)
+
+            if len(ax[mask]) == 0:
+                continue
 
             lab = build.pretty_name()
             while lab.startswith('_'):
                 lab = lab[1:]
-            axis.plot(ax, y, label=lab, color=c, linestyle=build._line, marker=build._marker,markevery=(1 if len(ax) < 20 else math.ceil(len(ax) / 20)))
+            axis.plot(ax[mask], y[mask], label=lab, color=c, linestyle=build._line, marker=build._marker,markevery=(1 if len(ax[mask]) < 20 else math.ceil(len(ax[mask]) / 20)))
             if not self.config('graph_error_fill'):
-                axis.errorbar(ax, y, yerr=e, marker=' ', label=None, linestyle=' ', color=c, capsize=3)
+                axis.errorbar(ax[mask], y[mask], yerr=e[mask], marker=' ', label=None, linestyle=' ', color=c, capsize=3)
             else:
-                if not np.logical_or(np.zeros(len(f)) == f, np.isnan(f)).all():
-                    axis.fill_between(ax, y-e, y+e, color=c, alpha=.4, linewidth=0)
-            xmin = min(xmin, min(ax))
-            xmax = max(xmax, max(ax))
+                if not np.logical_or(np.zeros(len(e)) == e, np.isnan(e)).all():
+                    axis.fill_between(ax[mask], (y-e)[mask], (y+e)[mask], color=c, alpha=.4, linewidth=0)
+
+            xmin = min(xmin, min(ax[mask]))
+            xmax = max(xmax, max(ax[mask]))
+
+        if xmin == float('inf'):
+            return False
 
         # Arrange the x limits
         if not (key in self.config('var_log', {})):
@@ -940,6 +959,7 @@ class Grapher:
             #             xmax = int(math.ceil(xmax / base)) * base
             #
                 axis.set_xlim(xmin, xmax)
+        return True
 
 
     def set_axis_formatter(self, axis, format, unit, isLog, compact=False):

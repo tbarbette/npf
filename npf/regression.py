@@ -160,6 +160,7 @@ class Regression:
                     early_results = None
                 all_results,time_results, init_done = testie.execute_all(build, prev_results=build.load_results(testie), prev_time_results=build.load_results(testie, time=True), options=options,
                                                  do_test=options.do_test, on_finish=early_results)
+
                 if all_results is None and time_results is None:
                     return None, None, None
             except ScriptInitException:

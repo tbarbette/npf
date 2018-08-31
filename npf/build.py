@@ -114,7 +114,7 @@ class Build:
         if filename in self.cache:
             return self.cache[filename]
         f = open(filename, 'r')
-        all_results = {}
+        all_results = OrderedDict()
         try:
             for iline,line in enumerate(f):
                 if not line.strip():
@@ -133,7 +133,7 @@ class Build:
                 if len(results_data) == 1 and results_data[0].strip() == '':
                     pass
                 else:
-                    for type, results_type_data in [x.split(':') for x in results_data]:
+                    for type_r, results_type_data in [x.split(':') for x in results_data]:
                         results_type_data = results_type_data.split(',')
                         if len(results_type_data) == 1 and results_type_data[0].strip() == '':
                             type_results = None
@@ -141,7 +141,7 @@ class Build:
                             type_results = []
                             for result in results_type_data:
                                 type_results.append(float(result.strip()))
-                        results[type] = type_results
+                        results[type_r] = type_results
                 all_results[Run(variables)] = results
         except:
             print("Could not parse %s. The program will stop to avoid erasing data. Please correct or delete the file.\nLine %d : %s" % (filename,iline, line))

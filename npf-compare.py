@@ -96,6 +96,7 @@ def do_graph(filename,args,series,time_series):
                       filename=filename,
                       options=args,
                       title=args.graph_title)
+
     g = grapher.graph(series=time_series,
                       filename=filename,
                       options=args,

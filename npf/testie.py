@@ -542,7 +542,7 @@ class Testie:
                         print("Could not find expected result '%s' !" % result_type)
                         has_err = True
 
-                if len(results) == 0:
+                if len(data_results) + len(time_results) == 0:
                     print("Could not find results !")
 
                     has_err = True
@@ -613,8 +613,8 @@ class Testie:
                 shutil.rmtree(test_folder)
             return {}, True
 
-        all_results = {}
-        time_results = OrderedDict
+        all_data_results = {}
+        all_time_results = OrderedDict()
         #If one first, we first ensure 1 result per variables then n_runs
         if options.onefirst:
             total_runs = [1,self.config["n_runs"]]
@@ -643,16 +643,20 @@ class Testie:
                     run_results = prev_results.get(run, None)
                     if run_results is None:
                         run_results = {}
-                    time_results = OrderedDict()
                 else:
                     run_results = {}
-                    time_results = OrderedDict()
 
                 time_results = OrderedDict()
                 if prev_time_results and prev_time_results is not None and not (options.force_test or options.force_retest):
-                    for trun, results in prev_time_results:
+                    for trun, results in prev_time_results.items():
                         if run.inside(trun):
                             time_results[trun] = results
+                elif prev_time_results and options.force_retest:
+                    nprev_time_results = OrderedDict()
+                    for trun, results in prev_time_results.items():
+                        if not run.inside(trun):
+                            nprev_time_results[trun] = results;
+                    prev_time_results = nprev_time_results
 
                 if not run_results and options.use_last and build.repo.url:
                     for version in build.repo.method.get_history(build.version, limit=options.use_last):
@@ -706,9 +710,9 @@ class Testie:
                         else:
                             print(", ".join(['{0}: {1}'.format(k, run_results[k]) for k in sorted(run_results)]))
 
-                    all_results[run] = run_results
+                    all_data_results[run] = run_results
                 else:
-                    all_results[run] = {}
+                    all_data_results[run] = {}
 
                 if have_new_results and len(new_time_results) > 0:
                     for time, results in sorted(new_time_results.items()):
@@ -719,29 +723,34 @@ class Testie:
                             if options.force_retest:
                                 rt.clear()
                             rt.extend(result)
+                for result_type, result in time_results.items():
+                    all_time_results[result_type] = result
 
                 if on_finish and have_new_results:
                     def call_finish():
-                        on_finish(all_results, time_results)
+                        on_finish(all_data_results, all_time_results)
                     thread = threading.Thread(target=call_finish, args=())
                     thread.daemon = True
                     thread.start()
 
                 # Save results
-                if all_results and have_new_results:
+                if all_data_results and have_new_results:
                     if prev_results:
-                        prev_results[run] = all_results[run]
+                        prev_results[run] = all_data_results[run]
                         build.writeversion(self, prev_results, allow_overwrite=True)
+                    if prev_time_results:
+                        prev_time_results.update(all_time_results)
+                        build.writeversion(self, prev_time_results, allow_overwrite=True, time=True)
                     else:
-                        build.writeversion(self, all_results, allow_overwrite=True)
-                        build.writeversion(self, time_results, allow_overwrite=True, time=True)
+                        build.writeversion(self, all_data_results, allow_overwrite=True)
+                        build.writeversion(self, all_time_results, allow_overwrite=True, time=True)
 
         if not self.options.preserve_temp:
             shutil.rmtree(test_folder)
         else:
             print("Test files have been kept in folder %s" % test_folder)
 
-        return all_results, time_results, init_done
+        return all_data_results, all_time_results, init_done
 
     def get_title(self):
         if "title" in self.config and self.config["title"] is not None:
