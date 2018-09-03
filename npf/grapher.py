@@ -550,6 +550,8 @@ class Grapher:
                 nonums = []
                 for i in range(ndyn):
                     k = dyns[i]
+                    if k == 'time':
+                        continue
                     if not npf.all_num(vars_values[k]):
                         nonums.append(k)
                         if len(vars_values[k]) > n_val:
@@ -560,6 +562,8 @@ class Grapher:
                     n_val = 0 if ndyn > 2 else 999
                     for i in range(ndyn):
                         k = dyns[i]
+                        if k == 'time':
+                            continue
                         if (ndyn > 2 and len(vars_values[k]) > n_val) or (ndyn <= 2 and len(vars_values[k]) < n_val):
                             key = k
                             n_val = len(vars_values[k])
