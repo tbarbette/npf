@@ -496,6 +496,7 @@ class SectionConfig(SectionVariable):
         self.__add("critical", False)
         self.__add_dict("env", {}) #Unimplemented yet
         self.__add("timeout", 30)
+        self.__add("time_precision", 1)
 
         #Role related
         self.__add_dict("default_role_map",{})
@@ -509,6 +510,7 @@ class SectionConfig(SectionVariable):
         self.__add_list("graph_hide_variables", [])
         self.__add_dict('graph_result_as_variable',{})
         self.__add_dict('graph_map', {})
+        self.__add("graph_scatter", False)
         self.__add("graph_subplot_type", "subplot")
         self.__add("graph_max_series", None)
         self.__add("graph_series_as_variables", False)

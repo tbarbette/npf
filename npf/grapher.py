@@ -250,6 +250,7 @@ class Grapher:
             tomerge = tocombine.split('+')
             newgraph_variables = []
             run_map = OrderedDict()
+            newnames = set()
             for run in graph_variables:
                 newrun = run.copy()
                 vals = []
@@ -258,11 +259,15 @@ class Grapher:
                         del newrun.variables[var]
                         vals.append(str(val[1] if type(val) is tuple else val).strip())
                 combname = ', '.join(OrderedSet(vals))
-                if is_numeric(combname):
-                    combname = get_numeric(combname)
                 newrun.variables[toname] = combname
+                newnames.add(combname)
                 newgraph_variables.append(newrun)
                 run_map[run] = newrun
+
+            if numericable(newnames):
+                for run in newgraph_variables:
+                    run.variables[toname] = get_numeric(run.variables[toname])
+            del newnames
 
             graph_variables = newgraph_variables
 
@@ -566,7 +571,11 @@ class Grapher:
             series = []
             versions = []
             values = list(vars_values[key])
-            values.sort()
+            try:
+                values.sort()
+            except TypeError:
+                print("ERROR : Cannot sort the following values :", values)
+                return
             new_varsall = set()
             for i, value in enumerate(values):
                 newserie = {}
@@ -926,7 +935,10 @@ class Grapher:
             lab = build.pretty_name()
             while lab.startswith('_'):
                 lab = lab[1:]
-            axis.plot(ax[mask], y[mask], label=lab, color=c, linestyle=build._line, marker=build._marker,markevery=(1 if len(ax[mask]) < 20 else math.ceil(len(ax[mask]) / 20)))
+            if self.config_bool("graph_scatter"):
+                axis.scatter(ax[mask], y[mask], label=lab, color=c, linestyle=build._line, marker=build._marker)
+            else:
+                axis.plot(ax[mask], y[mask], label=lab, color=c, linestyle=build._line, marker=build._marker,markevery=(1 if len(ax[mask]) < 20 else math.ceil(len(ax[mask]) / 20)))
             if not self.config('graph_error_fill'):
                 axis.errorbar(ax[mask], y[mask], yerr=e[mask], marker=' ', label=None, linestyle=' ', color=c, capsize=3)
             else:

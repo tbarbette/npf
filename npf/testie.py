@@ -508,7 +508,7 @@ class Testie:
                                 n *= 1024 * 1024
                             elif mult == "G":
                                 n *= 1024 * 1024 * 1024
-                            if n != 0 or (self.config.match("accept_zero", result_type)):
+                            if n != 0 or (self.config.match("accept_zero", result_type)) or time is not None:
                                 if time:
                                     new_time_results.setdefault(float(time),{}).setdefault(result_type, []).append(n)
                                 else:
@@ -530,9 +530,18 @@ class Testie:
 
                 if new_time_results:
                     min_time = min(new_time_results.keys())
+                    nonzero = set()
+                    all_result_types = set()
                     for time, results in new_time_results.items():
                         for result_type, result in results.items():
-                            time_results.setdefault(Decimal("%.02f" % round(float(time - min_time),2)),{}).setdefault(result_type, []).extend(result)
+                            if (np.asarray(result) != 0).any():
+                                nonzero.add(result_type)
+                            all_result_types.add(result_type)
+                            time_results.setdefault(Decimal(("%.0" + str(self.config['time_precision']) + "f") % round(float(time - min_time), int(self.config['time_precision']))),{}).setdefault(result_type, []).extend(result)
+                    diff = all_result_types.difference(nonzero)
+                    if diff:
+                        print("Result for %s is 0 !" % ', '.join(diff))
+                        has_err = True
 
                 if has_values:
                     break
@@ -648,9 +657,13 @@ class Testie:
 
                 time_results = OrderedDict()
                 if prev_time_results and prev_time_results is not None and not (options.force_test or options.force_retest):
+                    nprev_time_results = OrderedDict()
                     for trun, results in prev_time_results.items():
                         if run.inside(trun):
                             time_results[trun] = results
+                        else:
+                            nprev_time_results[trun] = results
+                    prev_time_results = nprev_time_results
                 elif prev_time_results and options.force_retest:
                     nprev_time_results = OrderedDict()
                     for trun, results in prev_time_results.items():
@@ -735,11 +748,10 @@ class Testie:
 
                 # Save results
                 if all_data_results and have_new_results:
-                    if prev_results:
+                    if prev_results or prev_time_results:
                         prev_results[run] = all_data_results[run]
                         build.writeversion(self, prev_results, allow_overwrite=True)
-                    if prev_time_results:
-                        prev_time_results.update(all_time_results)
+                        prev_time_results.update(time_results)
                         build.writeversion(self, prev_time_results, allow_overwrite=True, time=True)
                     else:
                         build.writeversion(self, all_data_results, allow_overwrite=True)

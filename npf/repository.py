@@ -186,6 +186,7 @@ class Repository:
         self.env = {}
         self.bin_name = self.reponame  # Wild guess that may work some times...
         self.configure = ''
+        self._last_100 = None
 
         if self.reponame == 'None':
             self.url = None
@@ -315,7 +316,12 @@ class Repository:
         if self.version:
             versions = [self.version]
         else:
-            versions = self.method.get_last_versions(100, force_fetch=force_fetch)
+            if force_fetch or not self._last_100:
+                print("Once")
+                versions = self.method.get_last_versions(100, force_fetch=force_fetch)
+                self._last_100 = versions
+            else:
+                versions = self._last_100
 
         last_build = None
         for i, version in enumerate(versions):
