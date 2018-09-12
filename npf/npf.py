@@ -5,10 +5,10 @@ from typing import Dict, List
 
 import regex
 import re
+from decimal import Decimal
 
 from npf.node import Node
 from .variable import VariableFactory
-from decimal import Decimal
 
 def get_valid_filename(s):
     s = str(s).strip().replace(' ', '_')

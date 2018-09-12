@@ -24,8 +24,8 @@ GEN_INIT_WAIT=5
 GEN_THREADS=4 //Change not supported as of now
 -rate:LIMIT=1000000
 rate:RATE=1000
-RCVNIC=1
-
+RCV_NIC=1
+SND_NIC=0
 
 %late_variables
 rate:LIMIT=EXPAND( $(( $RATE * 10 if $RATE < 100000 else 1000000 )) )

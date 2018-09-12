@@ -200,6 +200,16 @@ class Testie:
                 raise Exception("Could not build dependency %s" % dep)
         for imp in self.imports:
             imp.testie.build_deps(repo_under_test)
+        # Send dependencies for nfs=0 nodes
+        for script in self.get_scripts():
+            role = script.get_role()
+            node = npf.node(role)
+            if not node.nfs:
+                for dep in script.get_deps():
+                    deprepo = Repository.get_instance(dep, self.options)
+                    print("Sending %s ..." % dep)
+                    node.executor.sendFolder(deprepo.get_build_path())
+
         return True
 
     def test_tags(self):

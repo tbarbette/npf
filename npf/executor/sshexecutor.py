@@ -141,10 +141,7 @@ class SSHExecutor(Executor):
         f = open(filename, "w")
         f.write(content)
         f.close()
-#        if self.user:
-#            os.system("scp %s %s@%s:%s/" % (filename, self.user,self.addr,self.path))
-#        else:
-#            os.system("scp %s %s:%s/" % (filename, self.addr,self.path))
+
         try:
             with paramiko.SSHClient() as ssh:
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -165,6 +162,57 @@ class SSHExecutor(Executor):
                     channel.sendall(content)
                     channel.shutdown_write()
                     return channel.recv_exit_status() == 0
+        except paramiko.ssh_exception.SSHException as e:
+            print("Error while connecting to %s", self.addr)
+            raise e
+
+    def sendFolder(self, path):
+        try:
+            with paramiko.SSHClient() as ssh:
+                ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                ssh.load_system_host_keys()
+                try:
+                    ssh.connect(self.addr, 22, username=self.user)
+                except Exception as e:
+                    print("Cannot connect to %s with username %s" % (self.addr,self.user))
+                    raise e
+
+                transport = ssh.get_transport()
+
+                sftp = paramiko.SFTPClient.from_transport(transport)
+
+                ignored = ['.git', '.vimhistory']
+                def _send(path):
+                    rlist = sftp.listdir(self.path + path)
+
+                    for entry in os.scandir(path):
+                        if entry.is_file():
+                            if not entry.name in rlist:
+                                try:
+                                    remote = self.path + path + '/' + entry.name
+                                    sftp.put(path + '/' + entry.name, remote)
+                                    print(entry.stat())
+                                    sftp.chmod(remote, entry.stat().st_mode)
+                                except FileNotFoundError:
+                                    raise(Exception("Could not send %s to %s"  % (path + '/' + entry.name, remote)))
+                        else:
+                            if entry.name in ignored:
+                                continue
+                            if entry.name not in rlist:
+                                sftp.mkdir(self.path + path + '/' + entry.name)
+                                _send(path +'/'+entry.name + '/')
+                curpath = ''
+                for d in path.split('/'):
+                    curpath = curpath + d + '/'
+                    try:
+                        sftp.stat(self.path + '/' + curpath)
+                    except FileNotFoundError:
+                        sftp.mkdir(self.path + '/' + curpath)
+
+                _send(path)
+
+                sftp.close()
+
         except paramiko.ssh_exception.SSHException as e:
             print("Error while connecting to %s", self.addr)
             raise e

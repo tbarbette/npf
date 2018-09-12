@@ -30,6 +30,10 @@ def is_bool(s):
     except ValueError:
         return False
 
+def get_bool(s):
+    if is_integer(s) and int(s) == 0:
+        return False
+    return bool(s)
 
 def get_numeric(data):
     if is_numeric(data):

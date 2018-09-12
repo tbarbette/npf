@@ -5,8 +5,7 @@ import re
 
 from npf.executor.localexecutor import LocalExecutor
 from npf.executor.sshexecutor import SSHExecutor
-from npf.variable import Variable
-
+from npf.variable import Variable,get_bool
 
 class NIC:
     TYPES = "ip|mac|raw_mac|ifname|pci|mask"
@@ -56,13 +55,14 @@ class Node:
 
     NICREF_REGEX = r'(?P<role>[a-z0-9]+)[:](?P<nic_idx>[0-9]+)[:](?P<type>' + NIC.TYPES + '+)'
     VARIABLE_NICREF_REGEX = r'(?<!\\)[$][{]' + NICREF_REGEX + '[}]'
-    ALLOWED_NODE_VARS = 'path|user|addr|tags'
+    ALLOWED_NODE_VARS = 'path|user|addr|tags|nfs'
 
     def __init__(self, name, executor):
         self.executor = executor
         self.name = name
         self.nics = []
         self.tags = []
+        self.nfs = True
 
         # Always fill 32 random nics address that will be overwriten by config eventually
         self._gen_random_nics()
@@ -82,6 +82,8 @@ class Node:
                 match = re.match(r'(?P<var>' + Node.ALLOWED_NODE_VARS + ')=(?P<val>.*)', line,
                                  re.IGNORECASE)
                 if match:
+                    if match.group('var') == 'nfs':
+                        self.nfs = get_bool(match.group('val'))
                     setattr(executor, match.group('var'), match.group('val'))
                     continue
                 raise Exception("%s:%d : Unknown node config line %s" % (clusterFile, i, line))

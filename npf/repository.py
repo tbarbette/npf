@@ -317,7 +317,6 @@ class Repository:
             versions = [self.version]
         else:
             if force_fetch or not self._last_100:
-                print("Once")
                 versions = self.method.get_last_versions(100, force_fetch=force_fetch)
                 self._last_100 = versions
             else:
@@ -377,6 +376,9 @@ class Repository:
     def get_instance(cls, dep, options):
         if dep in cls._repo_cache:
             return cls._repo_cache[dep]
-        repo = Repository(dep, options)
+        try:
+            repo = Repository(dep, options)
+        except FileNotFoundError:
+            raise Exception("%s is not a valid repository name !" % (dep))
         cls._repo_cache[dep] = repo
         return repo
