@@ -635,6 +635,7 @@ class Grapher:
 
         plots = OrderedDict()
         matched_set = set()
+        # Combine some results as subplots of a single plot
         for i,(result_type_list, n_cols) in enumerate(self.configdict('graph_subplot_results', {}).items()):
             for result_type in re.split('[,]|[+]', result_type_list):
                 matched = False
@@ -650,13 +651,14 @@ class Grapher:
                 if not matched:
                     print("WARNING: Unknown data type to include as subplot : %s" % result_type)
 
+        # Unmatched plots are added as single subplots
         for result_type, data in sorted(data_types.items()):
             if result_type not in matched_set:
                 plots[result_type] = ([result_type],1)
 
         ret = {}
-        subplot_type=self.config("graph_subplot_type")
         for i, (figure,n_cols) in plots.items():
+
             text = self.config("graph_text")
 
             if len(self.configlist("graph_display_statics")) > 0:
@@ -666,6 +668,48 @@ class Grapher:
                     text += self.var_name(stat) + " : " + ', '.join([str(val) for val in vars_values[stat]])
             n_lines = math.ceil((len(figure) + (1 if text else 0)) / float(n_cols))
             fig_name = "subplot" + str(i)
+
+
+            sv = self.config('graph_subplot_variable', None)
+            if sv:
+              svv = vars_values[sv]
+              v_cols = len(svv)
+              v_lines = 1
+              while v_cols > 2:
+                  v_cols = math.ceil(v_cols / 2)
+                  v_lines *= 2
+              for val in svv:
+                  result_type, lgd = self.generate_graph_for_data(i, figure, n_cols * v_cols, n_lines * v_lines, vars_values, data_types, dyns, vars_all, key, options, title, glob_legend_title, ret)
+            else:
+                result_type, lgd = self.generate_graph_for_data(i, figure, n_cols, n_lines, vars_values, data_types, dyns, vars_all, key, options, title, glob_legend_title, ret)
+
+            if text:
+                plt.subplot(n_lines, n_cols, len(figure) + 1)
+                plt.axis('off')
+                plt.figtext(.05, (0.5 / (len(figure) + 1)), text.replace("\\n", "\n"), verticalalignment='center',
+                            horizontalalignment='left')
+
+            if len(figure) > 1:
+                if isubplot < len(figure) - 1:
+                    return
+                else:
+                    result_type = fig_name
+            if not filename:
+                buf = io.BytesIO()
+                plt.savefig(buf, format='png', bbox_extra_artists=(lgd,) if lgd else [], bbox_inches='tight')
+                buf.seek(0)
+                ret[result_type] = buf.read()
+            else:
+                type_filename = npf.build_filename(testie, build, filename if not filename is True else None, statics, 'pdf', result_type, show_serie=False)
+                plt.savefig(type_filename, bbox_extra_artists=(lgd,) if lgd else [], bbox_inches='tight', dpi=options.graph_dpi, transparent=True)
+                ret[result_type] = None
+                print("Graph of test written to %s" % type_filename)
+            plt.clf()
+        return ret
+
+    def generate_graph_for_data(self, i, figure, n_cols, n_lines, vars_values, data_types, dyns, vars_all, key, options, title, glob_legend_title,  ret):
+            ndyn=len(dyns)
+            subplot_type=self.config("graph_subplot_type")
 
             axiseis = []
             for isubplot, result_type in enumerate(figure):
@@ -841,32 +885,8 @@ class Grapher:
                         lgd = axis.legend(loc=loc,bbox_to_anchor=legend_bbox, mode=self.config("legend_mode"), borderaxespad=0.,ncol=self.config("legend_ncol"), title=legend_title,bbox_transform=plt.gcf().transFigure)
                     else:
                         lgd = axis.legend(loc=loc,ncol=self.config("legend_ncol"), title=legend_title)
+            return result_type, lgd
 
-
-
-            if text:
-                plt.subplot(n_lines, n_cols, len(figure) + 1)
-                plt.axis('off')
-                plt.figtext(.05, (0.5 / (len(figure) + 1)), text.replace("\\n", "\n"), verticalalignment='center',
-                            horizontalalignment='left')
-
-            if len(figure) > 1:
-                if isubplot < len(figure) - 1:
-                    continue
-                else:
-                    result_type = fig_name
-            if not filename:
-                buf = io.BytesIO()
-                plt.savefig(buf, format='png', bbox_extra_artists=(lgd,) if lgd else [], bbox_inches='tight')
-                buf.seek(0)
-                ret[result_type] = buf.read()
-            else:
-                type_filename = npf.build_filename(testie, build, filename if not filename is True else None, statics, 'pdf', result_type, show_serie=False)
-                plt.savefig(type_filename, bbox_extra_artists=(lgd,) if lgd else [], bbox_inches='tight', dpi=options.graph_dpi, transparent=True)
-                ret[result_type] = None
-                print("Graph of test written to %s" % type_filename)
-            plt.clf()
-        return ret
 
     def reject_outliers(self, result, testie):
         return testie.reject_outliers(result)
