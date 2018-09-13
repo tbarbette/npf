@@ -39,7 +39,7 @@ class Comparator():
                 self.time_graphs_series.append((testie, build, time_dataset[0]))
         if len(self.graphs_series) == 0:
             print("No valid tags/testie/repo combination.")
-            return
+            return None, None
 
         return self.graphs_series, self.time_graphs_series
 

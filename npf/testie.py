@@ -761,7 +761,10 @@ class Testie:
                     if prev_results or prev_time_results:
                         prev_results[run] = all_data_results[run]
                         build.writeversion(self, prev_results, allow_overwrite=True)
-                        prev_time_results.update(time_results)
+                        if prev_time_results:
+                            prev_time_results.update(time_results)
+                        else:
+                            prev_time_results = time_results
                         build.writeversion(self, prev_time_results, allow_overwrite=True, time=True)
                     else:
                         build.writeversion(self, all_data_results, allow_overwrite=True)
