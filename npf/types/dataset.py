@@ -123,7 +123,7 @@ def var_divider(testie: 'Testie', key: str, result_type = None):
 
 def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list, key, do_x_sort, statics, options, max_series = None, series_sort=None) -> AllXYEB:
     data_types = OrderedDict()
-    all_result_types = set()
+    all_result_types = OrderedSet()
 
     for testie,build,all_results in datasets:
         for run, run_results in all_results.items():
@@ -220,7 +220,9 @@ def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list
 
 
             data_types.setdefault(result_type, []).append((ox,oy,oe,build))
-    if series_sort is not None:
+
+
+    if series_sort is not None and series_sort != "":
         if series_sort.startswith('-'):
             inverted = True
             series_sort = series_sort[1:]
@@ -228,7 +230,7 @@ def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list
             inverted = False
 
         new_data_types = OrderedDict()
-        for result_type,data in data_types.items():
+        for result_type, data in data_types.items():
             avg = []
             max = []
             min = []

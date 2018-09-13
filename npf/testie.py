@@ -337,8 +337,8 @@ class Testie:
         self.create_files(file_list,test_folder)
 
         #Launching the tests in itself
-        data_results = {} # dict of result_name -> [val, val, val]
-        time_results = {} # dict of time -> {result_name -> [val, val, val]}
+        data_results = OrderedDict() # dict of result_name -> [val, val, val]
+        time_results = OrderedDict() # dict of time -> {result_name -> [val, val, val]}
         m = multiprocessing.Manager()
         all_output = []
         all_err = []
@@ -632,7 +632,7 @@ class Testie:
                 shutil.rmtree(test_folder)
             return {}, True
 
-        all_data_results = {}
+        all_data_results = OrderedDict()
         all_time_results = OrderedDict()
         #If one first, we first ensure 1 result per variables then n_runs
         if options.onefirst:
