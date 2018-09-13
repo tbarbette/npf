@@ -580,7 +580,7 @@ class Grapher:
             except TypeError:
                 print("ERROR : Cannot sort the following values :", values)
                 return
-            new_varsall = set()
+            new_varsall = OrderedSet()
             for i, value in enumerate(values):
                 newserie = {}
                 for run, run_results in all_results.items():
