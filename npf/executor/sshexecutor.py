@@ -191,7 +191,6 @@ class SSHExecutor(Executor):
                                 try:
                                     remote = self.path + path + '/' + entry.name
                                     sftp.put(path + '/' + entry.name, remote)
-                                    print(entry.stat())
                                     sftp.chmod(remote, entry.stat().st_mode)
                                 except FileNotFoundError:
                                     raise(Exception("Could not send %s to %s"  % (path + '/' + entry.name, remote)))
