@@ -856,6 +856,6 @@ class Testie:
         return self.late_variables
 
     def make_test_folder(self):
-        test_folder = "testie%s-%05d" % (datetime.datetime.now().strftime("%y%d%m%H%M"), random.randint(1, 2 << 16))
+        test_folder = "testie%s-%05d" % (datetime.datetime.now().strftime("%y%m%d%H%M"), random.randint(1, 2 << 16))
         os.mkdir(test_folder)
         return test_folder
