@@ -24,6 +24,7 @@ GEN_THREADS=4
 PROMISC=false
 promisc:PROMISC=true
 IGNORE=0
+GEN_DESC=0
 
 nolinktest=0
 
@@ -57,7 +58,7 @@ define($txverbose 99)
 define($rxverbose 99)
 
 fdIN :: FromDump($trace, STOP false, TIMING false)
-tdIN :: ToDPDKDevice($port, BLOCKING true, BURST $bout, VERBOSE $txverbose, IQUEUE $bout)
+tdIN :: ToDPDKDevice($port, BLOCKING true, BURST $bout, VERBOSE $txverbose, IQUEUE $bout, NDESC $GEN_DESC)
 
 
 elementclass Numberise { $magic |
@@ -65,12 +66,13 @@ elementclass Numberise { $magic |
 }
 
 fdIN
-    -> rwIN :: EtherRewrite($INsrcmac,$INdstmac)
-    -> EnsureDPDKBuffer
     -> rr :: PathSpinlock;
 
 elementclass Generator { $magic |
 input
+    $ENSURE
+  -> rwIN :: EtherRewrite($INsrcmac,$INdstmac)
+  -> Pad()
   -> Numberise($magic)
   -> replay :: ReplayUnqueue(STOP 0, QUICK_CLONE $quick, VERBOSE true, ACTIVE true, LIMIT $LIMIT)
   -> rt :: RecordTimestamp(N $LIMIT, OFFSET 56)
@@ -88,7 +90,7 @@ StaticThreadSched(gen1/replay 2)
 StaticThreadSched(gen2/replay 4)
 StaticThreadSched(gen3/replay 6)
 
-receiveIN :: FromDPDKDevice($port, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC)
+receiveIN :: FromDPDKDevice($port, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, NDESC $GEN_DESC)
 
 elementclass Receiver { $mac, $dir |
     input[0]
@@ -133,11 +135,10 @@ $BROADCAST_IGNORE
     -> Print("WARNING: Unknown magic / untimestamped packet", -1)
     -> Discard;
 
-    unt :: Print("WARNING: Untimestamped packet", -1)
-    -> Discard;
-
-    tsdA[1] -> unt;
-    tsdB[1] -> unt;
+    tsdA[1] -> Print("WARNING: Untimestamped packet on thread 0", 64) -> Discard;
+    tsdB[1] -> Print("WARNING: Untimestamped packet on thread 1", 64) -> Discard;
+    tsdC[1] -> Print("WARNING: Untimestamped packet on thread 2", 64) -> Discard;
+    tsdD[1] -> Print("WARNING: Untimestamped packet on thread 3", 64) -> Discard;
 }
 
 receiveIN -> RINswitch :: Switch(2)[0] -> RIN :: Receiver($RAW_INsrcmac,"IN");
