@@ -86,7 +86,7 @@ def do_graph(filename,args,series,time_series):
             useful_variables.remove(v)
     #Keep only the variables in Run that are usefull as defined above
     for i, (testie, build, dataset) in enumerate(series):
-        ndataset = {}
+        ndataset = OrderedDict()
         for run, results in dataset.items():
             ndataset[run.intersect(useful_variables)] = results
         series[i] = (testie, build, ndataset)

@@ -84,6 +84,39 @@ class Map(OrderedDict):
         return None
 
 
+class Graph:
+    def __init__(self, grapher:'Grapher'):
+        self.grapher = grapher
+        self.subtitle = None
+
+    def statics(self):
+        return dict([(var,values[0]) for var,values in self.vars_values.items() if len(values) == 1])
+
+    def dyns(self):
+        return [var for var,values in self.vars_values.items() if len(values) > 1]
+
+    def dataset(self):
+        data_types = dataset.convert_to_xyeb(
+                datasets = self.series,
+                run_list = self.vars_all,
+                key = self.key,
+                max_series=self.grapher.config('graph_max_series'),
+                do_x_sort=self.do_sort,
+                series_sort=self.grapher.config('graph_series_sort'),
+                options=self.grapher.options,
+                statics=self.statics())
+        return data_types
+
+    def split_for_series(self):
+        '''Make a sub-graph per serie'''
+        sg = []
+        for script,build,all_results in self.series:
+            subgraph = self.grapher.series_to_graph([(script,build,all_results)], self.dyns(), self.vars_values.copy(), self.vars_all.copy())
+            subgraph.subtitle = build.pretty_name()
+            subgraph.title = self.title
+            sg.append(subgraph)
+        return sg
+
 class Grapher:
     def __init__(self):
         self.scripts = set()
@@ -219,9 +252,124 @@ class Grapher:
                 ss = short_ss
         return ss
 
+    def extract_variable_to_series(self, key, vars_values, all_results, dyns, build, script):
+        dyns.remove(key)
+        series = []
+        versions = []
+        values = list(vars_values[key])
+        del vars_values[key]
+        try:
+            values.sort()
+        except TypeError:
+            print("ERROR : Cannot sort the following values :", values)
+            return
+        new_varsall = OrderedSet()
+        for i, value in enumerate(values):
+            newserie = {}
+            for run, run_results in all_results.items():
+                #                    if (graph_variables and not run in graph_variables):
+                #                        continue
+                if run.variables[key] == value:
+                    newrun = run.copy()
+                    del newrun.variables[key]
+                    newserie[newrun] = run_results
+                    new_varsall.add(newrun)
+
+            if type(value) is tuple:
+                value = value[1]
+            versions.append(value)
+            nb = build.copy()
+            nb._pretty_name = str(value)
+            if len(self.graphmarkers) > 0:
+                nb._marker = self.graphmarkers[i % len(self.graphmarkers)]
+            series.append((script, nb, newserie))
+            self.glob_legend_title = self.var_name(key)
+        vars_all = list(new_varsall)
+        vars_all.sort()
+        if len(dyns) == 1:
+            key = dyns[0]
+            do_sort = True
+        else:
+            key = "Variables"
+            do_sort = False
+        graph = Graph(self)
+        graph.do_sort = do_sort
+        graph.key = key
+        graph.vars_all = vars_all
+        graph.vars_values = vars_values
+        graph.series = series
+        return graph
+
+
+    # Convert a list of series to a graph object
+    #  if the list has a unique item and there are dynamic variables, one
+    #  dynamic variable will be extracted to make a list of serie
+    def series_to_graph(self, series, dyns, vars_values, vars_all):
+        nseries = len(series)
+        ndyn = len(dyns)
+        if nseries == 1 and ndyn > 0 and not self.options.graph_no_series and not (
+                            ndyn == 1 and npf.all_num(vars_values[dyns[0]]) and len(vars_values[dyns[0]]) > 2):
+            """Only one serie: expand one dynamic variable as serie, but not if it was plotable as a line"""
+            script, build, all_results = series[0]
+            if self.config("var_serie") and self.config("var_serie") in dyns:
+                key = self.config("var_serie")
+            else:
+                key = None
+                # First pass : use the non-numerical variable with the most points
+                n_val = 0
+                nonums = []
+                for i in range(ndyn):
+                    k = dyns[i]
+                    if k == 'time':
+                        continue
+                    if not npf.all_num(vars_values[k]):
+                        nonums.append(k)
+                        if len(vars_values[k]) > n_val:
+                            key = k
+                            n_val = len(vars_values[k])
+                if key is None:
+                    # Second pass if that missed, use the numerical variable with the less point if dyn==2 (->lineplot) else the most points
+                    n_val = 0 if ndyn > 2 else 999
+                    for i in range(ndyn):
+                        k = dyns[i]
+                        if k == 'time':
+                            continue
+                        if (ndyn > 2 and len(vars_values[k]) > n_val) or (ndyn <= 2 and len(vars_values[k]) < n_val):
+                            key = k
+                            n_val = len(vars_values[k])
+
+            # Key is found, no the extraction itself
+            graph = self.extract_variable_to_series(
+                                key=key,
+                                vars_values=vars_values,
+                                all_results=all_results,
+                                dyns=dyns,
+                                build=build,
+                                script=script)
+
+        else:
+            self.glob_legend_title = None
+            if ndyn == 0:
+                key = "version"
+                do_sort = False
+            elif ndyn == 1:
+                key = dyns[0]
+                do_sort = True
+            else:
+                key = "Variables"
+                do_sort = False
+            graph = Graph(self)
+            graph.key = key
+            graph.do_sort = do_sort
+            graph.vars_all = vars_all
+            graph.vars_values = vars_values
+            graph.series = series
+        return graph
+
     def graph(self, filename, options, graph_variables: List[Run] = None, title=False, series=None):
         """series is a list of triplet (script,build,results) where
         result is the output of a script.execute_all()"""
+        self.options = options
         if series is None:
             series = []
 
@@ -237,7 +385,7 @@ class Grapher:
             self.scripts.add(testie)
 
         #Overwrite markers and lines from user
-        graphmarkers = self.configlist("graph_markers")
+        self.graphmarkers = self.configlist("graph_markers")
         self.graphlines = self.configlist("graph_lines")
 
         # Combine variables as per the graph_combine_variables config parameter
@@ -290,12 +438,12 @@ class Grapher:
             for run, run_results in all_results.items():
                 if run in graph_variables:
                     for result_type, results in run_results.items():
-                        if options.graph_reject_outliers:
+                        if self.options.graph_reject_outliers:
                             results = self.reject_outliers(np.asarray(results), testie)
                         else:
                             results = np.asarray(results)
-                        if options.graph_select_max:
-                            results = np.sort(results)[-options.graph_select_max:]
+                        if self.options.graph_select_max:
+                            results = np.sort(results)[-self.options.graph_select_max:]
 
                         ydiv = dataset.var_divider(testie, "result", result_type)
                         new_results.setdefault(run, OrderedDict())[result_type] = results / ydiv
@@ -303,8 +451,8 @@ class Grapher:
                         vars_values.setdefault(k, OrderedSet()).add(v)
 
             if new_results:
-                if len(graphmarkers) > 0:
-                    build._marker = graphmarkers[i % len(graphmarkers)]
+                if len(self.graphmarkers) > 0:
+                    build._marker = self.graphmarkers[i % len(self.graphmarkers)]
                 filtered_series.append((testie, build, new_results))
             else:
                 print("No valid data for %s" % build)
@@ -478,8 +626,8 @@ class Grapher:
                     nbuild = build.copy()
                     nbuild.statics = build.statics.copy()
                     nbuild._pretty_name = ' - '.join(([nbuild.pretty_name()] if len(series) > 1 else []) + ["%s = %s" % (self.var_name(to_get_out), str(value))])
-                    if len(graphmarkers) > 0:
-                        nbuild._marker = graphmarkers[i % len(graphmarkers)]
+                    if len(self.graphmarkers) > 0:
+                        nbuild._marker = self.graphmarkers[i % len(self.graphmarkers)]
                     if len(series) == 1: #If there is one serie, expand the line types
                         nbuild._line = self.graphlines[i % len(self.graphlines)]
                     nbuild.statics[to_get_out] = value
@@ -534,107 +682,51 @@ class Grapher:
             else:
                 statics[k] = list(v)[0]
 
-        ndyn = len(dyns)
-        nseries = len(series)
-
-        if nseries == 1 and ndyn > 0 and not options.graph_no_series and not (
-                            ndyn == 1 and npf.all_num(vars_values[dyns[0]]) and len(vars_values[dyns[0]]) > 2):
-            """Only one serie: expand one dynamic variable as serie, but not if it was plotable as a line"""
-            script, build, all_results = series[0]
-            if self.config("var_serie") and self.config("var_serie") in dyns:
-                key = self.config("var_serie")
-            else:
-                key = None
-                # First pass : use the non-numerical variable with the most points
-                n_val = 0
-                nonums = []
-                for i in range(ndyn):
-                    k = dyns[i]
-                    if k == 'time':
-                        continue
-                    if not npf.all_num(vars_values[k]):
-                        nonums.append(k)
-                        if len(vars_values[k]) > n_val:
-                            key = k
-                            n_val = len(vars_values[k])
-                if key is None:
-                    # Second pass if that missed, use the numerical variable with the less point if dyn==2 (->lineplot) else the most points
-                    n_val = 0 if ndyn > 2 else 999
-                    for i in range(ndyn):
-                        k = dyns[i]
-                        if k == 'time':
-                            continue
-                        if (ndyn > 2 and len(vars_values[k]) > n_val) or (ndyn <= 2 and len(vars_values[k]) < n_val):
-                            key = k
-                            n_val = len(vars_values[k])
-
-            # if graph_serie:
-            #     key=graph_serie
-            dyns.remove(key)
-            ndyn -= 1
-            series = []
-            versions = []
-            values = list(vars_values[key])
-            try:
-                values.sort()
-            except TypeError:
-                print("ERROR : Cannot sort the following values :", values)
-                return
-            new_varsall = OrderedSet()
-            for i, value in enumerate(values):
-                newserie = {}
-                for run, run_results in all_results.items():
-                    #                    if (graph_variables and not run in graph_variables):
-                    #                        continue
-                    if run.variables[key] == value:
-                        newrun = run.copy()
-                        del newrun.variables[key]
-                        newserie[newrun] = run_results
-                        new_varsall.add(newrun)
-
-                if type(value) is tuple:
-                    value = value[1]
-                versions.append(value)
-                nb = build.copy()
-                nb._pretty_name = str(value)
-                if len(graphmarkers) > 0:
-                    nb._marker = graphmarkers[i % len(graphmarkers)]
-                series.append((script, nb, newserie))
-                glob_legend_title = self.var_name(key)
-            nseries = len(series)
-            vars_all = list(new_varsall)
-            vars_all.sort()
-            if ndyn == 1:
-                key = dyns[0]
-                do_sort = True
-            else:
-                key = "Variables"
-                do_sort = False
-
-        else:
-            glob_legend_title = None
-            if ndyn == 0:
-                key = "version"
-                do_sort = False
-            elif ndyn == 1:
-                key = dyns[0]
-                do_sort = True
-            else:
-                key = "Variables"
-                do_sort = False
 
         graph_series_label = self.config("graph_series_label")
-        if graph_series_label:
-            for i, (testie, build, all_results) in enumerate(series):
-                v = {}
-                v.update(statics)
-                v.update(build.statics)
-                build._pretty_name=SectionVariable.replace_variables(v, graph_series_label)
+        sv = self.config('graph_subplot_variable', None)
+        graphs = []
+        if sv:
+            for script, build, all_results  in series:
+                graph = self.extract_variable_to_series(sv, vars_values, all_results, dyns, build, script)
+                if graph_series_label:
+                    for i, (testie, build, all_results) in enumerate(series):
+                        v = {}
+                        v.update(statics)
+                        v.update(build.statics)
+                        build._pretty_name=SectionVariable.replace_variables(v, graph_series_label)
 
-        data_types = dataset.convert_to_xyeb(series, run_list = vars_all, key = key, max_series=self.config('graph_max_series'), do_x_sort=do_sort, series_sort=self.config('graph_series_sort'), options=options, statics=statics)
+                graph.title = title
+                assert(not sv in graph.vars_values)
+                graphs += graph.split_for_series()
+        else:
+            graph = self.series_to_graph(series, dyns, vars_values, vars_all)
+            graph.title = title
+            graphs.append(graph)
+
+        if len(graphs) > 0:
+            self.plot_graphs(graphs, filename)
+
+
+    def plot_graphs(self, graphs, filename):
+        assert(len(graphs) > 0)
+        matched_set = set()
+
+        text = self.config("graph_text")
+
+        i_subplot = 0
+
+        ret = {}
 
         plots = OrderedDict()
-        matched_set = set()
+
+        # For all graphs, find the various sub-plots
+        graph = graphs[0]
+        if len(graph.series) == 0:
+            return
+        data_types = graph.dataset()
+        one_testie,one_build,whatever = graph.series[0]
+
         # Combine some results as subplots of a single plot
         for i,(result_type_list, n_cols) in enumerate(self.configdict('graph_subplot_results', {}).items()):
             for result_type in re.split('[,]|[+]', result_type_list):
@@ -656,32 +748,30 @@ class Grapher:
             if result_type not in matched_set:
                 plots[result_type] = ([result_type],1)
 
-        ret = {}
-        for i, (figure,n_cols) in plots.items():
-
-            text = self.config("graph_text")
+        for i, (figure,n_s_cols) in plots.items():
+            v_cols = len(graphs)
+            v_lines = 1
+            while v_cols > 2 and v_cols > v_lines:
+                v_cols = math.ceil(v_cols / 2)
+                v_lines *= 2
+            n_cols = v_cols * n_s_cols
 
             if len(self.configlist("graph_display_statics")) > 0:
                 for stat in self.configlist("graph_display_statics"):
                     if text == '' or text[-1] != "\n":
                         text += "\n"
-                    text += self.var_name(stat) + " : " + ', '.join([str(val) for val in vars_values[stat]])
-            n_lines = math.ceil((len(figure) + (1 if text else 0)) / float(n_cols))
+                    text += self.var_name(stat) + " : " + ', '.join([str(val) for val in graph.vars_values[stat]])
+            n_s_lines = math.ceil((len(figure) + (1 if text else 0)) / float(n_cols))
+            n_lines = v_lines * n_s_lines
             fig_name = "subplot" + str(i)
 
+            i_subplot = 0
+            for graph in graphs:
+                data_types = graph.dataset()
 
-            sv = self.config('graph_subplot_variable', None)
-            if sv:
-              svv = vars_values[sv]
-              v_cols = len(svv)
-              v_lines = 1
-              while v_cols > 2:
-                  v_cols = math.ceil(v_cols / 2)
-                  v_lines *= 2
-              for val in svv:
-                  result_type, lgd = self.generate_graph_for_data(i, figure, n_cols * v_cols, n_lines * v_lines, vars_values, data_types, dyns, vars_all, key, options, title, glob_legend_title, ret)
-            else:
-                result_type, lgd = self.generate_graph_for_data(i, figure, n_cols, n_lines, vars_values, data_types, dyns, vars_all, key, options, title, glob_legend_title, ret)
+                result_type, lgd = self.generate_plot_for_graph(i, i_subplot, figure, n_cols, n_lines, graph.vars_values, data_types, graph.dyns(), graph.vars_all, graph.key, graph.subtitle if graph.subtitle else graph.title, ret)
+
+                i_subplot += len(figure)
 
             if text:
                 plt.subplot(n_lines, n_cols, len(figure) + 1)
@@ -700,24 +790,25 @@ class Grapher:
                 buf.seek(0)
                 ret[result_type] = buf.read()
             else:
-                type_filename = npf.build_filename(testie, build, filename if not filename is True else None, statics, 'pdf', result_type, show_serie=False)
-                plt.savefig(type_filename, bbox_extra_artists=(lgd,) if lgd else [], bbox_inches='tight', dpi=options.graph_dpi, transparent=True)
+                type_filename = npf.build_filename(one_testie, one_build, filename if not filename is True else None, graph.statics(), 'pdf', result_type, show_serie=False)
+                plt.savefig(type_filename, bbox_extra_artists=(lgd,) if lgd else [], bbox_inches='tight', dpi=self.options.graph_dpi, transparent=True)
                 ret[result_type] = None
                 print("Graph of test written to %s" % type_filename)
             plt.clf()
         return ret
 
-    def generate_graph_for_data(self, i, figure, n_cols, n_lines, vars_values, data_types, dyns, vars_all, key, options, title, glob_legend_title,  ret):
+    def generate_plot_for_graph(self, i, i_subplot, figure, n_cols, n_lines, vars_values, data_types, dyns, vars_all, key, title, ret):
             ndyn=len(dyns)
             subplot_type=self.config("graph_subplot_type")
 
             axiseis = []
-            for isubplot, result_type in enumerate(figure):
+            for i_s_subplot, result_type in enumerate(figure):
+                isubplot = i_subplot * len(figure) + i_s_subplot
                 data = data_types[result_type]
                 ymin, ymax = (float('inf'), 0)
 
                 if subplot_type=="subplot":
-                    if isubplot > 0:
+                    if i_s_subplot > 0:
                         axis = plt.subplot(n_lines, n_cols, isubplot + 1, sharex=axiseis[0])
                         plt.setp(axiseis[0].get_xticklabels(), visible=False)
                         axiseis[0].set_xlabel("")
@@ -838,15 +929,12 @@ class Grapher:
                     if (ymin < ymax / 5):
                         plt.ylim(ymin=0)
 
-                if options.graph_size:
+                if self.options.graph_size:
                     fig = plt.gcf()
-                    fig.set_size_inches(options.graph_size[0], options.graph_size[1])
+                    fig.set_size_inches(self.options.graph_size[0], self.options.graph_size[1])
 
-                if title and isubplot == 0:
+                if title and i_s_subplot == 0:
                     plt.title(title)
-
-                # if len(figure > 0):
-                #                    plt.title(self.var_name())
 
                 try:
                     plt.tight_layout()
@@ -877,7 +965,7 @@ class Grapher:
                                 continue
                         legend_title = self.var_name("result",result_type=result_type)
                     else:
-                        legend_title = glob_legend_title
+                        legend_title = self.glob_legend_title
 
                     if loc and loc.startswith("outer"):
                         loc = loc[5:].strip()
