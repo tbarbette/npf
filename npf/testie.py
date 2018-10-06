@@ -557,7 +557,7 @@ class Testie:
                     break
 
                 for result_type in self.config.get_list('results_expect'):
-                    if result_type not in results:
+                    if result_type not in data_results and not result_type in time_results:
                         print("Could not find expected result '%s' !" % result_type)
                         has_err = True
 
