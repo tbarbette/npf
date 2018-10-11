@@ -219,11 +219,13 @@ line would be a loss of space, leaving only one dybamic variable :
 The Comparator uses the repositories as series.
 
 #### Graphing options
-The graph can be tweaked using many options, and the data can also be transformed using multiple tools to better display results. Data transformation will also affect the output CSV.
+The graph can be tweaked using many options, and the data can also be transformed using multiple tools to better display results. Data transformation will also affect the output CSV. In any case none of these options affect the values in the data cache, so you may try different tweaks without risks.
 
 All the following options can be added to the %config section of the testie, or after the --config parameter on the command line of any of the tools.
 
-This section is in rework. And the prefix should be changed.
+This section is in rework.
+ * var prefix generally affect variables. It generally takes a list of variables, or a dict of variables->parameters.
+ * graph prefix only affect the graph, styling ,etc. The CSV data will not be changed.
 
 ##### Graph styling
 ###### Confidence intervals
@@ -234,10 +236,9 @@ This section is in rework. And the prefix should be changed.
  * **graph_lines**={'-', '--', '-.', ':'} Type of lines, per-series.
 ###### Scaling and axis limits
  * **var_log**, []                                     
- * **var_log_base**, {}
- * **var_divider**, {'result':1}                       
- * **var_lim**, {}       
- * **var_format**={THROUGHPUT:%dGbps} Printf like formating of variables. Eg this example will display all visualisation of the value of throughput (eg in the axis) as XGbps. Use in combination to var_divider.
+ * **var_log_base**, {}              
+ * **var_lim**, {} 
+ * **var_format**={THROUGHPUT:%dGbps} Printf like formating of va And the prefix should be changed.riables. Eg this example will display all visualisation of the value of throughput (eg in the axis) as XGbps. Use in combination to var_divider.
  * **var_ticks**, {}                                     
 
 ###### Units and name of variables
@@ -251,23 +252,20 @@ This section is in rework. And the prefix should be changed.
 ###### Series tweaking
  * **graph_series_sort**=method Sort series according to the method wich can be : "natsort", natural alphabetical sorting, "avg", "min" or "max" to sort according "y" values. The sorting can be inversed by prefix the method with "-". Default is to not reorder.
  * **graph_max_series**=N limint the number of series to N, used in conjunction with graph_series_sort to only show the "best" series. By default there is no limit.
- * **var_serie**
+ * **graph_serie**=variable Use a specified variable as the serie of a line plot.
 ###### Information on graphs
  * **graph_legend**=true/false Enable/disable legend. Default is true.
- * **title**=
- * **var_hide**
+ * **title**=title Title of the graph
+ * **var_hide**={A,B,...} List of variables to hide
  
 
 ##### Data transformation
- * **graph_combine_variables**={NUMA+CORE:SCORE} will combine multiple variables in a single one. Eg if you have a NUMA={0,1} variable, and CORE=[1-4] this will combine them as a single variable SCORE={0-1,0-2,0-3,0-4,1-1,1-2,1-3,1-4}. This allows to reduce the number of variables to graph, eg you may prefer to have a lineplot of SCORE, instead of a barplot of NUMA and CORE according to the serie.
- * **graph_series_as_variables**=true/false Will convert the series as a variable. This is useful in npf-compare to consider the different tags/software you used as a variable, and use something else as a serie.
- * **graph_variables_as_series**={QUEUE,POLICY} list of variables to use as series. If multiple, or a serie already exists, it will do the cross product of the variables. Usefull to pass "trailing" dynamic variables as more lines in a lineplot.
- * **graph_result_as_variable**={COUNT-Q(.*):QUEUE-COUNT} Group multiple results matching a regex as a single variable. Eg if you run a single test that outputs multiple statistics for "the same thing", like the number of bytes per NIC queues, you will have your scipt display RESULT-COUNT-Q0 A, RESULT-COUNT-Q1 B,  ... and this example will make a variable QUEUE with all the observed values, and create a new result type called "COUNT".
- * **graph_series_prop**=true/false Divide all results by the results of the first serie. Hence graphs will be a percentage of relative to the first series. Eg if the first serie is "software 1" it will be removed from the graph and the other series will show how much better software 2, ... did against software 1.
- * **var_divider**, {'result':1})                            
- * **var_lim**, {}                                       
- * **var_format**, {}                                     
- * **var_ticks**, {}  
+ * **var_combine**={NUMA+CORE:SCORE} will combine multiple variables in a single one. Eg if you have a NUMA={0,1} variable, and CORE=[1-4] this will combine them as a single variable SCORE={0-1,0-2,0-3,0-4,1-1,1-2,1-3,1-4}. This allows to reduce the number of variables to graph, eg you may prefer to have a lineplot of SCORE, instead of a barplot of NUMA and CORE according to the serie.
+ * **series_as_variables**=true/false Will convert the series as a variable. This is useful in npf-compare to consider the different tags/software you used as a variable, and use something else as a serie.
+ * **var_as_series**={QUEUE,POLICY} list of variables to use as series. If multiple, or a serie already exists, it will do the cross product of the variables. Usefull to pass "trailing" dynamic variables as more lines in a lineplot.
+ * **result_as_variables**={COUNT-Q(.*):QUEUE-COUNT} Group multiple results matching a regex as a single variable. Eg if you run a single test that outputs multiple statistics for "the same thing", like the number of bytes per NIC queues, you will have your scipt display RESULT-COUNT-Q0 A, RESULT-COUNT-Q1 B,  ... and this example will make a variable QUEUE with all the observed values, and create a new result type called "COUNT".
+ * **series_prop**=true/false Divide all results by the results of the first serie. Hence graphs will be a percentage of relative to the first series. Eg if the first serie is "software 1" it will be removed from the graph and the other series will show how much better software 2, ... did against software 1.
+ * **var_divider**, {'result':1}) Divide the variables or results by the given value.
  * **graph_map**
  
 ##### Combining graphs (subplots)
