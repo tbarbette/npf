@@ -1,8 +1,6 @@
 Executing testie pyexit.testie
 pyexit.testie
 Executing init scripts...
-/usr/local/lib/python3.6/dist-packages/sklearn/externals/joblib/externals/cloudpickle/cloudpickle.py:47: DeprecationWarning: the imp module is deprecated in favour of importlib; see the module's documentation for alternative uses
-  import imp
 CPU = 1, R = 50, T = 100 [3 runs for 1/8]
 LOSS: [-50.0, -50.0, -50.0], RX: [50.0, 50.0, 50.0], TX: [100.0, 100.0, 100.0]
 CPU = 2, R = 50, T = 100 [3 runs for 2/8]

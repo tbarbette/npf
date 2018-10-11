@@ -2,9 +2,5 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/click-2017/build" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/click/build" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/fastclick-nobatch/build" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/fastclick/build" vcs="Git" />
   </component>
 </project>
