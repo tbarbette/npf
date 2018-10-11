@@ -44,11 +44,13 @@ sudo pip3 install -r requirements.txt
 #### SSH ####
 Cluster-based tests use SSH to launch multiple software on different nodes, therefore SSH should be setup on each node for a password-less connection. Use public key authentication and be sure to add the ssh keys in your ssh agent using ssh-add before running NPF.
 
-#### File-sharing ####
-Server are expected to share the NPF root. Use either a NFS shared mounted on all nodes or sshfs to mount the local NPF folder on all nodes. The path to the shared NPF root can be different on each node, see the cluster section below.
-
 #### Sudo ####
-Most DPDK-based but also other use the "sudo=true" parameter in testies to ask for root access. You can either always connect as root to other servers (see the cluster section below) or set up password-less sudo on all nodes.
+Most DPDK-based but also other scripts use the "sudo=true" parameter in testies to ask for root access. You can either always connect as root to other servers (see the cluster section below) or set up password-less sudo on all nodes.
+
+
+#### File-sharing (optional) ####
+Server are expected to share the NPF root. Use either a NFS shared mounted on all nodes or sshfs to mount the local NPF folder on all nodes. The path to the shared NPF root can be different on each node, see the cluster section below.
+If this is not the case, the dependencies (software built by NPF) will be sent to all nodes that will use them in the corresponding scripts through SSH, but it is slower.
 
 ## Tools
 Three tools come with this performance framework :
@@ -216,10 +218,62 @@ line would be a loss of space, leaving only one dybamic variable :
 
 The Comparator uses the repositories as series.
 
+#### Graphing options
+The graph can be tweaked using many options, and the data can also be transformed using multiple tools to better display results. Data transformation will also affect the output CSV.
+
+All the following options can be added to the %config section of the testie, or after the --config parameter on the command line of any of the tools.
+
+This section is in rework. And the prefix should be changed.
+
+##### Graph styling
+###### Confidence intervals
+ * graph_error_fill=true/false Display a "filling zone" instead of error bars. To be used when you have many points and your graph becomes horrible.
+###### Line/series style
+ * graph_color={0,1,2,3} Select a set of color for each serie. Colors are predefined ranges. Default is to use the 0 set of colors for all series, the serie 0 is a mix of different colors, while 1 to 5 are shades of the same colors.
+ * graph_markers={'o', '^', 's', 'D', '*', 'x', '.', '_', 'H', '>', '<', 'v', 'd'}, type of markers to be used, per-serie. Default if this. See matplotlib docs to find the type.
+ * graph_lines={'-', '--', '-.', ':'} Type of lines, per-series.
+###### Scaling and axis limits
+ *     self.__add_list("var_log", [])                                          
+ *    self.__add_dict("var_log_base", {})    
+ *       self.__add_dict("var_divider", {'result':1})                            
+ *       self.__add_dict("var_lim", {})                                          
+ * var_format={THROUGHPUT:%dGbps} Printf like formating of variables. Eg this example will display all visualisation of the value of throughput (eg in the axis) as XGbps. Use in combination to var_divider.
+ *       self.__add_dict("var_ticks", {})                                        
+ *       self.__add_list("var_grid", [])    
+###### Units
+ *       self.__add_dict("var_names", {"result-LATENCY":"Latency (µs)","result-THROUGHPUT":"Throughput"})
+ *      self.__add_dict("var_unit", {"result": "bps","result-LATENCY":"us","latency":"us","throughput":"bps"})
+  
+###### Plot types
+ * graph_scatter=true/false Use a scatter plot instead of a lineplot, default false. You must arrange the data so it displays as a line plot (one dynamic variable only).
+ * graph_grid=true/false Display a grid on the graph. Default false.
+ * graph_bar_stacks=true/false If your series are a complex barplot (more than 1 dynamic variable), it will stack the plots instead of adding them one after the other. Default is false.
+###### Series tweaking
+ * graph_series_sort=method Sort series according to the method wich can be : "natsort", natural alphabetical sorting, "avg", "min" or "max" to sort according "y" values. The sorting can be inversed by prefix the method with "-". Default is to not reorder.
+ * graph_max_series=N limint the number of series to N, used in conjunction with graph_series_sort to only show the "best" series. By default there is no limit.
+ * var_serie         
+###### Information on graphs
+ * graph_legend=true/false Enable/disable legend. Default is true.
+ * title=
+ * self.__add("var_hide", {})  
+ 
+
+##### Data transformation
+ * graph_combine_variables={NUMA+CORE:SCORE} will combine multiple variables in a single one. Eg if you have a NUMA={0,1} variable, and CORE=[1-4] this will combine them as a single variable SCORE={0-1,0-2,0-3,0-4,1-1,1-2,1-3,1-4}. This allows to reduce the number of variables to graph, eg you may prefer to have a lineplot of SCORE, instead of a barplot of NUMA and CORE according to the serie.
+ * graph_series_as_variables=true/false Will convert the series as a variable. This is useful in npf-compare to consider the different tags/software you used as a variable, and use something else as a serie.
+ * graph_variables_as_series={QUEUE,POLICY} list of variables to use as series. If multiple, or a serie already exists, it will do the cross product of the variables. Usefull to pass "trailing" dynamic variables as more lines in a lineplot.
+ * graph_result_as_variable={COUNT-Q(.*):QUEUE-COUNT} Group multiple results matching a regex as a single variable. Eg if you run a single test that outputs multiple statistics for "the same thing", like the number of bytes per NIC queues, you will have your scipt display RESULT-COUNT-Q0 A, RESULT-COUNT-Q1 B,  ... and this example will make a variable QUEUE with all the observed values, and create a new result type called "COUNT".
+ * graph_series_prop=true/false Divide all results by the results of the first serie. Hence graphs will be a percentage of relative to the first series. Eg if the first serie is "software 1" it will be removed from the graph and the other series will show how much better software 2, ... did against software 1.
+ *    self.__add_dict("var_divider", {'result':1})                            
+ *       self.__add_dict("var_lim", {})                                          
+ *       self.__add_dict("var_format", {})                                       
+ *       self.__add_dict("var_ticks", {})   
+ * graph_map
+ 
+##### Combining graphs (subplots)
+ * graph_subplot_results={THROUGHPUT+LATENCY:2} combine two results in a single figure. If graph_subplot_type is subplot, then it will simply combine the graphs in a single file using the given number of columns. If the subplot_type is axis, it will use a dual-axis plot. Only the last variable will be on the second axis, so one may combine multiple variables on the same axis, like TX and RX throughput on the left axis, and the latency on the right axis?
+ * graph_display_statics=true/false Will add a subplot to show the value of static variables. Useful to exchange graphs with colleages knowing what are the fixed parameters for all the graph you show. But the results is somehow horrible.
+ * graph_text=string Add some texts under all graphs.
 
 ### Where to continue from here?
 Read the testie files in tests/click mostly, then write your owns !
-
-TODO
-----
-WIP!!! Looking for collaborators !
