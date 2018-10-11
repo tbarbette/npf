@@ -471,7 +471,14 @@ class SectionConfig(SectionVariable):
         self.vlist = {}
 
         self.aliases = {
-            'graph_variable_as_series' : 'graph_variables_as_series'
+            'graph_variable_as_series' : 'graph_variables_as_series',
+            'graph_grid' : 'var_grid',
+            'graph_serie' : 'var_serie',
+            'var_combine' : 'graph_combine_variables',
+            'series_as_variables' : 'graph_series_as_variables',
+            'var_as_series': 'graph_variables_as_series',
+            'result_as_variables' : 'graph_result_as_variables',
+            'series_prop' : 'graph_series_prop'
         }
 
         #Environment
