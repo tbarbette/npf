@@ -17,6 +17,7 @@ from npf.types.dataset import Run, Dataset
 from npf.eventbus import EventBus
 from decimal import *
 
+
 class RemoteParameters:
     def __init__(self):
         self.default_role_map = None
@@ -38,6 +39,7 @@ class RemoteParameters:
         self.title = None
 
     pass
+
 
 def _parallel_exec(param: RemoteParameters):
     executor = npf.executor(param.role, param.default_role_map)
@@ -237,19 +239,19 @@ class Testie:
         unique_list = {}
         for filename, p, role in file_list:
             if filename in unique_list:
-                if unique_list[filename+(role if role else '')][1] != p:
+                if unique_list[filename + (role if role else '')][1] != p:
                     raise Exception(
                         "File name conflict ! Some of your scripts try to create some file with the same name but different content (%s) !" % filename)
             else:
-                unique_list[filename+(role if role else '')] = (filename,p,role)
+                unique_list[filename + (role if role else '')] = (filename, p, role)
 
-        for whatever, (filename,p,role) in unique_list.items():
+        for whatever, (filename, p, role) in unique_list.items():
             if self.options.show_files:
                 print("File %s:" % filename)
                 print(p.strip())
             for node in npf.nodes(role):
-                if not node.executor.writeFile(filename,path_to_root, p):
-                    raise Exception("Could not create file %s on %s",filename,node.name)
+                if not node.executor.writeFile(filename, path_to_root, p):
+                    raise Exception("Could not create file %s on %s", filename, node.name)
 
     def test_require(self, v, build):
         for require in self.requirements:
@@ -290,14 +292,74 @@ class Testie:
             except OSError:
                 pass
 
-    def execute(self, build, run, v, n_runs=1, n_retry=0, allowed_types=SectionScript.ALL_TYPES_SET, do_imports=True, test_folder = None, event = None) \
+    def parse_results(self, regex_list: str, output: str, new_time_results: dict, new_data_results: dict) -> Tuple[
+        bool, bool]:
+        has_err = False
+        has_values = False
+        try:
+            for result_regex in regex_list:
+                for nr in re.finditer(result_regex, output.strip(), re.IGNORECASE):
+                    result_type = nr.group("type")
+
+                    time = nr.group("time")
+                    if result_type is None:
+                        result_type = ''
+                    n = float(nr.group("value"))
+                    mult = nr.group("multiplier")
+                    unit = ""
+                    if nr.group("unit"):
+                        unit = nr.group("unit")
+                    if unit.lower() == "sec" or unit.lower() == "s":
+                        unit = "s"
+
+                    if unit == "s":
+                        if mult == "m":
+                            n = n / 1000  # Keep all results in seconds
+                        elif mult == "u" or mult == "µ":
+                            n = n / 1000000
+                        elif mult == "n":
+                            n = n / 1000000000
+                    else:
+                        mult = mult.upper()
+
+                    if mult == "K":
+                        n *= 1024
+                    elif mult == "M":
+                        n *= 1024 * 1024
+                    elif mult == "G":
+                        n *= 1024 * 1024 * 1024
+                    if n != 0 or (self.config.match("accept_zero", result_type)) or time is not None:
+                        if time:
+                            t = float(time)
+                            if result_type in new_time_results.setdefault(t, {}):
+                                new_time_results[t][result_type] += n
+                            else:
+                                new_time_results[t][result_type] = n
+                        else:
+                            if result_type in new_data_results:
+                                new_data_results[result_type] += n
+                            else:
+                                new_data_results[result_type] = n
+                        has_values = True
+                    else:
+                        print("Result for %s is 0 !" % result_type)
+                        has_err = True
+
+        except Exception as e:
+            print("Exception while parsing results :")
+            has_err = True
+            raise e
+        return has_err, has_values
+
+    def execute(self, build, run, v, n_runs=1, n_retry=0, allowed_types=SectionScript.ALL_TYPES_SET, do_imports=True,
+                test_folder=None, event=None) \
             -> Tuple[Dict[str, List], str, str, int]:
 
         # Get address definition for roles from scripts
         self.parse_script_roles()
 
-        #Create temporary folder
-        v_internals = {'NPF_ROOT':'../', 'NPF_BUILD':'../' + build.build_path()}
+        # Create temporary folder
+        v_internals = {'NPF_ROOT': '../', 'NPF_BUILD': '../' + build.build_path()}
         v.update(v_internals)
         if test_folder is None:
             test_folder = self.make_test_folder()
@@ -308,7 +370,7 @@ class Testie:
             os.mkdir(test_folder)
         os.chdir(test_folder)
 
-        #Build file list
+        # Build file list
         file_list = []
         if SectionScript.TYPE_INIT in allowed_types:
             initv = {}
@@ -334,22 +396,20 @@ class Testie:
             else:
                 file_list.extend(imp.testie.build_file_list(imp.imp_v, imp.get_role()))
 
-        self.create_files(file_list,test_folder)
+        self.create_files(file_list, test_folder)
 
-        #Launching the tests in itself
-        data_results = OrderedDict() # dict of result_name -> [val, val, val]
-        time_results = OrderedDict() # dict of time -> {result_name -> [val, val, val]}
+        # Launching the tests in itself
+        data_results = OrderedDict()  # dict of result_name -> [val, val, val]
+        time_results = OrderedDict()  # dict of time -> {result_name -> [val, val, val]}
         m = multiprocessing.Manager()
         all_output = []
         all_err = []
         for i in range(n_runs):
             for i_try in range(n_retry + 1):
-                new_time_results = {}
                 if i_try > 0 and not self.options.quiet:
                     print("Re-try tests %d/%d..." % (i_try, n_retry + 1))
                 output = ''
                 err = ''
-
 
                 queue = m.Queue()
 
@@ -357,17 +417,20 @@ class Testie:
 
                 remote_params = []
                 for t, v, role in (
-                [(imp.testie, imp.imp_v, imp.get_role()) for imp in self.imports] if do_imports else []) + [
-                    (self, v, None)]:
+                                          [(imp.testie, imp.imp_v, imp.get_role()) for imp in
+                                           self.imports] if do_imports else []) + [
+                                      (self, v, None)]:
                     for script in t.scripts:
                         if not script.get_type() in allowed_types:
                             continue
                         param = RemoteParameters()
-                        param.commands = "mkdir -p "+test_folder+" && cd " + test_folder + ";\n" + SectionVariable.replace_variables(v,
-                                                                                                         script.content,
-                                                                                                         role if role else script.get_role(),
-                                                                                                         self.config.get_dict(
-                                                                                                             "default_role_map"))
+
+                        param.commands = "mkdir -p " + test_folder + " && cd " + test_folder + ";\n" + SectionVariable.replace_variables(
+                            v,
+                            script.content,
+                            role if role else script.get_role(),
+                            self.config.get_dict(
+                                "default_role_map"))
                         param.options = self.options
                         param.queue = queue
                         param.stdin = t.stdin.content
@@ -428,7 +491,6 @@ class Testie:
                         print("Test files have been preserved in :" + test_folder)
                     sys.exit(1)
 
-
                 if self.options.allow_mp:
                     p.close()
                     p.terminate()
@@ -436,7 +498,8 @@ class Testie:
                 critical_failed = False
                 for iscript, (r, o, e, c, script) in enumerate(parallel_execs):
                     if r == 0:
-                        print("Timeout of %d seconds expired for script %s on %s..." % (script.timeout, script.get_name(),script.get_role()))
+                        print("Timeout of %d seconds expired for script %s on %s..." % (
+                        script.timeout, script.get_name(), script.get_role()))
                         if not self.options.quiet:
                             if not self.options.show_full:
                                 print("stdout:")
@@ -452,9 +515,10 @@ class Testie:
                     if c != 0:
                         n_err = n_err + 1
                         if npf.parseBool(script.params.get("critical", t.config["critical"])):
-                            critical_failed=True
+                            critical_failed = True
                             print("[ERROR] A critical script failed ! Results will be ignored")
-                        print("Bad return code (%d) for script %s on %s ! Something probably went wrong..." % (c,script.get_name(),script.get_role()))
+                        print("Bad return code (%d) for script %s on %s ! Something probably went wrong..." % (
+                        c, script.get_name(), script.get_role()))
                         if not self.options.quiet:
                             if not self.options.show_full:
                                 print("stdout:")
@@ -463,11 +527,10 @@ class Testie:
                             print(e)
                         continue
 
-
                 for iparallel, (r, o, e, c, script) in enumerate(parallel_execs):
                     if len(self.scripts) > 1:
-                        output += "stdout of script %s on %s :\n" % (script.get_name(),script.get_role())
-                        err += "stderr of script %s on %s :\n" % (script.get_name(),script.get_role())
+                        output += "stdout of script %s on %s :\n" % (script.get_name(), script.get_role())
+                        err += "stderr of script %s on %s :\n" % (script.get_name(), script.get_role())
 
                     if r:
                         worked = True
@@ -485,58 +548,17 @@ class Testie:
 
                 has_values = False
                 has_err = False
-                for result_regex in self.config.get_list("result_regex"):
-                    result_types = OrderedDict()
-                    try:
-                        for nr in re.finditer(result_regex, output.strip(), re.IGNORECASE):
-                            result_type = nr.group("type")
+                new_data_results = {}
+                new_time_results = {}
+                regex_list = self.config.get_list("result_regex")
 
-                            time = nr.group("time")
-                            if result_type is None:
-                                result_type = ''
-                            n = float(nr.group("value"))
-                            mult = nr.group("multiplier")
-                            unit = ""
-                            if nr.group("unit"):
-                                unit = nr.group("unit")
-                            if unit.lower() == "sec" or unit.lower() == "s":
-                                unit = "s"
-
-                            if unit == "s":
-                                if mult == "m":
-                                    n = n / 1000 #Keep all results in seconds
-                                elif mult == "u" or mult=="µ":
-                                    n = n / 1000000
-                                elif mult == "n":
-                                    n = n / 1000000000
-                            else:
-                                mult = mult.upper()
-
-                            if mult == "K":
-                                n *= 1024
-                            elif mult == "M":
-                                n *= 1024 * 1024
-                            elif mult == "G":
-                                n *= 1024 * 1024 * 1024
-                            if n != 0 or (self.config.match("accept_zero", result_type)) or time is not None:
-                                if time:
-                                    new_time_results.setdefault(float(time),{}).setdefault(result_type, []).append(n)
-                                else:
-                                    if result_type in result_types:
-                                        result_types[result_type] += n
-                                    else:
-                                        result_types[result_type] = n
-                                has_values = True
-                            else:
-                                print("Result for %s is 0 !" % result_type)
-                                has_err = True
-                        for result_type, val in result_types.items():
-                            data_results.setdefault(result_type, []).append(val)
-
-                    except Exception as e:
-                        print("Exception while parsing results :")
-                        has_err = True
-                        raise e
+                this_has_err, this_has_value = self.parse_results(regex_list, output, new_time_results, new_data_results)
+                if this_has_err:
+                    has_err = True
+                if this_has_value:
+                    has_values = True
+                if hasattr(self,'pyexit'):
+                    exec(self.pyexit.content,{'RESULTS':new_data_results,'TIME_RESULTS':new_time_results})
 
                 if new_time_results:
                     min_time = min(new_time_results.keys())
@@ -544,14 +566,18 @@ class Testie:
                     all_result_types = set()
                     for time, results in new_time_results.items():
                         for result_type, result in results.items():
-                            if (np.asarray(result) != 0).any():
+                            if result != 0:
                                 nonzero.add(result_type)
                             all_result_types.add(result_type)
-                            time_results.setdefault(Decimal(("%.0" + str(self.config['time_precision']) + "f") % round(float(time - min_time), int(self.config['time_precision']))),{}).setdefault(result_type, []).extend(result)
+                            time_results.setdefault(Decimal(
+                                ("%.0" + str(self.config['time_precision']) + "f") % round(float(time - min_time), int(
+                                    self.config['time_precision']))), {}).setdefault(result_type, []).append(result)
                     diff = all_result_types.difference(nonzero)
                     if diff:
                         print("Result for %s is 0 !" % ', '.join(diff))
                         has_err = True
+                for result_type, result in new_data_results.items():
+                    data_results.setdefault(result_type, []).append(result)
 
                 if has_values:
                     break
@@ -583,8 +609,7 @@ class Testie:
             shutil.rmtree(test_folder)
         return data_results, time_results, all_output, all_err, n_exec, n_err
 
-
-    def do_init_all(self, build, options, do_test, allowed_types=SectionScript.ALL_TYPES_SET,test_folder=None):
+    def do_init_all(self, build, options, do_test, allowed_types=SectionScript.ALL_TYPES_SET, test_folder=None):
         if not build.build(options.force_build, options.no_build, options.quiet_build, options.show_build_cmd):
             raise ScriptInitException()
         if not self.build_deps([build.repo]):
@@ -598,8 +623,11 @@ class Testie:
                 vs[k] = v.makeValues()[0]
             for late_variables in self.get_late_variables():
                 vs.update(late_variables.execute(vs, self))
-            data_results, time_results, output, err, num_exec, num_err = self.execute(build, Run(vs), v=vs, n_runs=1, n_retry=0,
-                                                              allowed_types={"init"}, do_imports=True,test_folder=test_folder)
+            data_results, time_results, output, err, num_exec, num_err = self.execute(build, Run(vs), v=vs, n_runs=1,
+                                                                                      n_retry=0,
+                                                                                      allowed_types={"init"},
+                                                                                      do_imports=True,
+                                                                                      test_folder=test_folder)
 
             if num_err > 0:
                 if not options.quiet:
@@ -610,8 +638,9 @@ class Testie:
                     print("\n".join(err))
                 raise ScriptInitException()
 
-    def execute_all(self, build, options, prev_results: Dataset = None, do_test=True, on_finish = None,
-            allowed_types=SectionScript.ALL_TYPES_SET, prev_time_results : Dataset = None) -> Tuple[Dataset, bool]:
+    def execute_all(self, build, options, prev_results: Dataset = None, do_test=True, on_finish=None,
+                    allowed_types=SectionScript.ALL_TYPES_SET, prev_time_results: Dataset = None) -> Tuple[
+        Dataset, bool]:
         """Execute script for all variables combinations. All tools reliy on this function for execution of the testie
         :param allowed_types:Tyeps of scripts allowed to run. Set with either init, scripts or both
         :param do_test: Actually run the tests
@@ -622,7 +651,7 @@ class Testie:
         """
 
         init_done = False
-        test_folder=self.make_test_folder()
+        test_folder = self.make_test_folder()
 
         if not SectionScript.TYPE_SCRIPT in allowed_types:
             # If scripts is not in allowed_types, we have to run the init by force now
@@ -634,14 +663,14 @@ class Testie:
 
         all_data_results = OrderedDict()
         all_time_results = OrderedDict()
-        #If one first, we first ensure 1 result per variables then n_runs
+        # If one first, we first ensure 1 result per variables then n_runs
         if options.onefirst:
-            total_runs = [1,self.config["n_runs"]]
+            total_runs = [1, self.config["n_runs"]]
         else:
             total_runs = [self.config["n_runs"]]
-        for runs_this_pass in total_runs: #Number of results to ensure for this run
+        for runs_this_pass in total_runs:  # Number of results to ensure for this run
             n = 0
-            for variables in self.variables.expand(method = options.expand):
+            for variables in self.variables.expand(method=options.expand):
                 n += 1
                 run = Run(variables)
                 variables = variables.copy()
@@ -666,7 +695,8 @@ class Testie:
                     run_results = {}
 
                 time_results = OrderedDict()
-                if prev_time_results and prev_time_results is not None and not (options.force_test or options.force_retest):
+                if prev_time_results and prev_time_results is not None and not (
+                        options.force_test or options.force_retest):
                     nprev_time_results = OrderedDict()
                     for trun, results in prev_time_results.items():
                         if run.inside(trun):
@@ -697,22 +727,27 @@ class Testie:
 
                 have_new_results = False
 
-                n_runs = runs_this_pass - (0 if (options.force_test or options.force_retest) or len(run_results) == 0 else min(
-                    [len(results) for result_type, results in run_results.items()]))
+                n_runs = runs_this_pass - (
+                    0 if (options.force_test or options.force_retest) or len(run_results) == 0 else min(
+                        [len(results) for result_type, results in run_results.items()]))
                 if n_runs > 0 and do_test:
                     if not init_done:
-                        self.do_init_all(build, options, do_test, allowed_types=allowed_types,test_folder=test_folder)
+                        self.do_init_all(build, options, do_test, allowed_types=allowed_types, test_folder=test_folder)
                         init_done = True
                     if not self.options.quiet:
                         if len(self.variables) > 0:
-                            print(run.format_variables(self.config["var_hide"]),"[%d runs for %d/%d]" % (n_runs,n,len(self.variables)))
+                            print(run.format_variables(self.config["var_hide"]),
+                                  "[%d runs for %d/%d]" % (n_runs, n, len(self.variables)))
                         else:
                             print("Executing single run...")
 
-                    new_data_results, new_time_results, output, err, n_exec, n_err = self.execute(build, run, variables, n_runs,
-                                                                    n_retry=self.config["n_retry"],
-                                                                    allowed_types={SectionScript.TYPE_SCRIPT},
-                                                                    test_folder=test_folder)
+                    new_data_results, new_time_results, output, err, n_exec, n_err = self.execute(build, run, variables,
+                                                                                                  n_runs,
+                                                                                                  n_retry=self.config[
+                                                                                                      "n_retry"],
+                                                                                                  allowed_types={
+                                                                                                  SectionScript.TYPE_SCRIPT},
+                                                                                                  test_folder=test_folder)
                     if new_data_results:
                         for result_type, values in new_data_results.items():
                             if options.force_retest:
@@ -742,7 +777,7 @@ class Testie:
                         time_run = Run(run.variables.copy())
                         time_run.variables['time'] = time
                         for result_type, result in results.items():
-                            rt = time_results.setdefault(time_run,{}).setdefault(result_type,[])
+                            rt = time_results.setdefault(time_run, {}).setdefault(result_type, [])
                             if options.force_retest:
                                 rt.clear()
                             rt.extend(result)
@@ -752,6 +787,7 @@ class Testie:
                 if on_finish and have_new_results:
                     def call_finish():
                         on_finish(all_data_results, all_time_results)
+
                     thread = threading.Thread(target=call_finish, args=())
                     thread.daemon = True
                     thread.start()

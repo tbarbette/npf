@@ -13,11 +13,12 @@ from random import shuffle
 
 import re
 
+
 class SectionFactory:
     varPattern = "([a-zA-Z0-9_:-]+)[=](" + Variable.VALUE_REGEX + ")?"
     namePattern = re.compile(
-            "^(?P<tags>"+Variable.TAGS_REGEX+"[:])?(?P<name>info|config|variables|late_variables|include (?P<includeName>[a-zA-Z0-9_./-]+)||(init-)?file(:?[@](?P<fileRole>[a-zA-Z0-9]+))? (?P<fileName>[a-zA-Z0-9_.-]+)(:? (?P<fileNoparse>noparse))?|require|"
-        "import(:?[@](?P<importRole>[a-zA-Z0-9]+))?[ \t]+(?P<importModule>" + Variable.VALUE_REGEX + ")(?P<importParams>([ \t]+" +
+        "^(?P<tags>" + Variable.TAGS_REGEX + "[:])?(?P<name>info|config|variables|pyexit|late_variables|include (?P<includeName>[a-zA-Z0-9_./-]+)||(init-)?file(:?[@](?P<fileRole>[a-zA-Z0-9]+))? (?P<fileName>[a-zA-Z0-9_.-]+)(:? (?P<fileNoparse>noparse))?|require|"
+                                             "import(:?[@](?P<importRole>[a-zA-Z0-9]+))?[ \t]+(?P<importModule>" + Variable.VALUE_REGEX + ")(?P<importParams>([ \t]+" +
         varPattern + ")+)?|"
                      "(:?script|init)(:?[@](?P<scriptRole>[a-zA-Z0-9]+))?(?P<scriptParams>([ \t]+" + varPattern + ")*))$")
 
@@ -44,13 +45,14 @@ class SectionFactory:
             s = SectionImport(matcher.group('importRole'), module, params)
             return s
 
-        if sectionName.startswith('script') or (sectionName.startswith('init') and not sectionName.startswith('init-file')):
+        if sectionName.startswith('script') or (
+                sectionName.startswith('init') and not sectionName.startswith('init-file')):
             params = matcher.group('scriptParams')
             params = dict(re.findall(SectionFactory.varPattern, params)) if params else {}
             s = SectionScript(matcher.group('scriptRole'), params)
             if sectionName.startswith('init'):
                 s.init = True
-                s.params.setdefault("autokill",False)
+                s.params.setdefault("autokill", False)
             return s
 
         if matcher.group('scriptParams') is not None:
@@ -58,13 +60,15 @@ class SectionFactory:
                             matcher.groups("params") + ")")
 
         if sectionName.startswith('file'):
-            s = SectionFile(matcher.group('fileName').strip(), role=matcher.group('fileRole'),noparse=matcher.group('fileNoparse'))
+            s = SectionFile(matcher.group('fileName').strip(), role=matcher.group('fileRole'),
+                            noparse=matcher.group('fileNoparse'))
             return s
         if sectionName.startswith('init-file'):
-            s = SectionInitFile(matcher.group('fileName').strip(), role=matcher.group('fileRole'),noparse=matcher.group('fileNoparse'))
+            s = SectionInitFile(matcher.group('fileName').strip(), role=matcher.group('fileRole'),
+                                noparse=matcher.group('fileNoparse'))
             return s
         elif sectionName.startswith('include'):
-            s = SectionImport(None, matcher.group('includeName').strip(), {},is_include=True)
+            s = SectionImport(None, matcher.group('includeName').strip(), {}, is_include=True)
             return s
         elif sectionName == 'require':
             s = SectionRequire()
@@ -77,10 +81,12 @@ class SectionFactory:
 
         if sectionName == 'variables':
             s = SectionVariable()
+        elif sectionName == 'pyexit':
+            s = Section('pyexit')
         elif sectionName == 'config':
             s = SectionConfig()
         elif sectionName == 'info':
-            s = Section(sectionName)
+            s = Section('info')
         setattr(testie, s.name, s)
         return s
 
@@ -104,8 +110,6 @@ class SectionNull(Section):
 
 
 class SectionScript(Section):
-
-
     TYPE_INIT = "init"
     TYPE_SCRIPT = "script"
     ALL_TYPES_SET = {TYPE_INIT, TYPE_SCRIPT}
@@ -128,7 +132,7 @@ class SectionScript(Section):
         if 'name' in self.params:
             return self.params['name']
         elif full:
-            return "%s [%s]" % (self.get_role() , str(self.index))
+            return "%s [%s]" % (self.get_role(), str(self.index))
         else:
             return str(self.index)
 
@@ -199,9 +203,10 @@ class SectionFile(Section):
     def finish(self, testie):
         testie.files.append(self)
 
+
 class SectionInitFile(SectionFile):
     def __init__(self, filename, role=None, noparse=False):
-        super().__init__(filename,role,noparse)
+        super().__init__(filename, role, noparse)
 
     def finish(self, testie):
         testie.init_files.append(self)
@@ -236,15 +241,16 @@ class BruteVariableExpander:
             self.expanded = newList
         self.it = self.expanded.__iter__()
 
-
     def __iter__(self):
         return self.expanded.__iter__()
 
     def __next__(self):
         return self.it.__next__()
 
+
 class RandomVariableExpander(BruteVariableExpander):
     """Same as BruteVariableExpander but shuffle the series to test"""
+
     def __init__(self, vlist):
         super().__init__(vlist)
         shuffle(self.expanded)
@@ -259,7 +265,7 @@ class SectionVariable(Section):
         self.aliases = {}
 
     @staticmethod
-    def replace_variables(v, content, self_role=None, default_role_map={}):
+    def replace_variables(v: dict, content: str, self_role=None, default_role_map={}):
         """
         Replace all variable and nics references in content
         This is done in two step : variables first, then NICs reference so variable can be used in NIC references
@@ -271,7 +277,8 @@ class SectionVariable(Section):
 
         def do_replace(match):
             varname = match.group('varname_sp') if match.group('varname_sp') is not None else match.group('varname_in')
-            if (varname in v):
+
+            if varname in v:
                 val = v[varname]
                 return str(val[0] if type(val) is tuple else val)
             return match.group(0)
@@ -307,8 +314,8 @@ class SectionVariable(Section):
             values.append(SectionVariable.replace_variables(v, value))
         return values
 
-    def expand(self, method = None):
-        if method == "shuffle" or method == "rand" or method=="random":
+    def expand(self, method=None):
+        if method == "shuffle" or method == "rand" or method == "random":
             return RandomVariableExpander(self.vlist)
         else:
             return BruteVariableExpander(self.vlist)
@@ -361,7 +368,7 @@ class SectionVariable(Section):
 
     @staticmethod
     def match_tags(text, tags):
-        if not text or text == ':' :
+        if not text or text == ':':
             return True
         if text.endswith(':'):
             text = text[:-1]
@@ -443,13 +450,13 @@ class SectionLateVariable(SectionVariable):
 
     def execute(self, variables, testie):
         self.vlist = OrderedDict()
-        for k,v in variables.items():
-            self.vlist[k] = SimpleVariable(k,v)
+        for k, v in variables.items():
+            self.vlist[k] = SimpleVariable(k, v)
         content = self.content
 
         vlist = self.build(content, testie)
         final = OrderedDict()
-        for k,v in vlist.items():
+        for k, v in vlist.items():
             final[k] = v.makeValues()[0]
 
         return final
@@ -471,29 +478,27 @@ class SectionConfig(SectionVariable):
         self.vlist = {}
 
         self.aliases = {
-            'graph_variable_as_series' : 'graph_variables_as_series',
-            'graph_grid' : 'var_grid',
-            'graph_serie' : 'var_serie',
-            'var_combine' : 'graph_combine_variables',
-            'series_as_variables' : 'graph_series_as_variables',
+            'graph_variable_as_series': 'graph_variables_as_series',
+            'graph_grid': 'var_grid',
+            'graph_serie': 'var_serie',
+            'var_combine': 'graph_combine_variables',
+            'series_as_variables': 'graph_series_as_variables',
             'var_as_series': 'graph_variables_as_series',
-            'result_as_variables' : 'graph_result_as_variables',
-            'series_prop' : 'graph_series_prop'
+            'result_as_variables': 'graph_result_as_variables',
+            'series_prop': 'graph_series_prop'
         }
 
-        #Environment
+        # Environment
         self.__add("default_repo", None)
 
-
-        #Regression related
+        # Regression related
         self.__add_dict("accept_zero", {})
         self.__add("n_supplementary_runs", 3)
         self.__add("acceptable", 0.01)
         self.__add("accept_outliers_mult", 1)
         self.__add("accept_variance", 1)
 
-
-        #Test related
+        # Test related
         self.__add("n_runs", 3)
         self.__add("n_retry", 0)
         self.__add_list("result_regex", [
@@ -501,51 +506,51 @@ class SectionConfig(SectionVariable):
         self.__add_list("results_expect", [])
         self.__add("autokill", True)
         self.__add("critical", False)
-        self.__add_dict("env", {}) #Unimplemented yet
+        self.__add_dict("env", {})  # Unimplemented yet
         self.__add("timeout", 30)
         self.__add("time_precision", 1)
 
-        #Role related
-        self.__add_dict("default_role_map",{})
+        # Role related
+        self.__add_dict("default_role_map", {})
         self.__add_list("role_exclude", [])
 
-        #Graph options
-        self.__add_dict("graph_combine_variables",{})
+        # Graph options
+        self.__add_dict("graph_combine_variables", {})
         self.__add_dict("graph_subplot_results", {})
         self.__add_list("graph_display_statics", [])
         self.__add_list("graph_variables_as_series", [])
         self.__add_list("graph_hide_variables", [])
-        self.__add_dict('graph_result_as_variable',{})
+        self.__add_dict('graph_result_as_variable', {})
         self.__add_dict('graph_map', {})
         self.__add("graph_scatter", False)
         self.__add("graph_subplot_type", "subplot")
         self.__add("graph_max_series", None)
         self.__add("graph_series_as_variables", False)
-        self.__add("graph_series_prop",False)
+        self.__add("graph_series_prop", False)
         self.__add("graph_series_sort", None)
         self.__add("graph_series_label", None)
         self.__add("graph_bar_stack", False)
-        self.__add("graph_text",'')
-        self.__add("graph_legend",True)
-        self.__add("graph_error_fill",False)
-        self.__add("graph_mode",None)
+        self.__add("graph_text", '')
+        self.__add("graph_legend", True)
+        self.__add("graph_error_fill", False)
+        self.__add("graph_mode", None)
         self.__add_list("graph_color", [])
-        self.__add_list("graph_markers",  ['o', '^', 's', 'D', '*', 'x', '.', '_', 'H', '>', '<', 'v', 'd'])
-        self.__add_list("graph_lines",  ['-', '--', '-.', ':'])
+        self.__add_list("graph_markers", ['o', '^', 's', 'D', '*', 'x', '.', '_', 'H', '>', '<', 'v', 'd'])
+        self.__add_list("graph_lines", ['-', '--', '-.', ':'])
         self.__add_list("legend_bbox", [0, 1, 1, .1])
         self.__add("legend_loc", "best")
         self.__add("legend_ncol", 1)
         self.__add("var_hide", {})
         self.__add_list("var_log", [])
         self.__add_dict("var_log_base", {})
-        self.__add_dict("var_divider", {'result':1})
+        self.__add_dict("var_divider", {'result': 1})
         self.__add_dict("var_lim", {})
         self.__add_dict("var_format", {})
         self.__add_dict("var_ticks", {})
         self.__add_list("var_grid", [])
-        self.__add("var_serie",None)
-        self.__add_dict("var_names", {"result-LATENCY":"Latency (µs)","result-THROUGHPUT":"Throughput"})
-        self.__add_dict("var_unit", {"result": "bps","result-LATENCY":"us","latency":"us","throughput":"bps"})
+        self.__add("var_serie", None)
+        self.__add_dict("var_names", {"result-LATENCY": "Latency (µs)", "result-THROUGHPUT": "Throughput"})
+        self.__add_dict("var_unit", {"result": "bps", "result-LATENCY": "us", "latency": "us", "throughput": "bps"})
         self.__add("title", None)
         self.__add_list("require_tags", [])
 
@@ -567,7 +572,7 @@ class SectionConfig(SectionVariable):
         var = self.vlist[key]
         try:
             v = {}
-            for k,l in var.vdict.items():
+            for k, l in var.vdict.items():
                 v[k.strip()] = l
         except AttributeError:
             print("WARNING : Error in configuration of %s" % key)

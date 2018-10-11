@@ -1,0 +1,15 @@
+%variables
+CPU=[1-8]
+
+//Just random values
+T=100
+R=50
+
+%script
+bash -c 'echo "RESULT-RX $R\nRESULT-TX $T"'
+
+%pyexit
+import numpy as np
+loss=RESULTS["RX"] - RESULTS["TX"]
+RESULTS["LOSS"]=loss
+

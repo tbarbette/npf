@@ -65,13 +65,14 @@ else
     python=python
 fi
 
-try tests/tcp/01-iperf.testie $python "--variables TIME=1"
+compare pyexit $python
 compare integration-01 $python
 compare integration-02 $python
 compare timeout $python
 compare timeout-overwrite $python
 compare event $python
 compare math $python
+try tests/tcp/01-iperf.testie $python "--variables TIME=1"
 #compare_watcher $python
 
 exit $ret
