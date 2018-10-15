@@ -25,14 +25,16 @@ class LocalKiller:
 
 class LocalExecutor(Executor):
     def __init__(self):
-        pass
+        super().__init__()
 
-    def exec(self, cmd, bin_paths : List[str]=[], queue: Queue = None, options = None, stdin = None, timeout = None, sudo = False, testdir=None, event=None, title=None):
+    def exec(self, cmd, bin_paths : List[str]=[], queue: Queue = None, options = None, stdin = None, timeout = None, sudo = False, testdir=None, event=None, title=None, env = {} ):
         if testdir is not None:
             os.chdir("..")
-
+        if not title:
+            title = "local"
         cwd = os.getcwd()
-        env = os.environ.copy()
+        env = env.copy()
+        env.update(os.environ)
         if bin_paths:
             if not sudo:
                 env["PATH"] = ':'.join([cwd + '/' + path for path in bin_paths]) + ":" + env["PATH"]
@@ -59,6 +61,9 @@ class LocalExecutor(Executor):
             s_output, s_err = [x.decode() for x in
                                p.communicate(input = stdin,  timeout=timeout)]
             self.searchEvent(s_output, event)
+            if options and options.show_full:
+                for line in s_output.splitlines():
+                    self._print(title, line, True)
             p.stdin.close()
             p.stderr.close()
             p.stdout.close()

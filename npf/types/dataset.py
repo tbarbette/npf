@@ -120,8 +120,32 @@ def var_divider(testie: 'Testie', key: str, result_type = None):
         return 1024
     return 1
 
+def group_val(result, t):
+                           if t == 'mean':
+                               return np.mean(result)
+                           elif t == 'avg':
+                               return np.average(result)
+                           elif t == 'min':
+                               return np.min(result)
+                           elif t == 'max':
+                               return np.max(result)
+                           elif t[:4] == 'perc':
+                               return np.percentile(result, int(t[4:]))
+                           elif t == 'median' or t == 'med':
+                               return np.median(result)
+                           elif t == 'std':
+                               return np.std(result)
+                           elif t == 'nres':
+                               return len(result)
+                           elif t == 'first':
+                                return result[0]
+                           elif t == 'last':
+                                return result[-1]
+                           else:
+                               print("WARNING : Unknown format %s" % t)
+                               return np.nan
 
-def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list, key, do_x_sort, statics, options, max_series = None, series_sort=None) -> AllXYEB:
+def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list, key, do_x_sort, statics, options, max_series = None, series_sort=None, y_group={}) -> AllXYEB:
     data_types = OrderedDict()
     all_result_types = OrderedSet()
 
@@ -174,33 +198,26 @@ def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list
                            elif t == 'all_x':
                                for var,val in run.variables.items():
                                    row.append(val)
-                           elif t == 'mean':
-                               row.append(np.mean(result))
-                           elif t == 'avg':
-                               row.append(np.average(result))
-                           elif t[:4] == 'perc':
-                               row.append(np.percentile(result, int(t[4:])))
-                           elif t == 'median':
-                               row.append(np.median(result))
-                           elif t == 'std':
-                               row.append(np.std(result))
                            elif t == 'raw':
                                row.extend(result)
-                           elif t == 'nres':
-                               row.append(len(result))
                            else:
-                               print("WARNING : Unknown format %s" % t)
+                               yval = group_val(result,t)
+                               if yval is not None:
+                                   row.append(yval)
 
                        if row:
                            wr.writerow(row)
 
                 if result is not None:
-                    #result = np.asarray(result) / ydiv
-                    y.setdefault(result_type, []).append(np.mean(result))
-                    e.setdefault(result_type, []).append(np.std(result))
+                    yval = group_val(result, y_group[result_type] if result_type in y_group  else 'mean')
+                    y.setdefault(result_type, []).append(yval)
+
+                    std = np.std(result)
+                    mean = np.mean(result)
+                    e.setdefault(result_type, []).append((mean,std))
                 else:
                     y.setdefault(result_type, []).append(np.nan)
-                    e.setdefault(result_type, []).append(np.nan)
+                    e.setdefault(result_type, []).append((np.nan, np.nan))
 
 
         for result_type in x.keys():

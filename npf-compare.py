@@ -71,12 +71,12 @@ def do_graph(filename,args,series,time_series):
             serie_values = set()
             for run, result_types in dataset.items():
                 val = run.variables[variable]
-                all_values.add(val)
+#                all_values.add(val)
                 serie_values.add(val)
             if len(serie_values) > 1:
                 all_alone = False
                 break
-        if all_alone and len(all_values) > 1:
+        if all_alone:
             pass
         else:
             useful_variables.append(variable)
@@ -90,6 +90,13 @@ def do_graph(filename,args,series,time_series):
         for run, results in dataset.items():
             ndataset[run.intersect(useful_variables)] = results
         series[i] = (testie, build, ndataset)
+
+    #Keep only the variables in Run that are usefull as defined above
+    for i, (testie, build, dataset) in enumerate(time_series):
+        ndataset = OrderedDict()
+        for run, results in dataset.items():
+            ndataset[run.intersect(useful_variables + ['time'])] = results
+        time_series[i] = (testie, build, ndataset)
 
     grapher = Grapher()
     g = grapher.graph(series=series,

@@ -1,9 +1,9 @@
 import os
 import tarfile
 import urllib
+from collections import OrderedDict
 from abc import ABCMeta
 from pathlib import Path
-
 import re
 from urllib.error import URLError
 
@@ -109,6 +109,7 @@ class MethodGit(Method):
         if gitrepo.head.commit != gitrepo.commit(c):
             if not self.repo.options.quiet_build:
                 print("Reseting branch to latest %s" % (c))
+            gitrepo.git.stash('save')
             gitrepo.head.reset(commit=c, index=True, working_tree=True)
 
         self.__gitrepo = gitrepo
@@ -183,7 +184,7 @@ class Repository:
         self.make = 'make -j12'
         self.clean = 'make clean'
         self.bin_folder = 'bin'
-        self.env = {}
+        self.env = OrderedDict()
         self.bin_name = self.reponame  # Wild guess that may work some times...
         self.configure = ''
         self._last_100 = None
@@ -268,8 +269,14 @@ class Repository:
 
             self.method = self.method(self)  # Instanciate the method
 
+        self.overriden_variables = {}
         if len(add_tags) > 1:
-            self.tags += add_tags[1].split(',')
+            for spec in add_tags[1].split(','):
+                sp = spec.split('=')
+                if len(sp) == 1:
+                    self.tags.append(spec)
+                else:
+                    self.overriden_variables[sp[0]] = sp[1]
             self._id = self.reponame + "-" + add_tags[1]
         else:
             self._id = self.reponame

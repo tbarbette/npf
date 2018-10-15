@@ -63,9 +63,9 @@ def dtype(v):
 class VariableFactory:
     @staticmethod
     def build(name, valuedata, vsection=None):
-        result = re.match("\[(-?[0-9.]+)([+-]|[*])(-?[0-9.]+)([#][0-9]+)?\]", valuedata)
+        result = re.match("\[(-?[0-9.]+)([+-]|[*])(-?[0-9.]+)([#][0-9.]+)?\]", valuedata)
         if result:
-            return RangeVariable(name, result.group(1), result.group(3), result.group(2) == "*", (int(result.group(4)[1:]) if result.group(4) else None))
+            return RangeVariable(name, result.group(1), result.group(3), result.group(2) == "*", (get_numeric(result.group(4)[1:]) if result.group(4) else None))
 
         result = regex.match("\{([^:]*:[^,:]+)(?:(?:,)([^,:]*:[^,:]+))*\}", valuedata)
         if result:
@@ -79,12 +79,14 @@ class VariableFactory:
         if result:
             return ExpandVariable(name, result.group(1), vsection)
 
-        result = regex.match("HEAD[ ]*\([ ]*\$([^,]+)[ ]*,[ ]*\$([^,]+)[ ]*\)", valuedata)
+        result = regex.match("HEAD[ ]*\([ ]*\$([^,]+)[ ]*,[ ]*\$([^,]+)[ ]*(,[ ]*(?P<sep>.+)[ ]*)?\)", valuedata)
         if result:
             if vsection is None:
                 raise Exception("HEAD variable without vsection",vsection)
+            if result.group(1) not in vsection.vlist:
+                return None
             return HeadVariable(name, vsection.vlist[result.group(1)].makeValues(),
-                                vsection.vlist[result.group(2)].makeValues())
+                                vsection.vlist[result.group(2)].makeValues(), result.group('sep'))
         result = regex.match("IF[ ]*\([ ]*([^,]+)[ ]*,[ ]*([^,]+)[ ]*,[ ]*([^,]+)[ ]*\)", valuedata)
         if result:
             if vsection is None:
@@ -98,7 +100,7 @@ class VariableFactory:
 
 class Variable:
     def __init__(self):
-        self.is_append = None
+        self.assign = '='
 
     NAME_REGEX = r'[a-zA-Z0-9._-]+'
     TAGS_REGEX = r'[a-zA-Z0-9._,|!-]+'
@@ -110,10 +112,11 @@ class Variable:
 
 # For each value N of nums, generate a variable with the first N element of values
 class HeadVariable(Variable):
-    def __init__(self, name, nums, values):
+    def __init__(self, name, nums, values, join = "\n"):
         self.values = values
         self.nums = nums
-        self.join = "\n"
+        self.join = join
+
 
     def makeValues(self):
         if self.nums == 0:
@@ -284,25 +287,25 @@ class RangeVariable(Variable):
 
 
     def makeValues(self):
-        if self.log:
             vs = []
             i = self.a
             while i <= self.b:
                 vs.append(i)
                 if i == self.b:
                     break
-                if i == 0:
+                if i == 0 and self.log:
                     if self.b > 0:
                         i = 1
                     else:
                         i = -1
                 else:
-                    i *= self.step
+                    if self.log:
+                        i *= self.step
+                    else:
+                        i += self.step
             if i > self.b:
                 vs.append(self.b)
-        else:
-            vs = range(self.a, self.b + 1, self.step)
-        return vs
+            return vs
 
     def format(self):
         return int

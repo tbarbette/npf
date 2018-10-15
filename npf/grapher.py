@@ -88,6 +88,7 @@ class Graph:
     def __init__(self, grapher:'Grapher'):
         self.grapher = grapher
         self.subtitle = None
+        self.data_types = None
 
     def statics(self):
         return dict([(var,values[0]) for var,values in self.vars_values.items() if len(values) == 1])
@@ -96,7 +97,8 @@ class Graph:
         return [var for var,values in self.vars_values.items() if len(values) > 1]
 
     def dataset(self):
-        data_types = dataset.convert_to_xyeb(
+        if not self.data_types:
+            self.data_types = dataset.convert_to_xyeb(
                 datasets = self.series,
                 run_list = self.vars_all,
                 key = self.key,
@@ -104,8 +106,10 @@ class Graph:
                 do_x_sort=self.do_sort,
                 series_sort=self.grapher.config('graph_series_sort'),
                 options=self.grapher.options,
-                statics=self.statics())
-        return data_types
+                statics=self.statics(),
+                y_group=self.grapher.configdict('graph_y_group'))
+
+        return self.data_types
 
     def split_for_series(self):
         '''Make a sub-graph per serie'''
@@ -183,7 +187,6 @@ class Grapher:
 
     def var_name(self, key, result_type=None) -> str:
         return self.scriptconfig("var_names", key, key if not result_type else result_type, result_type)
-
 
     def us(self, x, pos):
         return self.formats(x, pos, 1)
@@ -339,7 +342,10 @@ class Grapher:
                             n_val = len(vars_values[k])
 
             # Key is found, no the extraction itself
-            graph = self.extract_variable_to_series(
+            if not key:
+                key = 'time'
+            if key:
+                graph = self.extract_variable_to_series(
                                 key=key,
                                 vars_values=vars_values,
                                 all_results=all_results,
@@ -665,6 +671,22 @@ class Grapher:
             series = transformed_series
 
 
+        for var, prec in self.configdict("var_round",{}).items():
+            transformed_series = []
+            prec = int(prec)
+            for i, (testie, build, all_results) in enumerate(series):
+                new_all_results = OrderedDict()
+                for run, run_results in all_results.items():
+                    if var in run.variables:
+                        run.variables[var] = round(run.variables[var], prec)
+                        if run in new_all_results:
+                            np.append(new_all_results[run][result_type], run_results[result_type])
+                        else:
+                            new_all_results[run] = run_results
+                transformed_series.append((testie, build, new_results))
+            series = transformed_series
+
+
         versions = []
         vars_all = OrderedSet()
         for i, (testie, build, all_results) in enumerate(series):
@@ -735,9 +757,12 @@ class Grapher:
                     if re.match(result_type, k):
                         if variable.is_numeric(n_cols):
                             n_cols = variable.get_numeric(n_cols)
+                            subplot_legend_titles = [self.var_name("result",result_type=result_type)]
                         else:
+                            subplot_legend_titles = re.split("[+]", n_cols)
                             n_cols = 1
-                        plots.setdefault(i,([],n_cols))[0].append((k))
+
+                        plots.setdefault(i,([],n_cols,subplot_legend_titles))[0].append((k))
                         matched_set.add(k)
                         matched = True
                 if not matched:
@@ -746,9 +771,9 @@ class Grapher:
         # Unmatched plots are added as single subplots
         for result_type, data in sorted(data_types.items()):
             if result_type not in matched_set:
-                plots[result_type] = ([result_type],1)
+                plots[result_type] = ([result_type],1,[])
 
-        for i, (figure,n_s_cols) in plots.items():
+        for i, (figure,n_s_cols,subplot_legend_titles) in plots.items():
             v_cols = len(graphs)
             v_lines = 1
             while v_cols > 2 and v_cols > v_lines:
@@ -769,7 +794,7 @@ class Grapher:
             for graph in graphs:
                 data_types = graph.dataset()
 
-                result_type, lgd = self.generate_plot_for_graph(i, i_subplot, figure, n_cols, n_lines, graph.vars_values, data_types, graph.dyns(), graph.vars_all, graph.key, graph.subtitle if graph.subtitle else graph.title, ret)
+                result_type, lgd = self.generate_plot_for_graph(i, i_subplot, figure, n_cols, n_lines, graph.vars_values, data_types, graph.dyns(), graph.vars_all, graph.key, graph.subtitle if graph.subtitle else graph.title, ret, subplot_legend_titles)
 
                 i_subplot += len(figure)
 
@@ -780,7 +805,7 @@ class Grapher:
                             horizontalalignment='left')
 
             if len(figure) > 1:
-                if isubplot < len(figure) - 1:
+                if i_subplot < len(figure) - 1:
                     return
                 else:
                     result_type = fig_name
@@ -797,10 +822,10 @@ class Grapher:
             plt.clf()
         return ret
 
-    def generate_plot_for_graph(self, i, i_subplot, figure, n_cols, n_lines, vars_values, data_types, dyns, vars_all, key, title, ret):
+    def generate_plot_for_graph(self, i, i_subplot, figure, n_cols, n_lines, vars_values, data_types, dyns, vars_all, key, title, ret, subplot_legend_titles):
             ndyn=len(dyns)
             subplot_type=self.config("graph_subplot_type")
-
+            subplot_handles=[]
             axiseis = []
             for i_s_subplot, result_type in enumerate(figure):
                 isubplot = i_subplot * len(figure) + i_s_subplot
@@ -814,20 +839,31 @@ class Grapher:
                         axiseis[0].set_xlabel("")
                     else:
                         axis = plt.subplot(n_lines, n_cols, isubplot + 1)
-
+                    ihandle = 0
                     shift = 0
                 else:
                     if isubplot == 0:
                         fix,axis=plt.subplots()
-                    else:
+                        ihandle = 0
+                    elif isubplot == len(figure) - 1:
                         axis=axis.twinx()
+                        ihandle = 1
+                    else:
+                        axis=axiseis[0]
+                        ihandle = 0
                     if len(figure) > 1:
                         shift = isubplot + 1
-                        for i, (x, y, e, build) in enumerate(data):
-                            build._line=self.graphlines[isubplot]
                     else:
                         shift = 0
-                axiseis.append(axis)
+
+                if not axis in axiseis:
+                    axiseis.append(axis)
+                    subplot_handles.append((axis,result_type,[]))
+                subplot_handles[ihandle][2].append(result_type)
+
+
+                for i, (x, y, e, build) in enumerate(data):
+                    build._line=self.graphlines[i_s_subplot% len(self.graphlines)]
 
                 gcolor = self.configlist('graph_color')
                 gi = {} #Index per-color
@@ -871,9 +907,10 @@ class Grapher:
                 type_config = "" if not result_type else "-" + result_type
 
                 lgd = None
-                if legendcolors[shift]:
-                    axis.yaxis.label.set_color(legendcolors[shift])
-                    axis.tick_params(axis='y',colors=legendcolors[shift])
+                sl = shift % len(legendcolors)
+                if legendcolors[sl]:
+                    axis.yaxis.label.set_color(legendcolors[sl])
+                    axis.tick_params(axis='y',colors=legendcolors[sl])
                 xunit = self.scriptconfig("var_unit", key, default="")
                 xformat = self.scriptconfig("var_format", key, default="")
                 isLog = key in self.config('var_log', {})
@@ -945,34 +982,50 @@ class Grapher:
                         print(dyn)
                     return None
 
-            for isubplot, result_type in enumerate(figure):
-                axis = axiseis[isubplot]
+            for ilegend,(axis, result_type, plots) in enumerate(subplot_handles):
+                handles, labels = axis.get_legend_handles_labels()
+
                 if ndyn > 0 and bool(self.config_bool('graph_legend', True)):
                     loc = self.config("legend_loc")
                     if subplot_type=="axis" and len(figure) > 1:
                         if not loc.startswith("outer"):
 
                             if self.configlist("subplot_legend_loc"):
-                                loc=self.configlist("subplot_legend_loc")[isubplot]
+                                loc=self.configlist("subplot_legend_loc")[ilegend]
                             else:
-                                if isubplot == 0:
+                                if ilegend == 0:
                                     loc = 'upper left'
                                 else:
                                     loc = 'lower right'
 
                         else:
-                            if isubplot > 0:
+                            if ilegend > 0:
                                 continue
-                        legend_title = self.var_name("result",result_type=result_type)
+                        legend_title = subplot_legend_titles[ilegend]
+                        if len(labels) == 1:
+                            legend_title = None
+
+                        axis.set_ylabel(self.var_name(subplot_legend_titles[ilegend]))
+                        if len(plots) == len(labels):
+                            labels = []
+                            for p in plots:
+                                labels.append(self.var_name("result",result_type=p))
+                        elif len(plots) > 1:
+                            nlabels = []
+                            nlabel = len(labels) / len(plots)
+                            for p in plots:
+                                for i in range(int(nlabel)):
+                                    nlabels.append(labels[i] + " - " + self.var_name("result",result_type=p))
+                            labels = nlabels
                     else:
                         legend_title = self.glob_legend_title
 
                     if loc and loc.startswith("outer"):
                         loc = loc[5:].strip()
                         legend_bbox=self.configlist("legend_bbox")
-                        lgd = axis.legend(loc=loc,bbox_to_anchor=legend_bbox, mode=self.config("legend_mode"), borderaxespad=0.,ncol=self.config("legend_ncol"), title=legend_title,bbox_transform=plt.gcf().transFigure)
+                        lgd = axis.legend(handles=handles, labels=labels, loc=loc,bbox_to_anchor=legend_bbox, mode=self.config("legend_mode"), borderaxespad=0.,ncol=self.config("legend_ncol"), title=legend_title,bbox_transform=plt.gcf().transFigure)
                     else:
-                        lgd = axis.legend(loc=loc,ncol=self.config("legend_ncol"), title=legend_title)
+                        lgd = axis.legend(handles=handles, labels=labels, loc=loc,ncol=self.config("legend_ncol"), title=legend_title)
             return result_type, lgd
 
 
@@ -982,9 +1035,11 @@ class Grapher:
     def do_simple_barplot(self,axis, result_type, data,shift=0):
         i = 0
         interbar = 0.1
+
         x = np.asarray([s[0][0] for s in data])
         y = np.asarray([s[1][0] for s in data])
-        e = np.asarray([s[2][0] for s in data])
+        mean = np.asarray([s[2][0][0] for s in data])
+        std = np.asarray([s[2][0][1] for s in data])
 
         ndata = len(x)
 
@@ -999,7 +1054,7 @@ class Grapher:
         ticks = np.arange(ndata) + 0.5
 
         self.format_figure(axis,result_type,shift)
-        rects = plt.bar(ticks, y, label=x, color=data[0][3]._color, width=width, yerr=e)
+        rects = plt.bar(ticks, y, label=x, color=data[0][3]._color, width=width, yerr=(mean - std,mean + std))
 
         for i, v in enumerate(y):
             if np.isnan(v):
@@ -1020,7 +1075,7 @@ class Grapher:
 
     def do_line_plot(self, axis, key, result_type, data : XYEB,shift=0):
         xmin, xmax = (float('inf'), 0)
-
+        drawstyle = self.scriptconfig('var_drawstyle',result_type,default='default')
         for i, (x, y, e, build) in enumerate(data):
             self.format_figure(axis, result_type, shift)
             c = build._color
@@ -1037,7 +1092,14 @@ class Grapher:
 
             ax = np.asarray([float(ax[i]) for i in order])
             y = np.array([y[i] for i in order])
-            e = np.array([e[i] for i in order])
+            mean = np.array([e[i][0] for i in order])
+            std = np.array([e[i][1] for i in order])
+
+
+            if 'step' in drawstyle:
+                s = y[np.isfinite(y)]
+                if len(s) > 0 and len(y) > 0:
+                    y[-1] = s[-1]
 
             mask = np.isfinite(y)
 
@@ -1050,12 +1112,14 @@ class Grapher:
             if self.config_bool("graph_scatter"):
                 axis.scatter(ax[mask], y[mask], label=lab, color=c, linestyle=build._line, marker=build._marker)
             else:
-                axis.plot(ax[mask], y[mask], label=lab, color=c, linestyle=build._line, marker=build._marker,markevery=(1 if len(ax[mask]) < 20 else math.ceil(len(ax[mask]) / 20)))
-            if not self.config('graph_error_fill'):
-                axis.errorbar(ax[mask], y[mask], yerr=e[mask], marker=' ', label=None, linestyle=' ', color=c, capsize=3)
-            else:
-                if not np.logical_or(np.zeros(len(e)) == e, np.isnan(e)).all():
-                    axis.fill_between(ax[mask], (y-e)[mask], (y+e)[mask], color=c, alpha=.4, linewidth=0)
+                axis.plot(ax[mask], y[mask], label=lab, color=c, linestyle=build._line, marker=build._marker,markevery=(1 if len(ax[mask]) < 20 else math.ceil(len(ax[mask]) / 20)),drawstyle=drawstyle)
+            error_type = self.scriptconfig('graph_error', result_type, default = None)
+            if error_type != 'none':
+                if error_type == 'bar' or not self.config('graph_error_fill'):
+                    axis.errorbar(ax[mask], mean[mask], yerr=std[mask], marker=' ', label=None, linestyle=' ', color=c, capsize=3)
+                else:
+                    if not np.logical_or(np.zeros(len(e)) == e, np.isnan(e)).all():
+                        axis.fill_between(ax[mask], mean[mask] - std[mask], mean[mask] + std[mask], color=c, alpha=.4, linewidth=0)
 
             xmin = min(xmin, min(ax[mask]))
             xmax = max(xmax, max(ax[mask]))

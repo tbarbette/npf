@@ -1,7 +1,7 @@
 //If you want to use your own version of DPDK, just make sure $RTE_SDK is set as an absolute path and $RTE_TARGET environment variable are correctly setted
 
 name=DPDK
-branch=v17.02.1
+branch=v18.05.1
 url=http://dpdk.org/git/dpdk-stable
 method=git
 bin_folder=$RTE_TARGET/app/
@@ -10,4 +10,4 @@ configure=make T=$RTE_TARGET RTE_OUTPUT=$RTE_TARGET config
 make=cd $RTE_TARGET && (make T=$RTE_TARGET ; cd ..)
 clean=cd $RTE_TARGET && (make T=$RTE_TARGET clean; cd ..)
 tags=dpdk
-env={RTE_SDK:build/dpdk/,RTE_TARGET:x86_64-native-linuxapp-gcc}
+env={RTE_SDK:$NPF_ROOT/$NPF_BUILD_PATH/,RTE_TARGET:x86_64-native-linuxapp-gcc}

@@ -27,7 +27,7 @@ class SSHExecutor(Executor):
         return ssh
 
 
-    def exec(self, cmd, bin_paths : List[str] = None, queue: Queue = None, options = None, stdin = None, timeout=None, sudo=False, testdir=None, event=None, title=None):
+    def exec(self, cmd, bin_paths : List[str] = None, queue: Queue = None, options = None, stdin = None, timeout=None, sudo=False, testdir=None, event=None, title=None, env={}):
         if not title:
             title = self.addr
         if not event:
@@ -37,6 +37,11 @@ class SSHExecutor(Executor):
             print("Executing on %s%s (PATH+=%s) :\n%s" % (self.addr,(' with sudo' if sudo and self.user != "root" else ''),':'.join(path_list), cmd.strip()))
 
         pre = 'cd '+ self.path + '\n'
+
+        env['NPF_ROOT'] = self.path
+
+        for k,v in env.items():
+            pre += 'export ' + k + '='+v+'\n'
         if path_list:
             path_cmd = 'export PATH="%s:$PATH"\n' % (':'.join(path_list))
         else:
@@ -50,26 +55,30 @@ class SSHExecutor(Executor):
         try:
             ssh = self.get_connection()
 
-
             ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command(pre + cmd,timeout=timeout, get_pty=True)
 
             if stdin is not None:
                 ssh_stdin.write(stdin)
 
-            out=''
-            err=''
+            channels = [ssh_stdout, ssh_stderr]
+            output = ['','']
+
             pid = os.getpid()
             step = 0.2
-            ssh_stdout.channel.setblocking(False)
+            for channel in channels:
+                channel.channel.setblocking(False)
+
             while not event.is_terminated() and not ssh_stdout.channel.exit_status_ready():
                 try:
                     line = None
-                    while ssh_stdout.channel.recv_ready():
-                         line = ssh_stdout.readline()
-                         if options and options.show_full:
-                            self._print(title, line, False)
-                         self.searchEvent(line, event)
-                         out = out + line
+                    while ssh_stdout.channel.recv_ready() or ssh_stderr.channel.recv_ready():
+                        for ichannel,channel in enumerate(channels[:1]):
+                            if channel.channel.recv_ready():
+                                 line = channel.readline()
+                                 if options and options.show_full:
+                                    self._print(title, line, False)
+                                 self.searchEvent(line, event)
+                                 output[ichannel] += line
                     else:
                         event.wait_for_termination(step)
                         if timeout is not None:
@@ -99,43 +108,17 @@ class SSHExecutor(Executor):
             else:
                 ret = ssh_stdout.channel.recv_exit_status()
 
-            for line in ssh_stdout.readlines():
-                if options and options.show_full:
-                    self._print(title, line, False)
-                self.searchEvent(line, event)
-                out = out + line
-            err = ssh_stderr.read().decode()
+            for ichannel,channel in enumerate(channels):
+                for line in channel.readlines():
+                    if options and options.show_full:
+                        self._print(title, line, False)
+                    self.searchEvent(line, event)
+                    output[ichannel] += line
 
-
-            return pid,out,err,ret
+            return pid,output[0], output[1],ret
         except paramiko.ssh_exception.SSHException as e:
             print("Error while connecting to %s", self.addr)
             raise e
-
-        #
-        # try:
-        #     s_output, s_err = [x.decode() for x in
-        #                        p.communicate(stdin, timeout=timeout)]
-        #     p.stdin.close()
-        #     p.stderr.close()
-        #     p.stdout.close()
-        #     return pid, s_output, s_err, p.returncode
-        # except TimeoutExpired:
-        #     print("Test expired")
-        #     p.terminate()
-        #     p.kill()
-        #     os.killpg(pgpid, signal.SIGKILL)
-        #     os.killpg(pgpid, signal.SIGTERM)
-        #     s_output, s_err = [x.decode() for x in p.communicate()]
-        #     print(s_output)
-        #     print(s_err)
-        #     p.stdin.close()
-        #     p.stderr.close()
-        #     p.stdout.close()
-        #     return 0, s_output, s_err, p.returncode
-        # except KeyboardInterrupt:
-        #     os.killpg(pgpid, signal.SIGKILL)
-        #     return -1, s_output, s_err, p.returncode
 
     def writeFile(self,filename,path_to_root,content):
         f = open(filename, "w")

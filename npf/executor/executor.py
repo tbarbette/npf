@@ -18,5 +18,5 @@ class Executor:
             eb.post(result.group(1))
 
     def _print(self, title, line, nl = True):
-            print(self.color + title + Style.RESET_ALL + ' ' + line, end=None if nl else '')
+        print(self.color + title + Style.RESET_ALL + ' ' + line, end=None if nl else '')
 

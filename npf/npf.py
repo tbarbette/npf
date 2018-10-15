@@ -153,6 +153,10 @@ def add_building_options(parser):
                     help='Do not build the last version of some dependencies, use the currently compiled one',
                    dest='no_build_deps',
                     action=ExtendAction,default=[],nargs='+')
+    b.add_argument('--ignore-deps',
+                    help='Do not use the specified dependencies, find binaries in the current path instead',
+                   dest='ignore_deps',
+                    action=ExtendAction,default=[],nargs='+')
     b.add_argument('--force-build-deps',
                     help='Force to rebuild some dependencies', dest='force_build_deps',
                    action=ExtendAction, default=[], nargs='+')
@@ -208,29 +212,10 @@ def parse_nodes(options):
 def parse_variables(args_variables, tags, sec) -> Dict:
     variables = {}
     for variable in args_variables:
-        var, val, is_append = sec.parse_variable(variable,tags)
+        var, val, assign = sec.parse_variable(variable,tags)
         if var:
-            if is_append:
-                val.is_append = True
+            val.assign = assign
             variables[var] = val
-        # var, val = variable.split('=', 1)
-        # append = False
-        # if var[-1] == '+':
-        #     var = var[:-1]
-        #     append = True
-        #
-        # tagsvar = var.split(':', 1)
-        # if len(tagsvar) == 1:
-        #     tag = ''
-        #     var = tagsvar[0]
-        # else:
-        #     tag,var = tagsvar
-        # if SectionVariable.match_tags(tag, tags):
-        #     v = VariableFactory.build(var, val)
-        #     variables[var] = v
-        #     if append:
-        #         v.append = True
-
     return variables
 
 

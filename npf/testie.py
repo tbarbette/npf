@@ -37,6 +37,7 @@ class RemoteParameters:
         self.waitfor = None
         self.event = None
         self.title = None
+        self.env = None
 
     pass
 
@@ -57,7 +58,8 @@ def _parallel_exec(param: RemoteParameters):
                                  sudo=param.sudo,
                                  testdir=param.testdir,
                                  event=param.event,
-                                 title=param.name)
+                                 title=param.name,
+                                 env=param.env)
     if pid == 0:
         return False, o, e, c, param.script
     else:
@@ -417,9 +419,8 @@ class Testie:
 
                 remote_params = []
                 for t, v, role in (
-                                          [(imp.testie, imp.imp_v, imp.get_role()) for imp in
-                                           self.imports] if do_imports else []) + [
-                                      (self, v, None)]:
+                [(imp.testie, imp.imp_v, imp.get_role()) for imp in self.imports] if do_imports else []) + [
+                    (self, v, None)]:
                     for script in t.scripts:
                         if not script.get_type() in allowed_types:
                             continue
@@ -445,7 +446,7 @@ class Testie:
                         param.role = script.get_role()
                         param.default_role_map = self.config.get_dict("default_role_map")
                         param.delay = script.delay()
-                        deps_bin_path = [repo.get_bin_folder() for repo in script.get_deps_repos(self.options)]
+                        deps_bin_path = [repo.get_bin_folder() for repo in script.get_deps_repos(self.options) if not repo.reponame in self.options.ignore_deps]
                         param.bin_paths = deps_bin_path + [build.get_bin_folder()]
                         param.sudo = script.params.get("sudo", False)
                         param.testdir = test_folder
@@ -453,6 +454,9 @@ class Testie:
                         param.script = script
                         param.name = script.get_name(True)
                         param.autokill = npf.parseBool(script.params.get("autokill", t.config["autokill"]))
+                        param.env = OrderedDict()
+                        param.env.update(v_internals)
+                        param.env.update([(k,v.replace('$NPF_BUILD_PATH',build.repo.get_build_path())) for k,v in build.repo.env.items()])
 
                         if 'waitfor' in script.params:
                             param.waitfor = script.params['waitfor']
@@ -609,7 +613,29 @@ class Testie:
             shutil.rmtree(test_folder)
         return data_results, time_results, all_output, all_err, n_exec, n_err
 
-    def do_init_all(self, build, options, do_test, allowed_types=SectionScript.ALL_TYPES_SET, test_folder=None):
+    def ensure_time(self, event_t, result_type, update):
+        if event_t in update:
+            if result_type in update[event_t]:
+                return
+        else:
+            update[event_t] = {}
+        prev = None
+        mindist = Decimal('Inf')
+        for u_t, u_r in update.items():
+            if u_t > event_t:
+                continue
+            if result_type not in u_r:
+                continue
+            dist = event_t - u_t
+            if dist < mindist:
+                prev = u_t
+                mindist = dist
+        if prev is not None:
+            update[event_t][result_type] = update[prev][result_type].copy()
+        else:
+            update[event_t][result_type] = []
+
+    def do_init_all(self, build, options, do_test, allowed_types=SectionScript.ALL_TYPES_SET,test_folder=None):
         if not build.build(options.force_build, options.no_build, options.quiet_build, options.show_build_cmd):
             raise ScriptInitException()
         if not self.build_deps([build.repo]):
@@ -673,6 +699,7 @@ class Testie:
             for variables in self.variables.expand(method=options.expand):
                 n += 1
                 run = Run(variables)
+                run.variables.update(build.repo.overriden_variables)
                 variables = variables.copy()
                 for late_variables in self.get_late_variables():
                     variables.update(late_variables.execute(variables, self))

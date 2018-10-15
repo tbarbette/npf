@@ -24,6 +24,7 @@ GEN_THREADS=4
 PROMISC=false
 promisc:PROMISC=true
 IGNORE=0
+PAUSE=none
 GEN_DESC=0
 
 nolinktest=0
@@ -70,7 +71,7 @@ fdIN
 
 elementclass Generator { $magic |
 input
-    $ENSURE
+  -> EnsureDPDKBuffer
   -> rwIN :: EtherRewrite($INsrcmac,$INdstmac)
   -> Pad()
   -> Numberise($magic)
@@ -90,7 +91,7 @@ StaticThreadSched(gen1/replay 2)
 StaticThreadSched(gen2/replay 4)
 StaticThreadSched(gen3/replay 6)
 
-receiveIN :: FromDPDKDevice($port, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, NDESC $GEN_DESC)
+receiveIN :: FromDPDKDevice($port, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, PAUSE $PAUSE, NDESC $GEN_DESC)
 
 elementclass Receiver { $mac, $dir |
     input[0]

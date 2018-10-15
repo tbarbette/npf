@@ -359,8 +359,10 @@ class SectionVariable(Section):
         if not var in self.vlist:
             print("WARNING : %s does not override anything" % var)
         if isinstance(val, Variable):
-            if val.is_append:
+            if val.assign == '+=':
                 self.vlist[var] += val
+            elif val.assign == '?=' and not var in self.vlist:
+                self.vlist[var] = val
             else:
                 self.vlist[var] = val
         else:
@@ -394,7 +396,7 @@ class SectionVariable(Section):
             if not line:
                 return None, None, False
             match = re.match(
-                r'(?P<tags>' + Variable.TAGS_REGEX + r':)?(?P<name>' + Variable.NAME_REGEX + r')(?P<assignType>=|[+]=)(?P<value>.*)',
+                r'(?P<tags>' + Variable.TAGS_REGEX + r':)?(?P<name>' + Variable.NAME_REGEX + r')(?P<assignType>=|[+?]=)(?P<value>.*)',
                 line)
             if not match:
                 raise Exception("Invalid variable '%s'" % line)
@@ -402,15 +404,15 @@ class SectionVariable(Section):
                 return None, None, False
 
             name = match.group('name')
-            return name, VariableFactory.build(name, match.group('value'), vsection), match.group('assignType') == '+='
+            return name, VariableFactory.build(name, match.group('value'), vsection), match.group('assignType')
         except:
             print("Error parsing line %s" % line)
             raise
 
     def build(self, content, testie, check_exists=False):
         for line in content.split("\n"):
-            var, val, is_append = self.parse_variable(line, testie.tags, self)
-            if not var is None:
+            var, val, assign = self.parse_variable(line, testie.tags, self)
+            if not var is None and not val is None:
                 if check_exists and not var in self.vlist:
 
                     if var.endswith('s') and var[:-1] in self.vlist:
@@ -422,8 +424,11 @@ class SectionVariable(Section):
                             var = self.aliases[var]
                         else:
                             raise Exception("Unknown variable %s" % var)
-                if is_append and var in self.vlist:
+                if assign == '+=' and var in self.vlist:
                     self.vlist[var] += val
+                elif assign == '?=':
+                    if not var in self.vlist:
+                        self.vlist[var] = val
                 else:
                     self.vlist[var] = val
         return OrderedDict(sorted(self.vlist.items()))
@@ -502,7 +507,7 @@ class SectionConfig(SectionVariable):
         self.__add("n_runs", 3)
         self.__add("n_retry", 0)
         self.__add_list("result_regex", [
-            r"(:?(?P<time>[0-9.]+)-)?RESULT(:?-(?P<type>[A-Z0-9_:~.-]+))?[ \t]+(?P<value>[0-9.]+)[ ]*(?P<multiplier>[nµugmkKGT]?)(?P<unit>s|sec|b|byte|bits)?"])
+            r"(:?(?P<time>[0-9.]+)-)?RESULT(:?-(?P<type>[A-Z0-9_:~.-]+))?[ \t]+(?P<value>[0-9.]+(e[+-][0-9]+)?)[ ]*(?P<multiplier>[nµugmkKGT]?)(?P<unit>s|sec|b|byte|bits)?"])
         self.__add_list("results_expect", [])
         self.__add("autokill", True)
         self.__add("critical", False)
@@ -530,10 +535,12 @@ class SectionConfig(SectionVariable):
         self.__add("graph_series_sort", None)
         self.__add("graph_series_label", None)
         self.__add("graph_bar_stack", False)
-        self.__add("graph_text", '')
-        self.__add("graph_legend", True)
-        self.__add("graph_error_fill", False)
-        self.__add("graph_mode", None)
+        self.__add("graph_text",'')
+        self.__add("graph_legend",True)
+        self.__add("graph_error_fill",False)
+        self.__add_dict("graph_error", {})
+        self.__add("graph_mode",None)
+        self.__add("graph_y_group","mean")
         self.__add_list("graph_color", [])
         self.__add_list("graph_markers", ['o', '^', 's', 'D', '*', 'x', '.', '_', 'H', '>', '<', 'v', 'd'])
         self.__add_list("graph_lines", ['-', '--', '-.', ':'])
@@ -548,9 +555,12 @@ class SectionConfig(SectionVariable):
         self.__add_dict("var_format", {})
         self.__add_dict("var_ticks", {})
         self.__add_list("var_grid", [])
-        self.__add("var_serie", None)
-        self.__add_dict("var_names", {"result-LATENCY": "Latency (µs)", "result-THROUGHPUT": "Throughput"})
-        self.__add_dict("var_unit", {"result": "bps", "result-LATENCY": "us", "latency": "us", "throughput": "bps"})
+        self.__add("var_serie",None)
+        self.__add_dict("var_names", {"result-LATENCY":"Latency (µs)","result-THROUGHPUT":"Throughput"})
+        self.__add_dict("var_unit", {"result": "bps","result-LATENCY":"us","latency":"us","throughput":"bps"})
+        self.__add_dict("var_round", {})
+        self.__add_dict("var_repeat", {})
+        self.__add_dict("var_drawstyle", {})
         self.__add("title", None)
         self.__add_list("require_tags", [])
 
@@ -571,8 +581,8 @@ class SectionConfig(SectionVariable):
         key = key.lower()
         var = self.vlist[key]
         try:
-            v = {}
-            for k, l in var.vdict.items():
+            v = OrderedDict()
+            for k,l in var.vdict.items():
                 v[k.strip()] = l
         except AttributeError:
             print("WARNING : Error in configuration of %s" % key)

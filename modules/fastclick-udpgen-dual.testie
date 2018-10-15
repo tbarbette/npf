@@ -23,6 +23,8 @@ GEN_LENGTH=64
 GEN_WAIT=5
 rate:GEN_RATE=1000
 skipinit=0
+DUT_NIC_0=0
+DUT_NIC_1=1
 
 %late_variables
 GEN_TOT=EXPAND( $(( $GEN_BURST * $GEN_FLOWS )) )
@@ -72,10 +74,10 @@ elementclass Generator { $port, $th, $qu, $srcmac, $dstmac, $srcip, $dstip |
 td0::ToDPDKDevice(${client:0:pci}, BLOCKING true, VERBOSE 3);
 td1::ToDPDKDevice(${client:1:pci}, BLOCKING true, VERBOSE 3);
 
-gen0A :: Generator(${client:0:pci}, 0, 0, ${client:0:mac}, ${dut:0:mac}, ${client:0:ip}, ${client:1:ip}) -> td0;
-gen0B :: Generator(${client:0:pci}, 1, 1, ${client:0:mac}, ${dut:0:mac}, ${client:0:ip}, ${client:1:ip}) -> td0;
-gen1A :: Generator(${client:1:pci}, 2, 0, ${client:1:mac}, ${dut:1:mac}, ${client:1:ip}, ${client:0:ip}) -> td1;
-gen1B :: Generator(${client:1:pci}, 3, 1, ${client:1:mac}, ${dut:1:mac}, ${client:1:ip}, ${client:0:ip}) -> td1;
+gen0A :: Generator(${client:0:pci}, 0, 0, ${client:0:mac}, ${dut:$DUT_NIC_0:mac}, ${client:0:ip}, ${client:1:ip}) -> td0;
+gen0B :: Generator(${client:0:pci}, 1, 1, ${client:0:mac}, ${dut:$DUT_NIC_0:mac}, ${client:0:ip}, ${client:1:ip}) -> td0;
+gen1A :: Generator(${client:1:pci}, 2, 0, ${client:1:mac}, ${dut:$DUT_NIC_1:mac}, ${client:1:ip}, ${client:0:ip}) -> td1;
+gen1B :: Generator(${client:1:pci}, 3, 1, ${client:1:mac}, ${dut:$DUT_NIC_1:mac}, ${client:1:ip}, ${client:0:ip}) -> td1;
 
 DriverManager(
     label init,

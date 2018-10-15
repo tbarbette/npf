@@ -16,10 +16,13 @@ timeout=60
 %variables
 PKTGEN_BURST_OUT=32
 PKTGEN_REPLAY_COUNT=1
+PKTGEN_REPLAY_TIME=0
 NIC=0
 CLIENT_NIC=0
 RCV_NIC=0
-LIMIT=200000
+LIMIT=500000
+TIMING=5
+TIMING_FNT=false
 GEN_THREADS=4
 PROMISC=false
 promisc:PROMISC=true
@@ -28,7 +31,6 @@ ITERATIVE=0
 iterative:ITERATIVE=1
 ITERATION_TIME=1
 END_WAIT=0
-TIMING=0
 PAUSE=none
 GEN_DESC=0
 
@@ -47,11 +49,11 @@ BROADCAST_IGNORE= -> c :: Classifier(0/$mac,-) //Ignore broadcasts
 %promisc:late_variables
 BROADCAST_IGNORE= -> c :: Classifier(-, 0/ffffffffffff)
 
-%largemem:script deps=fastclick-timerp sudo=true delay=2
+%largemem:script deps=fastclick sudo=true delay=2
 click --dpdk -l 0-15  --socket-mem 62,2 --huge-dir /mnt/hugepages  -- PKTGEN_CONFIG
 
-%-largemem:script deps=fastclick-timerp sudo=true delay=2
-click --dpdk -l 0-15  -w ${self:$CLIENT_NIC:pci},txq_inline=$TXQI  -- PKTGEN_CONFIG
+%-largemem:script deps=fastclick sudo=true delay=2
+click --dpdk -l 0-15  -- PKTGEN_CONFIG
 
 %file PKTGEN_CONFIG
 d :: DPDKInfo(NB_SOCKET_MBUF $NBBUF, NB_SOCKET_MBUF 8192)
@@ -71,12 +73,14 @@ define($quick true)
 define($txverbose 99)
 define($rxverbose 99)
 
+HTTPServer
+
 fdIN :: FromDump($trace, STOP false, TIMING false)
 tdIN :: ToDPDKDevice($port, BLOCKING true, BURST $bout, VERBOSE $txverbose, IQUEUE $bout, NDESC $GEN_DESC)
 
 
 elementclass Numberise { $magic |
-    input-> Strip(14) -> check :: CheckIPHeader -> nPacket :: NumberPacket(42) -> StoreData(40, $magic) -> SetIPChecksum -> Unstrip(14) -> output
+    input-> Strip(14) -> check :: CheckIPHeader(CHECKSUM false) -> nPacket :: NumberPacket(42) -> StoreData(40, $magic) -> SetIPChecksum -> Unstrip(14) -> output
 }
 
 fdIN
@@ -88,7 +92,7 @@ input
   -> rwIN :: EtherRewrite($INsrcmac,$INdstmac)
   -> Pad()
   -> Numberise($magic)
-  -> replay :: ReplayUnqueue(STOP 0, QUICK_CLONE $quick, VERBOSE true, ACTIVE true, LIMIT $LIMIT, TIMING $TIMING, BURST $PKTGEN_BURST_OUT)
+  -> replay :: ReplayUnqueue(STOP 0,STOP_TIME $PKTGEN_REPLAY_TIME, QUICK_CLONE $quick, VERBOSE true, ACTIVE true, LIMIT $LIMIT, TIMING $TIMING, BURST $PKTGEN_BURST_OUT, TIMING_FNT $TIMING_FNT)
     $LATEENSURE
   -> rt :: RecordTimestamp(N $LIMIT, OFFSET 56)
   -> avgSIN :: AverageCounter(IGNORE $ignore)
@@ -213,6 +217,7 @@ link_initialized :: Script(TYPE PACKET,
 
 run_test :: Script(TYPE PASSIVE,
             wait ${IGNORE}s,
+            print "EVENT GEN_BEGIN",
             print "Starting bandwidth computation !",
             goto end $(eq $ITERATIVE 0),
             write display_th.run 1,
@@ -234,18 +239,25 @@ display_th :: Script(TYPE PASSIVE,
                      write gen2/avgSIN.reset,
                      write gen3/avgSIN.reset,
                      wait ${ITERATION_TIME}s,
+                     set diff $(sub $(now) $time),
                      set time $(now),
-                     print "$time-RESULT-ITHROUGHPUT $(add $(RIN/avgA.link_rate) $(RIN/avgB.link_rate) $(RIN/avgC.link_rate) $(RIN/avgD.link_rate))",
+                     set tx $(add $(gen0/avgSIN.link_rate)  $(gen1/avgSIN.link_rate) $(gen2/avgSIN.link_rate) $(gen3/avgSIN.link_rate)),
+                     set rx $(add $(RIN/avgA.link_rate) $(RIN/avgB.link_rate) $(RIN/avgC.link_rate) $(RIN/avgD.link_rate)),
+                     print "$time-RESULT-ITHROUGHPUT $rx",
                      print "$time-RESULT-ILATENCY $(div $(add $(RIN/tsdA.average $indexA) $(RIN/tsdB.average $indexB) $(RIN/tsdC.average $indexC) $(RIN/tsdD.average $indexD) 4) )",
-                     print "$time-RESULT-ITX $(add $(gen0/avgSIN.link_rate)  $(gen1/avgSIN.link_rate) $(gen2/avgSIN.link_rate) $(gen3/avgSIN.link_rate))",
+                     print "$time-RESULT-ITX $tx",
+                     print "$time-RESULT-ILOSS $(sub $rx $tx)",
+
                      set received $(add $(RIN/avgA.count) $(RIN/avgB.count) $(RIN/avgC.count) $(RIN/avgD.count) ),
                      set sent $(add $(gen0/avgSIN.count) $(gen1/avgSIN.count) $(gen2/avgSIN.count) $(gen3/avgSIN.count) ),
                      print "$time-RESULT-ICOUNT $received",
                      print "$time-RESULT-IDROPPED $(sub $sent $received)",
+                     print "$time-RESULT-IDROPPEDPS $(div $(sub $sent $received) $diff)",
                      set indexA $(RIN/tsdA.index),
                      set indexB $(RIN/tsdB.index),
                      set indexC $(RIN/tsdC.index),
                      set indexD $(RIN/tsdD.index),
+                     read load,
                      goto g)
 
 StaticThreadSched(display_th 2)
@@ -290,14 +302,5 @@ DriverManager(  pause,
                 read receiveIN.count,
                 print "RESULT-TESTTIME $(sub $stoptime $starttime)",
                 print "RESULT-RCVTIME $(RIN/avgA.time)",
-                print "RESULT-LATENCY $(div $(add $(RIN/tsdA.average) $(RIN/tsdB.average) $(RIN/tsdC.average) $(RIN/tsdD.average)) 4)",
-                print "RESULT-THROUGHPUT $(add $(RIN/avgA.link_rate) $(RIN/avgB.link_rate) $(RIN/avgC.link_rate) $(RIN/avgD.link_rate) )",
-                print "RESULT-COUNT $(add $(RIN/avgA.count) $(RIN/avgB.count) $(RIN/avgC.count) $(RIN/avgD.count) )",
-                print "RESULT-TX $(add $(gen0/avgSIN.link_rate)  $(gen1/avgSIN.link_rate) $(gen2/avgSIN.link_rate) $(gen3/avgSIN.link_rate))",
-                print "RESULT-PPS $(add $(RIN/avgA.rate)  $(RIN/avgB.rate) $(RIN/avgC.rate) $(RIN/avgD.rate))",
-                print "Mean Delay: $(tsd.average) µs",
-                print "Min Delay: $(tsd.min) µs",
-                print "Max Delay: $(tsd.max) µs",
-                print "Delay StdDev: $(tsd.stddev) µs",
                 wait ${END_WAIT}s,
                 stop);
