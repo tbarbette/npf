@@ -610,7 +610,12 @@ class Grapher:
         # a serie. This is different from var_serie which will define
         # what variable to use as a serie when there is only one serie
         for to_get_out in self.configlist('graph_variables_as_series', []):
-            values = natsort.natsorted(vars_values[to_get_out])
+            try:
+                values = natsort.natsorted(vars_values[to_get_out])
+            except KeyError as e:
+                print("ERROR : Unknown variable %s" % to_get_out)
+                print("Known variables : ",vars_values)
+                continue
             if len(values) == 1:
                 statics[to_get_out] = list(values)[0]
             del vars_values[to_get_out]
@@ -1248,16 +1253,16 @@ class Grapher:
 
             for i, (x, y, e, build) in enumerate(data):
                 y = np.asarray([0.0 if np.isnan(x) else x for x in y])
+                std = np.asarray([std for mean,std in e])
                 axis.bar(ind, last, width,
-                    label=str(build.pretty_name()), color=build._color, yerr=e,
+                    label=str(build.pretty_name()), color=build._color, yerr=std,
                     edgecolor=edgecolor)
                 last = last - y
-
-
         else:
             for i, (x, y, e, build) in enumerate(data):
+                std = np.asarray([std for mean,std in e])
                 axis.bar(interbar + ind + (i * width), y, width,
-                    label=str(build.pretty_name()), color=build._color, yerr=e,
+                    label=str(build.pretty_name()), color=build._color, yerr=std,
                     edgecolor=edgecolor)
 
         ss = self.combine_variables(vars_all, dyns)
