@@ -1059,7 +1059,7 @@ class Grapher:
         ticks = np.arange(ndata) + 0.5
 
         self.format_figure(axis,result_type,shift)
-        rects = plt.bar(ticks, y, label=x, color=data[0][3]._color, width=width, yerr=(mean - std,mean + std))
+        rects = plt.bar(ticks, y, label=x, color=data[0][3]._color, width=width, yerr=( y - mean + std, mean - y +  std))
 
         for i, v in enumerate(y):
             if np.isnan(v):
