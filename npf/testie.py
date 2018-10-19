@@ -568,10 +568,16 @@ class Testie:
                     min_time = min(new_time_results.keys())
                     nonzero = set()
                     all_result_types = set()
-                    for time, results in new_time_results.items():
+                    for time, results in sorted(new_time_results.items()):
+                        nz = True
                         for result_type, result in results.items():
                             if result != 0:
-                                nonzero.add(result_type)
+                                nz = False
+                        if nz:
+                            min_time = time
+                            continue
+                        for result_type, result in results.items():
+                            nonzero.add(result_type)
                             all_result_types.add(result_type)
                             time_results.setdefault(Decimal(
                                 ("%.0" + str(self.config['time_precision']) + "f") % round(float(time - min_time), int(

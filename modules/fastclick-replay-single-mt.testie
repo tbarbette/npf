@@ -51,7 +51,6 @@ define($INdstmac ${server:$NIC:mac})
 define($RAW_INdstmac ${server:$NIC:raw_mac})
 
 define($ignore $IGNORE)
-define($wait 2)
 define($replay_count $PKTGEN_REPLAY_COUNT)
 define($port ${self:$RCV_NIC:pci})
 define($quick true)
