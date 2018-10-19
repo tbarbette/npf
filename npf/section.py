@@ -540,7 +540,7 @@ class SectionConfig(SectionVariable):
         self.__add("graph_error_fill",False)
         self.__add_dict("graph_error", {})
         self.__add("graph_mode",None)
-        self.__add("graph_y_group","mean")
+        self.__add_dict("graph_y_group",{})
         self.__add_list("graph_color", [])
         self.__add_list("graph_markers", ['o', '^', 's', 'D', '*', 'x', '.', '_', 'H', '>', '<', 'v', 'd'])
         self.__add_list("graph_lines", ['-', '--', '-.', ':'])
