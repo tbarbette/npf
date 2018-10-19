@@ -568,8 +568,8 @@ class Testie:
                     min_time = min(new_time_results.keys())
                     nonzero = set()
                     all_result_types = set()
+                    nz = True
                     for time, results in sorted(new_time_results.items()):
-                        nz = True
                         for result_type, result in results.items():
                             if result != 0:
                                 nz = False
