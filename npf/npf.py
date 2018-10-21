@@ -48,7 +48,7 @@ def add_verbosity_options(parser: ArgumentParser):
 def add_graph_options(parser: ArgumentParser):
     o = parser.add_argument_group('Output data')
     o.add_argument('--output',
-                   help='Output data to CSV', dest='output', type=str, default=None)
+                   help='Output data to CSV', dest='output', type=str, nargs='?', const='graph', default=None)
     o.add_argument('--output-columns', dest='output_columns', type=str, nargs='+', default=['x', 'mean'])
 
     g = parser.add_argument_group('Graph options')
@@ -234,7 +234,7 @@ def find_local(path):
     return path
 
 
-def build_filename(testie, build, hint, variables, def_ext, type_str='', show_serie=False):
+def build_filename(testie, build, hint, variables, def_ext, type_str='', show_serie=False, suffix=''):
     var_str = get_valid_filename('_'.join(
         ["%s=%s" % (k, (val[1] if type(val) is tuple else val)) for k, val in sorted(variables.items()) if val]))
 
@@ -260,13 +260,21 @@ def build_filename(testie, build, hint, variables, def_ext, type_str='', show_se
         if not dirname or show_serie:
             basename = (get_valid_filename(build.pretty_name()) if show_serie else '') + basename
         path = (dirname + '/' if dirname else '') + basename + (
-        ('-' if basename else '') + type_str if type_str else '') + ext
+        ('-' if basename else '') + type_str if type_str else '') + ('' if not suffix else ("-" + suffix)) + ext
 
     folder = os.path.dirname(path)
     if folder and not os.path.exists(folder):
         os.makedirs(folder)
     return path
 
+
+def build_output_filename(options, repo_list):
+    if options.graph_filename is None:
+        filename = 'compare/' + os.path.splitext(os.path.basename(options.testie))[0] + '_' + '_'.join(
+            ["%s" % repo.reponame for repo in repo_list]) + '.pdf'
+    else:
+        filename = options.graph_filename
+    return filename
 
 def nodes(role) -> List[Node]:
     return [node(role)]

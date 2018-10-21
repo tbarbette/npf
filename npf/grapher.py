@@ -116,7 +116,7 @@ class Graph:
         sg = []
         for script,build,all_results in self.series:
             subgraph = self.grapher.series_to_graph([(script,build,all_results)], self.dyns(), self.vars_values.copy(), self.vars_all.copy())
-            subgraph.subtitle = build.pretty_name()
+            subgraph.subtitle = ((self.title + " : ") if self.title else '') + build.pretty_name()
             subgraph.title = self.title
             sg.append(subgraph)
         return sg
@@ -255,7 +255,7 @@ class Grapher:
                 ss = short_ss
         return ss
 
-    def extract_variable_to_series(self, key, vars_values, all_results, dyns, build, script):
+    def extract_variable_to_series(self, key, vars_values, all_results, dyns, build, script) -> Graph:
         dyns.remove(key)
         series = []
         versions = []
@@ -463,7 +463,6 @@ class Grapher:
             else:
                 print("No valid data for %s" % build)
         series = filtered_series
-
 
         #If graph_series_as_variables, take the series and make them as variables
         if self.config_bool('graph_series_as_variables',False):
@@ -723,7 +722,7 @@ class Grapher:
                         v.update(build.statics)
                         build._pretty_name=SectionVariable.replace_variables(v, graph_series_label)
 
-                graph.title = title
+                graph.title = title if title else self.var_name(sv)
                 assert(not sv in graph.vars_values)
                 graphs += graph.split_for_series()
         else:
@@ -989,7 +988,9 @@ class Grapher:
 
             for ilegend,(axis, result_type, plots) in enumerate(subplot_handles):
                 handles, labels = axis.get_legend_handles_labels()
-
+                ncol = self.config("legend_ncol")
+                if type(ncol) == list:
+                    ncol = ncol[ilegend % len(ncol)]
                 if ndyn > 0 and bool(self.config_bool('graph_legend', True)):
                     loc = self.config("legend_loc")
                     if subplot_type=="axis" and len(figure) > 1:
@@ -1024,13 +1025,15 @@ class Grapher:
                             labels = nlabels
                     else:
                         legend_title = self.glob_legend_title
-
-                    if loc and loc.startswith("outer"):
+                    if loc == "none":
+                        continue
+                    if loc  and loc.startswith("outer"):
                         loc = loc[5:].strip()
                         legend_bbox=self.configlist("legend_bbox")
-                        lgd = axis.legend(handles=handles, labels=labels, loc=loc,bbox_to_anchor=legend_bbox, mode=self.config("legend_mode"), borderaxespad=0.,ncol=self.config("legend_ncol"), title=legend_title,bbox_transform=plt.gcf().transFigure)
+                        print(legend_bbox)
+                        lgd = axis.legend(handles=handles, labels=labels, loc=loc,bbox_to_anchor=(legend_bbox if legend_bbox and len(legend_bbox) > 1 else None), mode=self.config("legend_mode"), borderaxespad=0.,ncol=ncol, title=legend_title,bbox_transform=plt.gcf().transFigure)
                     else:
-                        lgd = axis.legend(handles=handles, labels=labels, loc=loc,ncol=self.config("legend_ncol"), title=legend_title)
+                        lgd = axis.legend(handles=handles, labels=labels, loc=loc,ncol=ncol, title=legend_title)
             return result_type, lgd
 
 

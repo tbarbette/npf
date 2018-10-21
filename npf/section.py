@@ -490,7 +490,8 @@ class SectionConfig(SectionVariable):
             'series_as_variables': 'graph_series_as_variables',
             'var_as_series': 'graph_variables_as_series',
             'result_as_variables': 'graph_result_as_variables',
-            'series_prop': 'graph_series_prop'
+            'series_prop': 'graph_series_prop',
+            'graph_legend_ncol': 'legend_ncol'
         }
 
         # Environment
@@ -522,6 +523,7 @@ class SectionConfig(SectionVariable):
         # Graph options
         self.__add_dict("graph_combine_variables", {})
         self.__add_dict("graph_subplot_results", {})
+        self.__add("graph_subplot_variable", None)
         self.__add_list("graph_display_statics", [])
         self.__add_list("graph_variables_as_series", [])
         self.__add_list("graph_hide_variables", [])

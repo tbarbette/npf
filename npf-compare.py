@@ -57,7 +57,7 @@ def do_graph(filename,args,series,time_series):
         all_variables.append(v_list)
 
         if args.statistics:
-            Statistics.run(build,dataset, testie, max_depth=args.statistics_maxdepth, filename=args.statistics_filename)
+            Statistics.run(build,dataset, testie, max_depth=args.statistics_maxdepth, filename=args.statistics_filename if args.statistics_filename else npf.build_output_filename(args, [build.repo for t,build,d in series]))
     common_variables = set.intersection(*map(set, all_variables))
 
     #Remove variables that are totally defined by the series, that is
@@ -135,12 +135,7 @@ def main():
 
     comparator = Comparator(repo_list)
 
-
-    if args.graph_filename is None:
-        filename = 'compare/' + os.path.splitext(os.path.basename(args.testie))[0] + '_' + '_'.join(
-            ["%s" % repo.reponame for repo in repo_list]) + '.pdf'
-    else:
-        filename = args.graph_filename
+    filename = npf.build_output_filename(args, repo_list)
 
     savedir = Path(os.path.dirname(filename))
     if not savedir.exists():

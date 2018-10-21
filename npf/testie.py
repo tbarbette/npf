@@ -578,6 +578,7 @@ class Testie:
                 if new_time_results:
                     min_time = min(new_time_results.keys())
                     nonzero = set()
+                    update = {}
                     all_result_types = set()
                     nz = True
                     for time, results in sorted(new_time_results.items()):
@@ -590,9 +591,23 @@ class Testie:
                         for result_type, result in results.items():
                             nonzero.add(result_type)
                             all_result_types.add(result_type)
-                            time_results.setdefault(Decimal(
-                                ("%.0" + str(self.config['time_precision']) + "f") % round(float(time - min_time), int(
-                                    self.config['time_precision']))), {}).setdefault(result_type, []).append(result)
+                            event_t = Decimal(("%.0" + str(self.config['time_precision']) + "f") % round(float(time - min_time), int(self.config['time_precision'])))
+                            update.setdefault(event_t,{}).setdefault(result_type, [])
+                            update[event_t][result_type].append(result)
+                            if result_type in self.config.get_list("var_repeat"):
+                                # Replicate existing time series for all new incoming time points
+                                self.ensure_time(event_t,result_type,time_results)
+
+                    # Replicate new results for every time point
+                    for event_t, results in time_results.items():
+                        for result_type, result in results.items():
+                            if result_type in self.config.get_list("var_repeat"):
+                                self.ensure_time(event_t,result_type,update)
+
+                    for time, results in update.items():
+                        for result_type, result in results.items():
+                            time_results.setdefault(time,{}).setdefault(result_type, []).extend(result)
+
                     diff = all_result_types.difference(nonzero)
                     if diff:
                         print("Result for %s is 0 !" % ', '.join(diff))

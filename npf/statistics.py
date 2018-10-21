@@ -11,7 +11,7 @@ from typing import List
 from npf.build import Build
 from npf.testie import Testie
 from npf.types.dataset import Dataset
-
+from npf import npf
 
 class Statistics:
     @staticmethod
@@ -31,10 +31,9 @@ class Statistics:
                 dot_data = tree.export_graphviz(clf, out_file=None, filled=True, rounded=True, special_characters=True,
                                                 feature_names=dtype['names'])
                 graph = pydotplus.graph_from_dot_data(dot_data)
-                if filename:
-                    f = filename
-                else:
-                    f = build.result_path(testie.filename, 'pdf', suffix='_clf')
+
+
+                f = npf.build_filename(testie, build, filename if not filename is True else None, {}, 'pdf', result_type, show_serie=False, suffix="clf")
                 graph.write(f, format=os.path.splitext(f)[1][1:])
                 print("Decision tree visualization written to %s" % f)
 
@@ -59,7 +58,7 @@ class Statistics:
             best = X[y.argmax()]
             print("  ", end='')
             for i, name in enumerate(dtype['names']):
-                print("%s = %s, " % (name, best[i] if (dtype['values'][i] is None) else dtype['values'][i][best[i]]), end='')
+                print("%s = %s, " % (name, best[i] if (dtype['values'][i] is None) else best[i] if type(best[i]) is np.str_ else dtype['values'][i][best[i]]), end='')
             print(' : %.02f' % y.max())
 
             print('')
