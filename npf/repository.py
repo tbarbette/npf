@@ -298,6 +298,9 @@ class Repository:
     def get_reponame(self):
         return self.reponame
 
+    def pretty_name(self):
+        return self.name
+
     def get_build_path(self):
         return self._build_path
 

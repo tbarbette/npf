@@ -180,12 +180,14 @@ class Build:
 
 
     def is_compile_needed(self):
-        bin_path=npf.replace_path(self.repo.get_bin_path(self.version),build=self)
-        if os.path.exists(bin_path) and (
-                    Build.get_current_version(self.repo) == self.version):
-            return False
-        else:
+        if self.repo.get_bin_path(self.version):
+            bin_path=npf.replace_path(self.repo.get_bin_path(self.version),build=self)
+            if not os.path.exists(bin_path):
+                print("%s needs compilation because %s could not be found" % (self.repo.pretty_name(),bin_path))
+                return True
+        if Build.get_current_version(self.repo) != self.version:
             return True
+        return False
 
     def compile(self, quiet = False, show_cmd = False):
         """

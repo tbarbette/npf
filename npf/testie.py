@@ -361,7 +361,16 @@ class Testie:
         self.parse_script_roles()
 
         # Create temporary folder
-        v_internals = {'NPF_ROOT': '../', 'NPF_BUILD': '../' + build.build_path()}
+        v_internals = {'NPF_ROOT':'../', 'NPF_BUILD':'../' + build.build_path()}
+        deps_repo = []
+        depscripts = [imp.testie.scripts for imp in self.imports]
+
+        allscripts = [item for sublist in [self.scripts] + depscripts for item in sublist]
+        for script in allscripts:
+            deps_repo.extend(script.get_deps_repos(self.options))
+
+        for repo in deps_repo:
+            v_internals[repo.reponame.upper() + '_VERSION'] = repo.version
         v.update(v_internals)
         if test_folder is None:
             test_folder = self.make_test_folder()
@@ -435,11 +444,13 @@ class Testie:
                         param.options = self.options
                         param.queue = queue
                         param.stdin = t.stdin.content
-                        timeout = t.config['timeout'] if t.config['timeout'] > 0 else None
+                        timeout = t.config['timeout']
                         if 'timeout' in script.params:
                             timeout = float(script.params['timeout'])
-                        if self.config['timeout'] > timeout:
+                        if self.config['timeout'] == -1 or self.config['timeout'] > timeout:
                             timeout = self.config['timeout']
+                        if timeout == -1 or timeout=="-1":
+                            timeout = None
 
                         param.timeout = timeout
                         script.timeout = timeout
@@ -840,7 +851,10 @@ class Testie:
                         build.writeversion(self, all_time_results, allow_overwrite=True, time=True)
 
         if not self.options.preserve_temp:
-            shutil.rmtree(test_folder)
+            try:
+                shutil.rmtree(test_folder)
+            except PermissionError:
+                pass
         else:
             print("Test files have been kept in folder %s" % test_folder)
 
