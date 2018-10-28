@@ -234,7 +234,7 @@ def find_local(path):
     return path
 
 
-def build_filename(testie, build, hint, variables, def_ext, type_str='', show_serie=False, suffix=''):
+def build_filename(testie, build, hint, variables, def_ext, type_str='', show_serie=False, suffix='', force_ext = False):
     var_str = get_valid_filename('_'.join(
         ["%s=%s" % (k, (val[1] if type(val) is tuple else val)) for k, val in sorted(variables.items()) if val]))
 
@@ -251,7 +251,7 @@ def build_filename(testie, build, hint, variables, def_ext, type_str='', show_se
                 ext = basename
                 basename = ''
 
-        if ext is None or ext == '':
+        if ext is None or ext == '' or force_ext:
             ext = '.' + def_ext
 
         if basename is None or basename is '':

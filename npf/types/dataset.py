@@ -174,7 +174,7 @@ def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list
                     if result_type in csvs:
                         type_filename,csvfile,wr = csvs[result_type]
                     else:
-                        type_filename = npf.build_filename(testie, build, options.output if options.output != 'graph' else options.graph_filename, statics, 'csv', result_type,show_serie=(len(datasets) > 1))
+                        type_filename = npf.build_filename(testie, build, options.output if options.output != 'graph' else options.graph_filename, statics, 'csv', result_type,show_serie=(len(datasets) > 1), force_ext=True)
                         csvfile = open(type_filename, 'w')
                         wr = csv.writer(csvfile, delimiter=' ',
                                     quotechar='"', quoting=csv.QUOTE_MINIMAL)
@@ -214,10 +214,10 @@ def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list
 
                     std = np.std(result)
                     mean = np.mean(result)
-                    e.setdefault(result_type, []).append((mean,std))
+                    e.setdefault(result_type, []).append((mean, std, result))
                 else:
                     y.setdefault(result_type, []).append(np.nan)
-                    e.setdefault(result_type, []).append((np.nan, np.nan))
+                    e.setdefault(result_type, []).append((np.nan, np.nan, [np.nan]))
 
 
         for result_type in x.keys():
@@ -233,7 +233,7 @@ def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list
                 order = np.argsort(x[result_type])
                 ox = np.array(x[result_type])[order]
                 oy = np.array(y[result_type])[order]
-                oe = np.array(e[result_type])[order]
+                oe = [e[result_type][i] for i in order]
 
 
             data_types.setdefault(result_type, []).append((ox,oy,oe,build))

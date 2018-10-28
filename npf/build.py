@@ -180,14 +180,13 @@ class Build:
 
 
     def is_compile_needed(self):
-        if self.repo.get_bin_path(self.version):
-            bin_path=npf.replace_path(self.repo.get_bin_path(self.version),build=self)
-            if not os.path.exists(bin_path):
-                print("%s needs compilation because %s could not be found" % (self.repo.pretty_name(),bin_path))
-                return True
-        if Build.get_current_version(self.repo) != self.version:
-            return True
-        return False
+        bin_path=npf.replace_path(self.repo.get_bin_path(self.version),build=self)
+        if not os.path.exists(bin_path):
+            return "could not find %s" % bin_path
+        elif not Build.get_current_version(self.repo) == self.version:
+            return "current version is %s, the newest is %s" % (Build.get_current_version(self.repo), self.version)
+        else:
+            return None
 
     def compile(self, quiet = False, show_cmd = False):
         """
@@ -238,11 +237,12 @@ class Build:
                 print("Checking out %s" % (self.repo.name))
             if not self.checkout(quiet_build):
                 return False
-        if force_build or self.is_compile_needed():
+        reason = self.is_compile_needed()
+        if force_build or (reason != None):
             if never_build:
                 print("Warning : will not do test because you disallowed build")
             if not quiet_build:
-                print("Building %s" % (self.repo.name))
+                print("Building %s (because %s)" % (self.repo.name, "you force the build with --force-build" if force_build else reason))
             if not self.compile(quiet_build, show_build_cmd):
                 return False
         self.repo._current_build = self

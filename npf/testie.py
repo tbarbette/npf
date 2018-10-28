@@ -581,14 +581,27 @@ class Testie:
                     update = {}
                     all_result_types = set()
                     nz = True
+                    last_val = {}
+                    acc =   self.config.get_list("test_time_sync")
                     for time, results in sorted(new_time_results.items()):
-                        for result_type, result in results.items():
-                            if result != 0:
-                                nz = False
                         if nz:
-                            min_time = time
-                            continue
+                            for result_type, result in results.items():
+                                if result_type in self.config.get_list("var_repeat"):
+                                    last_val[result_type] = result
+
+                                if result != 0 and (not acc or result_type in acc):
+                                    nz = False
+                                    min_time = time
+                            if nz:
+                                continue
+                            else:
+                                for result_type, result in last_val.items():
+                                    results[result_type] = result
+
                         for result_type, result in results.items():
+
+                            if result_type in self.config.get_dict("var_n_runs") and i >= int(self.config.get_dict("var_n_runs")[result_type]):
+                                continue
                             nonzero.add(result_type)
                             all_result_types.add(result_type)
                             event_t = Decimal(("%.0" + str(self.config['time_precision']) + "f") % round(float(time - min_time), int(self.config['time_precision'])))
@@ -651,6 +664,8 @@ class Testie:
                 return
         else:
             update[event_t] = {}
+
+        # Find the previous point
         prev = None
         mindist = Decimal('Inf')
         for u_t, u_r in update.items():

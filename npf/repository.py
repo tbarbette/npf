@@ -106,7 +106,7 @@ class MethodGit(Method):
         else:
             c = branch
 
-        if gitrepo.head.commit != gitrepo.commit(c):
+        if gitrepo.head.commit != gitrepo.commit(c) and not self.repo.options.no_build:
             if not self.repo.options.quiet_build:
                 print("Reseting branch to latest %s" % (c))
             gitrepo.git.stash('save')

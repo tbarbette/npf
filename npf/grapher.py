@@ -256,6 +256,8 @@ class Grapher:
         return ss
 
     def extract_variable_to_series(self, key, vars_values, all_results, dyns, build, script) -> Graph:
+        if not key in dyns:
+            raise ValueError("Cannot extract %s because it is not a dynamic variable (%s are)" % (key, ', '.join(dyns)))
         dyns.remove(key)
         series = []
         versions = []
@@ -268,7 +270,7 @@ class Grapher:
             return
         new_varsall = OrderedSet()
         for i, value in enumerate(values):
-            newserie = {}
+            newserie = OrderedDict()
             for run, run_results in all_results.items():
                 #                    if (graph_variables and not run in graph_variables):
                 #                        continue
@@ -612,7 +614,7 @@ class Grapher:
             try:
                 values = natsort.natsorted(vars_values[to_get_out])
             except KeyError as e:
-                print("ERROR : Unknown variable %s" % to_get_out)
+                print("ERROR : Unknown variable %s to export as serie" % to_get_out)
                 print("Known variables : ",vars_values)
                 continue
             if len(values) == 1:
@@ -708,13 +710,13 @@ class Grapher:
             else:
                 statics[k] = list(v)[0]
 
-
         graph_series_label = self.config("graph_series_label")
         sv = self.config('graph_subplot_variable', None)
         graphs = []
         if sv:
             for script, build, all_results  in series:
-                graph = self.extract_variable_to_series(sv, vars_values, all_results, dyns, build, script)
+
+                graph = self.extract_variable_to_series(sv, vars_values.copy(), all_results, dyns.copy(), build, script)
                 if graph_series_label:
                     for i, (testie, build, all_results) in enumerate(series):
                         v = {}
@@ -723,8 +725,12 @@ class Grapher:
                         build._pretty_name=SectionVariable.replace_variables(v, graph_series_label)
 
                 graph.title = title if title else self.var_name(sv)
+                if len(series) > 0:
+                    graph.title = build._pretty_name + " - " + graph.title
                 assert(not sv in graph.vars_values)
                 graphs += graph.split_for_series()
+            del dyns
+            del vars_values
         else:
             graph = self.series_to_graph(series, dyns, vars_values, vars_all)
             graph.title = title
@@ -1102,6 +1108,8 @@ class Grapher:
             y = np.array([y[i] for i in order])
             mean = np.array([e[i][0] for i in order])
             std = np.array([e[i][1] for i in order])
+            ymin = np.array([np.min(e[i][2]) for i in order])
+            ymax = np.array([np.max(e[i][2]) for i in order])
 
 
             if 'step' in drawstyle:
@@ -1117,17 +1125,30 @@ class Grapher:
             lab = build.pretty_name()
             while lab.startswith('_'):
                 lab = lab[1:]
-            if self.config_bool("graph_scatter"):
-                axis.scatter(ax[mask], y[mask], label=lab, color=c, linestyle=build._line, marker=build._marker)
+
+            marker=build._marker
+
+            if result_type in self.configdict("var_markers"):
+                m = self.configdict("var_markers")[result_type].split(';')
+                marker = m[i % len(m)]
+
+            if result_type in self.configlist("graph_scatter"):
+                axis.scatter(ax[mask], y[mask], label=lab, color=c, linestyle=build._line, marker=marker)
             else:
-                axis.plot(ax[mask], y[mask], label=lab, color=c, linestyle=build._line, marker=build._marker,markevery=(1 if len(ax[mask]) < 20 else math.ceil(len(ax[mask]) / 20)),drawstyle=drawstyle)
+                axis.plot(ax[mask], y[mask], label=lab, color=c, linestyle=build._line, marker=marker,markevery=(1 if len(ax[mask]) < 20 else math.ceil(len(ax[mask]) / 20)),drawstyle=drawstyle)
             error_type = self.scriptconfig('graph_error', result_type, default = None)
             if error_type != 'none':
                 if error_type == 'bar' or not self.config('graph_error_fill'):
-                    axis.errorbar(ax[mask], mean[mask], yerr=std[mask], marker=' ', label=None, linestyle=' ', color=c, capsize=3)
+                    if error_type == 'barminmax':
+                        axis.errorbar(ax[mask], ymin[mask], yerr=(ymin[mask],ymax[mask]), marker=' ', label=None, linestyle=' ', color=c, capsize=3)
+                    else:
+                        axis.errorbar(ax[mask], mean[mask], yerr=std[mask], marker=' ', label=None, linestyle=' ', color=c, capsize=3)
                 else:
-                    if not np.logical_or(np.zeros(len(e)) == e, np.isnan(e)).all():
-                        axis.fill_between(ax[mask], mean[mask] - std[mask], mean[mask] + std[mask], color=c, alpha=.4, linewidth=0)
+                    if not np.logical_or(np.zeros(len(y)) == e, np.isnan(y)).all():
+                        if error_type=="fillminmax":
+                            axis.fill_between(ax[mask], ymin[mask], ymax[mask], color=c, alpha=.4, linewidth=0)
+                        else:
+                            axis.fill_between(ax[mask], mean[mask] - std[mask], mean[mask] + std[mask], color=c, alpha=.4, linewidth=0)
 
             xmin = min(xmin, min(ax[mask]))
             xmax = max(xmax, max(ax[mask]))
@@ -1263,7 +1284,7 @@ class Grapher:
                 last = last - y
         else:
             for i, (x, y, e, build) in enumerate(data):
-                std = np.asarray([std for mean,std in e])
+                std = np.asarray([std for mean,std,raw in e])
                 axis.bar(interbar + ind + (i * width), y, width,
                     label=str(build.pretty_name()), color=build._color, yerr=std,
                     edgecolor=edgecolor)
