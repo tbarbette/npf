@@ -231,8 +231,7 @@ class Build:
             force_build = True
             if never_build:
                 if not quiet_build:
-                    print("Warning : will not do test because you disallowed build")
-                return False
+                    print("Warning : test will be done with an unknown state of build")
             if not quiet_build:
                 print("Checking out %s" % (self.repo.name))
             if not self.checkout(quiet_build):
@@ -240,7 +239,9 @@ class Build:
         reason = self.is_compile_needed()
         if force_build or (reason != None):
             if never_build:
-                print("Warning : will not do test because you disallowed build")
+                print("Warning : version changed but you disallowed build. Test will be done with an unknown state of build")
+                self.repo._current_build = self
+                return True
             if not quiet_build:
                 print("Building %s (because %s)" % (self.repo.name, "you force the build with --force-build" if force_build else reason))
             if not self.compile(quiet_build, show_build_cmd):

@@ -370,7 +370,8 @@ class Testie:
             deps_repo.extend(script.get_deps_repos(self.options))
 
         for repo in deps_repo:
-            v_internals[repo.reponame.upper() + '_VERSION'] = repo.version
+            if repo.version is not None:
+                v_internals[repo.reponame.upper() + '_VERSION'] = repo.version
         v.update(v_internals)
         if test_folder is None:
             test_folder = self.make_test_folder()

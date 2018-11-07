@@ -38,10 +38,12 @@ class SSHExecutor(Executor):
 
         pre = 'cd '+ self.path + '\n'
 
-        env['NPF_ROOT'] = self.path
+        if self.path:
+            env['NPF_ROOT'] = self.path
 
         for k,v in env.items():
-            pre += 'export ' + k + '='+v+'\n'
+            if v is not None:
+                pre += 'export ' + k + '='+v+'\n'
         if path_list:
             path_cmd = 'export PATH="%s:$PATH"\n' % (':'.join(path_list))
         else:
