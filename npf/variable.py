@@ -324,10 +324,8 @@ class IfVariable(Variable):
         aeval = Interpreter()
         if aeval(self.cond):
             return [self.a]
-            print(self.cond,aeval(self.conf),"A")
         else:
             return [self.b]
-            print(self.cond,aeval(self.conf),"B")
 
     def count(self):
         return 1

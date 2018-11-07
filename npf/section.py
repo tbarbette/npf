@@ -289,7 +289,10 @@ class SectionVariable(Section):
 
         def do_replace_nics(nic_match):
             varRole = nic_match.group('role')
-            return str(npf.node(varRole, self_role, default_role_map).get_nic(
+            if nic_match.groupdict()['node']:
+                 return str(getattr(npf.node(varRole, self_role, default_role_map), str(nic_match.group('node'))));
+            else:
+                return str(npf.node(varRole, self_role, default_role_map).get_nic(
                 int(nic_match.group('nic_idx') if nic_match.group('nic_idx') else v[nic_match.group('nic_var')]))[
                            nic_match.group('type')])
 

@@ -53,9 +53,9 @@ class NIC:
 class Node:
     _nodes = {}
 
-    NICREF_REGEX = r'(?P<role>[a-z0-9]+)[:](?P<nic_idx>[0-9]+)[:](?P<type>' + NIC.TYPES + '+)'
-    VARIABLE_NICREF_REGEX = r'(?<!\\)[$][{]' + NICREF_REGEX + '[}]'
     ALLOWED_NODE_VARS = 'path|user|addr|tags|nfs'
+    NICREF_REGEX = r'(?P<role>[a-z0-9]+)[:](:?(?P<nic_idx>[0-9]+)[:](?P<type>' + NIC.TYPES + '+)|(?P<node>'+ALLOWED_NODE_VARS+'))'
+    VARIABLE_NICREF_REGEX = r'(?<!\\)[$][{]' + NICREF_REGEX + '[}]'
 
     def __init__(self, name, executor):
         self.executor = executor
@@ -63,6 +63,7 @@ class Node:
         self.nics = []
         self.tags = []
         self.nfs = True
+        self.addr = 'localhost'
 
         # Always fill 32 random nics address that will be overwriten by config eventually
         self._gen_random_nics()
