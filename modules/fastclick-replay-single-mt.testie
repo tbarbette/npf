@@ -19,12 +19,13 @@ PKTGEN_REPLAY_COUNT=1
 NIC=0
 CLIENT_NIC=0
 RCV_NIC=0
+SND_NIC=0
 LIMIT=200000
 GEN_THREADS=4
 PROMISC=false
 promisc:PROMISC=true
 IGNORE=0
-PAUSE=none
+PAUSE?=none
 GEN_DESC=0
 
 nolinktest=0
@@ -52,17 +53,19 @@ define($RAW_INdstmac ${server:$NIC:raw_mac})
 
 define($ignore $IGNORE)
 define($replay_count $PKTGEN_REPLAY_COUNT)
-define($port ${self:$RCV_NIC:pci})
+
+define($txport ${self:$SND_NIC:pci})
+define($rxport ${self:$RCV_NIC:pci})
 define($quick true)
 define($txverbose 99)
 define($rxverbose 99)
 
 fdIN :: FromDump($trace, STOP false, TIMING false)
-tdIN :: ToDPDKDevice($port, BLOCKING true, BURST $bout, VERBOSE $txverbose, IQUEUE $bout, NDESC $GEN_DESC)
+tdIN :: ToDPDKDevice($txport, BLOCKING true, BURST $bout, VERBOSE $txverbose, IQUEUE $bout, NDESC $GEN_DESC)
 
 
 elementclass Numberise { $magic |
-    input-> Strip(14) -> check :: CheckIPHeader -> nPacket :: NumberPacket(42) -> StoreData(40, $magic) -> SetIPChecksum -> Unstrip(14) -> output
+    input-> Strip(14) -> check :: CheckIPHeader(CHECKSUM false) -> nPacket :: NumberPacket(42) -> StoreData(40, $magic) -> SetIPChecksum -> Unstrip(14) -> output
 }
 
 fdIN
@@ -90,7 +93,7 @@ StaticThreadSched(gen1/replay 2)
 StaticThreadSched(gen2/replay 4)
 StaticThreadSched(gen3/replay 6)
 
-receiveIN :: FromDPDKDevice($port, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, PAUSE $PAUSE, NDESC $GEN_DESC)
+receiveIN :: FromDPDKDevice($rxport, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, PAUSE $PAUSE, NDESC $GEN_DESC)
 
 elementclass Receiver { $mac, $dir |
     input[0]

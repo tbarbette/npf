@@ -22,7 +22,7 @@ CLIENT_NIC=0
 RCV_NIC=0
 LIMIT=500000
 TIMING=5
-TIMING_FNT=false
+TIMING_FNT=0
 GEN_THREADS=4
 PROMISC=false
 promisc:PROMISC=true
@@ -33,7 +33,7 @@ ITERATION_TIME=1
 END_WAIT=0
 PAUSE=none
 GEN_DESC=0
-
+GEN_PRINT_START=
 nolinktest=0
 
 %late_variables
@@ -219,6 +219,7 @@ run_test :: Script(TYPE PASSIVE,
             wait ${IGNORE}s,
             print "EVENT GEN_BEGIN",
             print "Starting bandwidth computation !",
+            print "$GEN_PRINT_START",
             goto end $(eq $ITERATIVE 0),
             write display_th.run 1,
             label end)

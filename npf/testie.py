@@ -209,6 +209,9 @@ class Testie:
             role = script.get_role()
             node = npf.node(role)
             if not node.nfs:
+                for repo in repo_under_test:
+                    print("Sending %s ..." % repo)
+                    node.executor.sendFolder(repo.get_build_path())
                 for dep in script.get_deps():
                     deprepo = Repository.get_instance(dep, self.options)
                     print("Sending %s ..." % dep)
@@ -361,7 +364,7 @@ class Testie:
         self.parse_script_roles()
 
         # Create temporary folder
-        v_internals = {'NPF_ROOT':'../', 'NPF_BUILD':'../' + build.build_path()}
+        v_internals = {'NPF_ROOT':'../', 'NPF_BUILD':'../' + build.build_path(), 'NPF_TESTIE_PATH': '../'+ os.path.relpath(self.path) }
         deps_repo = []
         depscripts = [imp.testie.scripts for imp in self.imports]
 
