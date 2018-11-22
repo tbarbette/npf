@@ -5,7 +5,7 @@ Packets are directed towards one NIC of the "server" role using one NIC of the C
 
 Suggested usage example in your testie (omit the prefixed "//" that prevent loop import here)
 
-//%import@client fastclick-replay-single trace=path/to.pcap NIC=0 CLIENT_NIC=0
+//%import@client fastclick-replay-single trace=path/to.pcap NIC=0 RCV_NIC=0 SND_NIC=0
 
 %config
 n_retry=0
@@ -34,6 +34,8 @@ nolinktest=0
 NBBUF=EXPAND( $(( ( ( $LIMIT * $GEN_THREADS ) + ($PKTGEN_BURST_OUT * 2) ) + 8192 )) )
 NRECORD=EXPAND( $(( $LIMIT * $PKTGEN_REPLAY_COUNT  * 2 )) )
 BROADCAST_IGNORE= -> c :: Classifier(0/$mac,-) //Ignore broadcasts
+SND_NIC?=EXPAND($CLIENT_NIC)
+RCV_NIC?=EXPAND($CLIENT_NIC)
 
 %promisc:late_variables
 BROADCAST_IGNORE= -> c :: Classifier(-, 0/ffffffffffff)
@@ -45,8 +47,8 @@ click --dpdk -l 0-15 -- PKTGEN_CONFIG
 d :: DPDKInfo($NBBUF)
 
 define($bout $PKTGEN_BURST_OUT)
-define($INsrcmac ${client:$CLIENT_NIC:mac})
-define($RAW_INsrcmac ${client:$CLIENT_NIC:raw_mac})
+define($INsrcmac ${client:$SND_NIC:mac})
+define($RAW_INsrcmac ${client:$SND_NIC:raw_mac})
 
 define($INdstmac ${server:$NIC:mac})
 define($RAW_INdstmac ${server:$NIC:raw_mac})
