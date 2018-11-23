@@ -190,7 +190,7 @@ class Testie:
                         raise Exception('Modules cannot have roles, their importer defines it')
                 script._role = imp.get_role()
 
-    def build_deps(self, repo_under_test: List[Repository]):
+    def build_deps(self, repo_under_test: List[Repository], v_internals = {}):
         # Check for dependencies
         deps = set()
         for script in self.get_scripts():
@@ -204,7 +204,7 @@ class Testie:
             if not deprepo.get_last_build().build(force_build=deprepo.reponame in self.options.force_build_deps):
                 raise Exception("Could not build dependency %s" % dep)
         for imp in self.imports:
-            imp.testie.build_deps(repo_under_test)
+            imp.testie.build_deps(repo_under_test, v_internals)
         # Send dependencies for nfs=0 nodes
         for script in self.get_scripts():
             role = script.get_role()
@@ -217,7 +217,21 @@ class Testie:
                     deprepo = Repository.get_instance(dep, self.options)
                     print("Sending %s ..." % dep)
                     node.executor.sendFolder(deprepo.get_build_path())
-
+        st = self.variables.statics()
+        st.update(v_internals)
+        for late_variables in self.get_late_variables():
+            st.update(late_variables.execute(st, self))
+        for role,fpaths in self.sendfile.items():
+            node = npf.node(role)
+            if not node.nfs:
+                for fpath in fpaths:
+                    fpath = SectionVariable.replace_variables(st, fpath, role,
+                                                  self.config.get_dict("default_role_map"))
+                    if not os.path.isabs(fpath):
+                        fpath = './npf/'+fpath
+                    fpath = os.path.relpath(fpath)
+                    print("Sending %s ..." % fpath)
+                    node.executor.sendFolder(fpath)
         return True
 
     def test_tags(self):
@@ -358,21 +372,19 @@ class Testie:
         return has_err, has_values
 
     def execute(self, build, run, v, n_runs=1, n_retry=0, allowed_types=SectionScript.ALL_TYPES_SET, do_imports=True,
-                test_folder=None, event=None) \
+                test_folder=None, event=None, v_internals = {}) \
             -> Tuple[Dict[str, List], str, str, int]:
 
         # Get address definition for roles from scripts
         self.parse_script_roles()
 
         # Create temporary folder
-        v_internals = {'NPF_ROOT':'../', 'NPF_BUILD':'../' + build.build_path(), 'NPF_TESTIE_PATH': '../'+ os.path.relpath(self.path) }
         deps_repo = []
         depscripts = [imp.testie.scripts for imp in self.imports]
 
         allscripts = [item for sublist in [self.scripts] + depscripts for item in sublist]
         for script in allscripts:
             deps_repo.extend(script.get_deps_repos(self.options))
-
         for repo in deps_repo:
             if repo.version is not None:
                 v_internals[repo.reponame.upper() + '_VERSION'] = repo.version
@@ -687,10 +699,10 @@ class Testie:
         else:
             update[event_t][result_type] = []
 
-    def do_init_all(self, build, options, do_test, allowed_types=SectionScript.ALL_TYPES_SET,test_folder=None):
+    def do_init_all(self, build, options, do_test, allowed_types=SectionScript.ALL_TYPES_SET,test_folder=None, v_internals = {}):
         if not build.build(options.force_build, options.no_build, options.quiet_build, options.show_build_cmd):
             raise ScriptInitException()
-        if not self.build_deps([build.repo]):
+        if not self.build_deps([build.repo], v_internals = v_internals):
             raise ScriptInitException()
 
         if (allowed_types is None or "init" in allowed_types) and options.do_init:
@@ -705,7 +717,8 @@ class Testie:
                                                                                       n_retry=0,
                                                                                       allowed_types={"init"},
                                                                                       do_imports=True,
-                                                                                      test_folder=test_folder)
+                                                                                      test_folder=test_folder,
+                                                                                      v_internals = v_internals)
 
             if num_err > 0:
                 if not options.quiet:
@@ -731,10 +744,12 @@ class Testie:
         init_done = False
         test_folder = self.make_test_folder()
 
+        v_internals = {'NPF_ROOT':'../', 'NPF_BUILD':'../' + build.build_path(), 'NPF_TESTIE_PATH': '../'+ os.path.relpath(self.path) }
+
         if not SectionScript.TYPE_SCRIPT in allowed_types:
             # If scripts is not in allowed_types, we have to run the init by force now
 
-            self.do_init_all(build, options, do_test=do_test, allowed_types=allowed_types)
+            self.do_init_all(build, options, do_test=do_test, allowed_types=allowed_types, v_internals = v_internals)
             if not self.options.preserve_temp:
                 shutil.rmtree(test_folder)
             return {}, True
@@ -811,7 +826,7 @@ class Testie:
                         [len(results) for result_type, results in run_results.items()]))
                 if n_runs > 0 and do_test:
                     if not init_done:
-                        self.do_init_all(build, options, do_test, allowed_types=allowed_types, test_folder=test_folder)
+                        self.do_init_all(build, options, do_test, allowed_types=allowed_types, test_folder=test_folder, v_internals = v_internals)
                         init_done = True
                     if not self.options.quiet:
                         if len(self.variables) > 0:
@@ -826,7 +841,8 @@ class Testie:
                                                                                                       "n_retry"],
                                                                                                   allowed_types={
                                                                                                   SectionScript.TYPE_SCRIPT},
-                                                                                                  test_folder=test_folder)
+                                                                                                  test_folder=test_folder,
+                                                                                                  v_internals = v_internals)
                     if new_data_results:
                         for result_type, values in new_data_results.items():
                             if options.force_retest:

@@ -1,5 +1,5 @@
 import multiprocessing
-import os
+import os,errno
 import time
 from multiprocessing import Queue
 from typing import List
@@ -188,10 +188,26 @@ class SSHExecutor(Executor):
                 curpath = ''
                 for d in path.split('/'):
                     curpath = curpath + d + '/'
+                    if not os.path.isdir(curpath):
+                        remote = self.path + path
+                        try:
+                            sftp.stat(remote)
+                        except IOError as e:
+                            if e.errno is errno.ENOENT:
+                                sftp.put(path, remote)
+                                sftp.chmod(remote, os.stat(path).st_mode)
+                        finally:
+                            sftp.close()
+                        return
                     try:
                         sftp.stat(self.path + '/' + curpath)
                     except FileNotFoundError:
-                        sftp.mkdir(self.path + '/' + curpath)
+                        try:
+                            f = self.path + '/' + curpath
+                            sftp.mkdir(f)
+                        except IOError as e:
+                            print("Could not make folder %s" % f)
+                            raise e
 
                 _send(path)
 
