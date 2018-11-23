@@ -153,7 +153,7 @@ class Grapher:
         for script in self.scripts:
             if var in script.config:
                 d = script.config.get_dict(var)
-                lk = key.lower()
+                lk = str(key).lower()
                 if result_type is None:
                     #Search for the exact key if there is no result_type
                     for k, v in d.items():
@@ -795,7 +795,7 @@ class Grapher:
                 for stat in self.configlist("graph_display_statics"):
                     if text == '' or text[-1] != "\n":
                         text += "\n"
-                    text += self.var_name(stat) + " : " + ', '.join([str(val) for val in graph.vars_values[stat]])
+                    text += str(self.var_name(stat)) + " : " + ', '.join([str(val) for val in graph.vars_values[stat]])
             n_s_lines = math.ceil((len(figure) + (1 if text else 0)) / float(n_cols))
             n_lines = v_lines * n_s_lines
             fig_name = "subplot" + str(i)

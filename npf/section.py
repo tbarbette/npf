@@ -19,7 +19,8 @@ class SectionFactory:
     namePattern = re.compile(
         "^(?P<tags>" + Variable.TAGS_REGEX + "[:])?(?P<name>info|config|variables|pyexit|late_variables|include (?P<includeName>[a-zA-Z0-9_./-]+)||(init-)?file(:?[@](?P<fileRole>[a-zA-Z0-9]+))? (?P<fileName>[a-zA-Z0-9_.-]+)(:? (?P<fileNoparse>noparse))?|require|"
                                              "import(:?[@](?P<importRole>[a-zA-Z0-9]+))?[ \t]+(?P<importModule>" + Variable.VALUE_REGEX + ")(?P<importParams>([ \t]+" +
-        varPattern + ")+)?|"
+        varPattern + ")+)?|" +
+                     "sendfile(:?[@](?P<sendfileRole>[a-zA-Z0-9]+))?[ \t]+(?P<sendfilePath>.*)|" +
                      "(:?script|init)(:?[@](?P<scriptRole>[a-zA-Z0-9]+))?(?P<scriptParams>([ \t]+" + varPattern + ")*))$")
 
     @staticmethod
@@ -43,6 +44,10 @@ class SectionFactory:
             module = matcher.group('importModule')
             params = dict(re.findall(SectionFactory.varPattern, params)) if params else {}
             s = SectionImport(matcher.group('importRole'), module, params)
+            return s
+
+        if sectionName.startswith('sendfile'):
+            s = SectionSendFile(matcher.group('sendfileRole'), matcher.group('sendfilePath'))
             return s
 
         if sectionName.startswith('script') or (
@@ -108,6 +113,14 @@ class SectionNull(Section):
     def __init__(self, name='null'):
         super().__init__(name)
 
+class SectionSendFile(Section):
+    def __init__(self, role, path):
+        super().__init__('sendfile')
+        self.role = role
+        self.path = path
+
+    def finish(self, testie):
+        testie.sendfile.setdefault(self.role,[]).append(self.path)
 
 class SectionScript(Section):
     TYPE_INIT = "init"

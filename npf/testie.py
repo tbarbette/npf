@@ -96,6 +96,7 @@ class Testie:
         self.scripts = []
         self.imports = []
         self.requirements = []
+        self.sendfile = {}
         self.filename = os.path.basename(testie_path)
         self.path = os.path.dirname(testie_path)
         self.options = options
