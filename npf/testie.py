@@ -217,7 +217,7 @@ class Testie:
                     deprepo = Repository.get_instance(dep, self.options)
                     print("Sending %s ..." % dep)
                     node.executor.sendFolder(deprepo.get_build_path())
-        st = self.variables.statics()
+        st = dict([(f,v.makeValues()[0]) for f,v in self.variables.statics().items()])
         st.update(v_internals)
         for late_variables in self.get_late_variables():
             st.update(late_variables.execute(st, self))
