@@ -744,7 +744,7 @@ class Testie:
         init_done = False
         test_folder = self.make_test_folder()
 
-        v_internals = {'NPF_ROOT':'../', 'NPF_BUILD':'../' + build.build_path(), 'NPF_TESTIE_PATH': '../'+ os.path.relpath(self.path) }
+        v_internals = {'NPF_ROOT':'../', 'NPF_BUILD':'../' + build.build_path(), 'NPF_TESTIE_PATH': '../'+ (os.path.relpath(self.path) if self.path else '') }
 
         if not SectionScript.TYPE_SCRIPT in allowed_types:
             # If scripts is not in allowed_types, we have to run the init by force now

@@ -2,6 +2,7 @@ import os
 import random
 
 import re
+import socket
 
 from npf.executor.localexecutor import LocalExecutor
 from npf.executor.sshexecutor import SSHExecutor
@@ -54,7 +55,7 @@ class Node:
     _nodes = {}
 
     ALLOWED_NODE_VARS = 'path|user|addr|tags|nfs'
-    NICREF_REGEX = r'(?P<role>[a-z0-9]+)[:](:?(?P<nic_idx>[0-9]+)[:](?P<type>' + NIC.TYPES + '+)|(?P<node>'+ALLOWED_NODE_VARS+'))'
+    NICREF_REGEX = r'(?P<role>[a-z0-9]+)[:](:?(?P<nic_idx>[0-9]+)[:](?P<type>' + NIC.TYPES + '+)|(?P<node>'+ALLOWED_NODE_VARS+'|ip))'
     VARIABLE_NICREF_REGEX = r'(?<!\\)[$][{]' + NICREF_REGEX + '[}]'
 
     def __init__(self, name, executor):
@@ -121,6 +122,7 @@ class Node:
         if node is None:
             node = Node('localhost', LocalExecutor())
             cls._nodes['localhost'] = node
+        node.ip = '127.0.0.1'
         return node
 
     @classmethod
@@ -133,6 +135,7 @@ class Node:
         sshex = SSHExecutor(user, addr, path)
         node = Node(addr, sshex)
         cls._nodes[addr] = node
+        node.ip = socket.gethostbyname(node.executor.addr)
         if options.do_test and options.do_conntest:
             print("Testing connection to %s..." % node.executor.addr)
             pid, out, err, ret = sshex.exec(cmd="echo \"test\"")
