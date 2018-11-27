@@ -119,7 +119,7 @@ class SSHExecutor(Executor):
 
             return pid,output[0], output[1],ret
         except paramiko.ssh_exception.SSHException as e:
-            print("Error while connecting to %s", self.addr)
+            print("Error while connecting to %s" % self.addr)
             raise e
 
     def writeFile(self,filename,path_to_root,content):
@@ -148,7 +148,7 @@ class SSHExecutor(Executor):
                     channel.shutdown_write()
                     return channel.recv_exit_status() == 0
         except paramiko.ssh_exception.SSHException as e:
-            print("Error while connecting to %s", self.addr)
+            print("Error while connecting to %s" % self.addr)
             raise e
 
     def sendFolder(self, path):
@@ -214,5 +214,5 @@ class SSHExecutor(Executor):
                 sftp.close()
 
         except paramiko.ssh_exception.SSHException as e:
-            print("Error while connecting to %s", self.addr)
+            print("Error while connecting to %s" % self.addr)
             raise e
