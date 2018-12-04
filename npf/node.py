@@ -7,56 +7,10 @@ import socket
 from npf.executor.localexecutor import LocalExecutor
 from npf.executor.sshexecutor import SSHExecutor
 from npf.variable import Variable,get_bool
-
-class NIC:
-    TYPES = "ip|mac|raw_mac|ifname|pci|mask"
-
-    def __init__(self, pci, mac, ip, ifname, mask='255.255.255.0'):
-        self.pci = pci
-        self.mac = mac
-        self.ip = ip
-        self.ifname = ifname
-        self.mask = mask
-
-    def __getitem__(self, item):
-        item = str(item).lower()
-        if item == 'pci':
-            return self.pci
-        elif item == 'mac':
-            return self.mac
-        elif item == 'raw_mac':
-            return self.mac.replace(':', '')
-        elif item == 'ip':
-            return self.ip
-        elif item == 'ifname':
-            return self.ifname
-        elif item == 'mask':
-            return self.mask
-        else:
-            raise Exception("Unknown type %s" % item)
-
-    def __setitem__(self, item, val):
-        item = str(item).lower()
-        if item == 'pci':
-            self.pci = val
-        elif item == 'mac':
-            self.mac = val
-        elif item == 'ip':
-            self.ip = val
-        elif item == 'ifname':
-            self.ifname = val
-        elif item == 'mask':
-            self.mask = val
-        else:
-            raise Exception("Unknown type %s" % item)
-
+from npf.nic import NIC
 
 class Node:
     _nodes = {}
-
-    ALLOWED_NODE_VARS = 'path|user|addr|tags|nfs'
-    NICREF_REGEX = r'(?P<role>[a-z0-9]+)[:](:?(?P<nic_idx>[0-9]+)[:](?P<type>' + NIC.TYPES + '+)|(?P<node>'+ALLOWED_NODE_VARS+'|ip))'
-    VARIABLE_NICREF_REGEX = r'(?<!\\)[$][{]' + NICREF_REGEX + '[}]'
 
     def __init__(self, name, executor):
         self.executor = executor
@@ -81,7 +35,7 @@ class Node:
                 if match:
                     self.nics[int(match.group('nic_idx'))][match.group('type')] = match.group('val')
                     continue
-                match = re.match(r'(?P<var>' + Node.ALLOWED_NODE_VARS + ')=(?P<val>.*)', line,
+                match = re.match(r'(?P<var>' + Variable.ALLOWED_NODE_VARS + ')=(?P<val>.*)', line,
                                  re.IGNORECASE)
                 if match:
                     if match.group('var') == 'nfs':

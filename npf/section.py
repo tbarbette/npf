@@ -3,12 +3,10 @@ import ast
 from typing import List, Set
 
 from npf import npf
-from npf.node import Node
 from npf.repository import Repository
 from .variable import *
 from collections import OrderedDict
 
-from asteval import Interpreter
 from random import shuffle
 
 import re
@@ -279,49 +277,7 @@ class SectionVariable(Section):
 
     @staticmethod
     def replace_variables(v: dict, content: str, self_role=None, default_role_map={}):
-        """
-        Replace all variable and nics references in content
-        This is done in two step : variables first, then NICs reference so variable can be used in NIC references
-        :param v: Dictionary of variables
-        :param content: Text to change
-        :param self_role: Role of the caller, that self reference in nic will map to
-        :return: The text with reference to variables and nics replaced
-        """
-
-        def do_replace(match):
-            varname = match.group('varname_sp') if match.group('varname_sp') is not None else match.group('varname_in')
-
-            if varname in v:
-                val = v[varname]
-                return str(val[0] if type(val) is tuple else val)
-            return match.group(0)
-
-        content = re.sub(
-            Variable.VARIABLE_REGEX,
-            do_replace, content)
-
-        def do_replace_nics(nic_match):
-            varRole = nic_match.group('role')
-            if nic_match.groupdict()['node']:
-                 return str(getattr(npf.node(varRole, self_role, default_role_map), str(nic_match.group('node'))));
-            else:
-                return str(npf.node(varRole, self_role, default_role_map).get_nic(
-                int(nic_match.group('nic_idx') if nic_match.group('nic_idx') else v[nic_match.group('nic_var')]))[
-                           nic_match.group('type')])
-
-        content = re.sub(
-            Node.VARIABLE_NICREF_REGEX,
-            do_replace_nics, content)
-
-        def do_replace_math(match):
-            expr = match.group('expr').strip()
-            aeval = Interpreter()
-            return str(aeval(expr))
-
-        content = re.sub(
-            Variable.MATH_REGEX,
-            do_replace_math, content)
-        return content
+        return replace_variables(v,content,self_role,default_role_map)
 
     def replace_all(self, value):
         """Return a list of all possible replacement in values for each combination of variables"""

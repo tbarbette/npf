@@ -3,6 +3,8 @@ from collections import OrderedDict
 
 import regex
 
+from npf import npf
+from npf.nic import NIC
 from asteval import Interpreter
 
 def is_numeric(s):
@@ -59,6 +61,55 @@ def dtype(v):
     else:
         return str
 
+def replace_variables(v: dict, content: str, self_role=None, default_role_map={}):
+    """
+    Replace all variable and nics references in content
+    This is done in two step : variables first, then NICs reference so variable can be used in NIC references
+    :param v: Dictionary of variables
+    :param content: Text to change
+    :param self_role: Role of the caller, that self reference in nic will map to
+    :return: The text with reference to variables and nics replaced
+    """
+
+    def do_replace(match):
+        varname = match.group('varname_sp') if match.group('varname_sp') is not None else match.group('varname_in')
+        if varname in v:
+            val = v[varname]
+            return str(val[0] if type(val) is tuple else val)
+        return match.group(0)
+
+    content = re.sub(
+        Variable.VARIABLE_REGEX,
+        do_replace, content)
+
+    def do_replace_nics(nic_match):
+        varRole = nic_match.group('role')
+        if nic_match.groupdict()['node']:
+             return str(getattr(npf.node(varRole, self_role, default_role_map), str(nic_match.group('node'))));
+        else:
+            return str(npf.node(varRole, self_role, default_role_map).get_nic(
+            int(nic_match.group('nic_idx') if nic_match.group('nic_idx') else v[nic_match.group('nic_var')]))[
+                       nic_match.group('type')])
+
+    content = re.sub(
+        Variable.VARIABLE_NICREF_REGEX,
+        do_replace_nics, content)
+
+    aeval = Interpreter()
+
+    def do_replace_math(match):
+        expr = match.group('expr').strip()
+        expr = re.sub(
+            Variable.VARIABLE_REGEX,
+            do_replace, expr)
+
+        return str(aeval(expr))
+
+    content = re.sub(
+        Variable.MATH_REGEX,
+        do_replace_math, content)
+    return content
+
 
 class VariableFactory:
     @staticmethod
@@ -109,6 +160,9 @@ class Variable:
                      r'[{](?P<varname_in>' + NAME_REGEX + ')[}]|' \
                      r'(?P<varname_sp>' + NAME_REGEX + ')(?=}|[^a-zA-Z0-9_]))'
     MATH_REGEX = r'(?<!\\)[$][(][(](?P<expr>.*?)[)][)]'
+    ALLOWED_NODE_VARS = 'path|user|addr|tags|nfs'
+    NICREF_REGEX = r'(?P<role>[a-z0-9]+)[:](:?(?P<nic_idx>[0-9]+)[:](?P<type>' + NIC.TYPES + '+)|(?P<node>'+ALLOWED_NODE_VARS+'|ip))'
+    VARIABLE_NICREF_REGEX = r'(?<!\\)[$][{]' + NICREF_REGEX + '[}]'
 
 # For each value N of nums, generate a variable with the first N element of values
 class HeadVariable(Variable):
