@@ -36,6 +36,12 @@ GEN_DESC=0
 GEN_PRINT_START=
 nolinktest=0
 
+R0=0
+R1=2
+R2=4
+R3=6
+
+
 %late_variables
 -nodpdkload:NBBUF=EXPAND( $(( ( ( $LIMIT * $GEN_THREADS ) + ($PKTGEN_BURST_OUT * 2) ) + 8192 )) )
 -nodpdkload:ENSURE= -> EnsureDPDKBuffer
@@ -50,7 +56,7 @@ BROADCAST_IGNORE= -> c :: Classifier(0/$mac,-) //Ignore broadcasts
 BROADCAST_IGNORE= -> c :: Classifier(-, 0/ffffffffffff)
 
 %largemem:script deps=fastclick sudo=true delay=2
-click --dpdk -l 0-15  --socket-mem 62,2 --huge-dir /mnt/hugepages  -- PKTGEN_CONFIG
+click --dpdk -l 0-15  --socket-mem 30000,2000 --huge-dir /mnt/hugepages  -- PKTGEN_CONFIG
 
 %-largemem:script deps=fastclick sudo=true delay=2
 click --dpdk -l 0-15  -- PKTGEN_CONFIG
@@ -92,7 +98,7 @@ input
   -> rwIN :: EtherRewrite($INsrcmac,$INdstmac)
   -> Pad()
   -> Numberise($magic)
-  -> replay :: ReplayUnqueue(STOP 0,STOP_TIME $PKTGEN_REPLAY_TIME, QUICK_CLONE $quick, VERBOSE true, ACTIVE true, LIMIT $LIMIT, TIMING $TIMING, BURST $PKTGEN_BURST_OUT, TIMING_FNT $TIMING_FNT)
+  -> replay :: ReplayUnqueue(STOP 0,STOP_TIME $PKTGEN_REPLAY_TIME, QUICK_CLONE $quick, VERBOSE true, ACTIVE true, LIMIT $LIMIT, TIMING $TIMING, BURST $PKTGEN_BURST_OUT, TIMING_FNT "@$TIMING_FNT")
     $LATEENSURE
   -> rt :: RecordTimestamp(N $LIMIT, OFFSET 56)
   -> avgSIN :: AverageCounter(IGNORE $ignore)
@@ -104,10 +110,10 @@ rr -> gen1 :: Generator(\<5602>) -> tdIN;
 rr -> gen2 :: Generator(\<5603>) -> tdIN;
 rr -> gen3 :: Generator(\<5604>) -> tdIN;
 
-StaticThreadSched(gen0/replay 0)
-StaticThreadSched(gen1/replay 2)
-StaticThreadSched(gen2/replay 4)
-StaticThreadSched(gen3/replay 6)
+StaticThreadSched(gen0/replay $R0)
+StaticThreadSched(gen1/replay $R1)
+StaticThreadSched(gen2/replay $R2)
+StaticThreadSched(gen3/replay $R3)
 
 receiveIN :: FromDPDKDevice($port, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, PAUSE $PAUSE, NDESC $GEN_DESC)
 
@@ -115,7 +121,7 @@ elementclass Receiver { $mac, $dir |
     input[0]
 $BROADCAST_IGNORE
     -> Strip(14)
-    -> CheckIPHeader
+    -> CheckIPHeader(CHECKSUM false)
     -> magic :: Classifier( 40/5601,
                             40/5602,
                             40/5603,
@@ -261,7 +267,7 @@ display_th :: Script(TYPE PASSIVE,
                      read load,
                      goto g)
 
-StaticThreadSched(display_th 2)
+StaticThreadSched(display_th $R2)
 
 RINswitch[1]->Print(LATEIN) -> Discard;
 

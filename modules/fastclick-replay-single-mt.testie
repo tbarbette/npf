@@ -27,6 +27,10 @@ promisc:PROMISC=true
 IGNORE=0
 PAUSE?=none
 GEN_DESC=0
+R0=0
+R1=2
+R2=4
+R3=6
 
 nolinktest=0
 
@@ -90,12 +94,12 @@ rr -> gen1 :: Generator(\<5602>) -> tdIN;
 rr -> gen2 :: Generator(\<5603>) -> tdIN;
 rr -> gen3 :: Generator(\<5604>) -> tdIN;
 
-StaticThreadSched(gen0/replay 0)
-StaticThreadSched(gen1/replay 2)
-StaticThreadSched(gen2/replay 4)
-StaticThreadSched(gen3/replay 6)
+StaticThreadSched(gen0/replay $R0)
+StaticThreadSched(gen1/replay $R1)
+StaticThreadSched(gen2/replay $R2)
+StaticThreadSched(gen3/replay $R3)
 
-receiveIN :: FromDPDKDevice($rxport, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, PAUSE $PAUSE, NDESC $GEN_DESC)
+receiveIN :: FromDPDKDevice($rxport, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, PAUSE $PAUSE, NDESC $GEN_DESC, NUMA true)
 
 elementclass Receiver { $mac, $dir |
     input[0]
