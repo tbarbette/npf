@@ -812,12 +812,30 @@ class Testie:
                         if r and run in r:
                             run_results = r[run]
                             break
-
+                if not time_results and options.use_last and build.repo.url:
+                    for version in build.repo.method.get_history(build.version, limit=options.use_last):
+                        oldb = Build(build.repo, version)
+                        r = oldb.load_results(self, time=True)
+                        found=False
+                        if r:
+                            for time,results in r.items():
+                                if run in results:
+                                    time_results[time] = results[run]
+                                    found=True
+                        if found:
+                            break
                 if run_results:
                     for result_type in self.config.get_list('results_expect'):
                         if result_type not in run_results:
-                            print("Missing result type %s, re-doing the run" % result_type)
-                            run_results = {}
+                            found = False
+                            if prev_time_results:
+                                for time,results in prev_time_results.items():
+                                    if result_type in results:
+                                        found = True
+                                        break
+                            if not found:
+                                print("Missing result type %s, re-doing the run" % result_type)
+                                run_results = {}
 
                 have_new_results = False
 

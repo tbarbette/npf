@@ -76,11 +76,14 @@ class SSHExecutor(Executor):
                     while ssh_stdout.channel.recv_ready() or ssh_stderr.channel.recv_ready():
                         for ichannel,channel in enumerate(channels[:1]):
                             if channel.channel.recv_ready():
-                                 line = channel.readline()
-                                 if options and options.show_full:
-                                    self._print(title, line, False)
-                                 self.searchEvent(line, event)
-                                 output[ichannel] += line
+                                try:
+                                    line = channel.readline()
+                                    if options and options.show_full:
+                                        self._print(title, line, False)
+                                    self.searchEvent(line, event)
+                                    output[ichannel] += line
+                                except UnicodeDecodeError:
+                                    print("Could not decode SSH input")
                     else:
                         event.wait_for_termination(step)
                         if timeout is not None:
