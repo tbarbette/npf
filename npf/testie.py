@@ -773,6 +773,7 @@ class Testie:
             total_runs = [1, self.config["n_runs"]]
         else:
             total_runs = [self.config["n_runs"]]
+
         for runs_this_pass in total_runs:  # Number of results to ensure for this run
             n = 0
             for variables in self.variables.expand(method=options.expand):

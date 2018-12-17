@@ -135,7 +135,7 @@ def group_val(result, t):
                                return np.median(result)
                            elif t == 'std':
                                return np.std(result)
-                           elif t == 'nres':
+                           elif t == 'nres' or t == 'n':
                                return len(result)
                            elif t == 'first':
                                 return result[0]

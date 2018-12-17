@@ -77,8 +77,14 @@ class Build:
         else:
             return self.__result_folder() + self.version + '.results'
 
-    def writeversion(self, script, all_results: Dataset, allow_overwrite: bool = False, time = False):
-        filename = self.__resultFilename(script) + ('-time' if time else '')
+    def writeversion(self, testie, all_results: Dataset, allow_overwrite: bool = False, time = False, reload=True):
+        if reload:
+            results = self.load_results(testie = testie, time = time, cache=False)
+            if results:
+                results.update(all_results)
+                all_results = results
+
+        filename = self.__resultFilename(testie) + ('-time' if time else '')
         try:
             if not os.path.exists(os.path.dirname(filename)):
                 os.makedirs(os.path.dirname(filename))
@@ -107,12 +113,13 @@ class Build:
         f.close()
         self.cache[filename] = all_results
 
-    def load_results(self, testie, time=False):
+    def load_results(self, testie, time=False, cache=True):
         filename = self.__resultFilename(testie) + ('-time' if time else '')
         if not Path(filename).exists():
             return None
-        if filename in self.cache:
-            return self.cache[filename]
+        if cache:
+            if filename in self.cache:
+                return self.cache[filename]
         f = open(filename, 'r')
         all_results = OrderedDict()
         try:

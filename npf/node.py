@@ -19,6 +19,7 @@ class Node:
         self.tags = []
         self.nfs = True
         self.addr = 'localhost'
+        self.arch = ''
 
         # Always fill 32 random nics address that will be overwriten by config eventually
         self._gen_random_nics()

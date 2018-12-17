@@ -27,6 +27,7 @@ promisc:PROMISC=true
 IGNORE=0
 PAUSE?=none
 GEN_DESC=0
+GEN_CPU=0
 R0=0
 R1=2
 R2=4
@@ -45,7 +46,7 @@ RCV_NIC?=EXPAND($CLIENT_NIC)
 BROADCAST_IGNORE= -> c :: Classifier(-, 0/ffffffffffff)
 
 %script deps=fastclick sudo=true delay=2
-click --dpdk -l 0-15 -- PKTGEN_CONFIG
+click --dpdk -l ${GEN_CPU}-15 -- PKTGEN_CONFIG
 
 %file PKTGEN_CONFIG
 d :: DPDKInfo($NBBUF)

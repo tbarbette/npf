@@ -16,14 +16,19 @@ class SSHExecutor(Executor):
         self.user = user
         self.addr = addr
         self.path = path
+        self.ssh = False
         #Executor should not make any connection in init as parameters can be overwritten afterward
 
-    def get_connection(self):
+    def get_connection(self, cache=True):
         import paramiko
+        if cache and self.ssh:
+            return self.ssh
         ssh = paramiko.SSHClient()
         ssh.load_system_host_keys()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         ssh.connect(self.addr, username=self.user)
+        if cache:
+            self.ssh = ssh
         return ssh
 
 
@@ -55,7 +60,7 @@ class SSHExecutor(Executor):
             pre = path_cmd + pre
 
         try:
-            ssh = self.get_connection()
+            ssh = self.get_connection(cache=False)
 
             ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command(pre + cmd,timeout=timeout, get_pty=True)
 
@@ -121,9 +126,14 @@ class SSHExecutor(Executor):
                     output[ichannel] += line
 
             return pid,output[0], output[1],ret
+        except socket.gaierror as e:
+            print("Error while connecting to %s" % self.addr)
+            print(e)
+            return 0,'','',-1
         except paramiko.ssh_exception.SSHException as e:
             print("Error while connecting to %s" % self.addr)
-            raise e
+            print(e)
+            return 0,'','',-1
 
     def writeFile(self,filename,path_to_root,content):
         f = open(filename, "w")
@@ -135,7 +145,7 @@ class SSHExecutor(Executor):
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 ssh.load_system_host_keys()
                 try:
-                    ssh.connect(self.addr, 22, username=self.user)
+                    ssh = self.get_connection()
                 except Exception as e:
                     print("Cannot connect to %s with username %s" % (self.addr,self.user))
                     raise e
@@ -160,7 +170,7 @@ class SSHExecutor(Executor):
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 ssh.load_system_host_keys()
                 try:
-                    ssh.connect(self.addr, 22, username=self.user)
+                    ssh = self.get_connection()
                 except Exception as e:
                     print("Cannot connect to %s with username %s" % (self.addr,self.user))
                     raise e
