@@ -18,6 +18,7 @@ PKTGEN_REPLAY_COUNT=1
 NIC=0
 CLIENT_NIC=0
 TRACE_TIME=8
+LIMIT=200000
 PROMISC=false
 promisc:PROMISC=true
 
@@ -34,6 +35,8 @@ BROADCAST_IGNORE= -> c :: Classifier(-, 0/ffffffffffff)
 click --dpdk -c 0x3 -- PKTGEN-CONFIG
 
 %file PKTGEN-CONFIG
+d :: DPDKInfo($NBBUF)
+
 define($bout $PKTGEN_BURST_OUT)
 define($INsrcmac ${client:$CLIENT_NIC:mac})
 define($RAW_INsrcmac ${client:$CLIENT_NIC:raw_mac})
@@ -52,13 +55,11 @@ define($rxverbose 99)
 define($IP0 ${client:$NIC:ip})
 define($IP1 ${client:$NIC:ip})
 
-DPDKInfo(1048576)
-
 fdIN :: FromDump($trace, STOP false, TIMING false, END_AFTER $TRACE_TIME)
 tdIN :: ToDPDKDevice($port, BLOCKING true, BURST $bout, VERBOSE $txverbose)
 
 
-replay :: ReplayUnqueue(STOP 0, QUICK_CLONE $quick, VERBOSE true, ACTIVE true)
+replay :: ReplayUnqueue(STOP 0, QUICK_CLONE $quick, VERBOSE true, ACTIVE true, LIMIT $LIMIT)
 StaticThreadSched(replay 0)
 
 elementclass Numberise {
@@ -71,7 +72,7 @@ fdIN
    -> Pad
   -> NIN :: Numberise
   -> [0]replay[0]
-  -> rt :: RecordTimestamp(OFFSET 54)
+  -> rt :: RecordTimestamp(N $LIMIT, OFFSET 54)
   -> avgSIN :: AverageCounter(IGNORE $ignore)
   -> tdIN
 
@@ -93,7 +94,7 @@ $BROADCAST_IGNORE
 
 receiveIN -> RINswitch :: Switch(2) -> RIN :: Receiver($RAW_INsrcmac,"IN")
 //-> IPPrint(IN)
-  -> Strip(14) -> tsd :: TimestampDiff(rt, OFFSET 40) -> Unstrip(14)
+  -> Strip(14) -> tsd :: TimestampDiff(rt, N $LIMIT, OFFSET 40) -> Unstrip(14)
 -> avgRIN :: AverageCounter(IGNORE $ignore) -> Discard;
 
 
