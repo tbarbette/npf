@@ -106,7 +106,7 @@ elementclass Receiver { $mac, $dir |
     input[0]
 $BROADCAST_IGNORE
     -> Strip(14)
-    -> CheckIPHeader
+    -> CheckIPHeader(CHECKSUM false)
     -> magic :: Classifier( 40/5601,
                             40/5602,
                             40/5603,
