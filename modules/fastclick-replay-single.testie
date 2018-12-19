@@ -18,8 +18,17 @@ PKTGEN_REPLAY_COUNT=1
 NIC=0
 CLIENT_NIC=0
 TRACE_TIME=8
+PROMISC=false
+promisc:PROMISC=true
 
 nolinktest=0
+
+%late_variables
+NBBUF=EXPAND( $(( ( $LIMIT + ($PKTGEN_BURST_OUT * 2) ) + 8192 )) )
+BROADCAST_IGNORE= -> c :: Classifier(0/$mac,-) //Ignore broadcasts
+
+%promisc:late_variables
+BROADCAST_IGNORE= -> c :: Classifier(-, 0/ffffffffffff)
 
 %script sudo=true deps=fastclick
 click --dpdk -c 0x3 -- PKTGEN-CONFIG
@@ -53,27 +62,26 @@ replay :: ReplayUnqueue(STOP 0, QUICK_CLONE $quick, VERBOSE true, ACTIVE true)
 StaticThreadSched(replay 0)
 
 elementclass Numberise {
-    input-> Strip(14) -> check :: CheckIPHeader -> nPacket :: NumberPacket(40) -> SetIPChecksum -> Unstrip(14) -> output
+    input-> Strip(14) -> check :: CheckIPHeader(CHECKSUM false) -> nPacket :: NumberPacket(40) -> SetIPChecksum -> Unstrip(14) -> output
 }
 
-fdIN -> rwIN :: EtherRewrite($INsrcmac,$INdstmac)
+fdIN
+  -> EnsureDPDKBuffer
+  -> rwIN :: EtherRewrite($INsrcmac,$INdstmac)
+   -> Pad
   -> NIN :: Numberise
-  ->  EnsureDPDKBuffer
   -> [0]replay[0]
-  -> rt :: RecordTimestamp(N 1048576)
+  -> rt :: RecordTimestamp(OFFSET 54)
   -> avgSIN :: AverageCounter(IGNORE $ignore)
   -> tdIN
 
-receiveIN :: FromDPDKDevice($port, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC false)
+receiveIN :: FromDPDKDevice($port, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC)
 
 elementclass Receiver { $mac, $dir |
-    input ->
-
-    c::Classifier(0/$mac,-)->
-
-    Strip(14) ->
-    CheckIPHeader ->
-    chPacket :: CheckNumberPacket() ->
+    input[0]
+$BROADCAST_IGNORE
+    -> Strip(14) ->
+    CheckIPHeader(CHECKSUM false) ->
     Unstrip(14) ->
     output;
 
@@ -81,14 +89,11 @@ elementclass Receiver { $mac, $dir |
 //    -> Print("Bad MAC received $dir :",MAXLENGTH -1)
     -> Discard;
 
-    chPacket[1] -> Unstrip(14)
-//    -> Print("Bad Packet number in $dir", -1)
-    -> Discard;
 }
 
 receiveIN -> RINswitch :: Switch(2) -> RIN :: Receiver($RAW_INsrcmac,"IN")
 //-> IPPrint(IN)
-  -> Strip(14) -> tsd :: TimestampDiff(rt) -> Unstrip(14)
+  -> Strip(14) -> tsd :: TimestampDiff(rt, OFFSET 40) -> Unstrip(14)
 -> avgRIN :: AverageCounter(IGNORE $ignore) -> Discard;
 
 
@@ -120,7 +125,6 @@ link_initialized :: Script(TYPE PACKET,
     print "Link initialized !",
     write RINswitch.switch -1,
     print "IN has $(NIN/nPacket.count) packets",
-    write RIN/chPacket.count $(NIN/nPacket.count),
     wait 1s,
 
     print "Starting replay...",
@@ -140,19 +144,21 @@ DriverManager(  pause,
                 write adv0.active false,
                 write link_initialized.run,
                 label waitagain,
+                set starttime $(now),
                 pause,
+                set stoptime $(now),
                 print "Replay finished. Waiting for last packets for $wait seconds...",
                 wait $wait,
                 write RINswitch.switch 1,
                 print "Checking if packets are still coming in..",
                 wait 2s,
-                print "$(RIN/chPacket.min)/$(RIN/chPacket.max)",
                 print "Rate : ",
                 print $(avgSIN.link_rate),
                 print $(avgRIN.link_rate),
                 print "Count :",
                 print $(avgSIN.count),
                 print $(avgRIN.count),
+                print "RESULT-TESTTIME $(sub $stoptime $starttime)",
                 print "RESULT-LATENCY $(tsd.average)",
                 print "RESULT-THROUGHPUT $(avgRIN.link_rate)",
                 print "Mean Delay: $(tsd.average) µs",
