@@ -37,6 +37,8 @@ class SectionFactory:
             return SectionNull()
         sectionName = matcher.group('name')
 
+        s = None
+
         if sectionName.startswith('import'):
             params = matcher.group('importParams')
             module = matcher.group('importModule')
@@ -90,6 +92,8 @@ class SectionFactory:
             s = SectionConfig()
         elif sectionName == 'info':
             s = Section('info')
+        if s is None:
+            raise Exception("Unknown section %s" % sectionName)
         setattr(testie, s.name, s)
         return s
 
@@ -434,7 +438,9 @@ class SectionLateVariable(SectionVariable):
         vlist = self.build(content, testie)
         final = OrderedDict()
         for k, v in vlist.items():
-            final[k] = v.makeValues()[0]
+            vals = v.makeValues()
+            if len(vals) > 0:
+                final[k] = vals[0]
 
         return final
 

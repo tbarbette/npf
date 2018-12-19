@@ -274,7 +274,7 @@ class Testie:
                 print(p.strip())
             for node in npf.nodes(role):
                 if not node.executor.writeFile(filename, path_to_root, p):
-                    raise Exception("Could not create file %s on %s", filename, node.name)
+                    raise Exception("Could not create file %s on %s" % (filename, node.name))
 
     def test_require(self, v, build):
         for require in self.requirements:

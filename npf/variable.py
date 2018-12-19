@@ -166,10 +166,10 @@ class Variable:
 
 # For each value N of nums, generate a variable with the first N element of values
 class HeadVariable(Variable):
-    def __init__(self, name, nums, values, join = "\n"):
+    def __init__(self, name, nums, values, join = None):
         self.values = values
         self.nums = nums
-        self.join = join
+        self.join = join if join else "\n"
 
 
     def makeValues(self):
@@ -181,8 +181,9 @@ class HeadVariable(Variable):
                 if type(i) is str:
                     i = int(i.strip())
                 vs.append((self.join.join(self.values[:i]), i))
-            except:
+            except Exception as e:
                 print("ERROR in HEAD variable : %s is not a number" % str(i))
+                print(e)
         return vs
 
     def count(self):
