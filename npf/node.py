@@ -15,11 +15,12 @@ class Node:
     def __init__(self, name, executor):
         self.executor = executor
         self.name = name
-        self.nics = []
+        self._nics = []
         self.tags = []
         self.nfs = True
         self.addr = 'localhost'
         self.arch = ''
+        self.active_nics = range(32)
 
         # Always fill 32 random nics address that will be overwriten by config eventually
         self._gen_random_nics()
@@ -34,7 +35,7 @@ class Node:
                 match = re.match(r'(?P<nic_idx>[0-9]+):(?P<type>' + NIC.TYPES + ')=(?P<val>[a-z0-9:.]+)', line,
                                  re.IGNORECASE)
                 if match:
-                    self.nics[int(match.group('nic_idx'))][match.group('type')] = match.group('val')
+                    self._nics[int(match.group('nic_idx'))][match.group('type')] = match.group('val')
                     continue
                 match = re.match(r'(?P<var>' + Variable.ALLOWED_NODE_VARS + ')=(?P<val>.*)', line,
                                  re.IGNORECASE)
@@ -52,7 +53,7 @@ class Node:
         pass
 
     def get_nic(self, nic_idx):
-        return self.nics[nic_idx]
+        return self._nics[self.active_nics[nic_idx]]
 
     @staticmethod
     def _addr_gen():
@@ -69,7 +70,7 @@ class Node:
         for i in range(32):
             mac, ip = self._addr_gen()
             nic = NIC(i, mac, ip, "eth%d" % i)
-            self.nics.append(nic)
+            self._nics.append(nic)
 
     @classmethod
     def makeLocal(cls, options):

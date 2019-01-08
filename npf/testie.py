@@ -212,8 +212,9 @@ class Testie:
             node = npf.node(role)
             if not node.nfs:
                 for repo in repo_under_test:
-                    print("Sending %s ..." % repo)
-                    node.executor.sendFolder(repo.get_build_path())
+                    if repo.get_reponame() != 'local':
+                        print("Sending %s ..." % repo)
+                        node.executor.sendFolder(repo.get_build_path())
                 for dep in script.get_deps():
                     deprepo = Repository.get_instance(dep, self.options)
                     print("Sending %s ..." % dep)
@@ -1015,8 +1016,8 @@ class Testie:
             for k, val in script.params.items():
                 nic_match = re.match(r'(?P<nic_idx>[0-9]+)[:](?P<type>' + NIC.TYPES + '+)', k, re.IGNORECASE)
                 if nic_match:
-                    npf.node(script.get_role(), self.config.get_dict("default_role_map")).nics[
-                        int(nic_match.group('nic_idx'))][nic_match.group('type')] = val
+                    npf.node(script.get_role(), self.config.get_dict("default_role_map")).get_nic(
+                        int(nic_match.group('nic_idx')))[nic_match.group('type')] = val
 
     def get_imports(self) -> List[SectionImport]:
         return self.imports

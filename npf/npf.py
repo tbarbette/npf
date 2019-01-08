@@ -197,7 +197,11 @@ def parse_nodes(options):
 
     roles['default'] = Node.makeLocal(options)
 
-    for mapping in options.cluster:
+    for val in options.cluster:
+        variables = val.split(',')
+        if len(variables) is 0:
+            raise Exception("Bad definition of cluster parameter : %s" % variables)
+        mapping=variables[0].strip()
         match = nodePattern.match(mapping)
         if not match:
             raise Exception("Bad definition of node : %s" % mapping)
@@ -207,6 +211,13 @@ def parse_nodes(options):
             node = Node.makeSSH(user=match.group('user'), addr=match.group('addr'), path=match.group('path'),
                             options=options)
         roles[match.group('role')] = node
+        del variables[0]
+        for opts in variables:
+            var,val = opts.split('=')
+            if var == 'nic':
+                node.active_nics = [ int(v) for v in val.split('+') ]
+            else:
+                raise Exception("Unknown cluster variable : %s" % var)
 
 
 def parse_variables(args_variables, tags, sec) -> Dict:
