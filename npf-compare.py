@@ -48,7 +48,22 @@ def do_graph(filename,args,series,time_series):
     if series is None:
         return
 
-    # We must find the common variables to all repo, and change dataset to reflect only those
+    # Merge series with common name
+    merged_series = OrderedDict()
+    for testie, build, dataset in series:
+        merged_series.setdefault(build.pretty_name(), []).append((testie, build, dataset))
+
+    series = []
+    for sname,slist in merged_series.items():
+            if len(slist) == 1:
+                series.append(slist)
+            else:
+                all_r = {}
+                for results in [l[2] for l in slist]:
+                    all_r.update(results)
+                series.append((slist[0][0], slist[0][1], all_r))
+
+    # We must find the common variables to all series, and change dataset to reflect only those
     all_variables = []
     for testie, build, dataset in series:
         v_list = set()
@@ -58,6 +73,7 @@ def do_graph(filename,args,series,time_series):
 
         if args.statistics:
             Statistics.run(build,dataset, testie, max_depth=args.statistics_maxdepth, filename=args.statistics_filename if args.statistics_filename else npf.build_output_filename(args, [build.repo for t,build,d in series]))
+
     common_variables = set.intersection(*map(set, all_variables))
 
     #Remove variables that are totally defined by the series, that is
