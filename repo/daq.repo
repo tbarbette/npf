@@ -1,0 +1,12 @@
+name=DAQ
+method=git
+url=https://github.com/tbarbette/daq-2.0.6.git
+tags=daq
+branch=master
+
+bin_folder=os-daq-modules/
+bin_name=libdaq_static_modules.la
+configure=./autogen.sh && ./configure --with-dpdk-includes=${RTE_SDK}/${RTE_TARGET}/include --with-dpdk-libraries=${RTE_SDK}/${RTE_TARGET}/lib --disable-shared
+make=make && sudo make install
+//Do not clean after configure as this breaks netperf build
+clean=
