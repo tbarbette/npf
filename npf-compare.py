@@ -56,7 +56,7 @@ def do_graph(filename,args,series,time_series):
     series = []
     for sname,slist in merged_series.items():
             if len(slist) == 1:
-                series.append(slist)
+                series.append(slist[0])
             else:
                 all_r = {}
                 for results in [l[2] for l in slist]:
