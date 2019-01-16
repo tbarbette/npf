@@ -1,0 +1,131 @@
+k__build_skb        :   IO
+k__dev_queue_xmit   :   IO
+k__inet_lookup_established: Routing
+k__local_bh_enable_ip:  IO
+k__local_netif_receive_skb_core: IO
+k_raw_spin_lock     :   Kernel
+netif_receive_skb   :   IO
+kdev_gro_receive    :   IO
+skb_get_p           :   IO
+eth_get_headlen     :   Kernel
+eth_type_trans      :   IO
+kip_finish_output2  :   IO
+kip_forward         :   Routing
+kip_rcv             :   IO
+kipt_do_table       :   Filtering
+kread_tsc           :   Filtering
+i40e                :   IO
+nf_iterate          :   Filtering
+inet                :   IO
+ip_route            :   Routing
+fib_                :   Routing
+start_xmit          :   IO
+mem_cache_alloc     :   Kernel
+skb_release         :   IO
+xt_ct_target        :   Filtering
+__cache             :   Kernel
+net_rx_action       :   IO
+napi                :   IO
+tcp_v4_early_demux  :   Flow
+tcp4_gro            :   Flow
+skb_gro_reset       :   Flow
+ipv4_get_l4         :   IO
+ipv4_confirm        :   IO
+skb_add_rx          :   IO
+xfrm                :   Routing
+xfrm_lookup         :   Routing
+netdev_pick_tx      :   IO
+kfree_skb           :   IO
+skb_network_protocol    :   Kernel
+ipv4_(helper|pkt_to_tuple)  :   Flow
+flow_dissect        :   Flow
+decode_session      :   Flow
+conntrack           :   Flow
+tcp_packet          :   Flow
+tcp_error           :   Flow
+nf_ct_              :   Flow
+dst_release         :   IO
+ip.*output          :   IO
+nat_ipv4            :   NAT
+tcp_manip_pkt    :   NAT
+nat                 :   NAT
+iptable_mangle_hook :   Filtering
+iptable_raw_hook    :   Filtering
+nf_hook_slow        :   IO
+xmit                :   IO
+netif_skb           :   IO
+gro_receive         :   IO
+alloc_skb           :   Kernel
+kmalloc             :   Kernel
+netlink_lookup      :   User IO
+nla_reserve         :   User IO
+nfq                 :   User IO
+raw_spin_           :   Kernel
+irq_entries         :   Kernel
+ksize               :   Kernel
+netlink_unicast     :   User IO
+netlink_skb_set     :   User IO
+nf_queue            :   User IO
+skb_put             :   User IO
+skb_zerocopy        :   User IO
+sock_def            :   User IO
+tcp_mt              :   Filtering
+sys_select          :   User IO
+ksys_epoll_ctl      :   User IO
+ksock_poll          :   User IO
+select_estimate     :   Kernel
+nfnl                :   User IO
+select_copy         :   User IO
+call_fast_compare :   User IO
+sock_rfree          :   User IO
+recvmsg|sendmsg|rcv_msg     :   User IO
+//Valid only for networking tests...
+SYSCALL             :   User IO
+copy_.*user      :   User IO
+do_select           :   User IO
+
+nf_reinject         :   User IO
+datagram            :   User IO
+k.*(fget|list|check_object|check_heap|fput|free)     :   Kernel
+virt_addr           :   Kernel
+cap_capable         :   Kernel
+nlmsg               :   User IO
+pollwait            :   User IO
+copy_to_iter        :   User IO
+import_iovec        :   Other
+put_pid             :   Kernel
+ns_capable          :   Kernel
+sockfd              :   IO
+ir_ack_apic_edge    :   Kernel
+interrupt           :   Kernel
+
+skv_clone           :   Kernel
+ktcp_               :   Flow
+
+//Kernel quite generic
+time_get            :   Kernel
+swio                :   Kernel
+find_exception      :   Kernel
+mem                 :   Kernel
+_page_              :   Kernel
+vmalloc             :   Kernel
+resched             :   Kernel
+security            :   Kernel
+rcu                 :   Kernel
+
+//Very generic catchs
+//eth                 :   IO
+page                :   Kernel
+//netdev              :   IO
+unmap               :   Kernel
+//receive             :   IO
+//netmap              :   IO
+//lookup              :   Routing
+//nf_                 :   Filtering
+//ip                  :   IO
+//skb                 :   IO
+//tcp_                :   Flow
+netlink             :   IO
+idle                :   Other
+0x0000              :   Other
+^k                    :   Other

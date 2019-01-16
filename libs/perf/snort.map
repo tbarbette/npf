@@ -1,0 +1,72 @@
+CheckFlush          :   User App
+Detect              :   User App
+IP4AddrTests        :   User App
+OB_API              :   User App
+ProcessPacket       :   User IO
+UpdateWireStats     :   User IO
+fpEval              :   User App
+DecodeTCP           :   User Flow
+ProcessTcp          :   User Flow
+HashKeyCmp          :   User Flow
+NextNon             :   User App
+PacketCallback      :   User IO
+Preprocess          :   User IO
+Decode              :   User IO
+SnortHttp           :   User App
+StatelessInsp       :   User App
+StreamProcess       :   User Flow
+getSession          :   User Flow
+hi_                 :   User App
+initSession         :   User IO
+ip4_ret_proto       :   User IO
+sfx                 :   User Flow
+s5_paf              :   User App
+s5Tcp               :   User App
+Http                :   User App
+InitServer          :   User App
+HashFunc            :   User Flow
+GetProtocol         :   User IO
+CheckTag            :   User App
+FindPipelineReq     :   User Flow
+LookupHostEntry     :   User App
+getApplicationData  :   User App
+initializePacket    :   User App
+purge_to_seq        :   User Flow
+sessionPacketProcessor  :   User Flow
+sfiph               :   User App
+sfevent             :   User App
+isProtocolTracking  :   User App
+extractHeader       :   User IO
+checkCacheFlow      :   User Flow
+SetSlashNorm        :   User App
+Markup              :   User App
+sfip_set_raw        :   User IO
+setSession          :   User Flow
+isPacketFilter      :   User App
+sfghash             :   User Flow
+SnortEvent          :   User App
+Replace_ModifyPacket:   User App
+IsAdaptive          :   User App
+Frag3Defrag         :   Other
+selectplt           :   Other
+SignalCheck         :   User App
+Session             :   User Flow
+setPacketDirection  :   User IO
+sfthreshold         :   User Flow
+sfhash              :   User Flow
+find_rfc            :   User App
+DCE2                :   User App
+ip4_ret_dst         :   User IO
+sfAction            :   User App
+getAppProtocol      :   User App
+__libc_recv         :   User IO
+
+free$               :   Other
+malloc$             :   Other
+libc                :   Other
+dir_sub_lookup      :   Other
+pthread             :   Other
+__select            :   User IO
+strncasecmp        :   Other
+Stream              :   User Flow
+sfrt                :   User Flow
