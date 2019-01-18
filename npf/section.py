@@ -517,6 +517,7 @@ class SectionConfig(SectionVariable):
         self.__add_list("graph_hide_variables", [])
         self.__add_dict('graph_result_as_variable', {})
         self.__add_dict('graph_map', {})
+        self.__add_dict('graph_x_sort', {})
         self.__add("graph_scatter", False)
         self.__add("graph_subplot_type", "subplot")
         self.__add("graph_max_series", None)

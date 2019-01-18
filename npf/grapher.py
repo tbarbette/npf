@@ -12,7 +12,7 @@ import numpy as np
 
 from npf.types import dataset
 from npf.types.dataset import Run, XYEB
-from npf.variable import is_numeric, get_numeric, numericable
+from npf.variable import is_numeric, get_numeric, numericable, get_bool
 from npf.section import SectionVariable
 from npf import npf, variable
 from matplotlib.lines import Line2D
@@ -290,13 +290,15 @@ class Grapher:
             series.append((script, nb, newserie))
             self.glob_legend_title = self.var_name(key)
         vars_all = list(new_varsall)
-        vars_all.sort()
         if len(dyns) == 1:
             key = dyns[0]
             do_sort = True
         else:
             key = "Variables"
             do_sort = False
+        do_sort = get_bool(self.scriptconfig('graph_x_sort', key, default=do_sort))
+        if (do_sort):
+            vars_all.sort()
         graph = Graph(self)
         graph.do_sort = do_sort
         graph.key = key
