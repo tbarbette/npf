@@ -1,22 +1,28 @@
-re_             :   User App
-^str            :   User App
-cbdata          :   User Flow
-RefCountAsync   :   User App
-StatHistcount   :   User App
-CommIo          :   User IO
-AsyncCallQueue  :   User App
-ACLmatch        :   User App
-^Mem          :   User App
+re_             :   Squid
+^str            :   Squid
+
+RefCountAsync   :   Squid
+StatHistcount   :   Squid
+AsyncCallQueue  :   Squid
+ACLmatch        :   Squid
+^Mem          :   Squid
 malloc          :   Other
-prepareLog      :   User App
-Http            :   User App
-Comm            :   User IO
-AclOrNode       :   User App
-Log             :   User App
-vfprintf        :   User App
-free            :   User App
-parse_rfc       :   User App
-urlParse        :   User App
-regex           :   User App
-Client.*Context :   User Flow
-SBufSBuf        :   User App
+prepareLog      :   Squid
+Http            :   Squid
+AclOrNode       :   Squid
+Log             :   Squid
+vfprintf        :   Squid
+free            :   Squid
+parse_rfc       :   Squid
+urlParse        :   Squid
+regex           :   Squid
+SBufSBuf        :   Squid
+
+cbdata          :   Flow (Squid)
+Client.*Context :   Flow (Squid)
+
+//Squid user IO
+CommIo          :   Squid
+Comm            :   Squid
+
+@squid          :   Squid

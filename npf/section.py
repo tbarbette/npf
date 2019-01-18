@@ -120,11 +120,14 @@ class SectionNull(Section):
 class SectionSendFile(Section):
     def __init__(self, role, path):
         super().__init__('sendfile')
-        self.role = role
+        self._role = role
         self.path = path
 
     def finish(self, testie):
-        testie.sendfile.setdefault(self.role,[]).append(self.path)
+        testie.sendfile.setdefault(self._role,[]).append(self.path)
+
+    def set_role(self, role):
+        self._role = role
 
 class SectionScript(Section):
     TYPE_INIT = "init"
@@ -144,6 +147,9 @@ class SectionScript(Section):
 
     def get_role(self):
         return self._role
+
+    def set_role(self, role):
+        self._role = role
 
     def get_name(self, full=False):
         if 'name' in self.params:

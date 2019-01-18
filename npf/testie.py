@@ -6,6 +6,7 @@ import time
 import random
 import shutil
 import datetime
+import itertools
 from pathlib import Path
 from queue import Empty
 from typing import Tuple, Dict
@@ -189,7 +190,14 @@ class Testie:
                 for script in imp.testie.scripts:
                     if script.get_role():
                         raise Exception('Modules cannot have roles, their importer defines it')
-                script._role = imp.get_role()
+                    script._role = imp.get_role()
+                nsendfile = {}
+                for role,fpaths in imp.testie.sendfile.items():
+                    if role and role != 'default':
+                        raise Exception('Modules cannot have roles (sendfile has role %s), their importer defines it' % role)
+                    nsendfile[imp.get_role()] = fpaths
+                imp.testie.sendfile = nsendfile
+
                 if hasattr(imp.testie, 'exit'):
                     imp.testie.exit._role = imp.get_role()
 
@@ -227,7 +235,9 @@ class Testie:
         st.update(v_internals)
         for late_variables in self.get_late_variables():
             st.update(late_variables.execute(st, self))
-        for role, fpaths in self.sendfile.items():
+
+        L = [imp.testie.sendfile for imp in self.imports]
+        for role, fpaths in itertools.chain(self.sendfile.items(), {k: v for d in L for k, v in d.items()}.items()):
             node = npf.node(role)
             if not node.nfs:
                 for fpath in fpaths:
@@ -579,13 +589,13 @@ class Testie:
                         output += o
                         err += e
                 if SectionScript.TYPE_SCRIPT in allowed_types:
-                  for s in [t.testie for t in self.imports] + [self]:
+                  for s,vlist in [(t.testie,t.imp_v) for t in self.imports] + [(self, v)]:
                     if not hasattr(s, 'exit'):
                         continue
                     exitscripts=s.exit.content
 
                     cmd = SectionVariable.replace_variables(
-                            v,
+                            vlist,
                             exitscripts)
                     role_map = self.config.get_dict("default_role_map")
                     role = None

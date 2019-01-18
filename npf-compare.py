@@ -87,7 +87,6 @@ def do_graph(filename,args,series,time_series):
             serie_values = set()
             for run, result_types in dataset.items():
                 val = run.variables[variable]
-#                all_values.add(val)
                 serie_values.add(val)
             if len(serie_values) > 1:
                 all_alone = False

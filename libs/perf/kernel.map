@@ -63,6 +63,6 @@ netlink             :   IO
 //^k                    :   Other
 
 __schedule              : Kernel
-@kworker|swapper        : Kernel
+@kworker|swapper|ksoftirqd        : Kernel
 smpboot_thread_fn       : Kernel
 run_ksoftirqd           : Kernel
