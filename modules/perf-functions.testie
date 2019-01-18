@@ -3,7 +3,7 @@
 
 %variables
 PERF_OPT=
-PERF_TIME=4
+PERF_TIME?=4
 PERF_EVENT=cycles
 PERF_MIN=1
 
@@ -12,15 +12,17 @@ trap : INT
 sh script.sh
 
 %file script.sh
+echo "Launching perf record..."
 trap : INT
-perf record -r 80 -F 1000 -a -g -o perf.data -e $PERF_EVENT sleep $PERF_TIME
-perf report -s overhead -F symbol,overhead --call-graph none -t "," $PERF_OPT --no-children --percentage relative | grep -v '^#' > perf.list
+perf record -r 80 -F 1000 -a -g $PERF_OPT -o perf.data -e $PERF_EVENT sleep $PERF_TIME
+perf report -s overhead -F symbol,overhead,pid --call-graph none -t "," $PERF_OPT --no-children --percentage relative | grep -v '^#' > perf.list
 cat perf.list | while read line; do
     sym=$(echo $line | cut -d',' -f1 | xargs)
     pc=$(echo $line | cut -d',' -f2 | xargs | grep -oE '[0-9.]*' )
     roundpc=$(echo $pc | grep -oE '[0-9]*' | head -n 1)
+    pid=$(echo $line | cut -d',' -f3 | xargs)
     if [ $(echo "$pc < $PERF_MIN" | bc) -eq 1 ] ; then break; fi
     if [ "$sym" != "" ] ; then
-        echo "RESULT-PERF-$(echo $sym | sed 's/[^0-9a-zA-Z_~]*//g' ) $pc"
+        echo "RESULT-PERF-$(echo $sym | sed 's/[^0-9a-zA-Z_~]*//g' )@$(echo $pid | sed 's/[^0-9a-zA-Z_~]*//g' ) $pc"
     fi
 done

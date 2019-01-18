@@ -566,7 +566,8 @@ class Grapher:
                 if new_results:
                     transformed_series.append((testie, build, new_results))
                 if vvalues:
-                    assert(npf.all_num(vvalues))
+                    #if not npf.all_num(vvalues):
+                    #    raise Exception("Cannot transform series %s as the following are not all numerical : %s " % (result_types, vvalues))
                     vars_values[var_name] = vvalues
             series = transformed_series
 
@@ -708,7 +709,10 @@ class Grapher:
             if len(v) > 1:
                 dyns.append(k)
             else:
-                statics[k] = list(v)[0]
+                if len(v) > 0:
+                    statics[k] = list(v)[0]
+                else:
+                    print("ERROR: Variable %s has no values" % k)
 
         graph_series_label = self.config("graph_series_label")
         sv = self.config('graph_subplot_variable', None)
@@ -1277,7 +1281,7 @@ class Grapher:
 
             for i, (x, y, e, build) in enumerate(data):
                 y = np.asarray([0.0 if np.isnan(x) else x for x in y])
-                std = np.asarray([std for mean,std in e])
+                std = np.asarray([std for mean,std,raw in e])
                 axis.bar(ind, last, width,
                     label=str(build.pretty_name()), color=build._color, yerr=std,
                     edgecolor=edgecolor)

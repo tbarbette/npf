@@ -17,6 +17,7 @@ from npf.types.dataset import Run, Dataset
 from npf.eventbus import EventBus
 from decimal import *
 
+from subprocess import PIPE, Popen, TimeoutExpired
 
 class RemoteParameters:
     def __init__(self):
@@ -189,6 +190,8 @@ class Testie:
                     if script.get_role():
                         raise Exception('Modules cannot have roles, their importer defines it')
                 script._role = imp.get_role()
+                if hasattr(imp.testie, 'exit'):
+                    imp.testie.exit._role = imp.get_role()
 
     def build_deps(self, repo_under_test: List[Repository], v_internals={}):
         # Check for dependencies
@@ -575,6 +578,30 @@ class Testie:
                         worked = True
                         output += o
                         err += e
+                if SectionScript.TYPE_SCRIPT in allowed_types:
+                  for s in [t.testie for t in self.imports] + [self]:
+                    if not hasattr(s, 'exit'):
+                        continue
+                    exitscripts=s.exit.content
+
+                    cmd = SectionVariable.replace_variables(
+                            v,
+                            exitscripts)
+                    role_map = self.config.get_dict("default_role_map")
+                    role = None
+
+                    if hasattr(s.exit, '_role'):
+                        role = s.exit._role
+                    print(role)
+
+
+                    executor = npf.executor(role, role_map)
+                    cmd = "mkdir -p " + test_folder + " && cd " + test_folder + ";\n" + cmd
+                    pid, s_output, s_err, c = executor.exec(cmd=cmd, options=self.options)
+                    print(s_output, s_err)
+                    output += s_output
+                    err += s_err
+
 
                 all_output.append(output)
                 all_err.append(err)

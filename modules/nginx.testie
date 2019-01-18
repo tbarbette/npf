@@ -25,6 +25,7 @@ exit $?
 %file nginx.conf
 user www-data;
 worker_processes $NGINX_NWORKER;
+worker_rlimit_nofile 70000;
 pid nginx.pid;
 daemon off;
 
