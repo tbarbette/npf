@@ -1,0 +1,33 @@
+//Add poll, syscalls etc as "user IO"
+
+netlink_lookup      :   User IO
+nla_reserve         :   User IO
+nfq                 :   User IO
+netlink_unicast     :   User IO
+netlink_skb_set     :   User IO
+nf_queue            :   User IO
+skb_put             :   User IO
+skb_zerocopy        :   User IO
+sock_def            :   User IO
+sys_select          :   User IO
+ksys_epoll_ctl      :   User IO
+ksock_poll          :   User IO
+nfnl                :   User IO
+select_copy         :   User IO
+call_fast_compare :   User IO
+sock_rfree          :   User IO
+recvmsg|sendmsg|rcv_msg     :   User IO
+SYSCALL             :   User IO
+copy_.*user      :   User IO
+do_select           :   User IO
+nf_reinject         :   User IO
+datagram            :   User IO
+nlmsg               :   User IO
+pollwait            :   User IO
+copy_to_iter        :   User IO
+ip4_ret_dst         :   User IO
+__libc_recv         :   User IO
+
+__select            :   User IO
+
+

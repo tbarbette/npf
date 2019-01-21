@@ -1,0 +1,35 @@
+//ktcp_               :   Flow (TCP)
+//tcp_                :   Flow (TCP)
+
+inet_lookup         :   Flow (TCP)
+tcp_v4_early_demux  :   Flow (TCP)
+inet_hash_connect   :   Flow (TCP)
+inet.*hash          :   Flow (TCP)
+inet_csk_reqsk_queue_hash_add : Flow (TCP)
+inet_reqsk_alloc    :   Flow (TCP)
+
+tcp_done            :   Flow (TCP)
+tcp_recvmsg         :   Flow (TCP)
+tcp_ack             :   Flow (TCP)
+tcp4_gro            :   Flow (TCP)
+tcp_clean_rtx_queue :   Flow (TCP)
+skb_gro_reset       :   Flow (TCP)
+tcp_v4_rcv          :   Flow (TCP)
+//tcp_poll            :   Flow (TCP)
+
+tcp_send_ack        :   Flow (TCP)
+
+//ipv4_(helper|pkt_to_tuple)  :   Flow (TCP)
+//flow_dissect        :   Flow (TCP)
+//tcp_packet          :   Flow
+//tcp_error           :   Flow
+
+decode_session4      :   Flow (NAT)
+init_conntrack      :   Flow (NAT)
+conntrack           :   Flow (NAT)
+nf_ct_              :   Flow (NAT)
+kipv4_helper        :   Flow (NAT)
+nat_ipv4            :   NAT
+tcp_manip_pkt       :   NAT
+nat                 :   NAT
+

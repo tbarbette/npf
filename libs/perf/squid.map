@@ -6,7 +6,7 @@ StatHistcount   :   Squid
 AsyncCallQueue  :   Squid
 ACLmatch        :   Squid
 ^Mem          :   Squid
-malloc          :   Other
+//malloc          :   Other
 prepareLog      :   Squid
 Http            :   Squid
 AclOrNode       :   Squid
