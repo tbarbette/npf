@@ -224,12 +224,21 @@ class Testie:
             if not node.nfs:
                 for repo in repo_under_test:
                     if repo.get_reponame() != 'local':
-                        print("Sending %s ..." % repo)
-                        node.executor.sendFolder(repo.get_build_path())
+                        print("Sending software %s to %s... " % (repo, role), end ='')
+                        t = node.executor.sendFolder(repo.get_build_path())
+                        if (t > 0):
+                            print("%d bytes sent." % t)
+                        else:
+                            print("Already up to date !")
                 for dep in script.get_deps():
                     deprepo = Repository.get_instance(dep, self.options)
-                    print("Sending %s ..." % dep)
-                    node.executor.sendFolder(deprepo.get_build_path())
+                    print("Sending dependency %s to %s... " % (dep,role), end = '')
+                    t = node.executor.sendFolder(deprepo.get_build_path())
+                    if (t > 0):
+                        print("%d bytes sent." % t)
+                    else:
+                        print("Already up to date !")
+
 
         st = dict([(f, v.makeValues()[0]) for f, v in self.variables.statics().items()])
         st.update(v_internals)
@@ -246,8 +255,14 @@ class Testie:
                     if not os.path.isabs(fpath):
                         fpath = './npf/' + fpath
                     fpath = os.path.relpath(fpath)
-                    print("Sending %s ..." % fpath)
-                    node.executor.sendFolder(fpath)
+                    print("Sending files %s to %s... " % (fpath, role), end = '')
+                    t = node.executor.sendFolder(fpath)
+                    if (t > 0):
+                        print("%d bytes sent." % t)
+                    else:
+                        print("Already up to date !")
+
+
         return True
 
     def test_tags(self):

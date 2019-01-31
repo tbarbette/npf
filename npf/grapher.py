@@ -107,7 +107,9 @@ class Graph:
                 series_sort=self.grapher.config('graph_series_sort'),
                 options=self.grapher.options,
                 statics=self.statics(),
-                y_group=self.grapher.configdict('graph_y_group'))
+                y_group=self.grapher.configdict('graph_y_group'),
+                color=[get_numeric(v) for v in self.grapher.configlist('graph_color')],
+                )
 
         return self.data_types
 
@@ -120,6 +122,41 @@ class Graph:
             subgraph.title = self.title
             sg.append(subgraph)
         return sg
+
+    # Divide all series by the first one, making a percentage of difference
+    def series_prop(self, prop):
+            series = self.series
+            if len(series) == 1:
+                raise Exception("Cannot make proportional series with only one serie !")
+            newseries = []
+            if not is_numeric(prop):
+                prop=1
+            if len(series[0]) < 3:
+                raise Exception("Malformed serie !")
+            base_results=series[0][2]
+            for i, (script, build, all_results) in enumerate(series[1:]):
+                new_results={}
+                for run,run_results in all_results.items():
+                    if not run in base_results:
+                        print(run,"not in base")
+                        continue
+
+                    for result_type, results in run_results.items():
+                        if not result_type in base_results[run]:
+                            run_results[result_type] = None
+                            print(result_type, "not in base for %s" % run)
+                            continue
+                        base = base_results[run][result_type]
+                        if len(base) > len(results):
+                            base = base[:len(results)]
+                        elif len(results) > len(base):
+                            results = results[:len(base)]
+                        results = results / base * prop
+                        run_results[result_type] = results
+                    new_results[run] = run_results
+                newseries.append((script, build, new_results))
+            self.series = newseries
+
 
 class Grapher:
     def __init__(self):
@@ -532,8 +569,8 @@ class Grapher:
                             tot = 0
                             for result_type, results in new_run_results_exp.items():
                                 tot += np.mean(results)
-                            if tot <= 99:
-                                new_run_results_exp['Other'] = [100-tot]
+#                            if tot <= 99:
+#                                new_run_results_exp['Other'] = [100-tot]
 
                         if var_name in run.variables:
                             results = new_run_results_exp[run.variables[var_name]]
@@ -573,35 +610,9 @@ class Grapher:
                     vars_values[var_name] = vvalues
             series = transformed_series
 
-        #Divide a serie by another
-        prop = self.config('graph_series_prop')
-        if prop:
-            newseries = []
-            if not is_numeric(prop):
-                prop=1
-            base_results=series[0][2]
-            for i, (script, build, all_results) in enumerate(series[1:]):
-                new_results={}
-                for run,run_results in all_results.items():
-                    if not run in base_results:
-                        print(run,"not in base")
-                        continue
-
-                    for result_type, results in run_results.items():
-                        if not result_type in base_results[run]:
-                            run_results[result_type] = None
-                            continue
-                        base = base_results[run][result_type]
-                        if len(base) > len(results):
-                            base = base[:len(results)]
-                        elif len(results) > len(base):
-                            results = results[:len(base)]
-                        results = results / base * prop
-                        run_results[result_type] = results
-                    new_results[run] = run_results
-                newseries.append((script, build, new_results))
-            series = newseries
-
+        if len(series) == 0:
+            print("No valid series...")
+            return
 
         # List of static variables to use in filename
         statics = {}
@@ -679,7 +690,6 @@ class Grapher:
                 transformed_series.append((testie, build, new_results))
             series = transformed_series
 
-
         for var, prec in self.configdict("var_round",{}).items():
             transformed_series = []
             prec = int(prec)
@@ -716,6 +726,9 @@ class Grapher:
                 else:
                     print("ERROR: Variable %s has no values" % k)
 
+        #Divide a serie by another
+        prop = self.config('graph_series_prop')
+
         graph_series_label = self.config("graph_series_label")
         sv = self.config('graph_subplot_variable', None)
         graphs = []
@@ -723,6 +736,8 @@ class Grapher:
             for script, build, all_results  in series:
 
                 graph = self.extract_variable_to_series(sv, vars_values.copy(), all_results, dyns.copy(), build, script)
+                if prop:
+                    graph.series_prop(prop)
                 if graph_series_label:
                     for i, (testie, build, all_results) in enumerate(series):
                         v = {}
@@ -739,6 +754,8 @@ class Grapher:
             del vars_values
         else:
             graph = self.series_to_graph(series, dyns, vars_values, vars_all)
+            if prop:
+                graph.series_prop(prop)
             graph.title = title
             graphs.append(graph)
 
@@ -1000,6 +1017,8 @@ class Grapher:
 
             for ilegend,(axis, result_type, plots) in enumerate(subplot_handles):
                 handles, labels = axis.get_legend_handles_labels()
+                for i,label in enumerate(labels):
+                    labels[i] = label.replace('_', ' ')
                 ncol = self.config("legend_ncol")
                 if type(ncol) == list:
                     ncol = ncol[ilegend % len(ncol)]
@@ -1007,7 +1026,6 @@ class Grapher:
                     loc = self.config("legend_loc")
                     if subplot_type=="axis" and len(figure) > 1:
                         if not loc.startswith("outer"):
-
                             if self.configlist("subplot_legend_loc"):
                                 loc=self.configlist("subplot_legend_loc")[ilegend]
                             else:
@@ -1039,10 +1057,9 @@ class Grapher:
                         legend_title = self.glob_legend_title
                     if loc == "none":
                         continue
-                    if loc  and loc.startswith("outer"):
+                    if loc and loc.startswith("outer"):
                         loc = loc[5:].strip()
                         legend_bbox=self.configlist("legend_bbox")
-                        print(legend_bbox)
                         lgd = axis.legend(handles=handles, labels=labels, loc=loc,bbox_to_anchor=(legend_bbox if legend_bbox and len(legend_bbox) > 1 else None), mode=self.config("legend_mode"), borderaxespad=0.,ncol=ncol, title=legend_title,bbox_transform=plt.gcf().transFigure)
                     else:
                         lgd = axis.legend(handles=handles, labels=labels, loc=loc,ncol=ncol, title=legend_title)
@@ -1076,17 +1093,14 @@ class Grapher:
         self.format_figure(axis,result_type,shift)
         rects = plt.bar(ticks, y, label=x, color=data[0][3]._color, width=width, yerr=( y - mean + std, mean - y +  std))
 
-        for i, v in enumerate(y):
-            if np.isnan(v):
-                continue
-            axis.text(ticks[i], v + (np.nanmax(y) / 20), "%.02f" % v, color=data[0][3]._color, fontweight='bold', horizontalalignment='center')
-
         if self.config('graph_show_values',False):
             def autolabel(rects, ax):
                 for rect in rects:
                     height = rect.get_height()
+                    if np.isnan(height):
+                        continue
                     ax.text(rect.get_x() + rect.get_width()/2., 1.05*height,
-                        '%0.2f' % height,
+                        '%0.2f' % height, color=data[0][3]._color, fontweight='bold',
                          ha='center', va='bottom')
             autolabel(rects, plt)
         plt.xticks(ticks, x, rotation='vertical' if (ndata > 8) else 'horizontal')
@@ -1284,20 +1298,33 @@ class Grapher:
             for i, (x, y, e, build) in enumerate(data):
                 y = np.asarray([0.0 if np.isnan(x) else x for x in y])
                 std = np.asarray([std for mean,std,raw in e])
-                axis.bar(ind, last, width,
+                rects = axis.bar(ind, last, width,
                     label=str(build.pretty_name()), color=build._color, yerr=std,
                     edgecolor=edgecolor)
                 last = last - y
         else:
             for i, (x, y, e, build) in enumerate(data):
                 std = np.asarray([std for mean,std,raw in e])
-                axis.bar(interbar + ind + (i * width), y, width,
+                rects = axis.bar(interbar + ind + (i * width), y, width,
                     label=str(build.pretty_name()), color=build._color, yerr=std,
                     edgecolor=edgecolor)
+
+                if self.config('graph_show_values',False):
+                    def autolabel(rects, ax):
+                        for rect in rects:
+                            height = rect.get_height()
+                            if np.isnan(height):
+                                continue
+                            ax.text(rect.get_x() + rect.get_width()/2., 1.05*height,
+                                '%0.2f' % height, color=build._color, fontweight='bold',
+                                 ha='center', va='bottom')
+                    autolabel(rects, plt)
+
 
         ss = self.combine_variables(vars_all, dyns)
 
         if not bool(self.config_bool('graph_x_label', True)):
             ss = ["" for i in range(n_series)]
-        plt.xticks(ind if stack else interbar + ind + (width * len(data) / 2.0), ss,
+        print(len(data))
+        plt.xticks(ind if stack else interbar + ind + (width * (len(data) - 1) / 2.0), ss,
                    rotation='vertical' if (sum([len(s) for s in ss]) > 80) else 'horizontal')

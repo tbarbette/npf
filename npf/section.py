@@ -496,7 +496,7 @@ class SectionConfig(SectionVariable):
         self.__add_dict("var_n_runs", {})
         self.__add_dict("var_markers", {})
         self.__add_list("result_regex", [
-            r"(:?(?P<time>[0-9.]+)-)?RESULT(:?-(?P<type>[A-Z0-9_:~.@-]+))?[ \t]+(?P<value>[0-9.]+(e[+-][0-9]+)?)[ ]*(?P<multiplier>[nµugmkKGT]?)(?P<unit>s|sec|b|byte|bits)?"])
+            r"(:?(?P<time>[0-9.]+)-)?RESULT(:?-(?P<type>[A-Z0-9_:~.@()-]+))?[ \t]+(?P<value>[0-9.]+(e[+-][0-9]+)?)[ ]*(?P<multiplier>[nµugmkKGT]?)(?P<unit>s|sec|b|byte|bits)?"])
         self.__add_list("results_expect", [])
         self.__add("autokill", True)
         self.__add("critical", False)

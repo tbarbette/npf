@@ -145,7 +145,7 @@ def group_val(result, t):
                                print("WARNING : Unknown format %s" % t)
                                return np.nan
 
-def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list, key, do_x_sort, statics, options, max_series = None, series_sort=None, y_group={}) -> AllXYEB:
+def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list, key, do_x_sort, statics, options, max_series = None, series_sort=None, y_group={}, color=[]) -> AllXYEB:
     data_types = OrderedDict()
     all_result_types = OrderedSet()
 
@@ -240,7 +240,7 @@ def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list
 
 
     if series_sort is not None and series_sort != "":
-        if series_sort.startswith('-'):
+        if type(series_sort) is str and series_sort.startswith('-'):
             inverted = True
             series_sort = series_sort[1:]
         else:
@@ -258,8 +258,18 @@ def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list
                     avg.append(0)
                 max.append(np.max(y))
                 min.append(np.min(y))
-
-            if series_sort == 'avg':
+            if type(series_sort) is list:
+                ok = True
+                for i,o in enumerate(series_sort):
+                    if o >= len(data):
+                        print("ERROR: sorting is invalid, %d is out of range" % o)
+                        ok = False
+                        break
+                if ok:
+                    order = series_sort
+                else:
+                    order = np.argsort(np.asarray(avg))
+            elif series_sort == 'avg':
                 order = np.argsort(np.asarray(avg))
             elif series_sort == 'max':
                 order = np.argsort(- np.asarray(max))
@@ -267,6 +277,8 @@ def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list
                 order = np.argsort(np.asarray(min))
             elif series_sort == 'natsort':
                 order = natsort.index_natsorted(data,key=lambda x: x[3].pretty_name())
+            elif series_sort == 'color':
+                order = np.argsort(color)
             else:
                 raise Exception("Unknown sorting : %s" % series_sort)
 
