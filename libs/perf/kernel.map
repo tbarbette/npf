@@ -66,3 +66,4 @@ __schedule              : Kernel
 @kworker|swapper|ksoftirqd        : Kernel
 smpboot_thread_fn       : Kernel
 run_ksoftirqd           : Kernel
+dyntick_save_progress_counter   : Kernel

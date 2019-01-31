@@ -5,59 +5,59 @@ OB_API              :   Snort
 //ProcessPacket       :   User IO
 //UpdateWireStats     :   User IO
 fpEval              :   Snort
-DecodeTCP           :   Flow (Snort)
-ProcessTcp          :   Flow (Snort)
-HashKeyCmp          :   Flow (Snort)
+DecodeTCP           :   Flow_(Snort)
+ProcessTcp          :   Flow_(Snort)
+HashKeyCmp          :   Flow_(Snort)
 NextNon             :   Snort
 //PacketCallback      :   User IO
 //Preprocess          :   User IO
 //Decode              :   User IO
 SnortHttp           :   Snort
 StatelessInsp       :   Snort
-StreamProcess       :   Flow (Snort)
-getSession          :   Flow (Snort)
+StreamProcess       :   Flow_(Snort)
+getSession          :   Flow_(Snort)
 hi_                 :   Snort
 //initSession         :   User IO
 //ip4_ret_proto       :   User IO
-sfx                 :   Flow (Snort)
+sfx                 :   Flow_(Snort)
 s5_paf              :   Snort
 s5Tcp               :   Snort
 Http                :   Snort
 InitServer          :   Snort
-HashFunc            :   Flow (Snort)
+HashFunc            :   Flow_(Snort)
 //GetProtocol         :   User IO
 CheckTag            :   Snort
-FindPipelineReq     :   Flow (Snort)
+FindPipelineReq     :   Flow_(Snort)
 LookupHostEntry     :   Snort
 getApplicationData  :   Snort
 initializePacket    :   Snort
-purge_to_seq        :   Flow (Snort)
-sessionPacketProcessor  :   Flow (Snort)
+purge_to_seq        :   Flow_(Snort)
+sessionPacketProcessor  :   Flow_(Snort)
 sfiph               :   Snort
 sfevent             :   Snort
 isProtocolTracking  :   Snort
 //extractHeader       :   User IO
-checkCacheFlow      :   Flow (Snort)
+checkCacheFlow      :   Flow_(Snort)
 SetSlashNorm        :   Snort
 Markup              :   Snort
 //sfip_set_raw        :   User IO
-setSession          :   Flow (Snort)
+setSession          :   Flow_(Snort)
 isPacketFilter      :   Snort
-sfghash             :   Flow (Snort)
+sfghash             :   Flow_(Snort)
 SnortEvent          :   Snort
 Replace_ModifyPacket:   Snort
 IsAdaptive          :   Snort
 SignalCheck         :   Snort
-Session             :   Flow (Snort)
+Session             :   Flow_(Snort)
 //setPacketDirection  :   User IO
-sfthreshold         :   Flow (Snort)
-sfhash              :   Flow (Snort)
+sfthreshold         :   Flow_(Snort)
+sfhash              :   Flow_(Snort)
 find_rfc            :   Snort
 DCE2                :   Snort
 sfAction            :   Snort
 getAppProtocol      :   Snort
-Stream              :   Flow (Snort)
-sfrt                :   Flow (Snort)
+Stream              :   Flow_(Snort)
+sfrt                :   Flow_(Snort)
 
 
 @snort              : Snort

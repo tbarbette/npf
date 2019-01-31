@@ -1,28 +1,9 @@
-re_             :   Squid
-^str            :   Squid
-
-RefCountAsync   :   Squid
-StatHistcount   :   Squid
-AsyncCallQueue  :   Squid
-ACLmatch        :   Squid
-^Mem          :   Squid
-//malloc          :   Other
-prepareLog      :   Squid
-Http            :   Squid
-AclOrNode       :   Squid
-Log             :   Squid
-vfprintf        :   Squid
-free            :   Squid
-parse_rfc       :   Squid
-urlParse        :   Squid
-regex           :   Squid
-SBufSBuf        :   Squid
-
-cbdata          :   Flow (Squid)
-Client.*Context :   Flow (Squid)
+//Flow squid
+cbdata          :   Flow_(Squid)
+Client.*Context :   Flow_(Squid)
 
 //Squid user IO
-CommIo          :   Squid
-Comm            :   Squid
+//CommIo          :   Squid
+//Comm            :   Squid
 
 @squid          :   Squid
