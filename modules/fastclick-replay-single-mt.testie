@@ -12,6 +12,7 @@ n_retry=0
 n_runs=1
 require_tags=import,dpdk
 timeout=60
+default_role_map={server:dut}
 
 %variables
 PKTGEN_BURST_OUT=32
