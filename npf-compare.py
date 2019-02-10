@@ -86,8 +86,9 @@ def do_graph(filename,args,series,time_series):
         for i, (testie, build, dataset) in enumerate(series):
             serie_values = set()
             for run, result_types in dataset.items():
-                val = run.variables[variable]
-                serie_values.add(val)
+                if variable in run.variables:
+                    val = run.variables[variable]
+                    serie_values.add(val)
             if len(serie_values) > 1:
                 all_alone = False
                 break

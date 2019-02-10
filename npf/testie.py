@@ -16,6 +16,7 @@ from npf.node import NIC
 from npf.section import *
 from npf.types.dataset import Run, Dataset
 from npf.eventbus import EventBus
+from .variable import get_bool
 from decimal import *
 
 from subprocess import PIPE, Popen, TimeoutExpired
@@ -348,6 +349,7 @@ class Testie:
         bool, bool]:
         has_err = False
         has_values = False
+        result_add = self.config.get_bool("result_add")
         try:
             for result_regex in regex_list:
                 for nr in re.finditer(result_regex, output.strip(), re.IGNORECASE):
@@ -383,12 +385,13 @@ class Testie:
                     if n != 0 or (self.config.match("accept_zero", result_type)) or time is not None:
                         if time:
                             t = float(time)
-                            if result_type in new_time_results.setdefault(t, {}):
+                            print(t,n)
+                            if result_type in new_time_results.setdefault(t, {}) and result_add:
                                 new_time_results[t][result_type] += n
                             else:
                                 new_time_results[t][result_type] = n
                         else:
-                            if result_type in new_data_results:
+                            if result_type in new_data_results and result_add:
                                 new_data_results[result_type] += n
                             else:
                                 new_data_results[result_type] = n
@@ -683,7 +686,7 @@ class Testie:
                             nonzero.add(result_type)
                             all_result_types.add(result_type)
                             event_t = Decimal(
-                                ("%.0" + str(self.config['time_precision']) + "f") % round(float(time - min_time), int(
+                                ("%.0" + str(self.config['time_precision']) + "f") % round(float(time - (min_time if get_bool(self.config['time_sync']) else 0)), int(
                                     self.config['time_precision'])))
                             update.setdefault(event_t, {}).setdefault(result_type, [])
                             update[event_t][result_type].append(result)
@@ -981,7 +984,7 @@ class Testie:
                             prev_time_results.update(time_results)
                         else:
                             prev_time_results = time_results
-                        build.writeversion(self, prev_time_results, allow_overwrite=True, time=True)
+                        build.writeversion(self, prev_time_results, allow_overwrite=True, time=True, reload=False)
                     else:
                         build.writeversion(self, all_data_results, allow_overwrite=True)
                         build.writeversion(self, all_time_results, allow_overwrite=True, time=True)

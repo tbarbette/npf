@@ -11,7 +11,7 @@ import matplotlib
 import numpy as np
 
 from npf.types import dataset
-from npf.types.dataset import Run, XYEB
+from npf.types.dataset import Run, XYEB, group_val
 from npf.variable import is_numeric, get_numeric, numericable, get_bool
 from npf.section import SectionVariable
 from npf import npf, variable
@@ -57,9 +57,9 @@ for clist in graphcolorseries[1:]:
 
 def find_base(ax):
     if ax[0] == 0 and len(ax) > 2:
-        base = ax[2] / ax[1]
+        base = float(ax[2]) / float(ax[1])
     else:
-        base = ax[1] / ax[0]
+        base = float(ax[1]) / float(ax[0])
     if base != 2:
         base = 10
     return base
@@ -292,6 +292,36 @@ class Grapher:
                 ss = short_ss
         return ss
 
+    def aggregate_variable(self, key, series, method) -> Graph:
+
+
+        for i,(testie, build, all_results) in enumerate(series):
+            aggregates = OrderedDict()
+            for run, run_results in all_results.items():
+                    #                    if (graph_variables and not run in graph_variables):
+                    #                        continue
+                newrun = run.copy()
+                newrun.variables[key] = 'AGG'
+                aggregates.setdefault(newrun,[]).append(run_results)
+
+            new_all_results = OrderedDict()
+            for run, multiple_run_results in aggregates.items():
+                    new_run_results = OrderedDict()
+                    agg = {}
+                    all_result_types = set()
+                    for run_results in multiple_run_results:
+                        for result_type, results in run_results.items():
+                            agg.setdefault(result_type,{})
+                            all_result_types.add(result_type)
+                            for i,result in enumerate(results):
+                                agg[result_type].setdefault(i,[]).append(result)
+
+                    for result_type in all_result_types:
+                        new_run_results[result_type] = [group_val(np.asarray(ag),method) for i,ag in agg[result_type].items()]
+                    new_all_results[run] = new_run_results
+            series[i] = (testie,build,new_all_results)
+        return series
+
     def extract_variable_to_series(self, key, vars_values, all_results, dyns, build, script) -> Graph:
         if not key in dyns:
             raise ValueError("Cannot extract %s because it is not a dynamic variable (%s are)" % (key, ', '.join(dyns)))
@@ -350,9 +380,11 @@ class Grapher:
     #  dynamic variable will be extracted to make a list of serie
     def series_to_graph(self, series, dyns, vars_values, vars_all):
         nseries = len(series)
+
         ndyn = len(dyns)
         if nseries == 1 and ndyn > 0 and not self.options.graph_no_series and not (
-                            ndyn == 1 and npf.all_num(vars_values[dyns[0]]) and len(vars_values[dyns[0]]) > 2):
+                            ndyn == 1 and npf.all_num(vars_values[dyns[0]]) and len(vars_values[dyns[0]]) > 2) and dyns[0] != "time":
+            print("expand")
             """Only one serie: expand one dynamic variable as serie, but not if it was plotable as a line"""
             script, build, all_results = series[0]
             if self.config("var_serie") and self.config("var_serie") in dyns:
@@ -614,6 +646,7 @@ class Grapher:
             print("No valid series...")
             return
 
+
         # List of static variables to use in filename
         statics = {}
 
@@ -690,6 +723,7 @@ class Grapher:
                 transformed_series.append((testie, build, new_results))
             series = transformed_series
 
+        #round values of a variable to a given precision, if it creates a merge, the list is appended
         for var, prec in self.configdict("var_round",{}).items():
             transformed_series = []
             prec = int(prec)
@@ -702,9 +736,12 @@ class Grapher:
                             np.append(new_all_results[run][result_type], run_results[result_type])
                         else:
                             new_all_results[run] = run_results
-                transformed_series.append((testie, build, new_results))
+                transformed_series.append((testie, build, new_all_results))
             series = transformed_series
 
+        for key,method in self.configdict('var_aggregate').items():
+            series = self.aggregate_variable(key=key,series=series,method=method)
+            vars_values[key] = ['AGG']
 
         versions = []
         vars_all = OrderedSet()
@@ -874,7 +911,7 @@ class Grapher:
                         axis = plt.subplot(n_lines, n_cols, isubplot + 1)
                     ihandle = 0
                     shift = 0
-                else:
+                else: #subplot_type=="dual"
                     if isubplot == 0:
                         fix,axis=plt.subplots()
                         ihandle = 0
@@ -905,7 +942,7 @@ class Grapher:
                         build._color=graphcolorseries[0][i % len(graphcolorseries[0])]
                     else:
                         if gcolor:
-                            s=gcolor[i]
+                            s=gcolor[(i + isubplot*len(data)) % len(gcolor)]
                             tot = gcolor.count(s)
                         else:
                             s=shift
@@ -921,15 +958,24 @@ class Grapher:
                         else:
                             f = round((gi[s] + (0.33 if gi[s] < tot / 2 else 0.66)) * n)
                         gi[s]+=1
-                        build._color=graphcolorseries[s % len(graphcolorseries)][f % len(graphcolorseries[s % len(graphcolorseries)])]
+                        cserie = graphcolorseries[s % len(graphcolorseries)]
+                        build._color=cserie[f % len(cserie)]
 
                 r = True
+
+                graph_type = False
                 if ndyn == 0:
-                    """No dynamic variables : do a barplot X=version"""
-                    r = self.do_simple_barplot(axis,result_type, data, shift)
+                    graph_type = "simple_bar"
                 elif ndyn == 1 and len(vars_all) > 2 and npf.all_num(vars_values[key]):
+                    graph_type = "line"
+                graph_types = [graph_type, "line"]
+                graph_type = graph_types[isubplot]
+                if graph_type == "simple_bar":
+                    """No dynamic variables : do a barplot X=version"""
+                    r = self.do_simple_barplot(axis,result_type, data, shift, isubplot)
+                elif graph_type == "line":
                     """One dynamic variable used as X, series are version line plots"""
-                    r = self.do_line_plot(axis, key, result_type, data,shift)
+                    r = self.do_line_plot(axis, key, result_type, data,shift, isubplot)
                 else:
                     """Barplot. X is all seen variables combination, series are version"""
                     self.do_barplot(axis,vars_all, dyns, result_type, data, shift)
@@ -971,6 +1017,11 @@ class Grapher:
                     plt.gca().xaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%d'))
                 formatterSet, unithandled = self.set_axis_formatter(plt.gca().xaxis, xformat, xunit.strip(), isLog, True)
 
+                var_lim = self.scriptconfig("var_lim", key, key)
+                if var_lim and var_lim is not key:
+                    matches = re.match("([-]?[0-9.]+)[-]([-]?[0-9.]+)", var_lim)
+                    xmin, xmax = (float(x) for x in matches.groups())
+                    axis.set_xlim(xmin, xmax)
 
                 xticks = self.scriptconfig("var_ticks", key, default=None)
                 if xticks:
@@ -1069,7 +1120,32 @@ class Grapher:
     def reject_outliers(self, result, testie):
         return testie.reject_outliers(result)
 
-    def do_simple_barplot(self,axis, result_type, data,shift=0):
+    def write_labels(self, rects, plt, color, idx = 0):
+        if self.config('graph_show_values',False):
+            prec =  self.config('graph_show_values',False)
+            if is_numeric(prec):
+                prec = get_numeric(prec)
+            elif type(prec) is list and is_numeric(prec[idx]):
+                prec = get_numeric(prec[idx])
+            else:
+                prec = 2
+            def autolabel(rects, ax):
+                for rect in rects:
+                    if hasattr(rect, 'get_ydata'):
+                        height = rect.get_ydata()
+                        x = rect.get_xdata()
+                        m=1.1
+                    else:
+                        height = rect.get_height()
+                        x = rect.get_x() + rect.get_width()/2.
+                        m=1.05
+                    if np.isnan(height):
+                        continue
+                    ax.text(x, m*height,
+                        ('%0.'+str(prec)+'f') % height, color=color, fontweight='bold',
+                         ha='center', va='bottom')
+            autolabel(rects, plt)
+    def do_simple_barplot(self,axis, result_type, data,shift=0,isubplot=0):
         i = 0
         interbar = 0.1
 
@@ -1091,34 +1167,31 @@ class Grapher:
         ticks = np.arange(ndata) + 0.5
 
         self.format_figure(axis,result_type,shift)
-        rects = plt.bar(ticks, y, label=x, color=data[0][3]._color, width=width, yerr=( y - mean + std, mean - y +  std))
 
-        if self.config('graph_show_values',False):
-            def autolabel(rects, ax):
-                for rect in rects:
-                    height = rect.get_height()
-                    if np.isnan(height):
-                        continue
-                    ax.text(rect.get_x() + rect.get_width()/2., 1.05*height,
-                        '%0.2f' % height, color=data[0][3]._color, fontweight='bold',
-                         ha='center', va='bottom')
-            autolabel(rects, plt)
+        gcolor = self.configlist('graph_color')
+        if not gcolor:
+            gcolor = [0]
+        c = graphcolorseries[gcolor[isubplot % len(gcolor)]][0]
+        rects = plt.bar(ticks, y, label=x, color=c, width=width, yerr=( y - mean + std, mean - y +  std))
+
+        self.write_labels(rects, plt,c)
         plt.xticks(ticks, x, rotation='vertical' if (ndata > 8) else 'horizontal')
         plt.gca().set_xlim(0, len(x))
         return True
 
-    def do_line_plot(self, axis, key, result_type, data : XYEB,shift=0):
+    def do_line_plot(self, axis, key, result_type, data : XYEB,shift=0,idx=0):
         xmin, xmax = (float('inf'), 0)
         drawstyle = self.scriptconfig('var_drawstyle',result_type,default='default')
         for i, (x, y, e, build) in enumerate(data):
             self.format_figure(axis, result_type, shift)
             c = build._color
 
+
             if not npf.all_num(x):
                 if variable.numericable(x):
                     ax = [variable.get_numeric(v) for i, v in enumerate(x)]
                 else:
-                    ax = [i + 1 for i, v in enumerate(x)]
+                    ax = np.arange(len(x)) + 0.5 + i
             else:
                 ax = x
 
@@ -1153,9 +1226,9 @@ class Grapher:
                 marker = m[i % len(m)]
 
             if result_type in self.configlist("graph_scatter"):
-                axis.scatter(ax[mask], y[mask], label=lab, color=c, linestyle=build._line, marker=marker)
+                rects = axis.scatter(ax[mask], y[mask], label=lab, color=c, linestyle=build._line, marker=marker)
             else:
-                axis.plot(ax[mask], y[mask], label=lab, color=c, linestyle=build._line, marker=marker,markevery=(1 if len(ax[mask]) < 20 else math.ceil(len(ax[mask]) / 20)),drawstyle=drawstyle)
+                rects = axis.plot(ax[mask], y[mask], label=lab, color=c, linestyle=build._line, marker=marker,markevery=(1 if len(ax[mask]) < 20 else math.ceil(len(ax[mask]) / 20)),drawstyle=drawstyle)
             error_type = self.scriptconfig('graph_error', result_type, default = None)
             if error_type != 'none':
                 if error_type == 'bar' or not self.config('graph_error_fill'):
@@ -1173,29 +1246,11 @@ class Grapher:
             xmin = min(xmin, min(ax[mask]))
             xmax = max(xmax, max(ax[mask]))
 
+            self.write_labels(rects, plt, build._color, idx)
+
         if xmin == float('inf'):
             return False
 
-        # Arrange the x limits
-        if not (key in self.config('var_log', {})):
-            var_lim = self.scriptconfig("var_lim", key, key)
-            if var_lim and var_lim is not key:
-                matches = re.match("([-]?[0-9.]+)[-]([-]?[0-9.]+)", var_lim)
-                xmin, xmax = (float(x) for x in matches.groups())
-            # else:
-            #     if abs(xmin) < 10 and abs(xmax) < 10:
-            #         if (xmin != 1):
-            #             xmin -= 1
-            #         xmax += 1
-            #         pass
-            #     else:
-            #         base = float(max(10, math.ceil((xmax - xmin) / 10)))
-            #         if (xmin > 0):
-            #             xmin = int(math.floor(xmin / base)) * base
-            #         if (xmax > 0):
-            #             xmax = int(math.ceil(xmax / base)) * base
-            #
-                axis.set_xlim(xmin, xmax)
         return True
 
 
@@ -1308,23 +1363,12 @@ class Grapher:
                 rects = axis.bar(interbar + ind + (i * width), y, width,
                     label=str(build.pretty_name()), color=build._color, yerr=std,
                     edgecolor=edgecolor)
-
-                if self.config('graph_show_values',False):
-                    def autolabel(rects, ax):
-                        for rect in rects:
-                            height = rect.get_height()
-                            if np.isnan(height):
-                                continue
-                            ax.text(rect.get_x() + rect.get_width()/2., 1.05*height,
-                                '%0.2f' % height, color=build._color, fontweight='bold',
-                                 ha='center', va='bottom')
-                    autolabel(rects, plt)
-
+                self.write_labels(rects, plt, build._color)
 
         ss = self.combine_variables(vars_all, dyns)
 
         if not bool(self.config_bool('graph_x_label', True)):
             ss = ["" for i in range(n_series)]
-        print(len(data))
+
         plt.xticks(ind if stack else interbar + ind + (width * (len(data) - 1) / 2.0), ss,
                    rotation='vertical' if (sum([len(s) for s in ss]) > 80) else 'horizontal')

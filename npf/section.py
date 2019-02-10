@@ -484,7 +484,7 @@ class SectionConfig(SectionVariable):
         self.__add("default_repo", None)
 
         # Regression related
-        self.__add_dict("accept_zero", {})
+        self.__add_list("accept_zero", ["time"])
         self.__add("n_supplementary_runs", 3)
         self.__add("acceptable", 0.01)
         self.__add("accept_outliers_mult", 1)
@@ -495,6 +495,7 @@ class SectionConfig(SectionVariable):
         self.__add("n_retry", 0)
         self.__add_dict("var_n_runs", {})
         self.__add_dict("var_markers", {})
+        self.__add("result_add", True)
         self.__add_list("result_regex", [
             r"(:?(?P<time>[0-9.]+)-)?RESULT(:?-(?P<type>[A-Z0-9_:~.@()-]+))?[ \t]+(?P<value>[0-9.]+(e[+-][0-9]+)?)[ ]*(?P<multiplier>[nµugmkKGT]?)(?P<unit>s|sec|b|byte|bits)?"])
         self.__add_list("results_expect", [])
@@ -503,6 +504,7 @@ class SectionConfig(SectionVariable):
         self.__add_dict("env", {})  # Unimplemented yet
         self.__add("timeout", 30)
         self.__add("time_precision", 1)
+        self.__add("time_sync", True)
 
         # Role related
         self.__add_dict("default_role_map", {})
@@ -519,6 +521,7 @@ class SectionConfig(SectionVariable):
         self.__add_dict('graph_map', {})
         self.__add_dict('graph_x_sort', {})
         self.__add("graph_scatter", False)
+        self.__add("graph_show_values", False)
         self.__add("graph_subplot_type", "subplot")
         self.__add("graph_max_series", None)
         self.__add("graph_series_as_variables", False)
@@ -551,6 +554,7 @@ class SectionConfig(SectionVariable):
         self.__add_dict("var_names", {"result-LATENCY":"Latency (µs)","result-THROUGHPUT":"Throughput"})
         self.__add_dict("var_unit", {"result": "bps","result-LATENCY":"us","latency":"us","throughput":"bps"})
         self.__add_dict("var_round", {})
+        self.__add_dict("var_aggregate", {})
         self.__add_dict("var_repeat", {})
         self.__add_dict("var_drawstyle", {})
         self.__add("title", None)
@@ -596,6 +600,9 @@ class SectionConfig(SectionVariable):
         if key != key.lower():
             return self.get_dict_value(var, key.lower(), result_type, default)
         return default
+
+    def get_bool(self, key):
+        return get_bool(self[key])
 
     def __contains__(self, key):
         return key.lower() in self.vlist

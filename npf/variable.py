@@ -95,7 +95,7 @@ def replace_variables(v: dict, content: str, self_role=None, default_role_map={}
         Variable.VARIABLE_NICREF_REGEX,
         do_replace_nics, content)
 
-    aeval = Interpreter()
+    aeval = Interpreter(usersyms={'parseBool':get_bool})
 
     def do_replace_math(match):
         expr = match.group('expr').strip()
