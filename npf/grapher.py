@@ -138,7 +138,7 @@ class Graph:
                 new_results={}
                 for run,run_results in all_results.items():
                     if not run in base_results:
-                        print(run,"not in base")
+                        print(run,"FIXME is not in base")
                         continue
 
                     for result_type, results in run_results.items():
@@ -384,7 +384,6 @@ class Grapher:
         ndyn = len(dyns)
         if nseries == 1 and ndyn > 0 and not self.options.graph_no_series and not (
                             ndyn == 1 and npf.all_num(vars_values[dyns[0]]) and len(vars_values[dyns[0]]) > 2) and dyns[0] != "time":
-            print("expand")
             """Only one serie: expand one dynamic variable as serie, but not if it was plotable as a line"""
             script, build, all_results = series[0]
             if self.config("var_serie") and self.config("var_serie") in dyns:

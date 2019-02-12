@@ -385,7 +385,6 @@ class Testie:
                     if n != 0 or (self.config.match("accept_zero", result_type)) or time is not None:
                         if time:
                             t = float(time)
-                            print(t,n)
                             if result_type in new_time_results.setdefault(t, {}) and result_add:
                                 new_time_results[t][result_type] += n
                             else:
@@ -620,13 +619,11 @@ class Testie:
 
                     if hasattr(s.exit, '_role'):
                         role = s.exit._role
-                    print(role)
-
 
                     executor = npf.executor(role, role_map)
                     cmd = "mkdir -p " + test_folder + " && cd " + test_folder + ";\n" + cmd
                     pid, s_output, s_err, c = executor.exec(cmd=cmd, options=self.options)
-                    print(s_output, s_err)
+                    #print(s_output, s_err)
                     output += s_output
                     err += s_err
 
