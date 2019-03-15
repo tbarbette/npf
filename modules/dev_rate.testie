@@ -36,11 +36,12 @@ while true; do
     echo "$diff_bytes $diff_len $diff_t"
     throughput=$(( ( ( $diff_len * 24 ) + ( $diff_bytes * 8 ) ) * 1000 / $diff_t ))
     pps=$(( $diff_len * 1000 / $diff_t ))
-    echo "Throughput $throughput"
     if [ $acc -eq 1 ] ; then
         if [ $throughput -lt 1000000 ] ; then
             echo "Throughput is $throughput, stopping computation"
             break
+        else
+            echo "Throughput $throughput"
         fi
         total_th=$(( $total_th + $throughput))
         total_pps=$(( $total_pps + $pps))

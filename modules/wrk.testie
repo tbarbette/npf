@@ -18,17 +18,19 @@ FILE_PATH=index.htm
 HTTP_PORT=80
 GEN_TIME=10
 WRKNIC=0
-WRK_HOST=EXPAND( ${dut:0:ip} )
+WRK_HOST=EXPAND(${dut:0:ip})
+WRK_PROTOCOL=http
 
 %late_variables
 
 
 %script deps=wrk-tbarbette title=WRKClient
 fname=$RANDOM
-wrk -r -c $GEN_CONCURRENT -t $GEN_THREADS -d${GEN_TIME}s http://${WRK_HOST}:${HTTP_PORT}/${FILE_PATH} | tee $fname
+wrk -r -c $GEN_CONCURRENT -t $(( $GEN_THREADS if $GEN_THREADS <= $GEN_CONCURRENT else $GEN_CONCURRENT)) -d${GEN_TIME}s ${WRK_PROTOCOL}://${WRK_HOST}:${HTTP_PORT}/${FILE_PATH} | tee $fname
 stat=$?
 cat $fname | grep "Transfer/sec" | awk '{printf "RESULT-THROUGHPUT %s\n", $2}'
 cat $fname | grep "Requests/sec" | awk '{printf "RESULT-REQUEST %s\n", $2}'
 cat $fname | grep "Latency" | awk '{printf "RESULT-LATENCY %s\n", $2}'
 rm $fname
+sleep 2
 exit $stat

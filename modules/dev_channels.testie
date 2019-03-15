@@ -5,7 +5,7 @@ Set the number of hardware queues for a given device
 N=1
 NIC=0
 
-%script sudo=true autokill=false
+%script sudo=true autokill=false name=dev_channel
 n=$(sudo ethtool -l ${self:$NIC:ifname} | grep -i combined | tail -n 1 | grep -oE "[0-9]+")
 if [ "$n" != "$N" ] ; then
     ethtool -L ${self:$NIC:ifname} combined $N && exit 0

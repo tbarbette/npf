@@ -8,17 +8,36 @@ NGINX_NWORKER=16
 NGINX_PORT=8188
 NGINX_GZIP=off
 NGINX_ROOT=./nginx/
+KEEPALIVE=30
+ssl:NGINX_SSL=1
+
+%late_variables
+NGINX_SRVTYPE=default_server
+NGINX_SERVER_CONFIG?=
+ssl:NGINX_SRVTYPE=ssl
+ssl:NGINX_SERVER_CONFIG+=ssl on;ssl_certificate nginx-selfsigned.crt;ssl_certificate_key nginx-selfsigned.key;
 
 %init
 mkdir -p nginx
 mkdir -p $NGINX_ROOT
 echo "RESULT 1"
 
-%script sudo=true name=nginx
+%-ssl:file genssl.sh
+
+%ssl:file genssl.sh
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout nginx-selfsigned.key -out nginx-selfsigned.crt -config ./config.req
+
+%script sudo=true name=nginx autokill=false
+killall nginx &> /dev/null || true
+sleep 1
 killall -9 nginx &> /dev/null || true
 sleep 1
+bash genssl.sh
+echo "Launching NGINX..."
 nginx -c $(pwd)/nginx.conf -p $NGINX_ROOT
-exit $?
+r=$?
+echo "EVENT NGINX_LAUNCHED"
+exit $r
 
 //%clean
 
@@ -27,7 +46,7 @@ user www-data;
 worker_processes $NGINX_NWORKER;
 worker_rlimit_nofile 70000;
 pid nginx.pid;
-daemon off;
+daemon on;
 
 events {
     worker_connections 65536;
@@ -44,7 +63,6 @@ http {
     sendfile on;
     tcp_nopush on;
     tcp_nodelay on;
-    keepalive_timeout 30;
     types_hash_max_size 2048;
     # server_tokens off;
 
@@ -98,9 +116,9 @@ open_file_cache_min_uses 1;
 open_file_cache_errors on;
 
 server {
+	listen $NGINX_PORT $NGINX_SRVTYPE reuseport;
 
-	listen $NGINX_PORT default_server;
-	listen [::]:$NGINX_PORT default_server;
+    $NGINX_SERVER_CONFIG
 
 	root $NGINX_ROOT;
 
@@ -110,6 +128,8 @@ server {
 	server_name _;
 
 	location / {
+        keepalive_timeout $KEEPALIVE;
+
 		# First attempt to serve request as file, then
 		# as directory, then fall back to displaying a 404.
 		try_files $uri $uri/ =404;
@@ -134,3 +154,27 @@ server {
 	#}
 }
 }
+
+%ssl:file config.req
+[req]
+prompt = no
+distinguished_name = req_distinguished_name
+req_extensions = v3_req
+
+[req_distinguished_name]
+C = SE
+ST = Stockholm
+L = Stockholm
+O = KTH
+#OU = Org Unit Name
+CN = Our Company Llc
+#emailAddress = info@example.com
+
+[v3_req]
+basicConstraints = CA:FALSE
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = example.com
+DNS.2 = www.example.com
