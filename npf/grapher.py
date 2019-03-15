@@ -16,7 +16,7 @@ from npf.variable import is_numeric, get_numeric, numericable, get_bool
 from npf.section import SectionVariable
 from npf import npf, variable
 from matplotlib.lines import Line2D
-
+import itertools
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FuncFormatter, FormatStrFormatter
@@ -38,16 +38,35 @@ def hexToList(s):
     for c in s.split(' '):
         l.append(tuple(a / 255. for a in webcolors.hex_to_rgb(c)))
     return l
+
 def lighter(c, p, n):
     n = n / 255.
     return tuple(a * p + (1-p) * n for a in c)
 
+
+def buildLight(c,m=4):
+    l = []
+    r=c
+    for i in range(0,m):
+        r = lighter(r,0.90,255)
+        l.append(r)
+    l.reverse()
+    l.append(c)
+    r=c
+    for i in range(0,m):
+        r = lighter(r,0.90,0)
+        l.append(r)
+    l.reverse()
+    return l
+
 graphcolorseries = [graphcolor]
-graphcolorseries.append(hexToList("#144c73 #185a88 #1b699e #1f77b4 #2385ca #2b93db #419ede"))
-graphcolorseries.append(hexToList("#1c641c #217821 #278c27 #2ca02c #32b432 #37c837 #4bce4b"))
-graphcolorseries.append(hexToList("#c15a00 #da6600 #f47200 #ff7f0e #ff8d28 #ff9a41 #ffa85b"))
-graphcolorseries.append(hexToList("#951b1c #ab1f20 #c02324 #d62728 #db3b3c #df5152 #e36667"))
-graphcolorseries.append(hexToList("#6e4196 #7b49a8 #8755b5 #9467bd #a179c5 #ad8bcc #ba9cd4"))
+#graphcolorseries.append(hexToList("#144c73 #185a88 #1b699e #1f77b4 #2385ca #2b93db #419ede"))
+#graphcolorseries.append(hexToList("#1c641c #217821 #278c27 #2ca02c #32b432 #37c837 #4bce4b"))
+#graphcolorseries.append(hexToList("#c15a00 #da6600 #f47200 #ff7f0e #ff8d28 #ff9a41 #ffa85b"))
+#graphcolorseries.append(hexToList("#951b1c #ab1f20 #c02324 #d62728 #db3b3c #df5152 #e36667"))
+#graphcolorseries.append(hexToList("#6e4196 #7b49a8 #8755b5 #9467bd #a179c5 #ad8bcc #ba9cd4"))
+for i in range((int)(len(graphcolor) / 2)):
+    graphcolorseries.append(buildLight([(graphcolor[i * 2][c] + graphcolor[i * 2 + 1][c]) / 2 for c in range(3)]))
 
 gridcolors = [ (0.7,0.7,0.7) ]
 legendcolors = [ None ]
@@ -292,9 +311,8 @@ class Grapher:
                 ss = short_ss
         return ss
 
-    def aggregate_variable(self, key, series, method) -> Graph:
-
-
+    def aggregate_variable(self, key, series, method):
+        nseries = []
         for i,(testie, build, all_results) in enumerate(series):
             aggregates = OrderedDict()
             for run, run_results in all_results.items():
@@ -317,10 +335,14 @@ class Grapher:
                                 agg[result_type].setdefault(i,[]).append(result)
 
                     for result_type in all_result_types:
-                        new_run_results[result_type] = [group_val(np.asarray(ag),method) for i,ag in agg[result_type].items()]
+                        if method == 'all':
+                            new_run_results[result_type] = list(itertools.chain.from_iterable([ag for i,ag in agg[result_type].items()]))
+                            print (run, result_type, new_run_results[result_type])
+                        else:
+                            new_run_results[result_type] = [group_val(np.asarray(ag),method) for i,ag in agg[result_type].items()]
                     new_all_results[run] = new_run_results
-            series[i] = (testie,build,new_all_results)
-        return series
+            nseries.append((testie,build,new_all_results))
+        return nseries
 
     def extract_variable_to_series(self, key, vars_values, all_results, dyns, build, script) -> Graph:
         if not key in dyns:
@@ -653,6 +675,7 @@ class Grapher:
         for i, (script, build, all_results) in enumerate(series):
             build._line = self.graphlines[i % len(self.graphlines)]
             build.statics = {}
+
         # graph_variables_as_series will force a variable to be considered as
         # a serie. This is different from var_serie which will define
         # what variable to use as a serie when there is only one serie
@@ -896,7 +919,9 @@ class Grapher:
             subplot_type=self.config("graph_subplot_type")
             subplot_handles=[]
             axiseis = []
+            savekey=key
             for i_s_subplot, result_type in enumerate(figure):
+                key=savekey
                 isubplot = i_subplot * len(figure) + i_s_subplot
                 data = data_types[result_type]
                 ymin, ymax = (float('inf'), 0)
@@ -930,8 +955,8 @@ class Grapher:
                     subplot_handles.append((axis,result_type,[]))
                 subplot_handles[ihandle][2].append(result_type)
 
-
-                for i, (x, y, e, build) in enumerate(data):
+                if len(figure) > 1:
+                  for i, (x, y, e, build) in enumerate(data):
                     build._line=self.graphlines[i_s_subplot% len(self.graphlines)]
 
                 gcolor = self.configlist('graph_color')
@@ -967,14 +992,19 @@ class Grapher:
                     graph_type = "simple_bar"
                 elif ndyn == 1 and len(vars_all) > 2 and npf.all_num(vars_values[key]):
                     graph_type = "line"
-                graph_types = [graph_type, "line"]
-                graph_type = graph_types[isubplot]
+                graph_types = self.configlist("graph_type",[])
+                graph_types.extend([graph_type, "line"])
+                graph_type = graph_types[isubplot if isubplot < len(graph_types) else len(graph_types) - 1]
                 if graph_type == "simple_bar":
                     """No dynamic variables : do a barplot X=version"""
                     r = self.do_simple_barplot(axis,result_type, data, shift, isubplot)
                 elif graph_type == "line":
                     """One dynamic variable used as X, series are version line plots"""
                     r = self.do_line_plot(axis, key, result_type, data,shift, isubplot)
+                elif graph_type == "boxplot":
+                    """One dynamic variable used as X, series are version line plots"""
+                    r = self.do_box_plot(axis, key, result_type, data,shift, isubplot)
+                    key="boxplot"
                 else:
                     """Barplot. X is all seen variables combination, series are version"""
                     self.do_barplot(axis,vars_all, dyns, result_type, data, shift)
@@ -1072,7 +1102,7 @@ class Grapher:
                 ncol = self.config("legend_ncol")
                 if type(ncol) == list:
                     ncol = ncol[ilegend % len(ncol)]
-                if ndyn > 0 and bool(self.config_bool('graph_legend', True)):
+                if key != "boxplot" and ndyn > 0 and bool(self.config_bool('graph_legend', True)):
                     loc = self.config("legend_loc")
                     if subplot_type=="axis" and len(figure) > 1:
                         if not loc.startswith("outer"):
@@ -1138,7 +1168,10 @@ class Grapher:
                         height = rect.get_height()
                         x = rect.get_x() + rect.get_width()/2.
                         m=1.05
-                    if np.isnan(height):
+                    try:
+                        if np.isnan(height):
+                            continue
+                    except:
                         continue
                     ax.text(x, m*height,
                         ('%0.'+str(prec)+'f') % height, color=color, fontweight='bold',
@@ -1176,6 +1209,25 @@ class Grapher:
         self.write_labels(rects, plt,c)
         plt.xticks(ticks, x, rotation='vertical' if (ndata > 8) else 'horizontal')
         plt.gca().set_xlim(0, len(x))
+        return True
+
+    def do_box_plot(self, axis, key, result_type, data : XYEB,shift=0,idx=0):
+        boxdata=[]
+        labels=[]
+        for i, (x, y, e, build) in enumerate(data):
+
+            labels.append(build.pretty_name())
+            y = np.asarray(y)
+            boxdata.append(y[~np.isnan(y)])
+#            mean = np.array([e[i][0] for i in order])
+#            std = np.array([e[i][1] for i in order])
+#            ymin = np.array([np.min(e[i][2]) for i in order])
+#            ymax = np.array([np.max(e[i][2]) for i in order])
+
+
+        self.format_figure(axis, result_type, shift)
+        rects = axis.boxplot(boxdata,labels=labels)
+        axis.tick_params(axis='x', labelrotation=90)
         return True
 
     def do_line_plot(self, axis, key, result_type, data : XYEB,shift=0,idx=0):
@@ -1228,17 +1280,21 @@ class Grapher:
                 rects = axis.scatter(ax[mask], y[mask], label=lab, color=c, linestyle=build._line, marker=marker)
             else:
                 rects = axis.plot(ax[mask], y[mask], label=lab, color=c, linestyle=build._line, marker=marker,markevery=(1 if len(ax[mask]) < 20 else math.ceil(len(ax[mask]) / 20)),drawstyle=drawstyle)
-            error_type = self.scriptconfig('graph_error', result_type, default = None)
+            error_type = self.scriptconfig('graph_error', 'result', result_type=result_type, default = None)
             if error_type != 'none':
-                if error_type == 'bar' or not self.config('graph_error_fill'):
+                if error_type == 'bar' or (error_type == None and not self.config('graph_error_fill')):
                     if error_type == 'barminmax':
                         axis.errorbar(ax[mask], ymin[mask], yerr=(ymin[mask],ymax[mask]), marker=' ', label=None, linestyle=' ', color=c, capsize=3)
-                    else:
+                    else: #std dev
                         axis.errorbar(ax[mask], mean[mask], yerr=std[mask], marker=' ', label=None, linestyle=' ', color=c, capsize=3)
-                else:
+                else: #error type is fill or fillminmax
                     if not np.logical_or(np.zeros(len(y)) == e, np.isnan(y)).all():
                         if error_type=="fillminmax":
                             axis.fill_between(ax[mask], ymin[mask], ymax[mask], color=c, alpha=.4, linewidth=0)
+                        elif error_type=="fill50":
+                            perc25 = np.array([np.percentile(e[i][2],25) for i in order])[mask]
+                            perc75 = np.array([np.percentile(e[i][2],75) for i in order])[mask]
+                            axis.fill_between(ax[mask], perc25, perc75, color=c, alpha=.4, linewidth=0)
                         else:
                             axis.fill_between(ax[mask], mean[mask] - std[mask], mean[mask] + std[mask], color=c, alpha=.4, linewidth=0)
 

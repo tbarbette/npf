@@ -60,9 +60,13 @@ def add_graph_options(parser: ArgumentParser):
 
     g.add_argument('--graph-no-series', dest='graph_no_series', action='store_true', default=False)
 
+    g.add_argument('--graph-group-repo', dest='group_repo', action='store_true', default=False)
+
     g.add_argument('--graph-select-max', dest='graph_select_max', type=int, default=None)
 
     g.add_argument('--graph-dpi', dest='graph_dpi', type=int, default=300)
+
+    g.add_argument('--no-graph-time', dest='do_time', action='store_false', default=True)
 
     g.add_argument('--iterative', dest='iterative', action='store_true', default=False,
                    help='Graph after each results, allowing to get a faster glimpse at the results')

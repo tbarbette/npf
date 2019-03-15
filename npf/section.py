@@ -15,7 +15,7 @@ import re
 class SectionFactory:
     varPattern = "([a-zA-Z0-9_:-]+)[=](" + Variable.VALUE_REGEX + ")?"
     namePattern = re.compile(
-        "^(?P<tags>" + Variable.TAGS_REGEX + "[:])?(?P<name>info|config|variables|exit|pyexit|late_variables|include (?P<includeName>[a-zA-Z0-9_./-]+)||(init-)?file(:?[@](?P<fileRole>[a-zA-Z0-9]+))? (?P<fileName>[a-zA-Z0-9_.-]+)(:? (?P<fileNoparse>noparse))?|require|"
+        "^(?P<tags>" + Variable.TAGS_REGEX + "[:])?(?P<name>info|config|variables|exit|pypost|pyexit|late_variables|include (?P<includeName>[a-zA-Z0-9_./-]+)||(init-)?file(:?[@](?P<fileRole>[a-zA-Z0-9]+))? (?P<fileName>[a-zA-Z0-9_.-]+)(:? (?P<fileNoparse>noparse))?|require|"
                                              "import(:?[@](?P<importRole>[a-zA-Z0-9]+))?[ \t]+(?P<importModule>" + Variable.VALUE_REGEX + ")(?P<importParams>([ \t]+" +
         varPattern + ")+)?|" +
                      "sendfile(:?[@](?P<sendfileRole>[a-zA-Z0-9]+))?[ \t]+(?P<sendfilePath>.*)|" +
@@ -88,6 +88,8 @@ class SectionFactory:
             s = SectionVariable()
         elif sectionName == 'pyexit':
             s = Section('pyexit')
+        elif sectionName == 'pypost':
+            s = Section('pypost')
         elif sectionName == 'exit':
             s = Section('exit')
         elif sectionName == 'config':
@@ -551,12 +553,13 @@ class SectionConfig(SectionVariable):
         self.__add_list("var_grid", [])
         self.__add_list("test_time_sync", [])
         self.__add("var_serie",None)
-        self.__add_dict("var_names", {"result-LATENCY":"Latency (µs)","result-THROUGHPUT":"Throughput"})
+        self.__add_dict("var_names", {"result-LATENCY":"Latency (µs)","result-THROUGHPUT":"Throughput","boxplot":""})
         self.__add_dict("var_unit", {"result": "bps","result-LATENCY":"us","latency":"us","throughput":"bps"})
         self.__add_dict("var_round", {})
         self.__add_dict("var_aggregate", {})
         self.__add_dict("var_repeat", {})
         self.__add_dict("var_drawstyle", {})
+        self.__add_list("graph_type", [])
         self.__add("title", None)
         self.__add_list("require_tags", [])
 

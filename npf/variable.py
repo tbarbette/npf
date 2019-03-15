@@ -213,6 +213,16 @@ class ExpandVariable(Variable):
     def is_numeric(self):
         return False
 
+    def __add__(self, other):
+        v = []
+        for ov in other.makeValues():
+            for mv in self.values:
+                v.append(mv + ov)
+        self.values = v
+        return self
+
+
+
 
 class SimpleVariable(Variable):
     def __init__(self, name, value):
@@ -232,7 +242,7 @@ class SimpleVariable(Variable):
         return self.format() != str
 
     def __add__(self, other):
-        self.value += other.value
+        self.value += other.makeValues()[0]
         return self
 
 

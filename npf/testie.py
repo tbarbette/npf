@@ -3,6 +3,7 @@ import os
 import sys
 import threading
 import time
+import traceback
 import random
 import shutil
 import datetime
@@ -14,6 +15,7 @@ import numpy as np
 from npf.build import Build
 from npf.node import NIC
 from npf.section import *
+from npf.npf import get_valid_filename
 from npf.types.dataset import Run, Dataset
 from npf.eventbus import EventBus
 from .variable import get_bool
@@ -181,8 +183,14 @@ class Testie:
                 del imp.params['delay']
             if 'waitfor' in imp.params:
                 for script in imp.testie.scripts:
-                    script.params['waitfor'] = imp.params['waitfor']
+                    if not script.init:
+                        script.params['waitfor'] = imp.params['waitfor']
                 del imp.params['waitfor']
+            if 'autokill' in imp.params:
+                for script in imp.testie.scripts:
+                    if not script.init:
+                        script.params['autokill'] = imp.params['autokill']
+                del imp.params['autokill']
             overriden_variables = {}
             for k, v in imp.params.items():
                 overriden_variables[k] = VariableFactory.build(k, v)
@@ -201,8 +209,12 @@ class Testie:
 
                 if hasattr(imp.testie, 'exit'):
                     imp.testie.exit._role = imp.get_role()
+            else: #is include
+                self.variables.vlist.update(imp.testie.variables.vlist)
 
-    def build_deps(self, repo_under_test: List[Repository], v_internals={}):
+    def build_deps(self, repo_under_test: List[Repository], v_internals={}, no_build=False, done=None):
+        if done is None:
+            done = set()
         # Check for dependencies
         deps = set()
         for script in self.get_scripts():
@@ -215,31 +227,32 @@ class Testie:
                 continue
             if not deprepo.get_last_build().build(force_build=deprepo.reponame in self.options.force_build_deps):
                 raise Exception("Could not build dependency %s" % dep)
+        #Do the same for the imports
         for imp in self.imports:
-            imp.testie.build_deps(repo_under_test, v_internals)
+            imp.testie.build_deps(repo_under_test, v_internals, True, done=done)
 
         # Send dependencies for nfs=0 nodes
+        toSend = set()
         for script in self.get_scripts():
             role = script.get_role()
             node = npf.node(role)
             if not node.nfs:
                 for repo in repo_under_test:
-                    if repo.get_reponame() != 'local':
-                        print("Sending software %s to %s... " % (repo, role), end ='')
-                        t = node.executor.sendFolder(repo.get_build_path())
-                        if (t > 0):
-                            print("%d bytes sent." % t)
-                        else:
-                            print("Already up to date !")
+                    if repo.get_reponame() != 'local' and not no_build:
+                        toSend.add((repo.reponame,role,node, repo.get_build_path()))
                 for dep in script.get_deps():
                     deprepo = Repository.get_instance(dep, self.options)
-                    print("Sending dependency %s to %s... " % (dep,role), end = '')
-                    t = node.executor.sendFolder(deprepo.get_build_path())
-                    if (t > 0):
-                        print("%d bytes sent." % t)
-                    else:
-                        print("Already up to date !")
 
+                    toSend.add((deprepo.reponame,role,node,deprepo.get_build_path()))
+        for repo,role,node,bp in toSend.difference(done):
+            print("Sending software %s to %s... " % (repo, role), end ='')
+            t = node.executor.sendFolder(bp)
+            if (t > 0):
+                print("%d bytes sent." % t)
+            else:
+                print("Already up to date !")
+
+        done.update(toSend)
 
         st = dict([(f, v.makeValues()[0]) for f, v in self.variables.statics().items()])
         st.update(v_internals)
@@ -307,7 +320,7 @@ class Testie:
                     raise Exception("Could not create file %s on %s" % (filename, node.name))
 
     def test_require(self, v, build):
-        for require in self.requirements:
+        for require in self.requirements + list(itertools.chain.from_iterable([imp.testie.requirements for imp in self.imports])):
             p = SectionVariable.replace_variables(v, require.content, require.role(),
                                                   self.config.get_dict("default_role_map"))
             pid, output, err, returncode = npf.executor(require.role(), self.config.get_dict("default_role_map")).exec(
@@ -337,7 +350,7 @@ class Testie:
                 pass
 
             i = 0
-            while killer.is_alive() and i < 100:
+            while killer.is_alive() and i < 500:
                 time.sleep(0.010)
                 i += 1
             try:
@@ -657,9 +670,9 @@ class Testie:
                     nonzero = set()
                     update = {}
                     all_result_types = set()
-                    nz = True
+                    nz = not self.config.match("accept_zero", "time")
                     last_val = {}
-                    acc = self.config.get_list("test_time_sync")
+                    acc = self.config.get_list("time_sync")
                     for time, results in sorted(new_time_results.items()):
                         if nz:
                             for result_type, result in results.items():
@@ -766,7 +779,7 @@ class Testie:
                     v_internals={}):
         if not build.build(options.force_build, options.no_build, options.quiet_build, options.show_build_cmd):
             raise ScriptInitException()
-        if not self.build_deps([build.repo], v_internals=v_internals):
+        if not self.build_deps([build.repo], v_internals=v_internals, no_build=options.no_build):
             raise ScriptInitException()
 
         if (allowed_types is None or "init" in allowed_types) and options.do_init:
@@ -808,7 +821,7 @@ class Testie:
         init_done = False
         test_folder = self.make_test_folder()
 
-        v_internals = {'NPF_ROOT': '../', 'NPF_BUILD': '../' + build.build_path(),
+        v_internals = {'NPF_REPO':get_valid_filename(build.repo.name),'NPF_ROOT': '../', 'NPF_BUILD': '../' + build.build_path(),
                        'NPF_TESTIE_PATH': '../' + (os.path.relpath(self.path) if self.path else '')}
 
         if not SectionScript.TYPE_SCRIPT in allowed_types:
@@ -835,7 +848,7 @@ class Testie:
                 run.variables.update(build.repo.overriden_variables)
                 variables = variables.copy()
                 for late_variables in self.get_late_variables():
-                    variables.update(late_variables.execute(variables, self))
+                    variables.update(late_variables.execute({**variables, **v_internals}, self))
                 r_status, r_out, r_err = self.test_require(variables, build)
                 if not r_status:
                     if not self.options.quiet:
@@ -913,6 +926,7 @@ class Testie:
                         self.do_init_all(build, options, do_test, allowed_types=allowed_types, test_folder=test_folder,
                                          v_internals=v_internals)
                         init_done = True
+
                     if not self.options.quiet:
                         if len(self.variables) > 0:
                             print(run.format_variables(self.config["var_hide"]),

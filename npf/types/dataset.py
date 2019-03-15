@@ -209,7 +209,7 @@ def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list
                            wr.writerow(row)
 
                 if result is not None:
-                    yval = group_val(result, y_group[result_type] if result_type in y_group  else 'mean')
+                    yval = group_val(result, y_group[result_type] if result_type in y_group else ( y_group['result'] if 'result' in y_group else 'mean'))
                     y.setdefault(result_type, []).append(yval)
 
                     std = np.std(result)

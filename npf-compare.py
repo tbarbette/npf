@@ -43,14 +43,29 @@ class Comparator():
 
         return self.graphs_series, self.time_graphs_series
 
-def do_graph(filename,args,series,time_series):
+def do_graph(filename,args,series,time_series,options):
 
     if series is None:
         return
 
+    #Group repo if asked to do so
+    if options.group_repo:
+        repo_series=OrderedDict()
+        for i, (testie, build, dataset) in enumerate(series):
+            repo_series.setdefault(build.repo.reponame,(testie,build,OrderedDict()))
+            for run, run_results in dataset.items():
+                run.variables['SERIE'] = build.pretty_name()
+                repo_series[build.repo.reponame][2][run] = run_results
+        series = []
+        for reponame, (testie, build, dataset) in repo_series.items():
+            build._pretty_name = reponame
+            build.version = reponame
+            series.append((testie, build, dataset))
+
     # Merge series with common name
     merged_series = OrderedDict()
     for testie, build, dataset in series:
+        #Group series by serie name
         merged_series.setdefault(build.pretty_name(), []).append((testie, build, dataset))
 
     series = []
@@ -97,9 +112,13 @@ def do_graph(filename,args,series,time_series):
         else:
             useful_variables.append(variable)
 
+    if options.group_repo:
+        useful_variables.append('SERIE')
+
     for v in series[0][0].config.get_list("graph_hide_variables"):
         if v in useful_variables:
             useful_variables.remove(v)
+
     #Keep only the variables in Run that are usefull as defined above
     for i, (testie, build, dataset) in enumerate(series):
         ndataset = OrderedDict()
@@ -107,8 +126,9 @@ def do_graph(filename,args,series,time_series):
             ndataset[run.intersect(useful_variables)] = results
         series[i] = (testie, build, ndataset)
 
-    #Keep only the variables in Run that are usefull as defined above
-    for i, (testie, build, dataset) in enumerate(time_series):
+    #Keep only the variables in Time Run that are usefull as defined above
+    if options.do_time:
+      for i, (testie, build, dataset) in enumerate(time_series):
         ndataset = OrderedDict()
         for run, results in dataset.items():
             ndataset[run.intersect(useful_variables + ['time'])] = results
@@ -119,11 +139,11 @@ def do_graph(filename,args,series,time_series):
                       filename=filename,
                       options=args,
                       title=args.graph_title)
-
-    g = grapher.graph(series=time_series,
-                      filename=filename,
-                      options=args,
-                      title=args.graph_title)
+    if options.do_time:
+        g = grapher.graph(series=time_series,
+                          filename=filename,
+                          options=args,
+                          title=args.graph_title)
 
 def main():
     parser = argparse.ArgumentParser(description='NPF cross-repository comparator')
@@ -160,9 +180,9 @@ def main():
     if not os.path.isabs(filename):
         filename = os.getcwd() + os.sep + filename
 
-    series, time_series = comparator.run(testie_name=args.testie, tags=args.tags, options=args, on_finish=lambda series,time_series:do_graph(filename,args,series,time_series) if args.iterative else None)
+    series, time_series = comparator.run(testie_name=args.testie, tags=args.tags, options=args, on_finish=lambda series,time_series:do_graph(filename,args,series,time_series,options=args) if args.iterative else None)
 
-    do_graph(filename,args,series, time_series)
+    do_graph(filename,args,series, time_series, options=args)
 
 if __name__ == "__main__":
     main()
