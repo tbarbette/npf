@@ -348,7 +348,7 @@ class RangeVariable(Variable):
         if self.log:
             return len(self.makeValues())
         else:
-            return int((self.b-self.a / self.step) + 1)
+            return int(((self.b-self.a) / self.step) + 1)
 
 
     def makeValues(self):

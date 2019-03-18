@@ -719,7 +719,7 @@ class Testie:
                         print("Result for %s is 0 !" % ', '.join(diff))
                         has_err = True
                 for result_type, result in new_data_results.items():
-                    data_results.setdefault(result_type, []).append(result)
+                    data_results.setdefault(result_type, []).extend(result if type(result) == list else [result])
 
                 if has_values:
                     break
