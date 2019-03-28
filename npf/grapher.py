@@ -9,6 +9,7 @@ from typing import List
 from matplotlib.ticker import LinearLocator, ScalarFormatter, Formatter, MultipleLocator
 import matplotlib
 import numpy as np
+from pygtrie import Trie
 
 from npf.types import dataset
 from npf.types.dataset import Run, XYEB, group_val
@@ -296,17 +297,25 @@ class Grapher:
             short_ss = []
             for run in run_list:
                 s = []
-                short_s = []
+                short_s = {}
                 for k, v in run.variables.items():
                     if k in variables_to_merge:
                         v = str(v[1] if type(v) is tuple else v)
                         s.append("%s = %s" % (self.var_name(k), v))
-                        short_s.append("%s = %s" % (k if len(k) < 6 else k[:3], v))
+                        short_s[k] = v
                 vs = ','.join(s)
                 ss.append(vs)
                 if len(vs) > 30:
                     use_short = True
-                short_ss.append(','.join(short_s))
+                l_short=[]
+                t_short_s=Trie(short_s)
+                for k,v in short_s.items():
+                    p=1
+                    while len(list(t_short_s.keys(k[:p]))) > 1:
+                        p+=1
+                    k = k[(p-1):]
+                    l_short.append("%s = %s" % (k if len(k) < 6 else k[:3], v))
+                short_ss.append(','.join(l_short))
             if use_short:
                 ss = short_ss
         return ss

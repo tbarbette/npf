@@ -16,3 +16,4 @@ pyasn1
 natsort
 webcolors
 colorama
+pygtrie
