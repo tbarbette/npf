@@ -3,6 +3,7 @@ import math
 import re
 import natsort
 from orderedset._orderedset import OrderedSet
+import copy
 
 from collections import OrderedDict
 from typing import List
@@ -863,7 +864,9 @@ class Grapher:
                             subplot_legend_titles = re.split("[+]", n_cols)
                             n_cols = 1
 
-                        plots.setdefault(i,([],n_cols,subplot_legend_titles))[0].append((k))
+                        plots.setdefault(i,([],n_cols,[]))
+                        plots[i][0].append((k))
+                        plots[i][2].extend(subplot_legend_titles)
                         matched_set.add(k)
                         matched = True
                 if not matched:
@@ -966,7 +969,10 @@ class Grapher:
 
                 if len(figure) > 1:
                   for i, (x, y, e, build) in enumerate(data):
-                    build._line=self.graphlines[i_s_subplot% len(self.graphlines)]
+                    if self.config_bool("graph_subplot_unique_legend", False):
+                        build._line=self.graphlines[i_subplot% len(self.graphlines)]
+                    else:
+                        build._line=self.graphlines[i_s_subplot% len(self.graphlines)]
 
                 gcolor = self.configlist('graph_color')
                 gi = {} #Index per-color
@@ -1057,9 +1063,12 @@ class Grapher:
 
                 var_lim = self.scriptconfig("var_lim", key, key)
                 if var_lim and var_lim is not key:
-                    matches = re.match("([-]?[0-9.]+)[-]([-]?[0-9.]+)", var_lim)
-                    xmin, xmax = (float(x) for x in matches.groups())
-                    axis.set_xlim(xmin, xmax)
+                    matches = re.match("([-]?[0-9.]+)[-]([-]?[0-9.]+)?", var_lim)
+                    xlims = [float(x) for x in matches.groups() if x is not None]
+                    if len(xlims) == 2:
+                        axis.set_xlim(xlims[0], xlims[1])
+                    else:
+                        axis.set_xlim(xlims[0])
 
                 xticks = self.scriptconfig("var_ticks", key, default=None)
                 if xticks:
@@ -1104,6 +1113,7 @@ class Grapher:
                         print(dyn)
                     return None
 
+            lgd = None
             for ilegend,(axis, result_type, plots) in enumerate(subplot_handles):
                 handles, labels = axis.get_legend_handles_labels()
                 for i,label in enumerate(labels):
@@ -1114,6 +1124,19 @@ class Grapher:
                 if key != "boxplot" and ndyn > 0 and bool(self.config_bool('graph_legend', True)):
                     loc = self.config("legend_loc")
                     if subplot_type=="axis" and len(figure) > 1:
+                      if self.config_bool("graph_subplot_unique_legend"):
+                        if ilegend != len(subplot_handles) - 1 : continue
+                        nhandles=[]
+                        for handle in handles:
+                            handle = copy.copy(handle)
+                            handle.set_color('black')
+                            print(type(handle))
+                            if isinstance(handle, matplotlib.lines.Line2D):
+                                handle.set_linestyle('')
+                            nhandles.append(handle)
+                        handles = nhandles
+                        legend_title = self.glob_legend_title
+                      else:
                         if not loc.startswith("outer"):
                             if self.configlist("subplot_legend_loc"):
                                 loc=self.configlist("subplot_legend_loc")[ilegend]
@@ -1126,11 +1149,11 @@ class Grapher:
                         else:
                             if ilegend > 0:
                                 continue
-                        legend_title = subplot_legend_titles[ilegend]
+                        legend_title = subplot_legend_titles[ilegend % len(subplot_legend_titles)]
                         if len(labels) == 1:
                             legend_title = None
 
-                        axis.set_ylabel(self.var_name(subplot_legend_titles[ilegend]))
+                        axis.set_ylabel(self.var_name(legend_title))
                         if len(plots) == len(labels):
                             labels = []
                             for p in plots:
