@@ -10,12 +10,11 @@ from asteval import Interpreter
 def is_numeric(s):
     try:
         val = float(s)
+        return True
     except TypeError:
         return False
     except ValueError:
         return False
-    return True
-
 
 def is_integer(s):
     try:
@@ -24,18 +23,26 @@ def is_integer(s):
     except ValueError:
         return False
 
+def get_bool(val):
+    if isinstance(val, bool):
+        return val
+    if isinstance(val, int):
+        if val == 0: return False
+        if val == 1: return True
+        raise ValueError("Number %d is not a bool" % val)
+
+    if val == "0" or val.lower() == "f" or val.lower() == "false":
+        return False
+    if val == "1" or val.lower() == "t" or val.lower() == "true":
+        return True
+    raise ValueError("%s is not a bool" % val)
 
 def is_bool(s):
     try:
-        bool(s)
+        get_bool(s)
         return True
     except ValueError:
         return False
-
-def get_bool(s):
-    if is_integer(s) and int(s) == 0:
-        return False
-    return bool(s)
 
 def get_numeric(data):
     if is_numeric(data):

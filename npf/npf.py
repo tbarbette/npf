@@ -33,6 +33,9 @@ def add_verbosity_options(parser: ArgumentParser):
     v.add_argument('--show-cmd', help='Show the executed script',
                    dest='show_cmd', action='store_true',
                    default=False)
+    v.add_argument('--show-time-results', help='Show time results',
+                   dest='print_time_results', action='store_true',
+                   default=False)
 
     v.add_argument('--quiet', help='Quiet mode', dest='quiet', action='store_true', default=False)
     v.add_argument('--quiet-regression', help='Do not tell about the regression process', dest='quiet_regression',

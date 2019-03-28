@@ -19,7 +19,7 @@ class SectionFactory:
                                              "import(:?[@](?P<importRole>[a-zA-Z0-9]+))?[ \t]+(?P<importModule>" + Variable.VALUE_REGEX + ")(?P<importParams>([ \t]+" +
         varPattern + ")+)?|" +
                      "sendfile(:?[@](?P<sendfileRole>[a-zA-Z0-9]+))?[ \t]+(?P<sendfilePath>.*)|" +
-                     "(:?script|init)(:?[@](?P<scriptRole>[a-zA-Z0-9]+))?(?P<scriptParams>([ \t]+" + varPattern + ")*))$")
+                     "(:?script|init|exit)(:?[@](?P<scriptRole>[a-zA-Z0-9]+))?(?P<scriptParams>([ \t]+" + varPattern + ")*))$")
 
     @staticmethod
     def build(testie, data):
@@ -50,14 +50,17 @@ class SectionFactory:
             s = SectionSendFile(matcher.group('sendfileRole'), matcher.group('sendfilePath'))
             return s
 
-        if sectionName.startswith('script') or (
+        if sectionName.startswith('script') or sectionName.startswith('exit') or (
                 sectionName.startswith('init') and not sectionName.startswith('init-file')):
             params = matcher.group('scriptParams')
             params = dict(re.findall(SectionFactory.varPattern, params)) if params else {}
             s = SectionScript(matcher.group('scriptRole'), params)
             if sectionName.startswith('init'):
-                s.init = True
+                s.type = SectionScript.TYPE_INIT
                 s.params.setdefault("autokill", False)
+            if sectionName.startswith('exit'):
+                s.type = SectionScript.TYPE_EXIT
+
             return s
 
         if matcher.group('scriptParams') is not None:
@@ -134,7 +137,8 @@ class SectionSendFile(Section):
 class SectionScript(Section):
     TYPE_INIT = "init"
     TYPE_SCRIPT = "script"
-    ALL_TYPES_SET = {TYPE_INIT, TYPE_SCRIPT}
+    TYPE_EXIT = "exit"
+    ALL_TYPES_SET = {TYPE_INIT, TYPE_SCRIPT, TYPE_EXIT}
 
     num = 0
 
@@ -144,7 +148,7 @@ class SectionScript(Section):
             params = {}
         self.params = params
         self._role = role
-        self.init = False
+        self.type = self.TYPE_SCRIPT
         self.index = ++self.num
 
     def get_role(self):
@@ -162,7 +166,7 @@ class SectionScript(Section):
             return str(self.index)
 
     def get_type(self):
-        return SectionScript.TYPE_INIT if self.init else SectionScript.TYPE_SCRIPT
+        return self.type
 
     def finish(self, testie):
         testie.scripts.append(self)
@@ -497,7 +501,7 @@ class SectionConfig(SectionVariable):
         self.__add("n_retry", 0)
         self.__add_dict("var_n_runs", {})
         self.__add_dict("var_markers", {})
-        self.__add("result_add", True)
+        self.__add("result_add", False)
         self.__add_list("result_regex", [
             r"(:?(?P<time>[0-9.]+)-)?RESULT(:?-(?P<type>[A-Z0-9_:~.@()-]+))?[ \t]+(?P<value>[0-9.]+(e[+-][0-9]+)?)[ ]*(?P<multiplier>[nµugmkKGT]?)(?P<unit>s|sec|b|byte|bits)?"])
         self.__add_list("results_expect", [])
@@ -507,6 +511,7 @@ class SectionConfig(SectionVariable):
         self.__add("timeout", 30)
         self.__add("time_precision", 1)
         self.__add("time_sync", True)
+        self.__add_list("var_sync", ["time"])
 
         # Role related
         self.__add_dict("default_role_map", {})
@@ -516,6 +521,7 @@ class SectionConfig(SectionVariable):
         self.__add_dict("graph_combine_variables", {})
         self.__add_dict("graph_subplot_results", {})
         self.__add("graph_subplot_variable", None)
+        self.__add("graph_subplot_unique_legend", False)
         self.__add_list("graph_display_statics", [])
         self.__add_list("graph_variables_as_series", [])
         self.__add_list("graph_hide_variables", [])

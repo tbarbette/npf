@@ -183,12 +183,12 @@ class Testie:
                 del imp.params['delay']
             if 'waitfor' in imp.params:
                 for script in imp.testie.scripts:
-                    if not script.init:
+                    if script.type == SectionScript.TYPE_SCRIPT:
                         script.params['waitfor'] = imp.params['waitfor']
                 del imp.params['waitfor']
             if 'autokill' in imp.params:
                 for script in imp.testie.scripts:
-                    if not script.init:
+                    if script.type == SectionScript.TYPE_SCRIPT:
                         script.params['autokill'] = imp.params['autokill']
                 del imp.params['autokill']
             overriden_variables = {}
@@ -618,11 +618,12 @@ class Testie:
                         worked = True
                         output += o
                         err += e
-                if SectionScript.TYPE_SCRIPT in allowed_types:
-                  for s,vlist in [(t.testie,t.imp_v) for t in self.imports] + [(self, v)]:
-                    if not hasattr(s, 'exit'):
+                if SectionScript.TYPE_EXIT in allowed_types:
+                 for s,vlist in [(t.testie,t.imp_v) for t in self.imports] + [(self, v)]:
+                  for script in s.get_scripts():
+                    if not script.type == SectionScript.TYPE_EXIT:
                         continue
-                    exitscripts=s.exit.content
+                    exitscripts=script.content
 
                     cmd = SectionVariable.replace_variables(
                             vlist,
@@ -630,8 +631,7 @@ class Testie:
                     role_map = self.config.get_dict("default_role_map")
                     role = None
 
-                    if hasattr(s.exit, '_role'):
-                        role = s.exit._role
+                    role = script.get_role()
 
                     executor = npf.executor(role, role_map)
                     cmd = "mkdir -p " + test_folder + " && cd " + test_folder + ";\n" + cmd
@@ -670,26 +670,30 @@ class Testie:
                     nonzero = set()
                     update = {}
                     all_result_types = set()
-                    nz = not self.config.match("accept_zero", "time")
+                    nz = False
+                    accept_zero = not self.config.match("accept_zero", "time")
+                    if accept_zero:
+                        nz = False
+
                     last_val = {}
                     acc = self.config.get_list("time_sync")
                     for time, results in sorted(new_time_results.items()):
-                        if nz:
+                        if not nz: #We still haven't found a non zero time
                             for result_type, result in results.items():
                                 if result_type in self.config.get_list("var_repeat"):
                                     last_val[result_type] = result
 
-                                if result != 0 and (not acc or result_type in acc):
-                                    nz = False
-                                    min_time = time
-                            if nz:
+                                if result != 0:
+                                    nz = True
+                                    if (not acc or result_type in acc):
+                                        min_time = time
+                            if not nz:
                                 continue
                             else:
                                 for result_type, result in last_val.items():
                                     results[result_type] = result
 
                         for result_type, result in results.items():
-
                             if result_type in self.config.get_dict("var_n_runs") and i >= int(
                                     self.config.get_dict("var_n_runs")[result_type]):
                                 continue
@@ -720,6 +724,7 @@ class Testie:
                         has_err = True
                 for result_type, result in new_data_results.items():
                     data_results.setdefault(result_type, []).extend(result if type(result) == list else [result])
+
 
                 if has_values:
                     break
@@ -977,6 +982,9 @@ class Testie:
                             rt.extend(result)
                 for result_type, result in time_results.items():
                     all_time_results[result_type] = result
+
+                if self.options.print_time_results:
+                    print(time_results)
 
                 if on_finish and have_new_results:
                     def call_finish():

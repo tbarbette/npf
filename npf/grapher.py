@@ -14,7 +14,7 @@ from pygtrie import Trie
 
 from npf.types import dataset
 from npf.types.dataset import Run, XYEB, group_val
-from npf.variable import is_numeric, get_numeric, numericable, get_bool
+from npf.variable import is_numeric, get_numeric, numericable, get_bool, is_bool
 from npf.section import SectionVariable
 from npf import npf, variable
 from matplotlib.lines import Line2D
@@ -185,9 +185,19 @@ class Grapher:
 
     def config_bool(self, var, default=None):
         val = self.config(var, default)
-        if val == "0" or val == "F" or val == "False" or val == "false":
-            return False
-        return val
+        return get_bool(val)
+
+    def config_bool_or_in(self, var, obj, default=None):
+        val = self.config(var, default)
+
+        if type(val) == type(obj) and val == obj:
+            return True
+
+        if isinstance(val, list):
+            return obj in val
+        if is_bool(val):
+            return get_bool(val)
+        return default
 
     def config(self, var, default=None):
         for script in self.scripts:
@@ -1265,6 +1275,16 @@ class Grapher:
     def do_line_plot(self, axis, key, result_type, data : XYEB,shift=0,idx=0):
         xmin, xmax = (float('inf'), 0)
         drawstyle = self.scriptconfig('var_drawstyle',result_type,default='default')
+
+        minX = None
+
+        if self.config_bool_or_in("var_sync", key):
+            for i, (x, y, e, build) in enumerate(data):
+                if minX is None:
+                    minX = min(x)
+                else:
+                    minX = min(minX,min(x))
+
         for i, (x, y, e, build) in enumerate(data):
             self.format_figure(axis, result_type, shift)
             c = build._color
@@ -1280,7 +1300,10 @@ class Grapher:
 
             order = np.argsort(ax)
 
-            ax = np.asarray([float(ax[i]) for i in order])
+            if minX is not None:
+                ax = np.asarray([float(ax[i] - minX) for i in order])
+            else:
+                ax = np.asarray([float(ax[i]) for i in order])
             y = np.array([y[i] for i in order])
             mean = np.array([e[i][0] for i in order])
             std = np.array([e[i][1] for i in order])
@@ -1308,8 +1331,8 @@ class Grapher:
                 m = self.configdict("var_markers")[result_type].split(';')
                 marker = m[i % len(m)]
 
-            if result_type in self.configlist("graph_scatter"):
-                rects = axis.scatter(ax[mask], y[mask], label=lab, color=c, linestyle=build._line, marker=marker)
+            if self.config_bool_or_in("graph_scatter", result_type):
+                rects = axis.scatter(ax[mask], y[mask], label=lab, color=c,  marker=marker)
             else:
                 rects = axis.plot(ax[mask], y[mask], label=lab, color=c, linestyle=build._line, marker=marker,markevery=(1 if len(ax[mask]) < 20 else math.ceil(len(ax[mask]) / 20)),drawstyle=drawstyle)
             error_type = self.scriptconfig('graph_error', 'result', result_type=result_type, default = None)
