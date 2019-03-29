@@ -141,6 +141,8 @@ def group_val(result, t):
                                 return result[0]
                            elif t == 'last':
                                 return result[-1]
+                           elif t == 'all':
+                               return result
                            else:
                                print("WARNING : Unknown format %s" % t)
                                return np.nan
