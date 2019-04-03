@@ -177,7 +177,7 @@ class Testie:
                 for script in imp.testie.scripts:
                     script.init = True
             if 'delay' in imp.params:
-                delay = script.params.setdefault('delay', 0)
+                delay = imp.params.setdefault('delay', 0)
                 for script in imp.testie.scripts:
                     script.params['delay'] = float(delay) + float(imp.params['delay'])
                 del imp.params['delay']
@@ -358,17 +358,19 @@ class Testie:
             except OSError:
                 pass
 
-    def parse_results(self, regex_list: str, output: str, new_time_results: dict, new_data_results: dict) -> Tuple[
+    def parse_results(self, regex_list: str, output: str, new_kind_results: dict, new_data_results: dict) -> Tuple[
         bool, bool]:
         has_err = False
         has_values = False
-        result_add = self.config.get_bool("result_add")
         try:
             for result_regex in regex_list:
                 for nr in re.finditer(result_regex, output.strip(), re.IGNORECASE):
                     result_type = nr.group("type")
 
-                    time = nr.group("time")
+                    kind = nr.group("kind")
+                    if kind is None:
+                        kind = "time"
+                    kind_value = nr.group("kind_value")
                     if result_type is None:
                         result_type = ''
                     n = float(nr.group("value"))
@@ -395,13 +397,14 @@ class Testie:
                         n *= 1024 * 1024
                     elif mult == "G":
                         n *= 1024 * 1024 * 1024
-                    if n != 0 or (self.config.match("accept_zero", result_type)) or time is not None:
-                        if time:
-                            t = float(time)
-                            if result_type in new_time_results.setdefault(t, {}) and result_add:
-                                new_time_results[t][result_type] += n
+                    if n != 0 or (self.config.match("accept_zero", result_type)) or kind_value is not None:
+                        result_add = self.config.get_bool_or_in("result_add", result_type)
+                        if kind_value:
+                            t = float(kind_value)
+                            if result_type in new_kind_results.setdefault(kind,{}).setdefault(t, {}) and result_add:
+                                new_kind_results[kind][t][result_type] += n
                             else:
-                                new_time_results[t][result_type] = n
+                                new_kind_results[kind][t][result_type] = n
                         else:
                             if result_type in new_data_results and result_add:
                                 new_data_results[result_type] += n
@@ -475,7 +478,7 @@ class Testie:
 
         # Launching the tests in itself
         data_results = OrderedDict()  # dict of result_name -> [val, val, val]
-        time_results = OrderedDict()  # dict of time -> {result_name -> [val, val, val]}
+        all_kind_results = {}  # dict of kind -> kind_value -> {result_name -> [val, val, val]}
         m = multiprocessing.Manager()
         all_output = []
         all_err = []
@@ -653,20 +656,23 @@ class Testie:
                 has_values = False
                 has_err = False
                 new_data_results = {}
-                new_time_results = {}
+                new_kind_results = {}
+                new_kind_results.setdefault("time", {})
                 regex_list = self.config.get_list("result_regex")
 
-                this_has_err, this_has_value = self.parse_results(regex_list, output, new_time_results,
+                this_has_err, this_has_value = self.parse_results(regex_list, output, new_kind_results,
                                                                   new_data_results)
                 if this_has_err:
                     has_err = True
                 if this_has_value:
                     has_values = True
                 if hasattr(self, 'pyexit'):
-                    exec(self.pyexit.content, {'RESULTS': new_data_results, 'TIME_RESULTS': new_time_results})
+                    exec(self.pyexit.content, {'RESULTS': new_data_results, 'TIME_RESULTS': new_kind_results["time"], 'KIND_RESULTS':new_kind_results})
 
-                if new_time_results:
-                    min_time = min(new_time_results.keys())
+                for kind, kind_results in new_kind_results.items():
+                  if kind_results:
+                    all_kind_results.setdefault(kind,{})
+                    min_kind_value = min(kind_results.keys())
                     nonzero = set()
                     update = {}
                     all_result_types = set()
@@ -677,8 +683,8 @@ class Testie:
 
                     last_val = {}
                     acc = self.config.get_list("time_sync")
-                    for time, results in sorted(new_time_results.items()):
-                        if not nz: #We still haven't found a non zero time
+                    for kind_value, results in sorted(kind_results.items()):
+                        if not nz: #We still haven't found a non zero kind_value
                             for result_type, result in results.items():
                                 if result_type in self.config.get_list("var_repeat"):
                                     last_val[result_type] = result
@@ -686,7 +692,7 @@ class Testie:
                                 if result != 0:
                                     nz = True
                                     if (not acc or result_type in acc):
-                                        min_time = time
+                                        min_kind_value = kind_value
                             if not nz:
                                 continue
                             else:
@@ -700,23 +706,23 @@ class Testie:
                             nonzero.add(result_type)
                             all_result_types.add(result_type)
                             event_t = Decimal(
-                                ("%.0" + str(self.config['time_precision']) + "f") % round(float(time - (min_time if get_bool(self.config['time_sync']) else 0)), int(
+                                ("%.0" + str(self.config['time_precision']) + "f") % round(float(kind_value - (min_kind_value if get_bool(self.config['time_sync']) else 0)), int(
                                     self.config['time_precision'])))
                             update.setdefault(event_t, {}).setdefault(result_type, [])
                             update[event_t][result_type].append(result)
                             if result_type in self.config.get_list("var_repeat"):
                                 # Replicate existing time series for all new incoming time points
-                                self.ensure_time(event_t, result_type, time_results)
+                                self.ensure_time(event_t, result_type, all_kind_results[kind])
 
                     # Replicate new results for every time point
-                    for event_t, results in time_results.items():
+                    for event_t, results in kind_results.items():
                         for result_type, result in results.items():
                             if result_type in self.config.get_list("var_repeat"):
                                 self.ensure_time(event_t, result_type, update)
 
-                    for time, results in update.items():
+                    for kind_value, results in update.items():
                         for result_type, result in results.items():
-                            time_results.setdefault(time, {}).setdefault(result_type, []).extend(result)
+                            all_kind_results[kind].setdefault(kind_value, {}).setdefault(result_type, []).extend(result)
 
                     diff = all_result_types.difference(nonzero)
                     if diff:
@@ -730,11 +736,11 @@ class Testie:
                     break
 
                 for result_type in self.config.get_list('results_expect'):
-                    if result_type not in data_results and not result_type in time_results:
+                    if result_type not in data_results and not result_type in all_kind_results:
                         print("Could not find expected result '%s' !" % result_type)
                         has_err = True
 
-                if len(data_results) + len(time_results) == 0:
+                if len(data_results) + sum([len(r) for k, r in all_kind_results.items()]) == 0:
                     print("Could not find results !")
 
                     has_err = True
@@ -754,7 +760,7 @@ class Testie:
         os.chdir('..')
         if not self.options.preserve_temp and f_mine:
             shutil.rmtree(test_folder)
-        return data_results, time_results, all_output, all_err, n_exec, n_err
+        return data_results, all_kind_results, all_output, all_err, n_exec, n_err
 
     def ensure_time(self, event_t, result_type, update):
         if event_t in update:
@@ -795,7 +801,7 @@ class Testie:
                 vs[k] = v.makeValues()[0]
             for late_variables in self.get_late_variables():
                 vs.update(late_variables.execute(vs, self))
-            data_results, time_results, output, err, num_exec, num_err = self.execute(build, Run(vs), v=vs, n_runs=1,
+            data_results, all_kind_results, output, err, num_exec, num_err = self.execute(build, Run(vs), v=vs, n_runs=1,
                                                                                       n_retry=0,
                                                                                       allowed_types={"init"},
                                                                                       do_imports=True,
@@ -812,7 +818,7 @@ class Testie:
                 raise ScriptInitException()
 
     def execute_all(self, build, options, prev_results: Dataset = None, do_test=True, on_finish=None,
-                    allowed_types=SectionScript.ALL_TYPES_SET, prev_time_results: Dataset = None) -> Tuple[
+                    allowed_types=SectionScript.ALL_TYPES_SET, prev_time_results: Dict[float, Dataset] = None) -> Tuple[
         Dataset, bool]:
         """Execute script for all variables combinations. All tools reliy on this function for execution of the testie
         :param allowed_types:Tyeps of scripts allowed to run. Set with either init, scripts or both
@@ -921,11 +927,27 @@ class Testie:
                                 print("Missing result type %s, re-doing the run" % result_type)
                                 run_results = {}
 
+
                 have_new_results = False
+
+                #Compute the minimal number of existing results, so we know how much runs we must do
+                l=[]
+                dall=True
+                n_existing_results=[]
+                for result_type, results in run_results.items():
+                    if self.config.match("accept_zero", result_type):
+                        continue
+                    if not results:
+                        continue
+                    n_existing_results.append(len(results))
+                    if len(results) < runs_this_pass:
+                        l.append(result_type)
+                    else:
+                        dall=False
 
                 n_runs = runs_this_pass - (
                     0 if (options.force_test or options.force_retest) or len(run_results) == 0 else min(
-                        [len(results) for result_type, results in run_results.items()]))
+                        n_existing_results))
                 if n_runs > 0 and do_test:
                     if not init_done:
                         self.do_init_all(build, options, do_test, allowed_types=allowed_types, test_folder=test_folder,
@@ -933,13 +955,16 @@ class Testie:
                         init_done = True
 
                     if not self.options.quiet:
+                        if len(run_results) > 0:
+                            if not dall:
+                                print("Results %s are missing some points..." % ", ".join(l))
                         if len(self.variables) > 0:
                             print(run.format_variables(self.config["var_hide"]),
                                   "[%d runs for %d/%d]" % (n_runs, n, len(self.variables)))
                         else:
                             print("Executing single run...")
 
-                    new_data_results, new_time_results, output, err, n_exec, n_err = self.execute(build, run, variables,
+                    new_data_results, new_all_kind_results, output, err, n_exec, n_err = self.execute(build, run, variables,
                                                                                                   n_runs,
                                                                                                   n_retry=self.config[
                                                                                                       "n_retry"],
@@ -947,8 +972,14 @@ class Testie:
                                                                                                       SectionScript.TYPE_SCRIPT},
                                                                                                   test_folder=test_folder,
                                                                                                   v_internals=v_internals)
+                    new_time_results = new_all_kind_results["time"] if "time" in new_all_kind_results else {}
+                    for kind, kind_results in [(kind, kind_results) for kind,kind_results in new_all_kind_results.items() if kind != "time"]:
+                        print("Results other than time are still not supported '%s':" % kind)
+                        print(kind_results)
                     if new_data_results:
                         for result_type, values in new_data_results.items():
+                            if values is None:
+                                continue
                             if options.force_retest:
                                 run_results[result_type] = values
                             else:

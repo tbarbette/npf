@@ -1029,7 +1029,6 @@ class Grapher:
                 elif graph_type == "boxplot":
                     """One dynamic variable used as X, series are version line plots"""
                     r = self.do_box_plot(axis, key, result_type, data,shift, isubplot)
-                    key="boxplot"
                 else:
                     """Barplot. X is all seen variables combination, series are version"""
                     self.do_barplot(axis,vars_all, dyns, result_type, data, shift)
@@ -1131,7 +1130,7 @@ class Grapher:
                 ncol = self.config("legend_ncol")
                 if type(ncol) == list:
                     ncol = ncol[ilegend % len(ncol)]
-                if key != "boxplot" and ndyn > 0 and bool(self.config_bool('graph_legend', True)):
+                if ndyn > 0 and bool(self.config_bool('graph_legend', True)):
                     loc = self.config("legend_loc")
                     if subplot_type=="axis" and len(figure) > 1:
                       if self.config_bool("graph_subplot_unique_legend"):
@@ -1254,22 +1253,45 @@ class Grapher:
         return True
 
     def do_box_plot(self, axis, key, result_type, data : XYEB,shift=0,idx=0):
-        boxdata=[]
-        labels=[]
-        for i, (x, y, e, build) in enumerate(data):
 
-            labels.append(build.pretty_name())
-            y = np.asarray(y)
-            boxdata.append(y[~np.isnan(y)])
+
+        self.format_figure(axis, result_type, shift)
+        nseries = max([len(y) for y in [y for x,y,e,build in data]])
+
+        labels=[]
+
+        for i, (x, ys, e, build) in enumerate(data):
+
+            boxdata=[]
+            pos = []
+            for yi in range(nseries):
+                y=ys[yi]
+                pos.append(yi*len(data) + i + 1)
+                y = np.asarray(y)
+                boxdata.append(y[~np.isnan(y)])
+
+                if i == 0:
+                    labels.append(str(x[yi]))
+            plt.plot([], c= build._color , label=str(build.pretty_name()))
+
+
+#                labels.append(build.pretty_name() + " "+ str(x[i]))
 #            mean = np.array([e[i][0] for i in order])
 #            std = np.array([e[i][1] for i in order])
 #            ymin = np.array([np.min(e[i][2]) for i in order])
 #            ymax = np.array([np.max(e[i][2]) for i in order])
 
-
-        self.format_figure(axis, result_type, shift)
-        rects = axis.boxplot(boxdata,labels=labels)
-        axis.tick_params(axis='x', labelrotation=90)
+            rects = axis.boxplot(boxdata, positions = pos, widths=0.6  )
+            plt.setp(rects['boxes'], color = build._color)
+            plt.setp(rects['whiskers'], color = build._color)
+            plt.setp(rects['caps'], color = build._color)
+            plt.setp(rects['fliers'], color = build._color)
+            plt.setp(rects['medians'], color = lighter(build._color,0.50,0))
+        m = len(data)*nseries + 1
+        axis.set_xlim(0,m)
+        axis.set_xticklabels(labels)
+        xticks = (np.asarray(range(nseries)) * nseries ) + 1.5
+        axis.set_xticks(xticks)
         return True
 
     def do_line_plot(self, axis, key, result_type, data : XYEB,shift=0,idx=0):
@@ -1301,7 +1323,7 @@ class Grapher:
             order = np.argsort(ax)
 
             if minX is not None:
-                ax = np.asarray([float(ax[i] - minX) for i in order])
+                ax = np.asarray([float(float(ax[i]) - float(minX)) for i in order])
             else:
                 ax = np.asarray([float(ax[i]) for i in order])
             y = np.array([y[i] for i in order])

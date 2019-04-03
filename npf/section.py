@@ -482,6 +482,7 @@ class SectionConfig(SectionVariable):
             'series_as_variables': 'graph_series_as_variables',
             'var_as_series': 'graph_variables_as_series',
             'result_as_variables': 'graph_result_as_variables',
+            'y_group': 'graph_y_group',
             'series_prop': 'graph_series_prop',
             'graph_legend_ncol': 'legend_ncol'
         }
@@ -503,7 +504,7 @@ class SectionConfig(SectionVariable):
         self.__add_dict("var_markers", {})
         self.__add("result_add", False)
         self.__add_list("result_regex", [
-            r"(:?(?P<time>[0-9.]+)-)?RESULT(:?-(?P<type>[A-Z0-9_:~.@()-]+))?[ \t]+(?P<value>[0-9.]+(e[+-][0-9]+)?)[ ]*(?P<multiplier>[nµugmkKGT]?)(?P<unit>s|sec|b|byte|bits)?"])
+            r"(:?(:?(?P<kind>[A-Z0-9_]+)-)?(?P<kind_value>[0-9.]+)-)?RESULT(:?-(?P<type>[A-Z0-9_:~.@()-]+))?[ \t]+(?P<value>[0-9.]+(e[+-][0-9]+)?)[ ]*(?P<multiplier>[nµugmkKGT]?)(?P<unit>s|sec|b|byte|bits)?"])
         self.__add_list("results_expect", [])
         self.__add("autokill", True)
         self.__add("critical", False)
@@ -612,6 +613,18 @@ class SectionConfig(SectionVariable):
 
     def get_bool(self, key):
         return get_bool(self[key])
+
+    def get_bool_or_in(self, var, obj, default=None):
+        val = self[var]
+
+        if type(val) == type(obj) and val == obj:
+            return True
+
+        if isinstance(val, list):
+            return obj in val
+        if is_bool(val):
+            return get_bool(val)
+        return default
 
     def __contains__(self, key):
         return key.lower() in self.vlist

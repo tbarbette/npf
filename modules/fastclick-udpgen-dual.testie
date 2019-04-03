@@ -25,6 +25,7 @@ rate:GEN_RATE=1000
 skipinit=0
 DUT_NIC_0=0
 DUT_NIC_1=1
+GEN_PROMISC=false
 
 %late_variables
 GEN_TOT=EXPAND( $(( $GEN_BURST * $GEN_FLOWS )) )
@@ -60,7 +61,7 @@ elementclass Generator { $port, $th, $qu, $srcmac, $dstmac, $srcip, $dstip |
 
     StaticThreadSched(rp/replay $th)
 
-    fd :: FromDPDKDevice($port, MAC $srcmac, MAXTHREADS 1, QUEUE $qu, PROMISC false, VERBOSE 99)
+    fd :: FromDPDKDevice($port, MAC $srcmac, MAXTHREADS 1, QUEUE $qu, PROMISC $GEN_PROMISC, VERBOSE 99)
     -> c0 :: Classifier(12/0806 20/0001,
                         12/0806 20/0002,
                         -)[2]

@@ -10,7 +10,8 @@ timeout=20
 
 %variables
 GEN_LENGTH=[64*1500]
+GEN_PROMISC=1
 
-%import@client dpdk-bind NIC=0
-%import@client dpdk-bind NIC=1
+%-nobind:import@client dpdk-bind NIC=0
+%-nobind:import@client dpdk-bind NIC=1
 %import@client fastclick-udpgen-dual delay=2
