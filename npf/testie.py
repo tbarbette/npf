@@ -983,7 +983,11 @@ class Testie:
                             if options.force_retest:
                                 run_results[result_type] = values
                             else:
-                                run_results.setdefault(result_type, []).extend(values)
+                                if result_type in run_results and run_results[result_type] is not None:
+                                    run_results[result_type].extend(values)
+                                else:
+                                    run_results[result_type] = values
+
                             have_new_results = True
                     if new_time_results:
                         have_new_results = True
