@@ -33,6 +33,9 @@ sleep 1
 killall -9 nginx &> /dev/null || true
 sleep 1
 bash genssl.sh
+service irqbalance stop
+ethtool -L ${self:0:ifname} combined $NGINX_NWORKER
+set_irq_affinity.sh ${self:0:ifname}
 echo "Launching NGINX..."
 nginx -c $(pwd)/nginx.conf -p $NGINX_ROOT
 r=$?
@@ -47,6 +50,7 @@ worker_processes $NGINX_NWORKER;
 worker_rlimit_nofile 70000;
 pid nginx.pid;
 daemon on;
+worker_cpu_affinity $(( " ".join([str( int(pow(10,i) ) ) for i in range($NGINX_NWORKER)]) ));
 
 events {
     worker_connections 65536;

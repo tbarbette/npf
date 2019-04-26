@@ -78,7 +78,9 @@ class Build:
             return self.__result_folder() + self.version + '.results'
 
     def writeversion(self, testie, all_results: Dataset, allow_overwrite: bool = False, time = False, reload=True):
-        if not reload and len(all_results) < len(self.load_results(testie = testie, time = time, cache=True)):
+        if not reload and all_results:
+          prev=self.load_results(testie = testie, time = time, cache=True)
+          if prev and len(all_results) < len(prev):
             print("ERROR ! Have less results than before. Forcing update write !")
             reload = True
             return

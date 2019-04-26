@@ -82,7 +82,7 @@ class Regression:
                         variables.update(late_variables.execute(variables, testie))
                     new_results_types, output, err, n_exec = testie.execute(build, run, variables,
                                                                     n_runs=testie.config["n_supplementary_runs"],
-                                                                    allowed_types={SectionScript.TYPE_SCRIPT})
+                                                                    allowed_types={SectionScript.TYPE_SCRIPT, SectionScript.TYPE_EXIT})
 
                     for result_type, results in new_results_types.items():
                         results_types[result_type] += results

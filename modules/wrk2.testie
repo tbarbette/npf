@@ -30,7 +30,7 @@ cat wrk_results | grep "Transfer/sec" | awk '{printf "RESULT-THROUGHPUT %s\n", $
 cat wrk_results | grep "Requests/sec" | awk '{printf "RESULT-REQUEST %s\n", $2}' | head -n 1
 cat wrk_results | grep "Latency" | awk '{printf "RESULT-LATENCY %s\n", $2}' | head -n 1
 cat wrk_results| grep "99.000%" | awk '{printf "RESULT-LAT99 %s\n", $2}' | head -n 1
-cat wrk_results| awk '/Detailed Percentile/{flag=1;next}/Mean/{flag=0}flag' | tail -n +3 | head -n -1 | awk '{printf "%s-RESULT-CDFLAT %s\n", $1, $2}' | uniq
+cat wrk_results| awk '/Detailed Percentile/{flag=1;next}/Mean/{flag=0}flag' | tail -n +3 | head -n -1 | awk '{printf "%f-RESULT-CDFLAT %f\n", $1*1000, $2}' | uniq
 echo "EVENT WRK_FINISHED"
 
 rm wrk_results

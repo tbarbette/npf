@@ -112,7 +112,7 @@ class Graph:
         self.data_types = None
 
     def statics(self):
-        return dict([(var,values[0]) for var,values in self.vars_values.items() if len(values) == 1])
+        return dict([(var,list(values)[0]) for var,values in self.vars_values.items() if len(values) == 1])
 
     def dyns(self):
         return [var for var,values in self.vars_values.items() if len(values) > 1]
@@ -373,7 +373,8 @@ class Grapher:
         values = list(vars_values[key])
         del vars_values[key]
         try:
-            values.sort()
+            #values.sort()
+            pass
         except TypeError:
             print("ERROR : Cannot sort the following values :", values)
             return
@@ -405,7 +406,7 @@ class Grapher:
         else:
             key = "Variables"
             do_sort = False
-        do_sort = get_bool(self.scriptconfig('graph_x_sort', key, default=do_sort))
+        do_sort = self.config_bool_or_in('graph_x_sort', key, default=do_sort)
         if (do_sort):
             vars_all.sort()
         graph = Graph(self)
@@ -566,6 +567,8 @@ class Grapher:
                             results = np.sort(results)[-self.options.graph_select_max:]
 
                         ydiv = dataset.var_divider(testie, "result", result_type)
+                        if not results.any():
+                            results=np.asarray([0])
                         new_results.setdefault(run, OrderedDict())[result_type] = results / ydiv
                     for k, v in run.variables.items():
                         vars_values.setdefault(k, OrderedSet()).add(v)
@@ -585,7 +588,7 @@ class Grapher:
             for i, (testie, build, all_results) in enumerate(series):
                 for run, run_results in all_results.items():
                     run.variables['serie'] = build.pretty_name()
-                    vars_values['serie'] = build.pretty_name()
+                    vars_values['serie'].add(build.pretty_name())
                     new_results[run] = run_results
             series = [(testie, build, new_results)]
 
@@ -957,7 +960,7 @@ class Grapher:
                         axis = plt.subplot(n_lines, n_cols, isubplot + 1)
                     ihandle = 0
                     shift = 0
-                else: #subplot_type=="dual"
+                else: #subplot_type=="axis" for dual axis
                     if isubplot == 0:
                         fix,axis=plt.subplots()
                         ihandle = 0
@@ -1039,7 +1042,10 @@ class Grapher:
                 type_config = "" if not result_type else "-" + result_type
 
                 lgd = None
-                sl = shift % len(legendcolors)
+                if gcolor:
+                    sl = gcolor[(isubplot * len(data)) % len(gcolor)] % len(legendcolors)
+                else:
+                    sl = shift % len(legendcolors)
                 if legendcolors[sl]:
                     axis.yaxis.label.set_color(legendcolors[sl])
                     axis.tick_params(axis='y',colors=legendcolors[sl])
@@ -1178,6 +1184,8 @@ class Grapher:
                         legend_title = self.glob_legend_title
                     if loc == "none":
                         continue
+                    if legend_title == ' ' or legend_title == '_':
+                        legend_title=None
                     if loc and loc.startswith("outer"):
                         loc = loc[5:].strip()
                         legend_bbox=self.configlist("legend_bbox")
@@ -1243,7 +1251,7 @@ class Grapher:
 
         gcolor = self.configlist('graph_color')
         if not gcolor:
-            gcolor = [0]
+            gcolor = range(len(graphcolorseries))
         c = graphcolorseries[gcolor[isubplot % len(gcolor)]][0]
         rects = plt.bar(ticks, y, label=x, color=c, width=width, yerr=( y - mean + std, mean - y +  std))
 
@@ -1290,7 +1298,8 @@ class Grapher:
         m = len(data)*nseries + 1
         axis.set_xlim(0,m)
         axis.set_xticklabels(labels)
-        xticks = (np.asarray(range(nseries)) * nseries ) + 1.5
+        xticks = (np.asarray(range(nseries)) * len(data) ) + 1.5
+
         axis.set_xticks(xticks)
         return True
 
@@ -1432,7 +1441,7 @@ class Grapher:
         yunit = self.scriptconfig("var_unit", "result", default="", result_type=result_type)
         yformat = self.scriptconfig("var_format", "result", default=None, result_type=result_type)
         yticks = self.scriptconfig("var_ticks", "result", default=None, result_type=result_type)
-        if self.result_in_list('var_grid',result_type):
+        if self.config_bool_or_in('var_grid',result_type):
             axis.grid(True,linestyle=self.graphlines[( shift - 1 if shift > 0 else 0) % len(self.graphlines)],color=gridcolors[shift])
             axis.set_axisbelow(True)
         isLog = False

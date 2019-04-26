@@ -499,7 +499,7 @@ class Testie:
                                            self.imports] if do_imports else []) + [
                                       (self, v, None)]:
                     for script in t.scripts:
-                        if not script.get_type() in allowed_types:
+                        if not script.get_type() in (allowed_types.difference(set([SectionScript.TYPE_EXIT]))):
                             continue
                         param = RemoteParameters()
 
@@ -715,7 +715,7 @@ class Testie:
                                 self.ensure_time(event_t, result_type, all_kind_results[kind])
 
                     # Replicate new results for every time point
-                    for event_t, results in kind_results.items():
+                    for event_t, results in update.items():
                         for result_type, result in results.items():
                             if result_type in self.config.get_list("var_repeat"):
                                 self.ensure_time(event_t, result_type, update)
@@ -724,14 +724,20 @@ class Testie:
                         for result_type, result in results.items():
                             all_kind_results[kind].setdefault(kind_value, {}).setdefault(result_type, []).extend(result)
 
+                    last_v=0
+                    for kind_value, results in update.items():
+                        print(kind_value)
+                        for result_type, result in results.items():
+                            if not result:
+                                continue
+                            last_v = np.mean(result)
+
                     diff = all_result_types.difference(nonzero)
                     if diff:
                         print("Result for %s is 0 !" % ', '.join(diff))
                         has_err = True
                 for result_type, result in new_data_results.items():
                     data_results.setdefault(result_type, []).extend(result if type(result) == list else [result])
-
-
                 if has_values:
                     break
 
@@ -777,7 +783,7 @@ class Testie:
                 continue
             if result_type not in u_r:
                 continue
-            dist = event_t - u_t
+            dist = float(event_t) - float(u_t)
             if dist < mindist:
                 prev = u_t
                 mindist = dist
@@ -969,7 +975,7 @@ class Testie:
                                                                                                   n_retry=self.config[
                                                                                                       "n_retry"],
                                                                                                   allowed_types={
-                                                                                                      SectionScript.TYPE_SCRIPT},
+                                                                                                      SectionScript.TYPE_SCRIPT, SectionScript.TYPE_EXIT},
                                                                                                   test_folder=test_folder,
                                                                                                   v_internals=v_internals)
                     new_time_results = new_all_kind_results["time"] if "time" in new_all_kind_results else {}
