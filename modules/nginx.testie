@@ -50,7 +50,7 @@ worker_processes $NGINX_NWORKER;
 worker_rlimit_nofile 70000;
 pid nginx.pid;
 daemon on;
-worker_cpu_affinity $(( " ".join([str( int(pow(10,i) ) ) for i in range($NGINX_NWORKER)]) ));
+worker_cpu_affinity $(( " ".join(["1" + '0' * i for i in range($NGINX_NWORKER)]) ));
 
 events {
     worker_connections 65536;
