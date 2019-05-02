@@ -245,7 +245,10 @@ class Grapher:
                     for k, v in d.items():
                         if k.lower() == lk:
                             return v
-
+                    #Search for regex
+                    for k, v in d.items():
+                        if re.match(lk,k):
+                            return v
                     return default
         return default
 
@@ -591,6 +594,7 @@ class Grapher:
                     vars_values['serie'].add(build.pretty_name())
                     new_results[run] = run_results
             series = [(testie, build, new_results)]
+
 
         # Transform results to variables as the graph_result_as_variable config
         #  option. It is a dict in the format
