@@ -147,50 +147,36 @@ def group_val(result, t):
                                print("WARNING : Unknown format %s" % t)
                                return np.nan
 
-def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list, key, do_x_sort, statics, options, max_series = None, series_sort=None, y_group={}, color=[]) -> AllXYEB:
-    data_types = OrderedDict()
+
+def write_output(datasets, statics, options, run_list):
+    if options.output is None:
+        return
+
     all_result_types = OrderedSet()
 
     for testie,build,all_results in datasets:
         for run, run_results in all_results.items():
             for result_type,results in run_results.items():
                 all_result_types.add(result_type)
-
     for testie, build, all_results in datasets:
-        x = OrderedDict()
-        y = OrderedDict()
-        e = OrderedDict()
         csvs = OrderedDict()
+
         for run in run_list:
-            if len(run) == 0:
-                xval = build.pretty_name()
-            else:
-                xval = run.print_variable(key, build.pretty_name())
             results_types = all_results.get(run, OrderedDict())
             for result_type in all_result_types:
-                #ydiv = var_divider(testie, "result", result_type) results are now divided before
-                xdiv = var_divider(testie, key)
+                if result_type in csvs:
+                    type_filename,csvfile,wr = csvs[result_type]
+                else:
+                    type_filename = npf.build_filename(testie, build, options.output if options.output != 'graph' else options.graph_filename, statics, 'csv', result_type,show_serie=(len(datasets) > 1), force_ext=True)
+                    csvfile = open(type_filename, 'w')
+                    wr = csv.writer(csvfile, delimiter=' ',
+                                quotechar='"', quoting=csv.QUOTE_MINIMAL)
+                    csvs[result_type] = (type_filename,csvfile,wr)
+
                 result = results_types.get(result_type,None)
 
-                if options.output is not None:
-                    if result_type in csvs:
-                        type_filename,csvfile,wr = csvs[result_type]
-                    else:
-                        type_filename = npf.build_filename(testie, build, options.output if options.output != 'graph' else options.graph_filename, statics, 'csv', result_type,show_serie=(len(datasets) > 1), force_ext=True)
-                        csvfile = open(type_filename, 'w')
-                        wr = csv.writer(csvfile, delimiter=' ',
-                                    quotechar='"', quoting=csv.QUOTE_MINIMAL)
-                        csvs[result_type] = (type_filename,csvfile,wr)
-
-                if xdiv != 1 and is_numeric(xval):
-                    x.setdefault(result_type, []).append(get_numeric(xval) / xdiv)
-                else:
-                    x.setdefault(result_type, []).append(xval)
-
-
-                if options.output is not None:
-                   row = []
-                   if result is not None:
+                if result is not None:
+                       row = []
                        for t in options.output_columns:
                            if t == 'x':
                                for var,val in run.variables.items():
@@ -206,9 +192,44 @@ def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list
                                yval = group_val(result,t)
                                if yval is not None:
                                    row.append(yval)
-
                        if row:
                            wr.writerow(row)
+        for result_type in csvs.keys():
+            if options.output is not None:
+                print("Output written to %s" % csvs[result_type][0])
+                csvs[result_type][1].close()
+
+def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list, key, do_x_sort, statics, options, max_series = None, series_sort=None, y_group={}, color=[]) -> AllXYEB:
+    write_output(datasets, statics, options, run_list)
+    data_types = OrderedDict()
+    all_result_types = OrderedSet()
+
+    for testie,build,all_results in datasets:
+        for run, run_results in all_results.items():
+            for result_type,results in run_results.items():
+                all_result_types.add(result_type)
+
+    for testie, build, all_results in datasets:
+        x = OrderedDict()
+        y = OrderedDict()
+        e = OrderedDict()
+        for run in run_list:
+            if len(run) == 0:
+                xval = build.pretty_name()
+            else:
+                xval = run.print_variable(key, build.pretty_name())
+            print(xval)
+            results_types = all_results.get(run, OrderedDict())
+            for result_type in all_result_types:
+
+                #ydiv = var_divider(testie, "result", result_type) results are now divided before
+                xdiv = var_divider(testie, key)
+                result = results_types.get(result_type,None)
+
+                if xdiv != 1 and is_numeric(xval):
+                    x.setdefault(result_type, []).append(get_numeric(xval) / xdiv)
+                else:
+                    x.setdefault(result_type, []).append(xval)
 
                 if result is not None:
                     yval = group_val(result, y_group[result_type] if result_type in y_group else ( y_group['result'] if 'result' in y_group else 'mean'))
@@ -224,9 +245,7 @@ def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list
 
         for result_type in x.keys():
 
-            if options.output is not None:
-                print("Output written to %s" % csvs[result_type][0])
-                csvs[result_type][1].close()
+
             if not do_x_sort:
                 ox = x[result_type]
                 oy = y[result_type]

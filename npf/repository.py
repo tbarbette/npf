@@ -91,6 +91,7 @@ class MethodGit(Method):
                     o.fetch()
                     self._fetch_done = True
             except git.exc.InvalidGitRepositoryError:
+                print("Path %s appear to be invalid" % self.repo.get_build_path())
                 #shutil.rmtree(self.repo.get_build_path())
                 need_clone=True
         else:

@@ -595,7 +595,6 @@ class Grapher:
                     new_results[run] = run_results
             series = [(testie, build, new_results)]
 
-
         # Transform results to variables as the graph_result_as_variable config
         #  option. It is a dict in the format
         #  a+b+c:var_name[-result_name]
@@ -604,25 +603,36 @@ class Grapher:
         # or
         # a-(.*):var_name[-result_name]
         # Both will create a variable with a/b/c as values or all regex mateched values
+        # Example:
+        # Values for one run:
+        # RESULT-CPU-0 53
+        # RESULT-CPU-1 72
+        # With CPU-(.*):LOAD it will create two runs
+        # CPU=0 -> LOAD = 53
+        # CPU=1 -> LOAD = 72
         for result_types, var_name in self.configdict('graph_result_as_variable', {}).items():
             if len(var_name.split('-')) > 1:
                 result_name=var_name.split('-')[1]
                 var_name=var_name.split('-')[0]
             else:
-                result_name=var_name
+                result_name="result-" + var_name
             result_to_variable_map = []
 
             for result_type in result_types.split('+'):
                 result_to_variable_map.append(result_type)
+
+            exploded_vars_values = vars_values.copy()
             vvalues = set()
 
-            transformed_series = []
+            untouched_series = []
+            exploded_series = []
             for i, (testie, build, all_results) in enumerate(series):
-                new_results = {}
+                exploded_results = {}
+                untouched_results = {}
 
                 for run, run_results in all_results.items():
-                    new_run_results = {}
-                    new_run_results_exp = {}
+                    new_run_results_exp = {} #Results that matched, key is the matched value
+                    untouched_run_results = {}
 
                     for result_type, results in run_results.items():
                         match = False
@@ -634,7 +644,7 @@ class Grapher:
                         if match:
                             new_run_results_exp[match] = results
                         else:
-                            new_run_results[result_type] = results
+                            untouched_run_results[result_type] = results
 
                     if len(new_run_results_exp) > 0:
                         if numericable(new_run_results_exp.keys()):
@@ -652,48 +662,58 @@ class Grapher:
 #                            if tot <= 99:
 #                                new_run_results_exp['Other'] = [100-tot]
 
-                        if var_name in run.variables:
-                            results = new_run_results_exp[run.variables[var_name]]
-                            nr = new_run_results.copy()
+#                        if var_name in run.variables:
+#                            results = new_run_results_exp[run.variables[var_name]]
+#                            nr = new_run_results.copy()
                             #If unit is percent, we multiply the value per the result
-                            if mult:
-                                m = np.mean(results)
-                                tot += m
-                                for result_type in nr:
-                                    nr[result_type] = nr[result_type].copy() * m / 100
-                            nr.update({'result-'+result_name: results})
-
-                            new_results[run] = nr
-                        else:
-                            for result_type, results in new_run_results_exp.items():
+#                            if mult:
+#                                m = np.mean(results)
+#                                tot += m
+#                                for result_type in nr:
+#                                    nr[result_type] = nr[result_type].copy() * m / 100
+ #                           nr.update({result_name: results})
+#
+#                            new_results[run] = nr
+#                        else:
+                        if True:
+                            for extracted_val, results in new_run_results_exp.items(): #result-type
                                 variables = run.variables.copy()
-                                variables[var_name] = result_type
-                                vvalues.add(result_type)
-                                nr = new_run_results.copy()
+                                variables[var_name] = extracted_val
+                                vvalues.add(extracted_val)
+                                #nr = new_run_results.copy()
+                                nr = {}
                                 #If unit is percent, we multiply the value per the result
                                 if mult:
                                     m = np.mean(results)
                                     tot += m
                                     for result_type in nr:
                                         nr[result_type] = nr[result_type].copy() * m / 100
-                                nr.update({'result-'+result_name: results})
-                                new_results[Run(variables)] = nr
+                                nr.update({result_name: results})
+                                exploded_results[Run(variables)] = nr
 
-                    else:
-                        new_results[run] = new_run_results
 
-                if new_results:
-                    transformed_series.append((testie, build, new_results))
-                if vvalues:
+                    untouched_results[run] = untouched_run_results
+
+                if exploded_results:
+                    exploded_series.append((testie, build, exploded_results))
+
+                if untouched_results:
+                    untouched_series.append((testie, build, untouched_results))
+#                if vvalues:
                     #if not npf.all_num(vvalues):
                     #    raise Exception("Cannot transform series %s as the following are not all numerical : %s " % (result_types, vvalues))
-                    vars_values[var_name] = vvalues
-            series = transformed_series
 
+            exploded_vars_values[var_name] = vvalues
+
+            self.graph_group(series=exploded_series, vars_values=exploded_vars_values, filename=filename, title=title)
+            series=untouched_series
+
+        self.graph_group(series, vars_values, filename=filename, title=title)
+
+    def graph_group(self, series, vars_values, filename, title):
         if len(series) == 0:
             print("No valid series...")
             return
-
 
         # List of static variables to use in filename
         statics = {}
@@ -801,7 +821,6 @@ class Grapher:
         vars_all = list(vars_all)
         vars_all.sort()
 
-
         dyns = []
         for k, v in vars_values.items():
             if len(v) > 1:
@@ -818,6 +837,7 @@ class Grapher:
         graph_series_label = self.config("graph_series_label")
         sv = self.config('graph_subplot_variable', None)
         graphs = []
+
         if sv:
             for script, build, all_results  in series:
 

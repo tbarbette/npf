@@ -257,7 +257,7 @@ def build_filename(testie, build, hint, variables, def_ext, type_str='', show_se
         ["%s=%s" % (k, (val[1] if type(val) is tuple else val)) for k, val in sorted(variables.items()) if val]))
 
     if hint is None:
-        path = build.result_path(testie.filename, def_ext, suffix=var_str + ('-' + type_str if type_str else ''))
+        path = build.result_path(testie.filename, def_ext, suffix=var_str + ('-' + type_str if type_str else '') + ('-' + get_valid_filename(build.pretty_name()) if show_serie else '') )
     else:
         dirname, c_filename = os.path.split(hint)
         if c_filename == '':
