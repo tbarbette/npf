@@ -167,7 +167,7 @@ def write_output(datasets, statics, options, run_list):
                 if result_type in csvs:
                     type_filename,csvfile,wr = csvs[result_type]
                 else:
-                    type_filename = npf.build_filename(testie, build, options.output if options.output != 'graph' else options.graph_filename, statics, 'csv', result_type,show_serie=(len(datasets) > 1), force_ext=True)
+                    type_filename = npf.build_filename(testie, build, options.output if options.output != 'graph' else options.graph_filename, statics, 'csv', type_str=result_type,show_serie=(len(datasets) > 1), force_ext=True, data_folder=True)
                     csvfile = open(type_filename, 'w')
                     wr = csv.writer(csvfile, delimiter=' ',
                                 quotechar='"', quoting=csv.QUOTE_MINIMAL)
@@ -218,7 +218,7 @@ def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list
                 xval = build.pretty_name()
             else:
                 xval = run.print_variable(key, build.pretty_name())
-            print(xval)
+
             results_types = all_results.get(run, OrderedDict())
             for result_type in all_result_types:
 
