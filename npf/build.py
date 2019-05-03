@@ -58,8 +58,8 @@ class Build:
     def __result_folder(self):
         return 'results/' + self.repo.get_identifier() + '/'
 
-    def result_path(self, test_name, ext, suffix=''):
-        return self.__result_folder() + self.version + '/' + os.path.splitext(test_name)[
+    def result_path(self, test_name, ext, suffix='', folder=''):
+        return self.__result_folder() + self.version + ('/' + folder if folder else '') + '/' + os.path.splitext(test_name)[
             0] + suffix + '.' + ext
 
     @staticmethod
