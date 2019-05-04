@@ -129,7 +129,7 @@ class Regression:
         """
         repo = self.repo
         data_datasets = []
-        time_datasets = []
+        kind_datasets = []
 
         if repo.url:
             build = repo.get_last_build(history=history)
@@ -145,23 +145,23 @@ class Regression:
             if repo.last_build:
                 try:
                     old_all_results = repo.last_build.load_results(testie)
-                    old_time_all_results = repo.last_build.load_results(testie, time=True)
+                    old_kind_all_results = repo.last_build.load_results(testie, kind=True)
                 except FileNotFoundError:
                     old_all_results = None
-                    old_time_all_results = None
+                    old_kind_all_results = None
             else:
                 old_all_results = None
-                old_time_all_results = None
+                old_kind_all_results = None
             try:
                 if on_finish:
-                    def early_results(all_data_results, all_time_results):
-                        on_finish(build,(data_datasets + [all_data_results]),(time_datasets + [all_data_results]))
+                    def early_results(all_data_results, all_kind_results):
+                        on_finish(build,(data_datasets + [all_data_results]),(kind_datasets + [all_kind_results]))
                 else:
                     early_results = None
-                all_results,time_results, init_done = testie.execute_all(build, prev_results=build.load_results(testie), prev_time_results=build.load_results(testie, time=True), options=options,
+                all_results,kind_results, init_done = testie.execute_all(build, prev_results=build.load_results(testie), prev_kind_results=build.load_results(testie, kind=True), options=options,
                                                  do_test=options.do_test, on_finish=early_results)
 
-                if all_results is None and time_results is None:
+                if all_results is None and kind_results is None:
                     return None, None, None
             except ScriptInitException:
                 return None, None, None
@@ -173,7 +173,7 @@ class Regression:
             if variables_passed == variables_total:
                 nok += 1
             data_datasets.append(all_results)
-            time_datasets.append(time_results)
+            kind_datasets.append(kind_results)
             testie.n_variables_passed = variables_passed
             testie.n_variables = variables_total
 
@@ -183,4 +183,4 @@ class Regression:
         build.n_passed = nok
         build.n_tests = len(testies)
 
-        return build, data_datasets, time_datasets
+        return build, data_datasets, kind_datasets

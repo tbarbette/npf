@@ -21,10 +21,10 @@ class Comparator():
     def __init__(self, repo_list: List[Repository]):
         self.repo_list = repo_list
         self.graphs_series = []
-        self.time_graphs_series = []
+        self.kind_graphs_series = []
 
-    def build_list(self, on_finish, testie, build, data_datasets, time_datasets):
-         on_finish(self.graphs_series + [(testie,build,data_datasets[0])], self.time_graphs_series + [(testie,build,time_datasets[0])])
+    def build_list(self, on_finish, testie, build, data_datasets, kind_datasets):
+         on_finish(self.graphs_series + [(testie,build,data_datasets[0])], self.kind_graphs_series + [(testie,build,kind_datasets[0])])
 
     def run(self, testie_name, options, tags, on_finish=None):
         for repo in self.repo_list:
@@ -32,18 +32,18 @@ class Comparator():
             testies = Testie.expand_folder(testie_name, options=options, tags=repo.tags + tags)
             testies = npf.override(options, testies)
             for testie in testies:
-                build, data_dataset, time_dataset  = regressor.regress_all_testies(testies=[testie], options=options, on_finish=lambda b,dd,td: self.build_list(on_finish,testie,b,dd,td) if on_finish else None)
+                build, data_dataset, kind_dataset  = regressor.regress_all_testies(testies=[testie], options=options, on_finish=lambda b,dd,td: self.build_list(on_finish,testie,b,dd,td) if on_finish else None)
             if len(testies) > 0 and not build is None:
                 build._pretty_name = repo.name
                 self.graphs_series.append((testie, build, data_dataset[0]))
-                self.time_graphs_series.append((testie, build, time_dataset[0]))
+                self.kind_graphs_series.append((testie, build, kind_dataset[0]))
         if len(self.graphs_series) == 0:
             print("No valid tags/testie/repo combination.")
             return None, None
 
-        return self.graphs_series, self.time_graphs_series
+        return self.graphs_series, self.kind_graphs_series
 
-def do_graph(filename,args,series,time_series,options):
+def do_graph(filename,args,series,kind_series,options):
 
     if series is None:
         return
@@ -128,11 +128,14 @@ def do_graph(filename,args,series,time_series,options):
 
     #Keep only the variables in Time Run that are usefull as defined above
     if options.do_time:
-      for i, (testie, build, dataset) in enumerate(time_series):
-        ndataset = OrderedDict()
-        for run, results in dataset.items():
-            ndataset[run.intersect(useful_variables + ['time'])] = results
-        time_series[i] = (testie, build, ndataset)
+      n_kind_series=OrderedDict()
+      for i, (testie, build, kind_dataset) in enumerate(kind_series):
+        for kind, dataset in kind_dataset.items():
+          ndataset = OrderedDict()
+          n_kind_series.setdefault(kind,[])
+          for run, results in dataset.items():
+            ndataset[run.intersect(useful_variables + [kind])] = results
+          n_kind_series[kind].append((testie, build, ndataset))
 
     grapher = Grapher()
     g = grapher.graph(series=series,
@@ -140,7 +143,8 @@ def do_graph(filename,args,series,time_series,options):
                       options=args,
                       title=args.graph_title)
     if options.do_time:
-        g = grapher.graph(series=time_series,
+        for kind,series in n_kind_series.items():
+            g = grapher.graph(series=series,
                           filename=filename,
                           options=args,
                           title=args.graph_title)

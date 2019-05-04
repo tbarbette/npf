@@ -677,7 +677,7 @@ class Testie:
                     update = {}
                     all_result_types = set()
                     nz = False
-                    accept_zero = not self.config.match("accept_zero", "time")
+                    accept_zero = not self.config.match("accept_zero", kind)
                     if accept_zero:
                         nz = False
 
@@ -726,7 +726,6 @@ class Testie:
 
                     last_v=0
                     for kind_value, results in update.items():
-                        print(kind_value)
                         for result_type, result in results.items():
                             if not result:
                                 continue
@@ -824,7 +823,7 @@ class Testie:
                 raise ScriptInitException()
 
     def execute_all(self, build, options, prev_results: Dataset = None, do_test=True, on_finish=None,
-                    allowed_types=SectionScript.ALL_TYPES_SET, prev_time_results: Dict[float, Dataset] = None) -> Tuple[
+                    allowed_types=SectionScript.ALL_TYPES_SET, prev_kind_results: Dict[str, Dataset] = None) -> Tuple[
         Dataset, bool]:
         """Execute script for all variables combinations. All tools reliy on this function for execution of the testie
         :param allowed_types:Tyeps of scripts allowed to run. Set with either init, scripts or both
@@ -850,7 +849,7 @@ class Testie:
             return {}, True
 
         all_data_results = OrderedDict()
-        all_time_results = OrderedDict()
+        all_kind_results = OrderedDict()
         # If one first, we first ensure 1 result per variables then n_runs
         if options.onefirst:
             total_runs = [1, self.config["n_runs"]]
@@ -884,23 +883,21 @@ class Testie:
                 else:
                     run_results = {}
 
-                time_results = OrderedDict()
-                if prev_time_results and prev_time_results is not None and not (
+                kind_results = {} #kind->(run_with_time -> results))
+                kind_results["time"] = OrderedDict()
+                if prev_kind_results and prev_kind_results is not None and not (
                         options.force_test or options.force_retest):
-                    nprev_time_results = OrderedDict()
-                    for trun, results in prev_time_results.items():
-                        if run.inside(trun):
-                            time_results[trun] = results
-                        else:
-                            nprev_time_results[trun] = results
-                    prev_time_results = nprev_time_results
-                elif prev_time_results and options.force_retest:
-                    nprev_time_results = OrderedDict()
-                    for trun, results in prev_time_results.items():
-                        if not run.inside(trun):
-                            nprev_time_results[trun] = results;
-                    prev_time_results = nprev_time_results
-
+                    nprev_kind_results = {}
+                    for kind, prev_kresults in prev_kind_results.items():
+                        nprev_kresults = OrderedDict()
+                        kind_results.setdefault(kind,OrderedDict())
+                        for trun, results in prev_kresults.items():
+                            if run.inside(trun):
+                                kind_results[kind][trun] = results
+                            else:
+                                nprev_kresults[trun] = results
+                        nprev_kind_results[kind] = nprev_kresults
+                    prev_kind_results = nprev_kind_results
                 if not run_results and options.use_last and build.repo.url:
                     for version in build.repo.method.get_history(build.version, limit=options.use_last):
                         oldb = Build(build.repo, version)
@@ -908,24 +905,29 @@ class Testie:
                         if r and run in r:
                             run_results = r[run]
                             break
-                if not time_results and options.use_last and build.repo.url:
+                if not kind_results and options.use_last and build.repo.url:
                     for version in build.repo.method.get_history(build.version, limit=options.use_last):
                         oldb = Build(build.repo, version)
-                        r = oldb.load_results(self, time=True)
+                        r = oldb.load_results(self, kind=True)
                         found = False
                         if r:
-                            for time, results in r.items():
+                            for kind, kr in r.items():
+                              kind_results.setdefault(kind, OrderedDict)
+                              for r_run, results in kr.items():
                                 if run in results:
-                                    time_results[time] = results[run]
+                                    kind_results[kind][r_run] = results[run]
                                     found = True
                         if found:
                             break
+
+                print(prev_kind_results)
                 if run_results:
                     for result_type in self.config.get_list('results_expect'):
                         if result_type not in run_results:
                             found = False
-                            if prev_time_results:
-                                for time, results in prev_time_results.items():
+                            if prev_kind_results:
+                              for kind, kr in prev_kind_results.items():
+                                for run_kind, results in kr.items():
                                     if result_type in results:
                                         found = True
                                         break
@@ -978,10 +980,6 @@ class Testie:
                                                                                                       SectionScript.TYPE_SCRIPT, SectionScript.TYPE_EXIT},
                                                                                                   test_folder=test_folder,
                                                                                                   v_internals=v_internals)
-                    new_time_results = new_all_kind_results["time"] if "time" in new_all_kind_results else {}
-                    for kind, kind_results in [(kind, kind_results) for kind,kind_results in new_all_kind_results.items() if kind != "time"]:
-                        print("Results other than time are still not supported '%s':" % kind)
-                        print(kind_results)
                     if new_data_results:
                         for result_type, values in new_data_results.items():
                             if values is None:
@@ -995,7 +993,7 @@ class Testie:
                                     run_results[result_type] = values
 
                             have_new_results = True
-                    if new_time_results:
+                    if new_all_kind_results:
                         have_new_results = True
                 else:
                     if not self.options.quiet:
@@ -1012,24 +1010,30 @@ class Testie:
                 else:
                     all_data_results[run] = {}
 
-                if have_new_results and len(new_time_results) > 0:
-                    for time, results in sorted(new_time_results.items()):
+                if have_new_results and sum([len(r) for kind,r in new_all_kind_results.items()]) > 0:
+                    for kind, kresults in new_all_kind_results.items():
+                      kind_results.setdefault(kind, OrderedDict())
+                      for time, results in sorted(kresults.items()):
                         time_run = Run(run.variables.copy())
-                        time_run.variables['time'] = time
+                        time_run.variables[kind] = time
                         for result_type, result in results.items():
-                            rt = time_results.setdefault(time_run, {}).setdefault(result_type, [])
+                            rt = kind_results[kind].setdefault(time_run, {}).setdefault(result_type, [])
                             if options.force_retest:
                                 rt.clear()
                             rt.extend(result)
-                for result_type, result in time_results.items():
-                    all_time_results[result_type] = result
+                for kind, kresults in kind_results.items():
+                  all_kind_results.setdefault(kind, OrderedDict())
+                  for result_type, result in kresults.items():
+                    all_kind_results[kind][result_type] = result
 
                 if self.options.print_time_results:
-                    print(time_results)
+                    for kind, kresults in all_kind_results.items():
+                        print("%s:" % kind)
+                        print(kresults)
 
                 if on_finish and have_new_results:
                     def call_finish():
-                        on_finish(all_data_results, all_time_results)
+                        on_finish(all_data_results, all_kind_results)
 
                     thread = threading.Thread(target=call_finish, args=())
                     thread.daemon = True
@@ -1037,17 +1041,16 @@ class Testie:
 
                 # Save results
                 if all_data_results and have_new_results:
-                    if prev_results or prev_time_results:
+                    if prev_results or prev_kind_results:
                         prev_results[run] = all_data_results[run]
                         build.writeversion(self, prev_results, allow_overwrite=True)
-                        if prev_time_results:
-                            prev_time_results.update(time_results)
-                        else:
-                            prev_time_results = time_results
-                        build.writeversion(self, prev_time_results, allow_overwrite=True, time=True, reload=False)
+                        for kind, kr in kind_results.items():
+                            prev_kind_results.setdefault(kind,OrderedDict())
+                            prev_kind_results[kind].update(kind_results[kind])
+                        build.writeversion(self, prev_kind_results, allow_overwrite=True, kind=True, reload=False)
                     else:
                         build.writeversion(self, all_data_results, allow_overwrite=True)
-                        build.writeversion(self, all_time_results, allow_overwrite=True, time=True)
+                        build.writeversion(self, all_kind_results, allow_overwrite=True, kind=True)
 
         if not self.options.preserve_temp:
             try:
@@ -1057,7 +1060,7 @@ class Testie:
         else:
             print("Test files have been kept in folder %s" % test_folder)
 
-        return all_data_results, all_time_results, init_done
+        return all_data_results, all_kind_results, init_done
 
     def get_title(self):
         if "title" in self.config and self.config["title"] is not None:

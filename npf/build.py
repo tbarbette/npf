@@ -77,21 +77,28 @@ class Build:
         else:
             return self.__result_folder() + self.version + '.results'
 
-    def writeversion(self, testie, all_results: Dataset, allow_overwrite: bool = False, time = False, reload=True):
+    def writeversion(self, testie, all_results: Dataset, allow_overwrite: bool = False, kind = False, reload=True):
         if not reload and all_results:
-          prev=self.load_results(testie = testie, time = time, cache=True)
+          prev=self.load_results(testie = testie, kind = kind, cache=True)
           if prev and len(all_results) < len(prev):
             print("ERROR ! Have less results than before. Forcing update write !")
             reload = True
             return
         if reload:
-            results = self.load_results(testie = testie, time = time, cache=False)
+            results = self.load_results(testie = testie, kind = kind, cache=False)
             if results:
                 results.update(all_results)
                 all_results = results
 
+        if kind:
+            for kind, kresult in all_results.items():
+                filename = self.__resultFilename(testie) + '-' + kind
+                self._writeversion(filename, kresult, allow_overwrite)
+        else:
+            filename = self.__resultFilename(testie)
+            self._writeversion(filename, all_results, allow_overwrite)
 
-        filename = self.__resultFilename(testie) + ('-time' if time else '')
+    def _writeversion(self, filename, all_results, allow_overwrite):
         try:
             if not os.path.exists(os.path.dirname(filename)):
                 os.makedirs(os.path.dirname(filename))
@@ -120,8 +127,23 @@ class Build:
         f.close()
         self.cache[filename] = all_results
 
-    def load_results(self, testie, time=False, cache=True):
-        filename = self.__resultFilename(testie) + ('-time' if time else '')
+
+    def load_results(self, testie, kind=False, cache=True):
+        if kind:
+            kr={}
+            filename = self.__resultFilename(testie) + '-'
+            for f in os.listdir(os.path.dirname(filename)):
+                if os.path.basename(filename) in f:
+                    kind = f[f.rfind("-") + 1 :]
+                    f = filename + kind
+                    kr[kind] = self._load_results(testie, f, cache)
+            return kr
+
+        else:
+            filename = self.__resultFilename(testie)
+            return self._load_results(testie, filename, cache)
+
+    def _load_results(self, testie, filename, cache):
         if not Path(filename).exists():
             return None
         if cache:
