@@ -12,7 +12,7 @@ from npf.nic import NIC
 class Node:
     _nodes = {}
 
-    def __init__(self, name, executor):
+    def __init__(self, name, executor, tags):
         self.executor = executor
         self.name = name
         self._nics = []
@@ -30,11 +30,13 @@ class Node:
             f = open(clusterFile, 'r')
             for i, line in enumerate(f):
                 line = line.strip()
-                if not line or line.startswith("#"):
+                if not line or line.startswith("#") or line.startswith("//"):
                     continue
-                match = re.match(r'(?P<nic_idx>[0-9]+):(?P<type>' + NIC.TYPES + ')=(?P<val>[a-z0-9:.]+)', line,
+                match = re.match(r'((?P<tag>[a-zA-Z]+[a-zA-Z0-9]*):)?(?P<nic_idx>[0-9]+):(?P<type>' + NIC.TYPES + ')=(?P<val>[a-z0-9:_.]+)', line,
                                  re.IGNORECASE)
                 if match:
+                    if match.group('tag') and not match.group('tag') in tags:
+                        continue
                     self._nics[int(match.group('nic_idx'))][match.group('type')] = match.group('val')
                     continue
                 match = re.match(r'(?P<var>' + Variable.ALLOWED_NODE_VARS + ')=(?P<val>.*)', line,
@@ -76,7 +78,7 @@ class Node:
     def makeLocal(cls, options):
         node = cls._nodes.get('localhost', None)
         if node is None:
-            node = Node('localhost', LocalExecutor())
+            node = Node('localhost', LocalExecutor(), options.tags)
             cls._nodes['localhost'] = node
         node.ip = '127.0.0.1'
         return node
@@ -89,7 +91,7 @@ class Node:
         if node is not None:
             return node
         sshex = SSHExecutor(user, addr, path)
-        node = Node(addr, sshex)
+        node = Node(addr, sshex, options.tags)
         cls._nodes[addr] = node
         node.ip = socket.gethostbyname(node.executor.addr)
         if options.do_test and options.do_conntest:

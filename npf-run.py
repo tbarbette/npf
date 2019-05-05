@@ -250,15 +250,19 @@ def main():
                         g_series.append((testie, g_build, g_all_results))
                 except FileNotFoundError:
                     print("Previous build %s could not be found, we will not graph it !" % g_build.version)
+
             grapher.graph(series=[(testie, build, all_results)] + g_series,
                           title=testie.get_title(),
-                          filename=True,
+                          filename=args.graph_filename,
                           graph_variables=[Run(x) for x in testie.variables],
                           options = args)
             if time_results:
-                grapher.graph(series=[(testie, build, time_results)],
+                for find, results in time_results.items():
+                    if not results:
+                        continue
+                    grapher.graph(series=[(testie, build, results)],
                           title=testie.get_title(),
-                          filename=True,
+                          filename=args.graph_filename,
                           options = args)
         if last_build and args.graph_num > 0:
             graph_builds = [last_build] + graph_builds[:-1]

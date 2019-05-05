@@ -423,7 +423,7 @@ class Testie:
 
     def execute(self, build, run, v, n_runs=1, n_retry=0, allowed_types=SectionScript.ALL_TYPES_SET, do_imports=True,
                 test_folder=None, event=None, v_internals={}) \
-            -> Tuple[Dict[str, List], str, str, int]:
+            -> Tuple[Dict, Dict, str, str, int]:
 
         # Get address definition for roles from scripts
         self.parse_script_roles()
@@ -833,6 +833,8 @@ class Testie:
         :param prev_results: Previous set of result for the same build to update or retrieve
         :return: Dataset(Dict of variables as key and arrays of results as value)
         """
+        if not prev_kind_results:
+            prev_kind_results = {}
 
         init_done = False
         test_folder = self.make_test_folder()
@@ -885,8 +887,7 @@ class Testie:
 
                 kind_results = {} #kind->(run_with_time -> results))
                 kind_results["time"] = OrderedDict()
-                if prev_kind_results and prev_kind_results is not None and not (
-                        options.force_test or options.force_retest):
+                if prev_kind_results and not (options.force_test or options.force_retest):
                     nprev_kind_results = {}
                     for kind, prev_kresults in prev_kind_results.items():
                         nprev_kresults = OrderedDict()
@@ -920,7 +921,6 @@ class Testie:
                         if found:
                             break
 
-                print(prev_kind_results)
                 if run_results:
                     for result_type in self.config.get_list('results_expect'):
                         if result_type not in run_results:

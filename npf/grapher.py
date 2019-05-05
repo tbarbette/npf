@@ -572,7 +572,8 @@ class Grapher:
                         ydiv = dataset.var_divider(testie, "result", result_type)
                         if not results.any():
                             results=np.asarray([0])
-                        new_results.setdefault(run, OrderedDict())[result_type] = results / ydiv
+                        new_results.setdefault(run.copy(), OrderedDict())[result_type] = results / ydiv
+
                     for k, v in run.variables.items():
                         vars_values.setdefault(k, OrderedSet()).add(v)
 

@@ -1,6 +1,6 @@
 
 class NIC:
-    TYPES = "ip|mac|raw_mac|ifname|pci|mask"
+    TYPES = "driver|ip|mac|raw_mac|ifname|pci|mask"
 
     def __init__(self, pci, mac, ip, ifname, mask='255.255.255.0'):
         self.pci = pci
@@ -38,6 +38,8 @@ class NIC:
             self.ifname = val
         elif item == 'mask':
             self.mask = val
+        elif item == 'driver':
+            self.driver = val
         else:
             raise Exception("Unknown type %s" % item)
 

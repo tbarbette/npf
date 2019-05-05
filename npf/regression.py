@@ -80,7 +80,8 @@ class Regression:
                     variables = v.copy()
                     for late_variables in testie.get_late_variables():
                         variables.update(late_variables.execute(variables, testie))
-                    new_results_types, output, err, n_exec = testie.execute(build, run, variables,
+
+                    new_results_types, new_kind_results_types, output, err, n_exec, n_err = testie.execute(build, run, variables,
                                                                     n_runs=testie.config["n_supplementary_runs"],
                                                                     allowed_types={SectionScript.TYPE_SCRIPT, SectionScript.TYPE_EXIT})
 
