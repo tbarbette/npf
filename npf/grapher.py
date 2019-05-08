@@ -584,6 +584,8 @@ class Grapher:
             else:
                 print("No valid data for %s" % build)
         series = filtered_series
+        if len(series) == 0:
+            return
 
         #If graph_series_as_variables, take the series and make them as variables
         if self.config_bool('graph_series_as_variables',False):

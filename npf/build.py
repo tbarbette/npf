@@ -132,7 +132,8 @@ class Build:
         if kind:
             kr={}
             filename = self.__resultFilename(testie) + '-'
-            for f in os.listdir(os.path.dirname(filename)):
+            if os.path.exists(os.path.dirname(filename)):
+              for f in os.listdir(os.path.dirname(filename)):
                 if os.path.basename(filename) in f:
                     kind = f[f.rfind("-") + 1 :]
                     f = filename + kind

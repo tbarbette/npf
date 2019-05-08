@@ -135,7 +135,8 @@ def do_graph(filename,args,series,kind_series,options):
           n_kind_series.setdefault(kind,[])
           for run, results in dataset.items():
             ndataset[run.intersect(useful_variables + [kind])] = results
-          n_kind_series[kind].append((testie, build, ndataset))
+          if ndataset:
+            n_kind_series[kind].append((testie, build, ndataset))
 
     grapher = Grapher()
     g = grapher.graph(series=series,
