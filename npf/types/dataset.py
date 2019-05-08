@@ -191,7 +191,11 @@ def write_output(datasets, statics, options, run_list):
                            else:
                                yval = group_val(result,t)
                                if yval is not None:
-                                   row.append(yval)
+                                   try:
+                                       it = iter(yval)
+                                       row.extend(yval)
+                                   except TypeError as te:
+                                       row.append(yval)
                        if row:
                            wr.writerow(row)
         for result_type in csvs.keys():
