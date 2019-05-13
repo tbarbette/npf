@@ -24,7 +24,7 @@ WRK_HOST=EXPAND(${dut:0:ip})
 WRK_PROTOCOL=http
 
 %script deps=wrk2-tbarbette title=WRK2Client
-wrk -c $GEN_CONCURRENT -r -t $GEN_THREADS -d${GEN_TIME}s -R $GEN_RATE --latency ${WRK_PROTOCOL}://${WRK_HOST}:${HTTP_PORT}/${FILE_PATH} | tee wrk_results
+wrk -c $GEN_CONCURRENT -r -t $(( $GEN_THREADS if $GEN_THREADS < $GEN_CONCURRENT else $GEN_CONCURRENT )) -d${GEN_TIME}s -R $GEN_RATE --latency ${WRK_PROTOCOL}://${WRK_HOST}:${HTTP_PORT}/${FILE_PATH} | tee wrk_results
 stat=$?
 cat wrk_results | grep "Transfer/sec" | awk '{printf "RESULT-THROUGHPUT %s\n", $2}' | head -n 1
 cat wrk_results | grep "Requests/sec" | awk '{printf "RESULT-REQUEST %s\n", $2}' | head -n 1
