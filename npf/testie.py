@@ -422,7 +422,7 @@ class Testie:
         return has_err, has_values
 
     def execute(self, build, run, v, n_runs=1, n_retry=0, allowed_types=SectionScript.ALL_TYPES_SET, do_imports=True,
-                test_folder=None, event=None, v_internals={}) \
+                test_folder=None, event=None, v_internals={}, before_test = None) \
             -> Tuple[Dict, Dict, str, str, int]:
 
         # Get address definition for roles from scripts
@@ -488,6 +488,9 @@ class Testie:
                     print("Re-try tests %d/%d..." % (i_try, n_retry + 1))
                 output = ''
                 err = ''
+
+                if before_test:
+                    before_test(i_try)
 
                 queue = m.Queue()
 
@@ -627,14 +630,14 @@ class Testie:
                     if not script.type == SectionScript.TYPE_EXIT:
                         continue
                     exitscripts=script.content
-
-                    cmd = SectionVariable.replace_variables(
-                            vlist,
-                            exitscripts)
                     role_map = self.config.get_dict("default_role_map")
                     role = None
 
                     role = script.get_role()
+
+                    cmd = SectionVariable.replace_variables(
+                            vlist,
+                            exitscripts,self_role = role, default_role_map = role_map)
 
                     executor = npf.executor(role, role_map)
                     cmd = "mkdir -p " + test_folder + " && cd " + test_folder + ";\n" + cmd
@@ -941,7 +944,7 @@ class Testie:
                 #Compute the minimal number of existing results, so we know how much runs we must do
                 l=[]
                 dall=True
-                n_existing_results=[]
+                n_existing_results=[0]
                 for result_type, results in run_results.items():
                     if self.config.match("accept_zero", result_type):
                         continue
@@ -953,24 +956,31 @@ class Testie:
                     else:
                         dall=False
 
+                if options.min_test:
+                    n_existing_results = min(n_existing_results)
+                else:
+                    n_existing_results = max(n_existing_results)
                 n_runs = runs_this_pass - (
-                    0 if (options.force_test or options.force_retest) or len(run_results) == 0 else min(
-                        n_existing_results))
+                    0 if (options.force_test or options.force_retest) or len(run_results) == 0 else n_existing_results)
                 if n_runs > 0 and do_test:
                     if not init_done:
                         self.do_init_all(build, options, do_test, allowed_types=allowed_types, test_folder=test_folder,
                                          v_internals=v_internals)
                         init_done = True
 
+                    def print_header():
+                        pass
                     if not self.options.quiet:
                         if len(run_results) > 0:
                             if not dall:
                                 print("Results %s are missing some points..." % ", ".join(l))
                         if len(self.variables) > 0:
-                            print(run.format_variables(self.config["var_hide"]),
-                                  "[%d runs for %d/%d]" % (n_runs, n, len(self.variables)))
+                            def print_header(i_try):
+                                print(run.format_variables(self.config["var_hide"]),
+                                  "[run %d/%d for test %d/%d]" % (i_try + 1, n_runs, n, len(self.variables)))
                         else:
                             print("Executing single run...")
+
 
                     new_data_results, new_all_kind_results, output, err, n_exec, n_err = self.execute(build, run, variables,
                                                                                                   n_runs,
@@ -979,7 +989,7 @@ class Testie:
                                                                                                   allowed_types={
                                                                                                       SectionScript.TYPE_SCRIPT, SectionScript.TYPE_EXIT},
                                                                                                   test_folder=test_folder,
-                                                                                                  v_internals=v_internals)
+                                                                                                  v_internals=v_internals, before_test = print_header)
                     if new_data_results:
                         for result_type, values in new_data_results.items():
                             if values is None:

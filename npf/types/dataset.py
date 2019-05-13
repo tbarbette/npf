@@ -285,11 +285,24 @@ def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list
                 min.append(np.min(y))
             if type(series_sort) is list:
                 ok = True
-                for i,o in enumerate(series_sort):
-                    if o >= len(data):
-                        print("ERROR: sorting is invalid, %d is out of range" % o)
-                        ok = False
-                        break
+                for i,so in enumerate(series_sort):
+
+                    if is_numeric(so):
+                        o = so
+                        if o >= len(data):
+                            print("ERROR: sorting for %s is invalid, %d is out of range" % (result_type,o))
+                            ok = False
+                            break
+                    elif so in [x for x,y,e,build in data]:
+                        o = [x for x,y,e,build in data].index(so)
+                    elif so in [build.pretty_name() for x,y,e,build in data]:
+                        o = [build.pretty_name() for x,y,e,build in data].index(so)
+                    else:
+                            print("ERROR: sorting for %s is invalid, %s is not in list" % (result_type,so))
+                            ok = False
+                            break
+                    series_sort[i] = o
+
                 if ok:
                     order = series_sort
                 else:

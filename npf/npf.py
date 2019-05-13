@@ -112,6 +112,9 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
     t.add_argument('--no-conntest',
                    help='Do not run connection tests', dest='do_conntest', action='store_false',
                    default=True)
+    t.add_argument('--max-results',
+                   help='Count the number of valid previous tests as the maxium number of points in all tests, instead of the minimum', dest='min_test', action='store_false',
+                   default=True)
     t.add_argument('--preserve-temporaries',
                    help='Do not delete tesite folder with temporary files', dest='preserve_temp',
                    action='store_true',

@@ -182,6 +182,7 @@ class Graph:
 class Grapher:
     def __init__(self):
         self.scripts = set()
+        self._config_cache = {}
 
     def config_bool(self, var, default=None):
         val = self.config(var, default)
@@ -218,38 +219,17 @@ class Grapher:
         return default
 
     def scriptconfig(self, var, key, default=None, result_type=None):
+        if (var,key,result_type) in self._config_cache:
+            return self._config_cache[(var,key,result_type)]
+        else:
+            v = self._scriptconfig(var, key, default, result_type)
+            self._config_cache[(var,key,result_type)] = v
+            return v
+
+    def _scriptconfig(self, var, key, default, result_type):
         for script in self.scripts:
             if var in script.config:
-                d = script.config.get_dict(var)
-                lk = str(key).lower()
-                if result_type is None:
-                    #Search for the exact key if there is no result_type
-                    for k, v in d.items():
-                        if k.lower() == lk:
-                            return v
-                    return default
-                else:
-                    #Search for "key-result_type", such as result-throughput
-                    lkr = (key + "-" + result_type).lower()
-                    for k, v in d.items():
-                        if k.lower() == lkr:
-                            return v
-                    for k, v in d.items():
-                        if k.lower() == lk:
-                            return v
-                    #Search for result type alone such as throughput
-                    lkr = (result_type).lower()
-                    for k, v in d.items():
-                        if k.lower() == lkr:
-                            return v
-                    for k, v in d.items():
-                        if k.lower() == lk:
-                            return v
-                    #Search for regex
-                    for k, v in d.items():
-                        if re.match(lk,k):
-                            return v
-                    return default
+                return script.config.get_dict_value(var,key,default=default,result_type=result_type)
         return default
 
     def result_in_list(self, var, result_type):
@@ -625,17 +605,17 @@ class Grapher:
                 result_to_variable_map.append(result_type)
 
             exploded_vars_values = vars_values.copy()
-            vvalues = set()
+            vvalues = OrderedSet()
 
             untouched_series = []
             exploded_series = []
             for i, (testie, build, all_results) in enumerate(series):
-                exploded_results = {}
-                untouched_results = {}
+                exploded_results = OrderedDict()
+                untouched_results = OrderedDict()
 
                 for run, run_results in all_results.items():
-                    new_run_results_exp = {} #Results that matched, key is the matched value
-                    untouched_run_results = {}
+                    new_run_results_exp = OrderedDict() #Results that matched, key is the matched value
+                    untouched_run_results = OrderedDict()
 
                     for result_type, results in run_results.items():
                         match = False
@@ -1069,7 +1049,9 @@ class Grapher:
                 type_config = "" if not result_type else "-" + result_type
 
                 lgd = None
-                if gcolor:
+                if len(figure) == 1:
+                    sl = 0
+                elif gcolor:
                     sl = gcolor[(isubplot * len(data)) % len(gcolor)] % len(legendcolors)
                 else:
                     sl = shift % len(legendcolors)
@@ -1103,7 +1085,7 @@ class Grapher:
                     plt.gca().xaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%d'))
                 formatterSet, unithandled = self.set_axis_formatter(plt.gca().xaxis, xformat, xunit.strip(), isLog, True)
 
-                var_lim = self.scriptconfig("var_lim", key, key)
+                var_lim = self.scriptconfig("var_lim", key=key, result_type=result_type)
                 if var_lim and var_lim is not key:
                     matches = re.match("([-]?[0-9.]+)[-]([-]?[0-9.]+)?", var_lim)
                     xlims = [float(x) for x in matches.groups() if x is not None]

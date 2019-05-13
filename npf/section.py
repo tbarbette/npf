@@ -598,17 +598,24 @@ class SectionConfig(SectionVariable):
     def get_dict_value(self, var, key, result_type=None, default=None):
         if var in self:
             d = self.get_dict(var)
-            if result_type is None:
-                return d.get(key, default)
-            else:
-                if key + "-" + result_type in d:
-                    return d.get(key + "-" + result_type)
-                elif result_type in d:
-                    return d.get(result_type)
-                else:
-                    return d.get(key, default)
-        if key != key.lower():
-            return self.get_dict_value(var, key.lower(), result_type, default)
+            if result_type is not None:
+                #Search for "key-result_type", such as result-throughput
+                kr = key + "-" + result_type
+                for k, v in d.items():
+                    if re.search(k,kr,re.IGNORECASE):
+                        return v
+
+                #Search for result type alone such as throughput
+                for k, v in d.items():
+                    if re.search(k, result_type,re.IGNORECASE):
+                        return v
+
+            #Search for the exact key if there is no result_type
+            for k, v in d.items():
+                if re.search(k, key, re.IGNORECASE):
+                    return v
+            return default
+
         return default
 
     def get_bool(self, key):
