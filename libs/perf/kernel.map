@@ -57,6 +57,8 @@ mlx5                :   IO
 //ip                  :   IO
 //skb                 :   IO
 
+update_vsyscall|rcu_check_callbacks|tick_sched_handle : Kernel
+
 netlink             :   IO
 //idle                :   Other
 //0x0000              :   Other
