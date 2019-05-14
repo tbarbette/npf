@@ -7,6 +7,8 @@ import regex
 import re
 from decimal import Decimal
 
+import matplotlib.pyplot as plt
+
 from npf.node import Node
 from .variable import VariableFactory
 
@@ -55,7 +57,7 @@ def add_graph_options(parser: ArgumentParser):
     o.add_argument('--output-columns', dest='output_columns', type=str, nargs='+', default=['x', 'mean'])
 
     g = parser.add_argument_group('Graph options')
-    g.add_argument('--graph-size', metavar='INCH', type=float, nargs=2, default=[],
+    g.add_argument('--graph-size', metavar='INCH', type=float, nargs=2, default=plt.rcParams["figure.figsize"],
                    help='Size of graph', dest="graph_size")
     g.add_argument('--graph-filename', metavar='graph_filename', type=str, default=None, dest='graph_filename',
                    help='path to the file to output the graph')

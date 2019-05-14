@@ -68,6 +68,28 @@ def dtype(v):
     else:
         return str
 
+def is_log(l):
+    if not numericable(l):
+        return False
+    if len(l) < 3:
+        return False
+    i = 0
+    if l[0] == 0:
+        if l[1] != 1:
+            return False
+        else:
+            i = 1
+    n = l[i+1] / l[i]
+    i = i+1 #1
+    c = l[i]
+    i = i + 1 #2
+
+    for i in range(i,len(l)):
+        c = c * n
+        if l[i] != c:
+            return False
+    return n
+
 def replace_variables(v: dict, content: str, self_role=None, default_role_map={}):
     """
     Replace all variable and nics references in content

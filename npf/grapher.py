@@ -14,7 +14,7 @@ from pygtrie import Trie
 
 from npf.types import dataset
 from npf.types.dataset import Run, XYEB, group_val
-from npf.variable import is_numeric, get_numeric, numericable, get_bool, is_bool
+from npf.variable import is_log, is_numeric, get_numeric, numericable, get_bool, is_bool
 from npf.section import SectionVariable
 from npf import npf, variable
 from matplotlib.lines import Line2D
@@ -1064,6 +1064,13 @@ class Grapher:
                 baseLog = self.scriptconfig('var_log_base', key, default=None)
                 if baseLog:
                     isLog = True
+                if not isLog:
+                    ax = data[0][0]
+                    l = is_log(ax)
+                    if l is not False:
+                        isLog = True
+                        baseLog = l
+
                 if isLog:
                     ax = data[0][0]
                     if ax is not None and len(ax) > 1:
@@ -1073,7 +1080,7 @@ class Grapher:
                             base = find_base(ax)
                         plt.xscale('symlog',basex=base)
                         xticks = data[0][0]
-                        if len(xticks) > 8:
+                        if len(xticks) > (float(self.options.graph_size[0]) * 1.5):
                             n =int(math.ceil(len(xticks) / 8))
                             index = np.array(range(len(xticks)))[1::n]
                             if index[-1] != len(xticks) -1:
@@ -1105,15 +1112,19 @@ class Grapher:
                 var_lim = self.scriptconfig("var_lim", "result", result_type=result_type, default=None)
                 if var_lim:
                     n = var_lim.split('-')
-                    if len(n) == 2:
+                    try:
+                      if len(n) == 2:
                         ymin, ymax = (npf.parseUnit(x) for x in n)
                         plt.ylim(ymin=ymin, ymax=ymax)
-                    else:
+                      else:
                         f=float(n[0])
                         if f==0:
                             plt.ylim(ymin=f)
                         else:
                             plt.ylim(ymax=f)
+                    except Exception as e:
+                        print(e)
+
                 else:
                     if (ymin >= 0 > plt.ylim()[0]):
                         plt.ylim(0, plt.ylim()[1])

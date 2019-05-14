@@ -58,7 +58,8 @@ class Statistics:
             best = X[y.argmax()]
             print("  ", end='')
             for i, name in enumerate(dtype['names']):
-                print("%s = %s, " % (name, best[i] if (dtype['values'][i] is None) else best[i] if type(best[i]) is np.str_ else dtype['values'][i][best[i]]), end='')
+
+                print("%s = %s, " % (name, best[i] if (dtype['values'][i] is None) else best[i] if type(best[i]) is np.str_ else dtype['values'][i][int(best[i])]), end='')
             print(' : %.02f' % y.max())
 
             print('')
@@ -68,7 +69,7 @@ class Statistics:
                     continue
                 print("%s :" % k)
                 for v in sorted(vals):
-                    vs = v if (dtype['values'][i] is None) else dtype['values'][i][v]
+                    vs = v if (dtype['values'][i] is None) else dtype['values'][i][int(v)]
                     tot = 0
                     n = 0
                     for ic in range(X.shape[0]):
