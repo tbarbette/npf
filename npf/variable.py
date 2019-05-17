@@ -69,10 +69,14 @@ def dtype(v):
         return str
 
 def is_log(l):
-    if not numericable(l):
-        return False
     if len(l) < 3:
         return False
+
+    for i in range(len(l)):
+        if not is_numeric(l[i]):
+            return False
+        l[i] = get_numeric(l[i])
+
     i = 0
     if l[0] == 0:
         if l[1] != 1:

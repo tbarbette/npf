@@ -721,7 +721,7 @@ class Grapher:
             del vars_values[to_get_out]
 
             transformed_series = []
-            for i, (testie, build, all_results) in enumerate(series):
+            for sindex, (testie, build, all_results) in enumerate(series):
                 new_series = OrderedDict()
                 for value in values:
                     new_series[value] = OrderedDict()
@@ -740,7 +740,10 @@ class Grapher:
                     if len(self.graphmarkers) > 0:
                         nbuild._marker = self.graphmarkers[i % len(self.graphmarkers)]
                     if len(series) == 1: #If there is one serie, expand the line types
-                        nbuild._line = self.graphlines[i % len(self.graphlines)]
+                        nbuild._line = self.graphlines[sindex % len(self.graphlines)]
+
+                    nbuild._color = sindex + 1
+                    nbuild._color_set = True
                     nbuild.statics[to_get_out] = value
                     transformed_series.append((testie, nbuild, data))
 
@@ -897,10 +900,11 @@ class Grapher:
             if result_type not in matched_set:
                 plots[result_type] = ([result_type],1,[])
 
+        max_cols = self.config("graph_max_cols", 2)
         for i, (figure,n_s_cols,subplot_legend_titles) in plots.items():
             v_cols = len(graphs)
             v_lines = 1
-            while v_cols > 2 and v_cols > v_lines:
+            while v_cols > max_cols and v_cols > v_lines:
                 v_cols = math.ceil(v_cols / 2)
                 v_lines *= 2
             n_cols = v_cols * n_s_cols
@@ -997,10 +1001,13 @@ class Grapher:
                 gcolor = self.configlist('graph_color')
                 gi = {} #Index per-color
                 for i, (x, y, e, build) in enumerate(data):
-                    if not gcolor and shift == 0:
+                    if not gcolor and shift == 0 and not hasattr(build,"_color_set"):
                         build._color=graphcolorseries[0][i % len(graphcolorseries[0])]
                     else:
-                        if gcolor:
+                        if hasattr(build,"_color_set"):
+                            s = build._color
+                            tot = [build._color for x,y,e,build in data].count(s)
+                        elif gcolor:
                             s=gcolor[(i + isubplot*len(data)) % len(gcolor)]
                             tot = gcolor.count(s)
                         else:
@@ -1351,10 +1358,11 @@ class Grapher:
 
             order = np.argsort(ax)
 
+            shift = float(self.scriptconfig("var_shift", key=key, result_type=result_type, default=0))
             if minX is not None:
-                ax = np.asarray([float(float(ax[i]) - float(minX)) for i in order])
+                ax = np.asarray([float(float(ax[i]) - shift - float(minX)) for i in order])
             else:
-                ax = np.asarray([float(ax[i]) for i in order])
+                ax = np.asarray([float(ax[i]) - shift for i in order])
             y = np.array([y[i] for i in order])
             mean = np.array([e[i][0] for i in order])
             std = np.array([e[i][1] for i in order])
@@ -1378,15 +1386,16 @@ class Grapher:
 
             marker=build._marker
 
-            if result_type in self.configdict("var_markers"):
-                m = self.configdict("var_markers")[result_type].split(';')
+            sm = self.scriptconfig("var_markers", key=key, result_type=result_type, default=None)
+            if sm is not None:
+                m = sm.split(';')
                 marker = m[i % len(m)]
 
             if self.config_bool_or_in("graph_scatter", result_type):
                 rects = axis.scatter(ax[mask], y[mask], label=lab, color=c,  marker=marker)
             else:
                 rects = axis.plot(ax[mask], y[mask], label=lab, color=c, linestyle=build._line, marker=marker,markevery=(1 if len(ax[mask]) < 20 else math.ceil(len(ax[mask]) / 20)),drawstyle=drawstyle)
-            error_type = self.scriptconfig('graph_error', 'result', result_type=result_type, default = None)
+            error_type = self.scriptconfig('graph_error', 'result', result_type=result_type, default = "none").lower()
             if error_type != 'none':
                 if error_type == 'bar' or (error_type == None and not self.config('graph_error_fill')):
                     if error_type == 'barminmax':

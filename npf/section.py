@@ -501,7 +501,7 @@ class SectionConfig(SectionVariable):
         self.__add("n_runs", 3)
         self.__add("n_retry", 0)
         self.__add_dict("var_n_runs", {})
-        self.__add_dict("var_markers", {})
+        self.__add_dict("var_markers", {"CDF":""})
         self.__add("result_add", False)
         self.__add_list("result_regex", [
             r"(:?(:?(?P<kind>[A-Z0-9_]+)-)?(?P<kind_value>[0-9.]+)-)?RESULT(:?-(?P<type>[A-Z0-9_:~.@()-]+))?[ \t]+(?P<value>[0-9.]+(e[+-][0-9]+)?)[ ]*(?P<multiplier>[nµugmkKGT]?)(?P<unit>s|sec|b|byte|bits)?"])
@@ -513,6 +513,7 @@ class SectionConfig(SectionVariable):
         self.__add("time_precision", 1)
         self.__add("time_sync", True)
         self.__add_list("var_sync", ["time"])
+        self.__add_dict("var_shift", {})
 
         # Role related
         self.__add_dict("default_role_map", {})
@@ -541,7 +542,7 @@ class SectionConfig(SectionVariable):
         self.__add("graph_text",'')
         self.__add("graph_legend",True)
         self.__add("graph_error_fill",False)
-        self.__add_dict("graph_error", {})
+        self.__add_dict("graph_error", {"CDF":"none"})
         self.__add("graph_mode",None)
         self.__add_dict("graph_y_group",{})
         self.__add_list("graph_color", [])
@@ -596,27 +597,40 @@ class SectionConfig(SectionVariable):
         return v
 
     def get_dict_value(self, var, key, result_type=None, default=None):
+        best_l = -1
+        best = default
         if var in self:
             d = self.get_dict(var)
             if result_type is not None:
                 #Search for "key-result_type", such as result-throughput
                 kr = key + "-" + result_type
                 for k, v in d.items():
-                    if re.search(k,kr,re.IGNORECASE):
-                        return v
+                    m = re.search(k,kr,re.IGNORECASE)
+                    if m:
+                        l =  len(m.group(0))
+                        if (best_l < l):
+                            best_l = l
+                            best = v
 
                 #Search for result type alone such as throughput
                 for k, v in d.items():
-                    if re.search(k, result_type,re.IGNORECASE):
-                        return v
+                    m = re.search(k, result_type,re.IGNORECASE)
+                    if m:
+                        l =  len(m.group(0))
+                        if (best_l < l):
+                            best_l = l
+                            best = v
 
             #Search for the exact key if there is no result_type
             for k, v in d.items():
-                if re.search(k, key, re.IGNORECASE):
-                    return v
-            return default
+                m = re.search(k, key, re.IGNORECASE)
+                if m:
+                    l =  len(m.group(0))
+                    if (best_l < l):
+                        best_l = l
+                        best = v
 
-        return default
+        return best
 
     def get_bool(self, key):
         return get_bool(self[key])
