@@ -1065,6 +1065,18 @@ class Grapher:
                 if legendcolors[sl]:
                     axis.yaxis.label.set_color(legendcolors[sl])
                     axis.tick_params(axis='y',colors=legendcolors[sl])
+
+                var_lim = self.scriptconfig("var_lim", key=key, result_type=result_type)
+                if var_lim and var_lim is not key:
+                    matches = re.match("([-]?[0-9.]+)[-]([-]?[0-9.]+)?", var_lim)
+                    xlims = [float(x) for x in matches.groups() if x is not None]
+                    if len(xlims) == 2:
+                        axis.set_xlim(xlims[0], xlims[1])
+                    else:
+                        axis.set_xlim(xlims[0])
+                else:
+                    xlims = None
+
                 xunit = self.scriptconfig("var_unit", key, default="")
                 xformat = self.scriptconfig("var_format", key, default="")
                 isLog = key in self.config('var_log', {})
@@ -1087,6 +1099,16 @@ class Grapher:
                             base = find_base(ax)
                         plt.xscale('symlog',basex=base)
                         xticks = data[0][0]
+                        if not is_log(xticks) and xlims:
+                            i = xlims[0]
+                            if len(xlims) > 1:
+                                top = xlims[1]
+                            else:
+                                top = max(xticks)
+                            xticks = []
+                            while i <= top:
+                                xticks.append(i)
+                                i = i * base
                         if len(xticks) > (float(self.options.graph_size[0]) * 1.5):
                             n =int(math.ceil(len(xticks) / 8))
                             index = np.array(range(len(xticks)))[1::n]
@@ -1098,15 +1120,6 @@ class Grapher:
                         plt.xscale('symlog')
                     plt.gca().xaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%d'))
                 formatterSet, unithandled = self.set_axis_formatter(plt.gca().xaxis, xformat, xunit.strip(), isLog, True)
-
-                var_lim = self.scriptconfig("var_lim", key=key, result_type=result_type)
-                if var_lim and var_lim is not key:
-                    matches = re.match("([-]?[0-9.]+)[-]([-]?[0-9.]+)?", var_lim)
-                    xlims = [float(x) for x in matches.groups() if x is not None]
-                    if len(xlims) == 2:
-                        axis.set_xlim(xlims[0], xlims[1])
-                    else:
-                        axis.set_xlim(xlims[0])
 
                 xticks = self.scriptconfig("var_ticks", key, default=None)
                 if xticks:
