@@ -714,7 +714,7 @@ class Grapher:
                 values = natsort.natsorted(vars_values[to_get_out])
             except KeyError as e:
                 print("ERROR : Unknown variable %s to export as serie" % to_get_out)
-                print("Known variables : ",vars_values)
+                print("Known variables : ",vars_values.keys())
                 continue
             if len(values) == 1:
                 statics[to_get_out] = list(values)[0]
@@ -742,8 +742,7 @@ class Grapher:
                     if len(series) == 1: #If there is one serie, expand the line types
                         nbuild._line = self.graphlines[sindex % len(self.graphlines)]
 
-                    nbuild._color = sindex + 1
-                    nbuild._color_set = True
+                    nbuild._color_index = sindex + 1
                     nbuild.statics[to_get_out] = value
                     transformed_series.append((testie, nbuild, data))
 
@@ -901,7 +900,11 @@ class Grapher:
                 plots[result_type] = ([result_type],1,[])
 
         max_cols = self.config("graph_max_cols", 2)
-        for i, (figure,n_s_cols,subplot_legend_titles) in plots.items():
+        graph_only = self.config("graph_only", [])
+        for result_type, (figure,n_s_cols,subplot_legend_titles) in plots.items():
+            if len(figure) == 1 and graph_only and not result_type in graph_only:
+                print("Not graphing %s" % result_type)
+                continue
             v_cols = len(graphs)
             v_lines = 1
             while v_cols > max_cols and v_cols > v_lines:
@@ -916,13 +919,13 @@ class Grapher:
                     text += str(self.var_name(stat)) + " : " + ', '.join([str(val) for val in graph.vars_values[stat]])
             n_s_lines = math.ceil((len(figure) + (1 if text else 0)) / float(n_cols))
             n_lines = v_lines * n_s_lines
-            fig_name = "subplot" + str(i)
+            fig_name = "subplot" + str(result_type)
 
             i_subplot = 0
             for graph in graphs:
                 data_types = graph.dataset()
 
-                result_type, lgd = self.generate_plot_for_graph(i, i_subplot, figure, n_cols, n_lines, graph.vars_values, data_types, graph.dyns(), graph.vars_all, graph.key, graph.subtitle if graph.subtitle else graph.title, ret, subplot_legend_titles)
+                result_type, lgd = self.generate_plot_for_graph(result_type, i_subplot, figure, n_cols, n_lines, graph.vars_values, data_types, graph.dyns(), graph.vars_all, graph.key, graph.subtitle if graph.subtitle else graph.title, ret, subplot_legend_titles)
 
                 i_subplot += len(figure)
 
@@ -1004,9 +1007,9 @@ class Grapher:
                     if not gcolor and shift == 0 and not hasattr(build,"_color_set"):
                         build._color=graphcolorseries[0][i % len(graphcolorseries[0])]
                     else:
-                        if hasattr(build,"_color_set"):
-                            s = build._color
-                            tot = [build._color for x,y,e,build in data].count(s)
+                        if hasattr(build,"_color_index"):
+                            s = build._color_index
+                            tot = [build._color_index for x,y,e,build in data].count(s)
                         elif gcolor:
                             s=gcolor[(i + isubplot*len(data)) % len(gcolor)]
                             tot = gcolor.count(s)
@@ -1014,7 +1017,8 @@ class Grapher:
                             s=shift
                             tot = len(data)
                         gi.setdefault(s,0)
-                        slen = len(graphcolorseries[s])
+                        print(s)
+                        slen = len(graphcolorseries[s % len(graphcolorseries)])
                         n = slen / tot
                         if n < 0:
                             n = 1
@@ -1068,7 +1072,7 @@ class Grapher:
 
                 var_lim = self.scriptconfig("var_lim", key=key, result_type=result_type)
                 if var_lim and var_lim is not key:
-                    matches = re.match("([-]?[0-9.]+)[-]([-]?[0-9.]+)?", var_lim)
+                    matches = re.match("([-]?[0-9.]+)[-]?([-]?[0-9.]+)?", var_lim)
                     xlims = [float(x) for x in matches.groups() if x is not None]
                     if len(xlims) == 2:
                         axis.set_xlim(xlims[0], xlims[1])
@@ -1077,7 +1081,7 @@ class Grapher:
                 else:
                     xlims = None
 
-                xunit = self.scriptconfig("var_unit", key, default="")
+                xunit = self.scriptconfig("var_unit", key, default="n,")
                 xformat = self.scriptconfig("var_format", key, default="")
                 isLog = key in self.config('var_log', {})
                 baseLog = self.scriptconfig('var_log_base', key, default=None)
@@ -1108,7 +1112,10 @@ class Grapher:
                             xticks = []
                             while i <= top:
                                 xticks.append(i)
-                                i = i * base
+                                if i <= 0:
+                                    i = 1
+                                else:
+                                    i = i * base
                         if len(xticks) > (float(self.options.graph_size[0]) * 1.5):
                             n =int(math.ceil(len(xticks) / 8))
                             index = np.array(range(len(xticks)))[1::n]
@@ -1173,10 +1180,14 @@ class Grapher:
                 handles, labels = axis.get_legend_handles_labels()
                 for i,label in enumerate(labels):
                     labels[i] = label.replace('_', ' ')
+                labelsov = self.configlist("graph_labels", None)
+                if labelsov:
+                    labels = labelsov
                 ncol = self.config("legend_ncol")
                 if type(ncol) == list:
                     ncol = ncol[ilegend % len(ncol)]
-                if ndyn > 0 and bool(self.config_bool('graph_legend', True)):
+                doleg = self.config_bool_or_in('graph_legend', result_type)
+                if ndyn > 0 and doleg:
                     loc = self.config("legend_loc")
                     if subplot_type=="axis" and len(figure) > 1:
                       if self.config_bool("graph_subplot_unique_legend"):
@@ -1185,7 +1196,6 @@ class Grapher:
                         for handle in handles:
                             handle = copy.copy(handle)
                             handle.set_color('black')
-                            print(type(handle))
                             if isinstance(handle, matplotlib.lines.Line2D):
                                 handle.set_linestyle('')
                             nhandles.append(handle)
