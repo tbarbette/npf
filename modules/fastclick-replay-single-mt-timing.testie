@@ -40,33 +40,36 @@ R0=0
 R1=2
 R2=4
 R3=6
+R4=8
 
 
 %late_variables
--nodpdkload:NBBUF=EXPAND( $(( ( ( $LIMIT * $GEN_THREADS ) + ($PKTGEN_BURST_OUT * 2) ) + 8192 )) )
+STARTAFTER?=0
+-nodpdkload:NBBUF=EXPAND( $(( ( ( $LIMIT * $GEN_THREADS ) + (max(4096,$PKTGEN_BURST_OUT) * 2 * 8 ) ) + 8192 )) )
 -nodpdkload:ENSURE= -> EnsureDPDKBuffer
 -nodpdkload:LATEENSURE=
-nodpdkload:NBBUF=
-nodpdkload:ENSURE=
-nodpdkload:LATEENSURE= -> EnsureDPDKBuffer
+nodpdkload:NBBUF=65536
+nodpdkload:ENSURE= -> MarkMACHeader()
+nodpdkload:LATEENSURE=
 NRECORD=EXPAND( $(( $LIMIT * $PKTGEN_REPLAY_COUNT  * 2 )) )
 BROADCAST_IGNORE= -> c :: Classifier(0/$mac,-) //Ignore broadcasts
 
 %promisc:late_variables
 BROADCAST_IGNORE= -> c :: Classifier(-, 0/ffffffffffff)
 
-%largemem:script deps=fastclick sudo=true delay=2
-click --dpdk -l 0-15  --socket-mem 30000,2000 --huge-dir /mnt/hugepages  -- PKTGEN_CONFIG
+%largemem:script deps=fastclick sudo=true
+click --dpdk -l 0-15  --socket-mem $DPDKMEM --huge-dir /mnt/hugepages  -- PKTGEN_CONFIG
 
-%-largemem:script deps=fastclick sudo=true delay=2
-click --dpdk -l 0-15  -- PKTGEN_CONFIG
+%-largemem:script deps=fastclick sudo=true
+//click --dpdk -l 0-15  -- PKTGEN_CONFIG
+gdb -ex run -ex "signal 2" -ex "bt" -batch -args click --dpdk -l 0-15  -- PKTGEN_CONFIG
 
 %file PKTGEN_CONFIG
 d :: DPDKInfo(NB_SOCKET_MBUF $NBBUF, NB_SOCKET_MBUF 8192)
 
 define($bout $PKTGEN_BURST_OUT)
-define($INsrcmac ${client:$CLIENT_NIC:mac})
-define($RAW_INsrcmac ${client:$CLIENT_NIC:raw_mac})
+define($INsrcmac ${self:$CLIENT_NIC:mac})
+define($RAW_INsrcmac ${self:$CLIENT_NIC:raw_mac})
 
 define($INdstmac ${server:$NIC:mac})
 define($RAW_INdstmac ${server:$NIC:raw_mac})
@@ -81,7 +84,7 @@ define($rxverbose 99)
 
 HTTPServer
 
-fdIN :: FromDump($trace, STOP false, TIMING false)
+fdIN :: FromDump($trace, STOP false, TIMING false, START_AFTER $STARTAFTER)
 tdIN :: ToDPDKDevice($port, BLOCKING true, BURST $bout, VERBOSE $txverbose, IQUEUE $bout, NDESC $GEN_DESC)
 
 
@@ -98,7 +101,7 @@ input
   -> rwIN :: EtherRewrite($INsrcmac,$INdstmac)
   -> Pad()
   -> Numberise($magic)
-  -> replay :: ReplayUnqueue(STOP 0,STOP_TIME $PKTGEN_REPLAY_TIME, QUICK_CLONE $quick, VERBOSE true, ACTIVE true, LIMIT $LIMIT, TIMING $TIMING, BURST $PKTGEN_BURST_OUT, TIMING_FNT "@$TIMING_FNT")
+  -> replay :: ReplayUnqueue(STOP 0,STOP_TIME $PKTGEN_REPLAY_TIME, QUICK_CLONE $quick, VERBOSE true, ACTIVE true, LIMIT $LIMIT, TIMING $TIMING, BURST $PKTGEN_BURST_OUT, TIMING_FNT "$TIMING_FNT")
     $LATEENSURE
   -> rt :: RecordTimestamp(N $LIMIT, OFFSET 56)
   -> avgSIN :: AverageCounter(IGNORE $ignore)
@@ -172,7 +175,7 @@ receiveIN -> RINswitch :: Switch(2)[0] -> RIN :: Receiver($RAW_INsrcmac,"IN");
 //----------------
 //Link initializer
 //----------------
-adv0 :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH 64, SRCETH $INsrcmac, DSTETH $INsrcmac, SRCIP ${client:$NIC:ip}, DSTIP ${client:$NIC:ip}, FLOWS 1, FLOWSIZE 1)
+adv0 :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH 64, SRCETH $INsrcmac, DSTETH $INsrcmac, SRCIP ${self:$NIC:ip}, DSTIP ${self:$NIC:ip}, FLOWS 1, FLOWSIZE 1)
     -> advq0 :: RatedUnqueue(1)
     -> tdIN;
 
@@ -245,29 +248,32 @@ display_th :: Script(TYPE PASSIVE,
                      write gen1/avgSIN.reset,
                      write gen2/avgSIN.reset,
                      write gen3/avgSIN.reset,
-                     wait ${ITERATION_TIME}s,
+                     wait ${ITERATION_TIME},
                      set diff $(sub $(now) $time),
+                     print "Diff $diff",
                      set time $(now),
-                     set tx $(add $(gen0/avgSIN.link_rate)  $(gen1/avgSIN.link_rate) $(gen2/avgSIN.link_rate) $(gen3/avgSIN.link_rate)),
+                     set tx $(add $(gen0/avgSIN.link_rate) $(gen1/avgSIN.link_rate) $(gen2/avgSIN.link_rate) $(gen3/avgSIN.link_rate)),
                      set rx $(add $(RIN/avgA.link_rate) $(RIN/avgB.link_rate) $(RIN/avgC.link_rate) $(RIN/avgD.link_rate)),
-                     print "$time-RESULT-ITHROUGHPUT $rx",
-                     print "$time-RESULT-ILATENCY $(div $(add $(RIN/tsdA.average $indexA) $(RIN/tsdB.average $indexB) $(RIN/tsdC.average $indexC) $(RIN/tsdD.average $indexD) 4) )",
-                     print "$time-RESULT-ITX $tx",
-                     print "$time-RESULT-ILOSS $(sub $rx $tx)",
+                     print "",
+                     print "IGEN-$time-RESULT-ITHROUGHPUT $rx",
+                     print "IGEN-$time-RESULT-ILATENCY $(div $(add $(RIN/tsdA.average $indexA) $(RIN/tsdB.average $indexB) $(RIN/tsdC.average $indexC) $(RIN/tsdD.average $indexD)) 4)",
+                     print "IGEN-$time-RESULT-ILAT99 $(div $(add $(RIN/tsdA.perc99 $indexA) $(RIN/tsdB.perc99 $indexB) $(RIN/tsdC.perc99 $indexC) $(RIN/tsdD.perc99 $indexD)) 4)",
+                     print "IGEN-$time-RESULT-ITX $tx",
+                     print "IGEN-$time-RESULT-ILOSS $(sub $rx $tx)",
 
                      set received $(add $(RIN/avgA.count) $(RIN/avgB.count) $(RIN/avgC.count) $(RIN/avgD.count) ),
                      set sent $(add $(gen0/avgSIN.count) $(gen1/avgSIN.count) $(gen2/avgSIN.count) $(gen3/avgSIN.count) ),
-                     print "$time-RESULT-ICOUNT $received",
-                     print "$time-RESULT-IDROPPED $(sub $sent $received)",
-                     print "$time-RESULT-IDROPPEDPS $(div $(sub $sent $received) $diff)",
+                     print "IGEN-$time-RESULT-ICOUNT $received",
+                     print "IGEN-$time-RESULT-IDROPPED $(sub $sent $received)",
+                     print "IGEN-$time-RESULT-IDROPPEDPS $(div $(sub $sent $received) $diff)",
                      set indexA $(RIN/tsdA.index),
                      set indexB $(RIN/tsdB.index),
                      set indexC $(RIN/tsdC.index),
                      set indexD $(RIN/tsdD.index),
-                     read load,
+                     
                      goto g)
 
-StaticThreadSched(display_th $R2)
+StaticThreadSched(display_th $R4)
 
 RINswitch[1]->Print(LATEIN) -> Discard;
 
@@ -309,5 +315,12 @@ DriverManager(  pause,
                 read receiveIN.count,
                 print "RESULT-TESTTIME $(sub $stoptime $starttime)",
                 print "RESULT-RCVTIME $(RIN/avgA.time)",
+                /*set i 0,
+                set step 1,
+                label perc,
+                print "CDFLATVAL-$(div $(add $(RIN/tsdA.perc $i) $(RIN/tsdB.perc $i) $(RIN/tsdC.perc $i) $(RIN/tsdD.perc $i)) 4)-RESULT-CDFLATPC $(div $i 100.0)",
+                set i $(add $i $step),
+                set step $(if $(ge $i 99) 0.1 1),
+                goto perc $(le $i 100.0),*/
                 wait ${END_WAIT}s,
                 stop);
