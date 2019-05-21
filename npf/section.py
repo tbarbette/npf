@@ -498,10 +498,12 @@ class SectionConfig(SectionVariable):
         self.__add("accept_variance", 1)
 
         # Test related
+
+        self.__add_list("time_kinds", [])
         self.__add("n_runs", 3)
         self.__add("n_retry", 0)
         self.__add_dict("var_n_runs", {})
-        self.__add_dict("var_markers", {"CDF":""})
+        self.__add_dict("var_markers", {}) #Do not set CDF here, small CDF may want them, and then scatterplot would not work
         self.__add("result_add", False)
         self.__add_list("result_regex", [
             r"(:?(:?(?P<kind>[A-Z0-9_]+)-)?(?P<kind_value>[0-9.]+)-)?RESULT(:?-(?P<type>[A-Z0-9_:~.@()-]+))?[ \t]+(?P<value>[0-9.]+(e[+-][0-9]+)?)[ ]*(?P<multiplier>[nµugmkKGT]?)(?P<unit>s|sec|b|byte|bits)?"])

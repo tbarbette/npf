@@ -890,9 +890,12 @@ class Testie:
 
                 kind_results = {} #kind->(run_with_time -> results))
                 kind_results["time"] = OrderedDict()
+                config_time_kinds = self.config.get_list("time_kinds")
                 if prev_kind_results and not (options.force_test or options.force_retest):
                     nprev_kind_results = {}
                     for kind, prev_kresults in prev_kind_results.items():
+                        if config_time_kinds and not kind in config_time_kinds:
+                            continue
                         nprev_kresults = OrderedDict()
                         kind_results.setdefault(kind,OrderedDict())
                         for trun, results in prev_kresults.items():

@@ -470,7 +470,7 @@ class Grapher:
             graph.series = series
         return graph
 
-    def graph(self, filename, options, graph_variables: List[Run] = None, title=False, series=None):
+    def graph(self, filename, options, fileprefix=None, graph_variables: List[Run] = None, title=False, series=None):
         """series is a list of triplet (script,build,results) where
         result is the output of a script.execute_all()"""
         self.options = options
@@ -688,12 +688,12 @@ class Grapher:
 
             exploded_vars_values[var_name] = vvalues
 
-            self.graph_group(series=exploded_series, vars_values=exploded_vars_values, filename=filename, title=title)
+            self.graph_group(series=exploded_series, vars_values=exploded_vars_values, filename=filename, fileprefix = fileprefix, title=title)
             series=untouched_series
 
-        self.graph_group(series, vars_values, filename=filename, title=title)
+        self.graph_group(series, vars_values, filename=filename, fileprefix = fileprefix, title=title)
 
-    def graph_group(self, series, vars_values, filename, title):
+    def graph_group(self, series, vars_values, filename, fileprefix, title):
         if len(series) == 0:
             print("No valid series...")
             return
@@ -851,10 +851,10 @@ class Grapher:
             graphs.append(graph)
 
         if len(graphs) > 0:
-            self.plot_graphs(graphs, filename)
+            self.plot_graphs(graphs, filename, fileprefix)
 
 
-    def plot_graphs(self, graphs, filename):
+    def plot_graphs(self, graphs, filename, fileprefix):
         assert(len(graphs) > 0)
         matched_set = set()
 
@@ -946,7 +946,7 @@ class Grapher:
                 buf.seek(0)
                 ret[result_type] = buf.read()
             else:
-                type_filename = npf.build_filename(one_testie, one_build, filename if not filename is True else None, graph.statics(), 'pdf', type_str=result_type, show_serie=False)
+                type_filename = npf.build_filename(one_testie, one_build, filename if not filename is True else None, graph.statics(), 'pdf', type_str=(fileprefix +'-' if fileprefix else "") +result_type, show_serie=False)
                 plt.savefig(type_filename, bbox_extra_artists=(lgd,) if lgd else [], bbox_inches='tight', dpi=self.options.graph_dpi, transparent=True)
                 ret[result_type] = None
                 print("Graph of test written to %s" % type_filename)
@@ -1101,6 +1101,7 @@ class Grapher:
                             base = float(baseLog)
                         else:
                             base = find_base(ax)
+
                         plt.xscale('symlog',basex=base)
                         xticks = data[0][0]
                         if not is_log(xticks) and xlims:
@@ -1122,6 +1123,9 @@ class Grapher:
                             if index[-1] != len(xticks) -1:
                                 index = np.append(index,[len(xticks)-1])
                             xticks = np.delete(xticks,np.delete(np.array(range(len(xticks))),index))
+                        if not xlims and min(data[0][0] >= 1):
+                            xlims = [1]
+                            axis.set_xlim(xlims[0])
                         plt.xticks(xticks)
                     else:
                         plt.xscale('symlog')

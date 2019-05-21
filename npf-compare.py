@@ -147,6 +147,7 @@ def do_graph(filename,args,series,kind_series,options):
         for kind,series in n_kind_series.items():
             g = grapher.graph(series=series,
                           filename=filename,
+                          fileprefix=kind,
                           options=args,
                           title=args.graph_title)
 
