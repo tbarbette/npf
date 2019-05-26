@@ -961,7 +961,7 @@ class Grapher:
             savekey=key
             for i_s_subplot, result_type in enumerate(figure):
                 key=savekey
-                isubplot = i_subplot * len(figure) + i_s_subplot
+                isubplot = int(i_subplot * len(figure) + i_s_subplot)
                 data = data_types[result_type]
                 ymin, ymax = (float('inf'), 0)
 
@@ -1041,6 +1041,7 @@ class Grapher:
                 graph_types = self.configlist("graph_type",[])
                 graph_types.extend([graph_type, "line"])
                 graph_type = graph_types[isubplot if isubplot < len(graph_types) else len(graph_types) - 1]
+                barplot = False
                 if graph_type == "simple_bar":
                     """No dynamic variables : do a barplot X=version"""
                     r = self.do_simple_barplot(axis,result_type, data, shift, isubplot)
@@ -1053,6 +1054,7 @@ class Grapher:
                 else:
                     """Barplot. X is all seen variables combination, series are version"""
                     self.do_barplot(axis,vars_all, dyns, result_type, data, shift)
+                    barplot = True
 
                 if not r:
                     continue
@@ -1087,7 +1089,7 @@ class Grapher:
                 baseLog = self.scriptconfig('var_log_base', key, default=None)
                 if baseLog:
                     isLog = True
-                if not isLog:
+                if not isLog and not barplot:
                     ax = data[0][0]
                     l = is_log(ax)
                     if l is not False:
@@ -1497,6 +1499,7 @@ class Grapher:
         yunit = self.scriptconfig("var_unit", "result", default="", result_type=result_type)
         yformat = self.scriptconfig("var_format", "result", default=None, result_type=result_type)
         yticks = self.scriptconfig("var_ticks", "result", default=None, result_type=result_type)
+        shift = int(shift)
         if self.config_bool_or_in('var_grid',result_type):
             axis.grid(True,linestyle=self.graphlines[( shift - 1 if shift > 0 else 0) % len(self.graphlines)],color=gridcolors[shift])
             axis.set_axisbelow(True)
