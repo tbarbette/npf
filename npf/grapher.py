@@ -1076,10 +1076,13 @@ class Grapher:
                 if var_lim and var_lim is not key:
                     matches = re.match("([-]?[0-9.]+)[-]?([-]?[0-9.]+)?", var_lim)
                     xlims = [float(x) for x in matches.groups() if x is not None]
-                    if len(xlims) == 2:
-                        axis.set_xlim(xlims[0], xlims[1])
+                    if barplot:
+                        print("WARNING You set xlims for %s to be %s, however I'm drawing a barplot, where x limits have no sense, so I'll ignore it. Remove limits for %s to avoid this warning." % (key,var_lim,key))
                     else:
-                        axis.set_xlim(xlims[0])
+                        if len(xlims) == 2:
+                            axis.set_xlim(xlims[0], xlims[1])
+                        else:
+                            axis.set_xlim(xlims[0])
                 else:
                     xlims = None
 
