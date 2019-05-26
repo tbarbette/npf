@@ -17,10 +17,12 @@ default_role_map={server:dut}
 %variables
 PKTGEN_BURST_OUT=32
 PKTGEN_REPLAY_COUNT=1
+PKTGEN_REPLAY_TIME=0
 NIC=0
 CLIENT_NIC=0
 RCV_NIC=0
 SND_NIC=0
+TIMING=0
 LIMIT=200000
 GEN_THREADS=4
 PROMISC=false
@@ -33,12 +35,12 @@ R0=0
 R1=2
 R2=4
 R3=6
-TIMING=0
+
 
 nolinktest=0
 
 %late_variables
-NBBUF=EXPAND( $(( ( ( $LIMIT * $GEN_THREADS ) + ($PKTGEN_BURST_OUT * 2) ) + 8192 )) )
+NBBUF=EXPAND( $(( ( ( $LIMIT * $GEN_THREADS ) + (max(4096,$PKTGEN_BURST_OUT) * 2 * 4 ) ) + 8192 )) )
 NRECORD=EXPAND( $(( $LIMIT * $PKTGEN_REPLAY_COUNT  * 2 )) )
 BROADCAST_IGNORE= -> c :: Classifier(0/$mac,-) //Ignore broadcasts
 SND_NIC?=EXPAND($CLIENT_NIC)
@@ -51,11 +53,11 @@ BROADCAST_IGNORE= -> c :: Classifier(-, 0/ffffffffffff)
 click --dpdk -l ${GEN_CPU}-15 -- PKTGEN_CONFIG
 
 %file PKTGEN_CONFIG
-d :: DPDKInfo($NBBUF)
+d :: DPDKInfo(NB_SOCKET_MBUF $NBBUF, NB_SOCKET_MBUF 8192)
 
 define($bout $PKTGEN_BURST_OUT)
-define($INsrcmac ${client:$SND_NIC:mac})
-define($RAW_INsrcmac ${client:$SND_NIC:raw_mac})
+define($INsrcmac ${self:$SND_NIC:mac})
+define($RAW_INsrcmac ${self:$SND_NIC:raw_mac})
 
 define($INdstmac ${server:$NIC:mac})
 define($RAW_INdstmac ${server:$NIC:raw_mac})
@@ -86,7 +88,7 @@ input
   -> rwIN :: EtherRewrite($INsrcmac,$INdstmac)
   -> Pad()
   -> Numberise($magic)
-  -> replay :: ReplayUnqueue(STOP 0, QUICK_CLONE $quick, VERBOSE true, ACTIVE true, LIMIT $LIMIT, TIMING $TIMING)
+  -> replay :: ReplayUnqueue(STOP 0, STOP_TIME $PKTGEN_REPLAY_TIME, QUICK_CLONE $quick, VERBOSE true, ACTIVE true, LIMIT $LIMIT, TIMING $TIMING)
   -> rt :: RecordTimestamp(N $LIMIT, OFFSET 56)
   -> avgSIN :: AverageCounter(IGNORE $ignore)
   -> output;
@@ -159,7 +161,7 @@ receiveIN -> RINswitch :: Switch(2)[0] -> RIN :: Receiver($RAW_INsrcmac,"IN");
 //----------------
 //Link initializer
 //----------------
-adv0 :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH 64, SRCETH $INsrcmac, DSTETH $INsrcmac, SRCIP ${client:$NIC:ip}, DSTIP ${client:$NIC:ip}, FLOWS 1, FLOWSIZE 1)
+adv0 :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH 64, SRCETH $INsrcmac, DSTETH $INsrcmac, SRCIP ${self:$NIC:ip}, DSTIP ${self:$NIC:ip}, FLOWS 1, FLOWSIZE 1)
     -> advq0 :: RatedUnqueue(1)
     -> tdIN;
 
@@ -210,6 +212,7 @@ link_initialized :: Script(TYPE PACKET,
 
 run_test :: Script(TYPE PASSIVE,
             wait ${IGNORE}s,
+            print "EVENT GEN_BEGIN",
             print "Starting bandwidth computation !",
             label end)
 
@@ -254,12 +257,15 @@ DriverManager(  pause,
                 print "RESULT-TESTTIME $(sub $stoptime $starttime)",
                 print "RESULT-RCVTIME $(RIN/avgA.time)",
                 print "RESULT-LATENCY $(div $(add $(RIN/tsdA.average) $(RIN/tsdB.average) $(RIN/tsdC.average) $(RIN/tsdD.average)) 4)",
+                print "RESULT-LAT00 $(div $(add $(RIN/tsdA.min) $(RIN/tsdB.min) $(RIN/tsdC.min) $(RIN/tsdD.min)) 4)",
+                print "RESULT-LAT01 $(div $(add $(RIN/tsdA.perc01) $(RIN/tsdB.perc01) $(RIN/tsdC.perc01) $(RIN/tsdD.perc01)) 4)",
+                print "RESULT-LAT25 $(div $(add $(RIN/tsdA.perc25) $(RIN/tsdB.perc25) $(RIN/tsdC.perc25) $(RIN/tsdD.perc25)) 4)",
+                print "RESULT-LAT50 $(div $(add $(RIN/tsdA.median) $(RIN/tsdB.median) $(RIN/tsdC.median) $(RIN/tsdD.median)) 4)",
+                print "RESULT-LAT75 $(div $(add $(RIN/tsdA.perc75) $(RIN/tsdB.perc75) $(RIN/tsdC.perc75) $(RIN/tsdD.perc75)) 4)",
+                print "RESULT-LAT99 $(div $(add $(RIN/tsdA.perc99) $(RIN/tsdB.perc99) $(RIN/tsdC.perc99) $(RIN/tsdD.perc99)) 4)",
+                print "RESULT-LAT100 $(div $(add $(RIN/tsdA.max) $(RIN/tsdB.max) $(RIN/tsdC.max) $(RIN/tsdD.max)) 4)",
                 print "RESULT-THROUGHPUT $(add $(RIN/avgA.link_rate) $(RIN/avgB.link_rate) $(RIN/avgC.link_rate) $(RIN/avgD.link_rate) )",
                 print "RESULT-COUNT $(add $(RIN/avgA.count) $(RIN/avgB.count) $(RIN/avgC.count) $(RIN/avgD.count) )",
                 print "RESULT-TX $(add $(gen0/avgSIN.link_rate)  $(gen1/avgSIN.link_rate) $(gen2/avgSIN.link_rate) $(gen3/avgSIN.link_rate))",
                 print "RESULT-PPS $(add $(RIN/avgA.rate)  $(RIN/avgB.rate) $(RIN/avgC.rate) $(RIN/avgD.rate))",
-                print "Mean Delay: $(tsd.average) µs",
-                print "Min Delay: $(tsd.min) µs",
-                print "Max Delay: $(tsd.max) µs",
-                print "Delay StdDev: $(tsd.stddev) µs",
                 stop);

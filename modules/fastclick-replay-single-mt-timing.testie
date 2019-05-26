@@ -12,6 +12,7 @@ n_retry=0
 n_runs=1
 require_tags=import,dpdk
 timeout=60
+default_role_map={server:dut}
 
 %variables
 PKTGEN_BURST_OUT=32
@@ -239,6 +240,7 @@ display_th :: Script(TYPE PASSIVE,
                      set indexB 0,
                      set indexC 0,
                      set indexD 0,
+                     set stime $(now),
                      label g,
                      write RIN/avgA.reset,
                      write RIN/avgB.reset,
@@ -251,13 +253,17 @@ display_th :: Script(TYPE PASSIVE,
                      wait ${ITERATION_TIME},
                      set diff $(sub $(now) $time),
                      print "Diff $diff",
-                     set time $(now),
+                     set time $(sub $(now) $stime),
                      set tx $(add $(gen0/avgSIN.link_rate) $(gen1/avgSIN.link_rate) $(gen2/avgSIN.link_rate) $(gen3/avgSIN.link_rate)),
                      set rx $(add $(RIN/avgA.link_rate) $(RIN/avgB.link_rate) $(RIN/avgC.link_rate) $(RIN/avgD.link_rate)),
                      print "",
                      print "IGEN-$time-RESULT-ITHROUGHPUT $rx",
                      print "IGEN-$time-RESULT-ILATENCY $(div $(add $(RIN/tsdA.average $indexA) $(RIN/tsdB.average $indexB) $(RIN/tsdC.average $indexC) $(RIN/tsdD.average $indexD)) 4)",
                      print "IGEN-$time-RESULT-ILAT99 $(div $(add $(RIN/tsdA.perc99 $indexA) $(RIN/tsdB.perc99 $indexB) $(RIN/tsdC.perc99 $indexC) $(RIN/tsdD.perc99 $indexD)) 4)",
+
+                     print "IGEN-$time-RESULT-ILAT95 $(div $(add $(RIN/tsdA.perc95 $indexA) $(RIN/tsdB.perc95 $indexB) $(RIN/tsdC.perc95 $indexC) $(RIN/tsdD.perc95 $indexD)) 4)",
+
+                     print "IGEN-$time-RESULT-ILAT05 $(div $(add $(RIN/tsdA.perc 5 $indexA) $(RIN/tsdB.perc 5 $indexB) $(RIN/tsdC.perc 5 $indexC) $(RIN/tsdD.perc 5 $indexD)) 4)",
                      print "IGEN-$time-RESULT-ITX $tx",
                      print "IGEN-$time-RESULT-ILOSS $(sub $rx $tx)",
 
@@ -315,12 +321,18 @@ DriverManager(  pause,
                 read receiveIN.count,
                 print "RESULT-TESTTIME $(sub $stoptime $starttime)",
                 print "RESULT-RCVTIME $(RIN/avgA.time)",
-                /*set i 0,
+                print "RESULT-LATENCY $(div $(add $(RIN/tsdA.average) $(RIN/tsdB.average) $(RIN/tsdC.average) $(RIN/tsdD.average)) 4)",
+/*              print "RESULT-LAT00 $(div $(add $(RIN/tsdA.min) $(RIN/tsdB.min) $(RIN/tsdC.min) $(RIN/tsdD.min)) 4)",
+                print "RESULT-LAT01 $(div $(add $(RIN/tsdA.perc01) $(RIN/tsdB.perc01) $(RIN/tsdC.perc01) $(RIN/tsdD.perc01)) 4)",
+                print "RESULT-LAT50 $(div $(add $(RIN/tsdA.median) $(RIN/tsdB.median) $(RIN/tsdC.median) $(RIN/tsdD.median)) 4)",
+                print "RESULT-LAT99 $(div $(add $(RIN/tsdA.perc99) $(RIN/tsdB.perc99) $(RIN/tsdC.perc99) $(RIN/tsdD.perc99)) 4)",
+                print "RESULT-LAT100 $(div $(add $(RIN/tsdA.max) $(RIN/tsdB.max) $(RIN/tsdC.max) $(RIN/tsdD.max)) 4)",*/
+                set i 0,
                 set step 1,
                 label perc,
                 print "CDFLATVAL-$(div $(add $(RIN/tsdA.perc $i) $(RIN/tsdB.perc $i) $(RIN/tsdC.perc $i) $(RIN/tsdD.perc $i)) 4)-RESULT-CDFLATPC $(div $i 100.0)",
                 set i $(add $i $step),
                 set step $(if $(ge $i 99) 0.1 1),
-                goto perc $(le $i 100.0),*/
+                goto perc $(le $i 100.0),
                 wait ${END_WAIT}s,
                 stop);
