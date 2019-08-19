@@ -11,11 +11,12 @@ import socket
 
 class SSHExecutor(Executor):
 
-    def __init__(self, user, addr, path):
+    def __init__(self, user, addr, path, port):
         super().__init__()
         self.user = user
         self.addr = addr
         self.path = path
+        self.port = port
         self.ssh = False
         #Executor should not make any connection in init as parameters can be overwritten afterward
 
@@ -26,7 +27,7 @@ class SSHExecutor(Executor):
         ssh = paramiko.SSHClient()
         ssh.load_system_host_keys()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect(self.addr, username=self.user)
+        ssh.connect(self.addr, username=self.user, port=self.port)
         if cache:
             self.ssh = ssh
         return ssh
@@ -199,7 +200,7 @@ class SSHExecutor(Executor):
                             if entry.name in ignored:
                                 continue
                             if entry.name not in rlist:
-                                sftp.mkdir(self.path + path + '/' + entry.name)
+                                sftp.mkdir(self.path + path + '/' + entry.name, mode=777)
                                 total += _send(path +'/'+entry.name + '/')
                     return total
                 curpath = ''
@@ -224,7 +225,7 @@ class SSHExecutor(Executor):
                     except FileNotFoundError:
                         try:
                             f = self.path + '/' + curpath
-                            sftp.mkdir(f)
+                            sftp.mkdir(f,mode=777)
                         except IOError as e:
                             print("Could not make folder %s" % f)
                             raise e

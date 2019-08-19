@@ -401,8 +401,14 @@ class Testie:
                         result_add = self.config.get_bool_or_in("result_add", result_type)
                         if kind_value:
                             t = float(kind_value)
-                            if result_type in new_kind_results.setdefault(kind,{}).setdefault(t, {}) and result_add:
-                                new_kind_results[kind][t][result_type] += n
+                            if result_type in new_kind_results.setdefault(kind,{}).setdefault(t, {}):
+                                if result_add:
+                                    new_kind_results[kind][t][result_type] += n
+                                else:
+                                    if type(new_kind_results[kind][t][result_type]) is not list:
+                                        new_kind_results[kind][t][result_type] = [new_kind_results[kind][t][result_type]]
+
+                                    new_kind_results[kind][t][result_type].append(n)
                             else:
                                 new_kind_results[kind][t][result_type] = n
                         else:
@@ -444,9 +450,9 @@ class Testie:
             f_mine = True
         else:
             f_mine = False
-        if not os.path.exists(test_folder):
-            os.mkdir(test_folder)
-        os.chdir(test_folder)
+        if not os.path.exists(npf.npf_root() + '/' + test_folder):
+            os.mkdir(npf.npf_root() + '/' + test_folder)
+        os.chdir(npf.npf_root() + '/' + test_folder)
 
         # Build file list
         file_list = []
@@ -712,7 +718,7 @@ class Testie:
                                 ("%.0" + str(self.config['time_precision']) + "f") % round(float(kind_value - (min_kind_value if get_bool(self.config['time_sync']) else 0)), int(
                                     self.config['time_precision'])))
                             update.setdefault(event_t, {}).setdefault(result_type, [])
-                            update[event_t][result_type].append(result)
+                            update[event_t][result_type].extend(result if type(result) is list else [result])
                             if result_type in self.config.get_list("var_repeat"):
                                 # Replicate existing time series for all new incoming time points
                                 self.ensure_time(event_t, result_type, all_kind_results[kind])
@@ -870,6 +876,10 @@ class Testie:
                 variables = variables.copy()
                 for late_variables in self.get_late_variables():
                     variables.update(late_variables.execute({**variables, **v_internals}, self))
+
+                for imp in self.get_imports():
+                    for late_variables in imp.testie.get_late_variables():
+                        variables.update(late_variables.execute({**variables, **v_internals}, imp.testie))
                 r_status, r_out, r_err = self.test_require(variables, build)
                 if not r_status:
                     if not self.options.quiet:
@@ -929,6 +939,7 @@ class Testie:
 
                 if run_results:
                     for result_type in self.config.get_list('results_expect'):
+                        print(self.config.get_list('results_expect'))
                         if result_type not in run_results:
                             found = False
                             if prev_kind_results:
@@ -936,10 +947,11 @@ class Testie:
                                 for run_kind, results in kr.items():
                                     if result_type in results:
                                         found = True
-                                        break
+                                        continue
                             if not found:
                                 print("Missing result type %s, re-doing the run" % result_type)
                                 run_results = {}
+                                prev_kind_results = {}
 
 
                 have_new_results = False
@@ -947,7 +959,7 @@ class Testie:
                 #Compute the minimal number of existing results, so we know how much runs we must do
                 l=[]
                 dall=True
-                n_existing_results=[0]
+                n_existing_results=[]
                 for result_type, results in run_results.items():
                     if self.config.match("accept_zero", result_type):
                         continue
@@ -959,10 +971,14 @@ class Testie:
                     else:
                         dall=False
 
-                if options.min_test:
-                    n_existing_results = min(n_existing_results)
+                if len(n_existing_results) == 0:
+                    n_existing_results = 0
                 else:
-                    n_existing_results = max(n_existing_results)
+                    if options.min_test:
+                        n_existing_results = min(n_existing_results)
+                    else:
+                        n_existing_results = max(n_existing_results)
+
                 n_runs = runs_this_pass - (
                     0 if (options.force_test or options.force_retest) or len(run_results) == 0 else n_existing_results)
                 if n_runs > 0 and do_test:
@@ -971,7 +987,7 @@ class Testie:
                                          v_internals=v_internals)
                         init_done = True
 
-                    def print_header():
+                    def print_header(i_try):
                         pass
                     if not self.options.quiet:
                         if len(run_results) > 0:

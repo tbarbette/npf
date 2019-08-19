@@ -27,7 +27,7 @@ def mapped_load_global(self):
 
 
 class Build:
-    def __init__(self, repo, version):
+    def __init__(self, repo, version, result_path=None):
         self.n_tests = 0
         self.n_passed = 0
         self.repo = repo
@@ -36,6 +36,7 @@ class Build:
         self._marker = '.'
         self._line = '-'
         self.cache = {}
+        self._result_path = result_path
 
     def copy(self):
         return copy.copy(self)
@@ -56,7 +57,7 @@ class Build:
         return data.strip()
 
     def __result_folder(self):
-        return 'results/' + self.repo.get_identifier() + '/'
+        return (self._result_path[0] if self._result_path else "results") + '/' + self.repo.get_identifier() + '/'
 
     def result_path(self, test_name, ext, suffix='', folder=''):
         return self.__result_folder() + self.version + ('/' + folder if folder else '') + '/' + os.path.splitext(test_name)[
@@ -121,7 +122,10 @@ class Build:
                     pass
                 else:
                     for val in r:
-                        str_results.append(str(val))
+                        if type(val) is list:
+                            str_results.extend([str(v) for v in val])
+                        else:
+                            str_results.append(str(val))
                 type_results.append(t+':'+(','.join(str_results)))
             f.write(','.join(v) + "={" + '},{'.join(type_results) + "}\n")
         f.close()

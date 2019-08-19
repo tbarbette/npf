@@ -408,8 +408,8 @@ class Grapher:
         nseries = len(series)
 
         ndyn = len(dyns)
-        if nseries == 1 and ndyn > 0 and not self.options.graph_no_series and not (
-                            ndyn == 1 and npf.all_num(vars_values[dyns[0]]) and len(vars_values[dyns[0]]) > 2) and dyns[0] != "time":
+        if self.options.do_transform and (nseries == 1 and ndyn > 0 and not self.options.graph_no_series and not (
+                            ndyn == 1 and npf.all_num(vars_values[dyns[0]]) and len(vars_values[dyns[0]]) > 2) and dyns[0] != "time"):
             """Only one serie: expand one dynamic variable as serie, but not if it was plotable as a line"""
             script, build, all_results = series[0]
             if self.config("var_serie") and self.config("var_serie") in dyns:
@@ -736,7 +736,7 @@ class Grapher:
                 for i, (value, data) in enumerate(new_series.items()):
                     nbuild = build.copy()
                     nbuild.statics = build.statics.copy()
-                    nbuild._pretty_name = ' - '.join(([nbuild.pretty_name()] if len(series) > 1 else []) + ["%s = %s" % (self.var_name(to_get_out), str(value))])
+                    nbuild._pretty_name = ' - '.join(([nbuild.pretty_name()] if len(series) > 1 or self.options.show_serie else []) + ["%s = %s" % (self.var_name(to_get_out), str(value))])
                     if len(self.graphmarkers) > 0:
                         nbuild._marker = self.graphmarkers[i % len(self.graphmarkers)]
                     if len(series) == 1: #If there is one serie, expand the line types
@@ -873,6 +873,8 @@ class Grapher:
         data_types = graph.dataset()
         one_testie,one_build,whatever = graph.series[0]
 
+        if self.options.no_graph:
+            return
         # Combine some results as subplots of a single plot
         for i,(result_type_list, n_cols) in enumerate(self.configdict('graph_subplot_results', {}).items()):
             for result_type in re.split('[,]|[+]', result_type_list):
@@ -1017,7 +1019,6 @@ class Grapher:
                             s=shift
                             tot = len(data)
                         gi.setdefault(s,0)
-                        print(s)
                         slen = len(graphcolorseries[s % len(graphcolorseries)])
                         n = slen / tot
                         if n < 0:
@@ -1041,21 +1042,29 @@ class Grapher:
                 graph_types = self.configlist("graph_type",[])
                 graph_types.extend([graph_type, "line"])
                 graph_type = graph_types[isubplot if isubplot < len(graph_types) else len(graph_types) - 1]
+                if ndyn == 0 and graph_type != "simple_bar" and graph_type != "boxplot":
+                    print("WARNING: Cannot graph %s without dynamic variables" % graph_type)
+                    graph_type = "simple_bar"
                 barplot = False
-                if graph_type == "simple_bar":
-                    """No dynamic variables : do a barplot X=version"""
-                    r = self.do_simple_barplot(axis,result_type, data, shift, isubplot)
-                elif graph_type == "line":
-                    """One dynamic variable used as X, series are version line plots"""
-                    r = self.do_line_plot(axis, key, result_type, data,shift, isubplot)
-                elif graph_type == "boxplot":
-                    """One dynamic variable used as X, series are version line plots"""
-                    r = self.do_box_plot(axis, key, result_type, data,shift, isubplot)
-                else:
-                    """Barplot. X is all seen variables combination, series are version"""
-                    self.do_barplot(axis,vars_all, dyns, result_type, data, shift)
-                    barplot = True
-
+                try:
+                    if graph_type == "simple_bar":
+                        """No dynamic variables : do a barplot X=version"""
+                        r = self.do_simple_barplot(axis,result_type, data, shift, isubplot)
+                        barplot = True
+                    elif graph_type == "line":
+                        """One dynamic variable used as X, series are version line plots"""
+                        r = self.do_line_plot(axis, key, result_type, data,shift, isubplot)
+                    elif graph_type == "boxplot":
+                        """One dynamic variable used as X, series are version line plots"""
+                        r = self.do_box_plot(axis, key, result_type, data,shift, isubplot)
+                    else:
+                        """Barplot. X is all seen variables combination, series are version"""
+                        self.do_barplot(axis,vars_all, dyns, result_type, data, shift)
+                        barplot = True
+                except Exception as e:
+                    print("ERROR : could not graph %s" % result_type)
+                    print(e)
+                    continue
                 if not r:
                     continue
 
@@ -1092,14 +1101,13 @@ class Grapher:
                 baseLog = self.scriptconfig('var_log_base', key, default=None)
                 if baseLog:
                     isLog = True
-                if not isLog and not barplot:
+                if not isLog:
                     ax = data[0][0]
-                    l = is_log(ax)
-                    if l is not False:
+                    if npf.all_num(ax) and is_log(ax) is not False:
                         isLog = True
                         baseLog = l
 
-                if isLog:
+                if isLog and not barplot:
                     ax = data[0][0]
                     if ax is not None and len(ax) > 1:
                         if baseLog:
@@ -1135,7 +1143,9 @@ class Grapher:
                     else:
                         plt.xscale('symlog')
                     plt.gca().xaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%d'))
-                formatterSet, unithandled = self.set_axis_formatter(plt.gca().xaxis, xformat, xunit.strip(), isLog, True)
+
+                if not barplot:
+                    formatterSet, unithandled = self.set_axis_formatter(plt.gca().xaxis, xformat, xunit.strip(), isLog, True)
 
                 xticks = self.scriptconfig("var_ticks", key, default=None)
                 if xticks:
@@ -1227,7 +1237,9 @@ class Grapher:
                         if len(labels) == 1:
                             legend_title = None
 
-                        axis.set_ylabel(self.var_name(legend_title))
+                        if legend_title:
+                            axis.set_ylabel(self.var_name(legend_title))
+
                         if len(plots) == len(labels):
                             labels = []
                             for p in plots:
@@ -1327,6 +1339,9 @@ class Grapher:
 
         labels=[]
 
+        if len(data) > 30:
+            print("WARNING : Not drawing more than 30 boxplots")
+            return
         for i, (x, ys, e, build) in enumerate(data):
 
             boxdata=[]
@@ -1339,7 +1354,7 @@ class Grapher:
 
                 if i == 0:
                     labels.append(str(x[yi]))
-            plt.plot([], c= build._color , label=str(build.pretty_name()))
+            axis.plot([], c= build._color , label=str(build.pretty_name()))
 
 
 #                labels.append(build.pretty_name() + " "+ str(x[i]))
@@ -1347,8 +1362,10 @@ class Grapher:
 #            std = np.array([e[i][1] for i in order])
 #            ymin = np.array([np.min(e[i][2]) for i in order])
 #            ymax = np.array([np.max(e[i][2]) for i in order])
-
-            rects = axis.boxplot(boxdata, positions = pos, widths=0.6  )
+            if len(boxdata) > 1000:
+                print("WARNING: Not drawing more than 1000 points...")
+                continue
+            rects = axis.boxplot(boxdata, positions = pos, widths=0.6 )
             plt.setp(rects['boxes'], color = build._color)
             plt.setp(rects['whiskers'], color = build._color)
             plt.setp(rects['caps'], color = build._color)
@@ -1504,7 +1521,7 @@ class Grapher:
         yticks = self.scriptconfig("var_ticks", "result", default=None, result_type=result_type)
         shift = int(shift)
         if self.config_bool_or_in('var_grid',result_type):
-            axis.grid(True,linestyle=self.graphlines[( shift - 1 if shift > 0 else 0) % len(self.graphlines)],color=gridcolors[shift])
+            axis.grid(True,linestyle=self.graphlines[( shift - 1 if shift > 0 else 0) % len(self.graphlines)],color=gridcolors[shift], axis="y" if not self.config_bool_or_in('var_grid',key) else "xy" )
             axis.set_axisbelow(True)
         isLog = False
         baseLog = self.scriptconfig('var_log_base', "result",result_type=result_type, default=None)

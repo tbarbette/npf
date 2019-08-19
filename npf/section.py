@@ -6,11 +6,36 @@ from npf import npf
 from npf.repository import Repository
 from .variable import *
 from collections import OrderedDict
-
 from random import shuffle
 
 import re
 
+
+known_sections = ['info', 'config', 'variables', 'exit', 'pypost' , 'pyexit', 'late_variables', 'include', 'file', 'require', 'import', 'script', 'init', 'exit']
+
+class HunSpell:
+    dists = {}
+
+    def count(self, w):
+        t = 0
+        for l in w:
+            t = t + ord(l)
+        return t
+
+    def add(self, w):
+        if w not in self.dists.values():
+            self.dists.setdefault(self.count(w),  []).append(w)
+
+    def suggest(self, w, max = None):
+        data = self.dists
+        num = self.count(w)
+        s =  data.get(num, data[min(data.keys(), key=lambda k: abs(k-num))])
+        return s[0]
+
+
+hu = HunSpell()
+for sect in known_sections:
+    hu.add(sect)
 
 class SectionFactory:
     varPattern = "([a-zA-Z0-9_:-]+)[=](" + Variable.VALUE_REGEX + ")?"
@@ -31,7 +56,7 @@ class SectionFactory:
         """
         matcher = SectionFactory.namePattern.match(data)
         if not matcher:
-            raise Exception("Unknown section line '%s'" % data)
+            raise Exception("Unknown section line '%s'. Did you mean %s ?" % (data,hu.suggest(data)))
 
         if not SectionVariable.match_tags(matcher.group('tags'), testie.tags):
             return SectionNull()
@@ -100,7 +125,7 @@ class SectionFactory:
         elif sectionName == 'info':
             s = Section('info')
         if s is None:
-            raise Exception("Unknown section %s" % sectionName)
+            raise Exception("Unknown section %s, did you meant %s?" % sectionName, hu.suggest(sectionName))
         setattr(testie, s.name, s)
         return s
 
@@ -478,6 +503,7 @@ class SectionConfig(SectionVariable):
             'graph_variable_as_series': 'graph_variables_as_series',
             'graph_grid': 'var_grid',
             'graph_serie': 'var_serie',
+            'graph_linestyle': 'graph_lines',
             'var_combine': 'graph_combine_variables',
             'series_as_variables': 'graph_series_as_variables',
             'var_as_series': 'graph_variables_as_series',

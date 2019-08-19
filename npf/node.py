@@ -1,6 +1,6 @@
 import os
 import random
-
+import sys
 import re
 import socket
 
@@ -19,14 +19,17 @@ class Node:
         self.tags = []
         self.nfs = True
         self.addr = 'localhost'
+        self.port = 22
         self.arch = ''
         self.active_nics = range(32)
 
         # Always fill 32 random nics address that will be overwriten by config eventually
         self._gen_random_nics()
 
-        clusterFile = 'cluster/' + name + '.node'
-        if (os.path.exists(clusterFile)):
+        clusterFileName = 'cluster/' + name + '.node'
+        for path in ['./', os.path.dirname(sys.argv[0])]:
+          clusterFile = path + os.sep + clusterFileName
+          if (os.path.exists(clusterFile)):
             f = open(clusterFile, 'r')
             for i, line in enumerate(f):
                 line = line.strip()
@@ -47,6 +50,7 @@ class Node:
                     setattr(executor, match.group('var'), match.group('val'))
                     continue
                 raise Exception("%s:%d : Unknown node config line %s" % (clusterFile, i, line))
+            break
         else:
             self._find_nics()
 
@@ -84,13 +88,13 @@ class Node:
         return node
 
     @classmethod
-    def makeSSH(cls, user, addr, path, options):
+    def makeSSH(cls, user, addr, path, options, port=22):
         if path is None:
             path = os.getcwd()
         node = cls._nodes.get(addr, None)
         if node is not None:
             return node
-        sshex = SSHExecutor(user, addr, path)
+        sshex = SSHExecutor(user, addr, path, port)
         node = Node(addr, sshex, options.tags)
         cls._nodes[addr] = node
         node.ip = socket.gethostbyname(node.executor.addr)

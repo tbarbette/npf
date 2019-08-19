@@ -134,7 +134,7 @@ class MethodGet(UnversionedMethod):
     def checkout(self, branch=None):
         if branch is None:
             branch = self.repo.version
-        url = npf.replace_path(self.repo.url,Build(self.repo,branch))
+        url = npf.replace_path(self.repo.url,Build(self.repo,branch,self.options.result_path))
         if not Path(self.repo.get_build_path()).exists():
             os.makedirs(self.repo.get_build_path())
         try:
@@ -339,7 +339,7 @@ class Repository:
                 if i == 0:
                     return None
                 break
-            last_build = Build(self, version)
+            last_build = Build(self, version, self.options.result_path)
             if not with_results or last_build.hasResults():
                 if history <= 1:
                     break
@@ -360,7 +360,7 @@ class Repository:
         next(parents)  # The first commit is last_graph itself
 
         for i, commit in enumerate(parents):  # Get old results for graph
-            g_build = Build(self, commit.hexsha[:7])
+            g_build = Build(self, commit.hexsha[:7], self.options.result_path)
             if not g_build.hasResults(testie):
                 continue
             g_all_results = g_build.load_results(testie)

@@ -188,12 +188,12 @@ class Variable:
 
     NAME_REGEX = r'[a-zA-Z0-9._-]+'
     TAGS_REGEX = r'[a-zA-Z0-9._,|!-]+'
-    VALUE_REGEX = r'[a-zA-Z0-9._/,{}-]+'
+    VALUE_REGEX = r'[a-zA-Z0-9._/,{}^$-]+'
     VARIABLE_REGEX = r'(?<!\\)[$](' \
                      r'[{](?P<varname_in>' + NAME_REGEX + ')[}]|' \
                      r'(?P<varname_sp>' + NAME_REGEX + ')(?=}|[^a-zA-Z0-9_]))'
     MATH_REGEX = r'(?<!\\)[$][(][(](?P<expr>.*?)[)][)]'
-    ALLOWED_NODE_VARS = 'path|user|addr|tags|nfs|arch'
+    ALLOWED_NODE_VARS = 'path|user|addr|tags|nfs|arch|port'
     NICREF_REGEX = r'(?P<role>[a-z0-9]+)[:](:?(?P<nic_idx>[0-9]+)[:](?P<type>' + NIC.TYPES + '+)|(?P<node>'+ALLOWED_NODE_VARS+'|ip))'
     VARIABLE_NICREF_REGEX = r'(?<!\\)[$][{]' + NICREF_REGEX + '[}]'
 

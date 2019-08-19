@@ -203,14 +203,16 @@ def main():
 
             try:
                 prev_results = build.load_results(testie)
+                prev_kind_results = build.load_results(testie, kind=True)
             except FileNotFoundError:
                 prev_results = None
+                prev_kind_results = None
 
             all_results = None
             time_results = None
             try:
                 if all_results is None and time_results is None:
-                    all_results, time_results, init_done = testie.execute_all(build, prev_results=prev_results, do_test=args.do_test, options=args)
+                    all_results, time_results, init_done = testie.execute_all(build, prev_results=prev_results, prev_kind_results=prev_kind_results, do_test=args.do_test, options=args)
                 if not all_results and not time_results:
                     continue
             except ScriptInitException:

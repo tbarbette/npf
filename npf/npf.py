@@ -61,17 +61,23 @@ def add_graph_options(parser: ArgumentParser):
                    help='Size of graph', dest="graph_size")
     g.add_argument('--graph-filename', metavar='graph_filename', type=str, default=None, dest='graph_filename',
                    help='path to the file to output the graph')
+
+    g.add_argument('--show-serie', dest='show_serie', action='store_true', default=False, help='always add the serie name in the file path')
     g.add_argument('--graph-reject-outliers', dest='graph_reject_outliers', action='store_true', default=False)
 
     g.add_argument('--graph-no-series', dest='graph_no_series', action='store_true', default=False)
 
     g.add_argument('--graph-group-repo', dest='group_repo', action='store_true', default=False)
 
+    g.add_argument('--no-transform', dest='do_transform', action='store_false', default=True, help="Forbid automatic transformation of data such as extracting a variable as a serie")
+
     g.add_argument('--graph-select-max', dest='graph_select_max', type=int, default=None)
 
     g.add_argument('--graph-dpi', dest='graph_dpi', type=int, default=300)
 
     g.add_argument('--no-graph-time', dest='do_time', action='store_false', default=True)
+
+    g.add_argument('--no-graph', dest='no_graph', action='store_true', default=False)
 
     g.add_argument('--iterative', dest='iterative', action='store_true', default=False,
                    help='Graph after each results, allowing to get a faster glimpse at the results')
@@ -124,8 +130,8 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
     t.add_argument('--use-last',
                    help='Use data from previous version instead of running test if possible', dest='use_last',
                    nargs='?',
-                   default=False)
-
+                   default=0)
+    t.add_argument('--result-path', metavar='path', type=str, nargs=1, help='Path to NPF\'s own database of results. By default it is a "result" folder.', default=["result"])
     t.add_argument('--tags', metavar='tag', type=str, nargs='+', help='list of tags', default=[], action=ExtendAction)
     t.add_argument('--variables', metavar='variable=value', type=str, nargs='+', action=ExtendAction,
                    help='list of variables values to override', default=[])
@@ -203,8 +209,8 @@ def executor(role, default_role_map):
 
 
 def parse_nodes(options):
-    if options.use_last is not False:
-        if not options.use_last:
+    if type(options.use_last) is not int:
+        if options.use_last:
             options.use_last = 100
 
     roles['default'] = Node.makeLocal(options)
@@ -251,9 +257,12 @@ def override(args, testies):
     return testies
 
 
+def npf_root():
+    return os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+
 def find_local(path):
     if not os.path.exists(path):
-        return os.path.dirname(os.path.dirname(os.path.realpath(__file__))) + '/' + path
+        return npf_root() + '/' + path
     return path
 
 

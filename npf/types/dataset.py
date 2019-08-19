@@ -167,7 +167,7 @@ def write_output(datasets, statics, options, run_list):
                 if result_type in csvs:
                     type_filename,csvfile,wr = csvs[result_type]
                 else:
-                    type_filename = npf.build_filename(testie, build, options.output if options.output != 'graph' else options.graph_filename, statics, 'csv', type_str=result_type,show_serie=(len(datasets) > 1), force_ext=True, data_folder=True)
+                    type_filename = npf.build_filename(testie, build, options.output if options.output != 'graph' else options.graph_filename, statics, 'csv', type_str=result_type,show_serie=(len(datasets) > 1 or options.show_serie), force_ext=True, data_folder=True)
                     csvfile = open(type_filename, 'w')
                     wr = csv.writer(csvfile, delimiter=' ',
                                 quotechar='"', quoting=csv.QUOTE_MINIMAL)
@@ -249,6 +249,7 @@ def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list
 
         for result_type in x.keys():
 
+          try:
 
             if not do_x_sort:
                 ox = x[result_type]
@@ -262,7 +263,12 @@ def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list
 
 
             data_types.setdefault(result_type, []).append((ox,oy,oe,build))
-
+          except Exception as err:
+              print("ERROR while transforming data")
+              print(err)
+              print("x",x[result_type])
+              print("y",y[result_type])
+              print("e",e[result_type])
 
     if series_sort is not None and series_sort != "":
         if type(series_sort) is str and series_sort.startswith('-'):
