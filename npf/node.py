@@ -3,6 +3,7 @@ import random
 import sys
 import re
 import socket
+import time
 
 from npf.executor.localexecutor import LocalExecutor
 from npf.executor.sshexecutor import SSHExecutor
@@ -22,6 +23,8 @@ class Node:
         self.port = 22
         self.arch = ''
         self.active_nics = range(32)
+        self.multi = None
+        self.mode = "bash"
 
         # Always fill 32 random nics address that will be overwriten by config eventually
         self._gen_random_nics()
@@ -60,6 +63,9 @@ class Node:
 
     def get_nic(self, nic_idx):
         return self._nics[self.active_nics[nic_idx]]
+
+    def get_name(self):
+        return self.name
 
     @staticmethod
     def _addr_gen():
@@ -100,6 +106,7 @@ class Node:
         node.ip = socket.gethostbyname(node.executor.addr)
         if options.do_test and options.do_conntest:
             print("Testing connection to %s..." % node.executor.addr)
+            time.sleep(0.01)
             pid, out, err, ret = sshex.exec(cmd="echo \"test\"")
             out = out.strip()
             if ret != 0 or out != "test":

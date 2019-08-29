@@ -27,7 +27,7 @@ class LocalExecutor(Executor):
     def __init__(self):
         super().__init__()
 
-    def exec(self, cmd, bin_paths : List[str]=[], queue: Queue = None, options = None, stdin = None, timeout = None, sudo = False, testdir=None, event=None, title=None, env = {} ):
+    def exec(self, cmd, bin_paths : List[str]=[], queue: Queue = None, options = None, stdin = None, timeout = None, sudo = False, testdir=None, event=None, title=None, env = {}, virt="" ):
         if testdir is not None:
             os.chdir("..")
         if not title:
@@ -45,7 +45,10 @@ class LocalExecutor(Executor):
             print("Executing (PATH+=%s) :\n%s" % (':'.join(bin_paths), cmd.strip()))
 
         if sudo and pwd.getpwuid(os.getuid()).pw_name != "root":
-            cmd = "sudo -E bash -c '"+ cmd.replace("'", "\\'") + "'";
+            cmd = "sudo -E " + virt + "  bash -c '"+ cmd.replace("'", "\\'") + "'";
+        else:
+            cmd = virt + " bash -c '"+ cmd.replace("'", "\\'") + "'";
+
 
         p = Popen(cmd,
                   stdin=PIPE, stdout=PIPE, stderr=PIPE,

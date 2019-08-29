@@ -7,6 +7,8 @@ from npf import npf
 from npf.nic import NIC
 from asteval import Interpreter
 
+import random
+
 def is_numeric(s):
     try:
         val = float(s)
@@ -117,10 +119,13 @@ def replace_variables(v: dict, content: str, self_role=None, default_role_map={}
 
     def do_replace_nics(nic_match):
         varRole = nic_match.group('role')
+
+        node = npf.nodes_for_role(varRole, self_role, default_role_map)
+
         if nic_match.groupdict()['node']:
-             return str(getattr(npf.node(varRole, self_role, default_role_map), str(nic_match.group('node'))));
+             return str(getattr(node[0], str(nic_match.group('node'))));
         else:
-            return str(npf.node(varRole, self_role, default_role_map).get_nic(
+            return str(node[0].get_nic(
             int(nic_match.group('nic_idx') if nic_match.group('nic_idx') else v[nic_match.group('nic_var')]))[
                        nic_match.group('type')])
 
@@ -163,13 +168,18 @@ class VariableFactory:
         if result:
             return ExpandVariable(name, result.group(1), vsection)
 
-        result = regex.match("HEAD[ ]*\([ ]*\$([^,]+)[ ]*,[ ]*\$([^,]+)[ ]*(,[ ]*(?P<sep>.+)[ ]*)?\)", valuedata)
+        result = regex.match("RANDOM[ ]*\([ ]*([^,]+)[ ]*,[ ]*([^,]+)[ ]*\)", valuedata)
+        if result:
+            if vsection is None:
+                raise Exception("RANDOM variable without vsection",vsection)
+            return RandomVariable(name, vsection.replace_all(result.group(1))[0], vsection.replace_all(result.group(2))[0])
+
+        result = regex.match("HEAD[ ]*\([ ]*([^,]+)[ ]*,[ ]*\$([^,]+)[ ]*(,[ ]*(?P<sep>.+)[ ]*)?\)", valuedata)
         if result:
             if vsection is None:
                 raise Exception("HEAD variable without vsection",vsection)
-            if result.group(1) not in vsection.vlist:
-                return None
-            return HeadVariable(name, vsection.vlist[result.group(1)].makeValues(),
+            nums = vsection.replace_all(result.group(1))[0]
+            return HeadVariable(name, nums,
                                 vsection.vlist[result.group(2)].makeValues(), result.group('sep'))
         result = regex.match("IF[ ]*\([ ]*([^,]+)[ ]*,[ ]*([^,]+)[ ]*,[ ]*([^,]+)[ ]*\)", valuedata)
         if result:
@@ -194,7 +204,7 @@ class Variable:
                      r'(?P<varname_sp>' + NAME_REGEX + ')(?=}|[^a-zA-Z0-9_]))'
     MATH_REGEX = r'(?<!\\)[$][(][(](?P<expr>.*?)[)][)]'
     ALLOWED_NODE_VARS = 'path|user|addr|tags|nfs|arch|port'
-    NICREF_REGEX = r'(?P<role>[a-z0-9]+)[:](:?(?P<nic_idx>[0-9]+)[:](?P<type>' + NIC.TYPES + '+)|(?P<node>'+ALLOWED_NODE_VARS+'|ip))'
+    NICREF_REGEX = r'(?P<role>[a-z0-9]+)[:](:?(?P<nic_idx>[0-9]+)[:](?P<type>' + NIC.TYPES + '+)|(?P<node>'+ALLOWED_NODE_VARS+'|ip|multi))'
     VARIABLE_NICREF_REGEX = r'(?<!\\)[$][{]' + NICREF_REGEX + '[}]'
 
 # For each value N of nums, generate a variable with the first N element of values
@@ -433,3 +443,21 @@ class IfVariable(Variable):
 
     def is_numeric(self):
         return False
+
+class RandomVariable(Variable):
+    def __init__(self, name, a, b):
+        self.a = int(a.strip())
+        self.b = int(b.strip())
+
+    def makeValues(self):
+        return [random.randint(self.a, self.b)]
+
+
+    def count(self):
+        return 1
+
+    def format(self):
+        return int
+
+    def is_numeric(self):
+        return True

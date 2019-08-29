@@ -33,7 +33,7 @@ class SSHExecutor(Executor):
         return ssh
 
 
-    def exec(self, cmd, bin_paths : List[str] = None, queue: Queue = None, options = None, stdin = None, timeout=None, sudo=False, testdir=None, event=None, title=None, env={}):
+    def exec(self, cmd, bin_paths : List[str] = None, queue: Queue = None, options = None, stdin = None, timeout=None, sudo=False, testdir=None, event=None, title=None, env={}, virt = ""):
         if not title:
             title = self.addr
         if not event:
@@ -56,9 +56,10 @@ class SSHExecutor(Executor):
             path_cmd = ''
 
         if sudo and self.user != "root":
-            cmd = "sudo -E bash -c '"+path_cmd + cmd.replace("'", "\\'") + "'";
+            cmd = "sudo -E " + virt +" bash -c '"+path_cmd + cmd.replace("'", "'\"'\"'") + "'";
         else:
-            pre = path_cmd + pre
+            cmd = virt +" bash -c '"+path_cmd + cmd.replace("'", "'\"'\"'") + "'";
+            #pre = path_cmd + pre
 
         try:
             ssh = self.get_connection(cache=False)

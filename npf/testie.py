@@ -43,14 +43,17 @@ class RemoteParameters:
         self.event = None
         self.title = None
         self.env = None
+        self.virt = ""
 
     pass
 
 
 def _parallel_exec(param: RemoteParameters):
-    executor = npf.executor(param.role, param.default_role_map)
+    nodes = npf.nodes_for_role(param.role)
+    executor = nodes[param.role_id].executor
     if param.waitfor:
         param.event.listen(param.waitfor)
+
     param.event.wait_for_termination(param.delay)
     if param.event.is_terminated():
         return 1, 'Killed before execution', 'Killed before execution', 0, param.script
@@ -64,11 +67,17 @@ def _parallel_exec(param: RemoteParameters):
                                  testdir=param.testdir,
                                  event=param.event,
                                  title=param.name,
-                                 env=param.env)
+                                 env=param.env,
+                                 virt=param.virt)
     if pid == 0:
         return False, o, e, c, param.script
     else:
-        if param.autokill or pid == -1:
+        if param.autokill is not None:
+                param.autokill.value = param.autokill.value - 1
+                if param.autokill.value == 0:
+                    Testie.killall(param.queue, param.event)
+
+        elif pid == -1:
             Testie.killall(param.queue, param.event)
         if pid == -1:
             return -1, o, e, c, param.script
@@ -191,6 +200,10 @@ class Testie:
                     if script.type == SectionScript.TYPE_SCRIPT:
                         script.params['autokill'] = imp.params['autokill']
                 del imp.params['autokill']
+            if imp.multi is not None:
+                for script in imp.testie.scripts:
+                    if script.type == SectionScript.TYPE_SCRIPT or script.type == SectionScript.TYPE_INIT:
+                        script.multi = imp.multi
             overriden_variables = {}
             for k, v in imp.params.items():
                 overriden_variables[k] = VariableFactory.build(k, v)
@@ -235,8 +248,9 @@ class Testie:
         toSend = set()
         for script in self.get_scripts():
             role = script.get_role()
-            node = npf.node(role)
-            if not node.nfs:
+            nodes = npf.nodes_for_role(role)
+            for node in nodes:
+              if not node.nfs:
                 for repo in repo_under_test:
                     if repo.get_reponame() != 'local' and not no_build:
                         toSend.add((repo.reponame,role,node, repo.get_build_path()))
@@ -261,8 +275,9 @@ class Testie:
 
         L = [imp.testie.sendfile for imp in self.imports]
         for role, fpaths in itertools.chain(self.sendfile.items(), {k: v for d in L for k, v in d.items()}.items()):
-            node = npf.node(role)
-            if not node.nfs:
+            nodes = npf.nodes_for_role(role)
+            for node in nodes:
+              if not node.nfs:
                 for fpath in fpaths:
                     fpath = SectionVariable.replace_variables(st, fpath, role,
                                                               self.config.get_dict("default_role_map"))
@@ -315,7 +330,7 @@ class Testie:
             if self.options.show_files:
                 print("File %s:" % filename)
                 print(p.strip())
-            for node in npf.nodes(role):
+            for node in npf.nodes_for_role(role):
                 if not node.executor.writeFile(filename, path_to_root, p):
                     raise Exception("Could not create file %s on %s" % (filename, node.name))
 
@@ -452,6 +467,7 @@ class Testie:
             f_mine = False
         if not os.path.exists(npf.npf_root() + '/' + test_folder):
             os.mkdir(npf.npf_root() + '/' + test_folder)
+        save_path = os.getcwd()
         os.chdir(npf.npf_root() + '/' + test_folder)
 
         # Build file list
@@ -507,15 +523,46 @@ class Testie:
                                           [(imp.testie, imp.imp_v, imp.get_role()) for imp in
                                            self.imports] if do_imports else []) + [
                                       (self, v, None)]:
-                    for script in t.scripts:
+                  for script in t.scripts:
+                    srole = role if role else script.get_role()
+                    nodes = npf.nodes_for_role(srole)
+
+                    autokill = m.Value('i', 0) if npf.parseBool(script.params.get("autokill", t.config["autokill"])) else None
+                    v["NPF_NODE_MAX"] = len(nodes)
+                    for i_node,node in enumerate(nodes):
+                      v["NPF_NODE"] = node.get_name()
+                      v["NPF_NODE_ID"] = i_node
+                      multi = script.multi
+
+                      if multi is None:
+                          multi = [0]
+                      elif multi == '*':
+                          if node.multi:
+                              multi = range(1, node.multi + 1)
+                          else:
+                              multi = [0]
+                      elif type(multi) == str:
+                          multi = [int(multi)]
+
+                      for i_multi in multi:
+                        if autokill is not None:
+                            autokill.value = autokill.value + 1
                         if not script.get_type() in (allowed_types.difference(set([SectionScript.TYPE_EXIT]))):
                             continue
                         param = RemoteParameters()
+                        param.sudo = script.params.get("sudo", False)
+
+                        v["NPF_MULTI"] = i_multi
+                        v["NPF_MULTI_MAX"] = node.multi
+                        if node.mode == "netns" and i_multi > 0:
+                            param.virt = "ip netns exec npfns%d" % i_multi
+                            param.sudo = True
+
 
                         param.commands = "mkdir -p " + test_folder + " && cd " + test_folder + ";\n" + SectionVariable.replace_variables(
                             v,
                             script.content,
-                            role if role else script.get_role(),
+                            srole,
                             self.config.get_dict(
                                 "default_role_map"))
                         param.options = self.options
@@ -531,18 +578,18 @@ class Testie:
 
                         param.timeout = timeout
                         script.timeout = timeout
-                        param.role = script.get_role()
+                        param.role = srole
+                        param.role_id = i_node
                         param.default_role_map = self.config.get_dict("default_role_map")
                         param.delay = script.delay()
                         deps_bin_path = [repo.get_bin_folder() for repo in script.get_deps_repos(self.options) if
                                          not repo.reponame in self.options.ignore_deps]
                         param.bin_paths = deps_bin_path + [build.get_bin_folder()]
-                        param.sudo = script.params.get("sudo", False)
                         param.testdir = test_folder
                         param.event = event
                         param.script = script
                         param.name = script.get_name(True)
-                        param.autokill = npf.parseBool(script.params.get("autokill", t.config["autokill"]))
+                        param.autokill = autokill
                         param.env = OrderedDict()
                         param.env.update(v_internals)
                         param.env.update([(k, v.replace('$NPF_BUILD_PATH', build.repo.get_build_path())) for k, v in
@@ -564,6 +611,7 @@ class Testie:
                         parallel_execs = p.map(_parallel_exec,
                                                remote_params)
                     else:
+                        print("Sequential execution...")
                         parallel_execs = []
                         for remoteParam in remote_params:
                             parallel_execs.append(_parallel_exec(remoteParam))
@@ -771,7 +819,7 @@ class Testie:
             for imp in self.imports:
                 imp.testie.cleanup()
             self.cleanup()
-        os.chdir('..')
+        os.chdir(save_path)
         if not self.options.preserve_temp and f_mine:
             shutil.rmtree(test_folder)
         return data_results, all_kind_results, all_output, all_err, n_exec, n_err
@@ -1148,10 +1196,11 @@ class Testie:
             s = excludes.split('+')
             m = set()
             for role in s:
-                node = npf.node(role)
-                if node in m:
+                nodes = npf.node_for_roles(role)
+                for node in nodes:
+                  if node in m:
                     return False
-                m.add(node)
+                  m.add(node)
         return True
 
     def parse_script_roles(self):
@@ -1163,7 +1212,7 @@ class Testie:
             for k, val in script.params.items():
                 nic_match = re.match(r'(?P<nic_idx>[0-9]+)[:](?P<type>' + NIC.TYPES + '+)', k, re.IGNORECASE)
                 if nic_match:
-                    npf.node(script.get_role(), self.config.get_dict("default_role_map")).get_nic(
+                    npf.nodes_for_role(script.get_role(), self.config.get_dict("default_role_map"))[0].get_nic(
                         int(nic_match.group('nic_idx')))[nic_match.group('type')] = val
 
     def get_imports(self) -> List[SectionImport]:

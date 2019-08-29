@@ -1444,7 +1444,7 @@ class Grapher:
                 rects = axis.scatter(ax[mask], y[mask], label=lab, color=c,  marker=marker)
             else:
                 rects = axis.plot(ax[mask], y[mask], label=lab, color=c, linestyle=build._line, marker=marker,markevery=(1 if len(ax[mask]) < 20 else math.ceil(len(ax[mask]) / 20)),drawstyle=drawstyle)
-            error_type = self.scriptconfig('graph_error', 'result', result_type=result_type, default = "none").lower()
+            error_type = self.scriptconfig('graph_error', 'result', result_type=result_type, default = "bar").lower()
             if error_type != 'none':
                 if error_type == 'bar' or (error_type == None and not self.config('graph_error_fill')):
                     if error_type == 'barminmax':

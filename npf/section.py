@@ -41,10 +41,10 @@ class SectionFactory:
     varPattern = "([a-zA-Z0-9_:-]+)[=](" + Variable.VALUE_REGEX + ")?"
     namePattern = re.compile(
         "^(?P<tags>" + Variable.TAGS_REGEX + "[:])?(?P<name>info|config|variables|exit|pypost|pyexit|late_variables|include (?P<includeName>[a-zA-Z0-9_./-]+)||(init-)?file(:?[@](?P<fileRole>[a-zA-Z0-9]+))? (?P<fileName>[a-zA-Z0-9_.-]+)(:? (?P<fileNoparse>noparse))?|require|"
-                                             "import(:?[@](?P<importRole>[a-zA-Z0-9]+))?[ \t]+(?P<importModule>" + Variable.VALUE_REGEX + ")(?P<importParams>([ \t]+" +
+                                             "import(:?[@](?P<importRole>[a-zA-Z0-9]+)(:?[-](?P<importMulti>[*0-9]+))?)?[ \t]+(?P<importModule>" + Variable.VALUE_REGEX + ")(?P<importParams>([ \t]+" +
         varPattern + ")+)?|" +
                      "sendfile(:?[@](?P<sendfileRole>[a-zA-Z0-9]+))?[ \t]+(?P<sendfilePath>.*)|" +
-                     "(:?script|init|exit)(:?[@](?P<scriptRole>[a-zA-Z0-9]+))?(?P<scriptParams>([ \t]+" + varPattern + ")*))$")
+                     "(:?script|init|exit)(:?[@](?P<scriptRole>[a-zA-Z0-9]+)(:?[-](?P<scriptMulti>[*0-9]+))?)?(?P<scriptParams>([ \t]+" + varPattern + ")*))$")
 
     @staticmethod
     def build(testie, data):
@@ -69,6 +69,8 @@ class SectionFactory:
             module = matcher.group('importModule')
             params = dict(re.findall(SectionFactory.varPattern, params)) if params else {}
             s = SectionImport(matcher.group('importRole'), module, params)
+            multi = matcher.group('importMulti')
+            s.multi = multi
             return s
 
         if sectionName.startswith('sendfile'):
@@ -80,6 +82,8 @@ class SectionFactory:
             params = matcher.group('scriptParams')
             params = dict(re.findall(SectionFactory.varPattern, params)) if params else {}
             s = SectionScript(matcher.group('scriptRole'), params)
+            multi = matcher.group('scriptMulti')
+            s.multi = multi
             if sectionName.startswith('init'):
                 s.type = SectionScript.TYPE_INIT
                 s.params.setdefault("autokill", False)
@@ -175,6 +179,7 @@ class SectionScript(Section):
         self._role = role
         self.type = self.TYPE_SCRIPT
         self.index = ++self.num
+        self.multi = None
 
     def get_role(self):
         return self._role
@@ -221,6 +226,7 @@ class SectionImport(Section):
             params = {}
         self.params = params
         self.is_include = is_include
+        self.multi = None
         if is_include:
             self.module = module
         elif module is not None and module is not '':

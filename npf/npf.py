@@ -185,7 +185,7 @@ nodePattern = regex.compile(
 roles = {}
 
 
-def node(role, self_role=None, default_role_map={}):
+def nodes_for_role(role, self_role=None, default_role_map={}):
     if role is None or role == '':
         role = 'default'
     if role == 'self':
@@ -213,7 +213,7 @@ def parse_nodes(options):
         if options.use_last:
             options.use_last = 100
 
-    roles['default'] = Node.makeLocal(options)
+    roles['default'] = [Node.makeLocal(options)]
 
     for val in options.cluster:
         variables = val.split(',')
@@ -228,12 +228,21 @@ def parse_nodes(options):
         else:
             node = Node.makeSSH(user=match.group('user'), addr=match.group('addr'), path=match.group('path'),
                             options=options)
-        roles[match.group('role')] = node
+        role = match.group('role')
+        if role in roles:
+            roles[role].append(node)
+            print("Role %s has multiple nodes. The role will be executed by multiple machines. If this is not intended, fix your --cluster option." % role)
+        else:
+            roles[role] = [node]
         del variables[0]
         for opts in variables:
             var,val = opts.split('=')
             if var == 'nic':
                 node.active_nics = [ int(v) for v in val.split('+') ]
+            elif var == "multi":
+                node.multi = int(val)
+            elif var == "mode":
+                node.mode = val
             else:
                 raise Exception("Unknown cluster variable : %s" % var)
 
@@ -315,10 +324,6 @@ def build_output_filename(options, repo_list):
     else:
         filename = options.graph_filename
     return filename
-
-def nodes(role) -> List[Node]:
-    return [node(role)]
-
 
 def replace_path(path, build = None):
     if build:
