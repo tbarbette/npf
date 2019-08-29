@@ -201,7 +201,7 @@ class Variable:
     VALUE_REGEX = r'[a-zA-Z0-9._/,{}^$-]+'
     VARIABLE_REGEX = r'(?<!\\)[$](' \
                      r'[{](?P<varname_in>' + NAME_REGEX + ')[}]|' \
-                     r'(?P<varname_sp>' + NAME_REGEX + ')(?=}|[^a-zA-Z0-9_]))'
+                     r'(?P<varname_sp>' + NAME_REGEX + ')(?=}|[^a-zA-Z0-9_]|$))'
     MATH_REGEX = r'(?<!\\)[$][(][(](?P<expr>.*?)[)][)]'
     ALLOWED_NODE_VARS = 'path|user|addr|tags|nfs|arch|port'
     NICREF_REGEX = r'(?P<role>[a-z0-9]+)[:](:?(?P<nic_idx>[0-9]+)[:](?P<type>' + NIC.TYPES + '+)|(?P<node>'+ALLOWED_NODE_VARS+'|ip|multi))'
@@ -211,6 +211,8 @@ class Variable:
 class HeadVariable(Variable):
     def __init__(self, name, nums, values, join = None):
         self.values = values
+        if not is_numeric(nums):
+            raise Exception("%s is not a number!" % nums)
         self.nums = nums
         self.join = join if join else "\n"
 

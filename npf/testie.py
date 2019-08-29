@@ -270,8 +270,9 @@ class Testie:
 
         st = dict([(f, v.makeValues()[0]) for f, v in self.variables.statics().items()])
         st.update(v_internals)
+
         for late_variables in self.get_late_variables():
-            st.update(late_variables.execute(st, self))
+            st.update(late_variables.execute(st, self, fail=False))
 
         L = [imp.testie.sendfile for imp in self.imports]
         for role, fpaths in itertools.chain(self.sendfile.items(), {k: v for d in L for k, v in d.items()}.items()):
@@ -862,7 +863,7 @@ class Testie:
             for k, v in self.variables.statics().items():
                 vs[k] = v.makeValues()[0]
             for late_variables in self.get_late_variables():
-                vs.update(late_variables.execute(vs, self))
+                vs.update(late_variables.execute(vs, self, fail=False))
             data_results, all_kind_results, output, err, num_exec, num_err = self.execute(build, Run(vs), v=vs, n_runs=1,
                                                                                       n_retry=0,
                                                                                       allowed_types={"init"},
@@ -921,9 +922,10 @@ class Testie:
                 n += 1
                 run = Run(variables)
                 run.variables.update(build.repo.overriden_variables)
-                variables = variables.copy()
+                variables = run.variables.copy()
+
                 for late_variables in self.get_late_variables():
-                    variables.update(late_variables.execute({**variables, **v_internals}, self))
+                    variables.update(late_variables.execute({**variables, **v_internals}, testie=self))
 
                 for imp in self.get_imports():
                     for late_variables in imp.testie.get_late_variables():

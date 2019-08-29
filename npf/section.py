@@ -412,7 +412,7 @@ class SectionVariable(Section):
         return valid
 
     @staticmethod
-    def parse_variable(line, tags, vsection=None):
+    def parse_variable(line, tags, vsection=None, fail=True):
         try:
             if not line:
                 return None, None, False
@@ -427,12 +427,15 @@ class SectionVariable(Section):
             name = match.group('name')
             return name, VariableFactory.build(name, match.group('value'), vsection), match.group('assignType')
         except:
-            print("Error parsing line %s" % line)
-            raise
+            if fail:
+                print("Error parsing line %s" % line)
+                raise
+            else:
+                return None, None, False
 
-    def build(self, content, testie, check_exists=False):
+    def build(self, content, testie, check_exists=False, fail=True):
         for line in content.split("\n"):
-            var, val, assign = self.parse_variable(line, testie.tags, self)
+            var, val, assign = self.parse_variable(line, testie.tags, vsection=self, fail=fail)
             if not var is None and not val is None:
                 if check_exists and not var in self.vlist:
 
@@ -474,13 +477,13 @@ class SectionLateVariable(SectionVariable):
     def finish(self, testie):
         testie.late_variables.append(self)
 
-    def execute(self, variables, testie):
+    def execute(self, variables, testie, fail=True):
         self.vlist = OrderedDict()
         for k, v in variables.items():
             self.vlist[k] = SimpleVariable(k, v)
         content = self.content
 
-        vlist = self.build(content, testie)
+        vlist = self.build(content, testie, fail=fail)
         final = OrderedDict()
         for k, v in vlist.items():
             vals = v.makeValues()
