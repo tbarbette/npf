@@ -186,7 +186,7 @@ to get statistics out of results.
 
 
 ## Writing testie files
-See [testies/README.md](testies/README.md) to read more about testies and learn about creating new ones. Testies describe the tests and parameters to re-run them in multiple configuration. Testie are the heart of NPF.
+See [tests/README.md](tests/README.md) to read more about testies and learn about creating new ones. Testies describe the tests and parameters to re-run them in multiple configuration. Testie are the heart of NPF.
 
 ## Repository files
 See [repo/README.md](repo/README.md) to lear how to build repository definition files to let NPF know how to fetch and compile some software
