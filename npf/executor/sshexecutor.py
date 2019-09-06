@@ -115,6 +115,7 @@ class SSHExecutor(Executor):
                     ssh_stdin.channel.send(chr(3))
                     i=0
                     ssh_stdout.channel.status_event.wait(timeout=1)
+
                 ret = 0 #Ignore return code because we kill it before completion.
                 ssh.close()
             else:

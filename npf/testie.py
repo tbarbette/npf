@@ -309,6 +309,7 @@ class Testie:
             files = self.files
         for s in files:
             role = s.get_role() if s.get_role() else self_role
+            v["NPF_NODE_MAX"] = len(npf.nodes_for_role(role))
             if not s.noparse:
                 p = SectionVariable.replace_variables(v, s.content, role, self.config.get_dict("default_role_map"))
             else:
@@ -415,6 +416,7 @@ class Testie:
                         n *= 1024 * 1024 * 1024
                     if n != 0 or (self.config.match("accept_zero", result_type)) or kind_value is not None:
                         result_add = self.config.get_bool_or_in("result_add", result_type)
+                        result_append = self.config.get_bool_or_in("result_append", result_type)
                         if kind_value:
                             t = float(kind_value)
                             if result_type in new_kind_results.setdefault(kind,{}).setdefault(t, {}):
@@ -428,7 +430,9 @@ class Testie:
                             else:
                                 new_kind_results[kind][t][result_type] = n
                         else:
-                            if result_type in new_data_results and result_add:
+                            if result_append:
+                                new_data_results.setdefault(result_type,[]).append(n)
+                            elif result_type in new_data_results and result_add:
                                 new_data_results[result_type] += n
                             else:
                                 new_data_results[result_type] = n
@@ -554,7 +558,7 @@ class Testie:
                         param.sudo = script.params.get("sudo", False)
 
                         v["NPF_MULTI"] = i_multi
-                        v["NPF_MULTI_MAX"] = node.multi
+                        v["NPF_MULTI_MAX"] = node.multi if node.multi is not None else 1
                         if node.mode == "netns" and i_multi > 0:
                             param.virt = "ip netns exec npfns%d" % i_multi
                             param.sudo = True

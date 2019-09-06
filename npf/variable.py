@@ -178,7 +178,7 @@ class VariableFactory:
         if result:
             if vsection is None:
                 raise Exception("HEAD variable without vsection",vsection)
-            nums = vsection.replace_all(result.group(1))[0]
+            nums = vsection.replace_all(result.group(1))[0].strip()
             return HeadVariable(name, nums,
                                 vsection.vlist[result.group(2)].makeValues(), result.group('sep'))
         result = regex.match("IF[ ]*\([ ]*([^,]+)[ ]*,[ ]*([^,]+)[ ]*,[ ]*([^,]+)[ ]*\)", valuedata)
@@ -221,14 +221,10 @@ class HeadVariable(Variable):
         if self.nums == 0:
             return ['']
         vs = []
-        for i in self.nums:
-            try:
-                if type(i) is str:
-                    i = int(i.strip())
-                vs.append((self.join.join(self.values[:i]), i))
-            except Exception as e:
-                print("ERROR in HEAD variable : %s is not a number" % str(i))
-                print(e)
+        i = int(self.nums)
+        if type(i) is str:
+            i = int(i.strip())
+        vs.append((self.join.join(self.values[:i]), i))
         return vs
 
     def count(self):
