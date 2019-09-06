@@ -563,7 +563,6 @@ class Testie:
                             param.virt = "ip netns exec npfns%d" % i_multi
                             param.sudo = True
 
-
                         param.commands = "mkdir -p " + test_folder + " && cd " + test_folder + ";\n" + SectionVariable.replace_variables(
                             v,
                             script.content,
@@ -609,7 +608,6 @@ class Testie:
                 n_exec += n
                 if n == 0:
                     break
-
                 try:
                     if self.options.allow_mp:
                         p = multiprocessing.Pool(n)
@@ -643,6 +641,7 @@ class Testie:
                     p.terminate()
                 worked = False
                 critical_failed = False
+
                 for iscript, (r, o, e, c, script) in enumerate(parallel_execs):
                     if r == 0:
                         print("Timeout of %d seconds expired for script %s on %s..." % (
@@ -683,6 +682,7 @@ class Testie:
                         worked = True
                         output += o
                         err += e
+
                 if SectionScript.TYPE_EXIT in allowed_types:
                  for s,vlist in [(t.testie,t.imp_v) for t in self.imports] + [(self, v)]:
                   for script in s.get_scripts():
@@ -724,12 +724,15 @@ class Testie:
 
                 this_has_err, this_has_value = self.parse_results(regex_list, output, new_kind_results,
                                                                   new_data_results)
+
                 if this_has_err:
                     has_err = True
                 if this_has_value:
                     has_values = True
                 if hasattr(self, 'pyexit'):
-                    exec(self.pyexit.content, {'RESULTS': new_data_results, 'TIME_RESULTS': new_kind_results["time"], 'KIND_RESULTS':new_kind_results})
+                    vs = {'RESULTS': new_data_results, 'TIME_RESULTS': new_kind_results["time"], 'KIND_RESULTS':new_kind_results}
+                    vs.update(v)
+                    exec(self.pyexit.content, vs)
 
                 for kind, kind_results in new_kind_results.items():
                   if kind_results:
