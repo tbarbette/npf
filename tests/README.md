@@ -10,7 +10,7 @@ List of sections :
  * init : Special script that run only once, before all other scripts (therefore, can be fought as an initialization script)
  * import : Import another testie and optionally under a given role. The repository comes with some "modules" testies intended for importation. They usually do specific tasks that we don't want to rewrite in all testie such as setting the cpu frequency, IP addresses for some NICs, ...
  * require : A special script that tells if the testie can run. If any line produce a return code different than 0, the testie will not run
- * 
+ * pyexit : A python script that will be executed after each tests, mainly to change or interpret the results
 
 ### Config
 List of test configuration option
@@ -34,6 +34,19 @@ if a tag is given (by the repo, or the command line argument):
  - -cpu:CPU=1    If the tag cpu is not given, $CPU will be expanded by 1
 
 This allows to do more extanded tests to grid-search some value, but do not include that in regression test
+
+### pyexit
+NPF will extract all results prefixed by *RESULT[-VARNAME]*. If VARNAME is in result_add={...} config list, occurences of the same VARNAME will be added together, if it is in the result_append config_list, results will be append as a list, else the VARNAME will overwrite each others.
+
+To do more, one can use the %pyexit section to interpret the results :
+```%pyexit
+import numpy as np
+loss=RESULTS["RX"] - RESULTS["TX"]
+RESULTS["LOSS"]=loss
+```
+Any python code will be accepted, so one may compute variance among multiple results, etc. Kind results are available under KIND_RESULTS.
+
+
 
 ## Testies shipped with NPF
 
