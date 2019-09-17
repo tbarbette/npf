@@ -2,7 +2,7 @@ import re
 from collections import OrderedDict
 
 import regex
-
+import random
 from npf import npf
 from npf.nic import NIC
 from asteval import Interpreter
@@ -133,7 +133,9 @@ def replace_variables(v: dict, content: str, self_role=None, default_role_map={}
         Variable.VARIABLE_NICREF_REGEX,
         do_replace_nics, content)
 
-    aeval = Interpreter(usersyms={'parseBool':get_bool})
+    def ae_rand(a,b):
+        return random.randint(a,b)
+    aeval = Interpreter(usersyms={'parseBool':get_bool,'randint':ae_rand})
 
     def do_replace_math(match):
         expr = match.group('expr').strip()
@@ -261,9 +263,6 @@ class ExpandVariable(Variable):
                 v.append(mv + ov)
         self.values = v
         return self
-
-
-
 
 class SimpleVariable(Variable):
     def __init__(self, name, value):
@@ -427,7 +426,9 @@ class IfVariable(Variable):
 
     def makeValues(self):
         vs = []
-        aeval = Interpreter()
+        def ae_rand():
+            return math.randint()
+        aeval = Interpreter(usersyms ={"randint":ae_rand})
         if aeval(self.cond):
             return [self.a]
         else:

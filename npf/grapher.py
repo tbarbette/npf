@@ -4,11 +4,10 @@ import re
 import natsort
 from orderedset._orderedset import OrderedSet
 import copy
+import traceback
 
 from collections import OrderedDict
 from typing import List
-from matplotlib.ticker import LinearLocator, ScalarFormatter, Formatter, MultipleLocator
-import matplotlib
 import numpy as np
 from pygtrie import Trie
 
@@ -17,11 +16,16 @@ from npf.types.dataset import Run, XYEB, group_val
 from npf.variable import is_log, is_numeric, get_numeric, numericable, get_bool, is_bool
 from npf.section import SectionVariable
 from npf import npf, variable
-from matplotlib.lines import Line2D
-import itertools
+
+import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from matplotlib.ticker import LinearLocator, ScalarFormatter, Formatter, MultipleLocator
+from matplotlib.lines import Line2D
 from matplotlib.ticker import FuncFormatter, FormatStrFormatter
+
+
+import itertools
 import math
 import os
 import webcolors
@@ -43,7 +47,7 @@ def hexToList(s):
 
 def lighter(c, p, n):
     n = n / 255.
-    return tuple(a * p + (1-p) * n for a in c)
+    return tuple(min(1,max(0,a * p + (1-p) * n)) for a in c)
 
 
 def buildLight(c,m=4):
@@ -119,6 +123,7 @@ class Graph:
 
     def dataset(self):
         if not self.data_types:
+
             self.data_types = dataset.convert_to_xyeb(
                 datasets = self.series,
                 run_list = self.vars_all,
@@ -961,10 +966,18 @@ class Grapher:
             subplot_handles=[]
             axiseis = []
             savekey=key
+            cross_reference =  self.configdict('graph_cross_reference')
             for i_s_subplot, result_type in enumerate(figure):
                 key=savekey
                 isubplot = int(i_subplot * len(figure) + i_s_subplot)
                 data = data_types[result_type]
+
+                if result_type in cross_reference:
+                    cross_key = cross_reference[result_type]
+                    xdata = data_types[cross_key]
+                else:
+                    cross_key=key
+                    xdata = None
                 ymin, ymax = (float('inf'), 0)
 
                 if subplot_type=="subplot":
@@ -1039,13 +1052,32 @@ class Grapher:
                     graph_type = "simple_bar"
                 elif ndyn == 1 and len(vars_all) > 2 and npf.all_num(vars_values[key]):
                     graph_type = "line"
-                graph_types = self.configlist("graph_type",[])
-                graph_types.extend([graph_type, "line"])
-                graph_type = graph_types[isubplot if isubplot < len(graph_types) else len(graph_types) - 1]
+                graph_types = self.config("graph_type",[])
+
+                if len(graph_types) > 0 and (type(graph_types[0]) is tuple or type(graph_types) is tuple):
+                    if type(graph_types) is tuple:
+                        graph_types = dict([graph_types])
+                    else:
+                        graph_types = dict(graph_types)
+                    if result_type in graph_types:
+                        graph_type = graph_types[result_type]
+                    elif "default" in graph_types:
+                        graph_type = graph_types["default"]
+                    elif "result" in graph_types:
+                        graph_type = graph_types["result"]
+                    else:
+                        graph_type = "line"
+
+                else:
+                    if type(graph_types) is str:
+                        graph_types = [graph_types]
+                    graph_types.extend([graph_type, "line"])
+                    graph_type = graph_types[isubplot if isubplot < len(graph_types) else len(graph_types) - 1]
                 if ndyn == 0 and graph_type != "simple_bar" and graph_type != "boxplot":
                     print("WARNING: Cannot graph %s without dynamic variables" % graph_type)
                     graph_type = "simple_bar"
                 barplot = False
+
                 try:
                     if graph_type == "simple_bar":
                         """No dynamic variables : do a barplot X=version"""
@@ -1056,7 +1088,7 @@ class Grapher:
                         r = self.do_line_plot(axis, key, result_type, data,shift, isubplot)
                     elif graph_type == "boxplot":
                         """One dynamic variable used as X, series are version line plots"""
-                        r = self.do_box_plot(axis, key, result_type, data,shift, isubplot)
+                        r = self.do_box_plot(axis, key, result_type, data, xdata, shift, isubplot)
                     else:
                         """Barplot. X is all seen variables combination, series are version"""
                         self.do_barplot(axis,vars_all, dyns, result_type, data, shift)
@@ -1064,6 +1096,7 @@ class Grapher:
                 except Exception as e:
                     print("ERROR : could not graph %s" % result_type)
                     print(e)
+                    print(traceback.format_exc())
                     continue
                 if not r:
                     continue
@@ -1153,7 +1186,7 @@ class Grapher:
                         plt.gca().xaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
                     plt.xticks([variable.get_numeric(x) for x in xticks.split('+')])
 
-                plt.xlabel(self.var_name(key))
+                plt.xlabel(self.var_name(cross_key))
 
                 var_lim = self.scriptconfig("var_lim", "result", result_type=result_type, default=None)
                 if var_lim:
@@ -1331,10 +1364,9 @@ class Grapher:
         plt.gca().set_xlim(0, len(x))
         return True
 
-    def do_box_plot(self, axis, key, result_type, data : XYEB,shift=0,idx=0):
+    def do_box_plot(self, axis, key, result_type, data : XYEB, xdata : XYEB,shift=0,idx=0):
 
-
-        self.format_figure(axis, result_type, shift)
+        self.format_figure(axis, result_type, shift, key=key)
         nseries = max([len(y) for y in [y for x,y,e,build in data]])
 
         labels=[]
@@ -1343,18 +1375,23 @@ class Grapher:
             print("WARNING : Not drawing more than 30 boxplots")
             return
         for i, (x, ys, e, build) in enumerate(data):
-
+            if xdata:
+                x = [np.mean(x) for x in xdata[i][1]]
+            label = str(build.pretty_name())
             boxdata=[]
             pos = []
             for yi in range(nseries):
-                y=ys[yi]
+                y=e[yi][2]
                 pos.append(yi*len(data) + i + 1)
                 y = np.asarray(y)
                 boxdata.append(y[~np.isnan(y)])
 
                 if i == 0:
-                    labels.append(str(x[yi]))
-            axis.plot([], c= build._color , label=str(build.pretty_name()))
+                    if type(x[yi]) is str:
+                        labels.append(x[yi])
+                    else:
+                        labels.append("%d" % x[yi])
+            axis.plot([], c= build._color , label=label)
 
 
 #                labels.append(build.pretty_name() + " "+ str(x[i]))
@@ -1365,16 +1402,26 @@ class Grapher:
             if len(boxdata) > 1000:
                 print("WARNING: Not drawing more than 1000 points...")
                 continue
-            rects = axis.boxplot(boxdata, positions = pos, widths=0.6 )
+            rects = axis.boxplot(boxdata, showfliers=self.config_bool_or_in("graph_show_fliers",result_type), positions = pos, widths=0.6 )
             plt.setp(rects['boxes'], color = build._color)
             plt.setp(rects['whiskers'], color = build._color)
             plt.setp(rects['caps'], color = build._color)
             plt.setp(rects['fliers'], color = build._color)
             plt.setp(rects['medians'], color = lighter(build._color,0.50,0))
+
         m = len(data)*nseries + 1
         axis.set_xlim(0,m)
         axis.set_xticklabels(labels)
-        xticks = (np.asarray(range(nseries)) * len(data) ) + 1.5
+        xticks = (np.asarray(range(nseries)) * len(data) ) + (len(data) / 2) + 0.5
+
+
+        graph_bg = self.configdict("graph_background",{})
+        if result_type in graph_bg:
+            idx = int(graph_bg[result_type])
+            bgcolor = lighter(graphcolor[idx],0.12,255)
+            bgcolor2 = lighter(graphcolor[idx],0.03,255)
+            b = axis.bar(xticks, height=axis.get_ylim()[1], width=len(data), color=[bgcolor,bgcolor2], zorder=-99999)
+
 
         axis.set_xticks(xticks)
         return True
@@ -1393,7 +1440,7 @@ class Grapher:
                     minX = min(minX,min(x))
 
         for i, (x, y, e, build) in enumerate(data):
-            self.format_figure(axis, result_type, shift)
+            self.format_figure(axis, result_type, shift, key=key)
             c = build._color
 
 
@@ -1515,7 +1562,7 @@ class Grapher:
                 return True,False
         return False, False
 
-    def format_figure(self, axis, result_type, shift):
+    def format_figure(self, axis, result_type, shift, key = None):
         yunit = self.scriptconfig("var_unit", "result", default="", result_type=result_type)
         yformat = self.scriptconfig("var_format", "result", default=None, result_type=result_type)
         yticks = self.scriptconfig("var_ticks", "result", default=None, result_type=result_type)
