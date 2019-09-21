@@ -1,0 +1,3 @@
+parent=metron
+url=http://github.com/rsspp/fastclick.git
+configure+= --enable-flow 
