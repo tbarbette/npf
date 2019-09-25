@@ -35,9 +35,10 @@ R0=0
 R1=2
 R2=4
 R3=6
-
+SAMPLE?=10
 
 nolinktest=0
+dump:DODUMP=1
 
 %late_variables
 NBBUF=EXPAND( $(( ( ( $LIMIT * $GEN_THREADS ) + (max(4096,$PKTGEN_BURST_OUT) * 2 * 4 ) ) + 8192 )) )
@@ -45,11 +46,17 @@ NRECORD=EXPAND( $(( $LIMIT * $PKTGEN_REPLAY_COUNT  * 2 )) )
 BROADCAST_IGNORE= -> c :: Classifier(0/$mac,-) //Ignore broadcasts
 SND_NIC?=EXPAND($CLIENT_NIC)
 RCV_NIC?=EXPAND($CLIENT_NIC)
+DODUMP?=0
+
 
 %promisc:late_variables
 BROADCAST_IGNORE= -> c :: Classifier(-, 0/ffffffffffff)
 
 %script deps=fastclick sudo=true delay=2
+if [ $DODUMP -eq 1 ] ; then
+    echo "Will dump latency to $LATENCYDUMP"
+fi
+cat PKTGEN_CONFIG
 click --dpdk -l ${GEN_CPU}-15 -- PKTGEN_CONFIG
 
 %file PKTGEN_CONFIG
@@ -85,9 +92,10 @@ fdIN
 elementclass Generator { $magic |
 input
   -> EnsureDPDKBuffer
-  -> rwIN :: EtherRewrite($INsrcmac,$INdstmac)
+  //-> rwIN :: EtherRewrite($INsrcmac,$INdstmac)
   -> Pad()
   -> Numberise($magic)
+//  -> Print(TIMESTAMP true)
   -> replay :: ReplayUnqueue(STOP 0, STOP_TIME $PKTGEN_REPLAY_TIME, QUICK_CLONE $quick, VERBOSE true, ACTIVE true, LIMIT $LIMIT, TIMING $TIMING)
   -> rt :: RecordTimestamp(N $LIMIT, OFFSET 56)
   -> avgSIN :: AverageCounter(IGNORE $ignore)
@@ -121,25 +129,25 @@ $BROADCAST_IGNORE
     -> Discard;
 
     magic[0]
-    -> tsdA :: TimestampDiff(gen0/rt, OFFSET 42, N $NRECORD )
+    -> tsdA :: TimestampDiff(gen0/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE )
     -> Unstrip(14)
     -> avgA :: AverageCounterMP(IGNORE $ignore)
     -> Discard;
 
     magic[1]
-    -> tsdB :: TimestampDiff(gen1/rt, OFFSET 42, N $NRECORD )
+    -> tsdB :: TimestampDiff(gen1/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE )
     -> Unstrip(14)
     -> avgB :: AverageCounterMP(IGNORE $ignore)
     -> Discard;
 
     magic[2]
-    -> tsdC :: TimestampDiff(gen2/rt, OFFSET 42, N $NRECORD )
+    -> tsdC :: TimestampDiff(gen2/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE )
     -> Unstrip(14)
     -> avgC :: AverageCounterMP(IGNORE $ignore)
     -> Discard;
 
     magic[3]
-    -> tsdD :: TimestampDiff(gen3/rt, OFFSET 42, N $NRECORD )
+    -> tsdD :: TimestampDiff(gen3/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE )
     -> Unstrip(14)
     -> avgD :: AverageCounterMP(IGNORE $ignore)
     -> Discard;
@@ -256,12 +264,19 @@ DriverManager(  pause,
                 read receiveIN.count,
                 print "RESULT-TESTTIME $(sub $stoptime $starttime)",
                 print "RESULT-RCVTIME $(RIN/avgA.time)",
+                goto adump $(eq $DODUMP 0),
+                print >$LATENCYDUMP $(RIN/tsdA.dump_list),
+                print >>$LATENCYDUMP $(RIN/tsdB.dump_list),
+                print >>$LATENCYDUMP $(RIN/tsdC.dump_list),
+                print >>$LATENCYDUMP $(RIN/tsdD.dump_list),
+                label adump,
                 print "RESULT-LATENCY $(div $(add $(RIN/tsdA.average) $(RIN/tsdB.average) $(RIN/tsdC.average) $(RIN/tsdD.average)) 4)",
                 print "RESULT-LAT00 $(div $(add $(RIN/tsdA.min) $(RIN/tsdB.min) $(RIN/tsdC.min) $(RIN/tsdD.min)) 4)",
                 print "RESULT-LAT01 $(div $(add $(RIN/tsdA.perc01) $(RIN/tsdB.perc01) $(RIN/tsdC.perc01) $(RIN/tsdD.perc01)) 4)",
                 print "RESULT-LAT25 $(div $(add $(RIN/tsdA.perc25) $(RIN/tsdB.perc25) $(RIN/tsdC.perc25) $(RIN/tsdD.perc25)) 4)",
                 print "RESULT-LAT50 $(div $(add $(RIN/tsdA.median) $(RIN/tsdB.median) $(RIN/tsdC.median) $(RIN/tsdD.median)) 4)",
                 print "RESULT-LAT75 $(div $(add $(RIN/tsdA.perc75) $(RIN/tsdB.perc75) $(RIN/tsdC.perc75) $(RIN/tsdD.perc75)) 4)",
+                print "RESULT-LAT95 $(div $(add $(RIN/tsdA.perc95) $(RIN/tsdB.perc95) $(RIN/tsdC.perc95) $(RIN/tsdD.perc95)) 4)",
                 print "RESULT-LAT99 $(div $(add $(RIN/tsdA.perc99) $(RIN/tsdB.perc99) $(RIN/tsdC.perc99) $(RIN/tsdD.perc99)) 4)",
                 print "RESULT-LAT100 $(div $(add $(RIN/tsdA.max) $(RIN/tsdB.max) $(RIN/tsdC.max) $(RIN/tsdD.max)) 4)",
                 print "RESULT-THROUGHPUT $(add $(RIN/avgA.link_rate) $(RIN/avgB.link_rate) $(RIN/avgC.link_rate) $(RIN/avgD.link_rate) )",

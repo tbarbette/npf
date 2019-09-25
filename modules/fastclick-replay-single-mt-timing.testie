@@ -36,6 +36,7 @@ PAUSE=none
 GEN_DESC=0
 GEN_PRINT_START=
 nolinktest=0
+largemem:DPDKMEM=127000,2000
 
 R0=0
 R1=2
@@ -52,6 +53,7 @@ STARTAFTER?=0
 nodpdkload:NBBUF=65536
 nodpdkload:ENSURE= -> MarkMACHeader()
 nodpdkload:LATEENSURE=
+DODUMP?=0
 NRECORD=EXPAND( $(( $LIMIT * $PKTGEN_REPLAY_COUNT  * 2 )) )
 BROADCAST_IGNORE= -> c :: Classifier(0/$mac,-) //Ignore broadcasts
 
@@ -63,6 +65,7 @@ click --dpdk -l 0-15  --socket-mem $DPDKMEM --huge-dir /mnt/hugepages  -- PKTGEN
 
 %-largemem:script deps=fastclick sudo=true
 //click --dpdk -l 0-15  -- PKTGEN_CONFIG
+cat PKTGEN_CONFIG
 gdb -ex run -ex "signal 2" -ex "bt" -batch -args click --dpdk -l 0-15  -- PKTGEN_CONFIG
 
 %file PKTGEN_CONFIG
@@ -99,7 +102,7 @@ fdIN
 elementclass Generator { $magic |
 input
     $ENSURE
-  -> rwIN :: EtherRewrite($INsrcmac,$INdstmac)
+  //-> rwIN :: EtherRewrite($INsrcmac,$INdstmac)
   -> Pad()
   -> Numberise($magic)
   -> replay :: ReplayUnqueue(STOP 0,STOP_TIME $PKTGEN_REPLAY_TIME, QUICK_CLONE $quick, VERBOSE true, ACTIVE true, LIMIT $LIMIT, TIMING $TIMING, BURST $PKTGEN_BURST_OUT, TIMING_FNT "$TIMING_FNT")
@@ -319,6 +322,12 @@ DriverManager(  pause,
                 print $(RIN/avgD.count),
                 read receiveIN.hw_count,
                 read receiveIN.count,
+                goto adump $(eq $DODUMP 0),
+                print >$LATENCYDUMP $(RIN/tsdA.dump_list),
+                print >>$LATENCYDUMP $(RIN/tsdB.dump_list),
+                print >>$LATENCYDUMP $(RIN/tsdC.dump_list),
+                print >>$LATENCYDUMP $(RIN/tsdD.dump_list),
+                label adump,
                 print "RESULT-TESTTIME $(sub $stoptime $starttime)",
                 print "RESULT-RCVTIME $(RIN/avgA.time)",
                 print "RESULT-LATENCY $(div $(add $(RIN/tsdA.average) $(RIN/tsdB.average) $(RIN/tsdC.average) $(RIN/tsdD.average)) 4)",
@@ -327,12 +336,12 @@ DriverManager(  pause,
                 print "RESULT-LAT50 $(div $(add $(RIN/tsdA.median) $(RIN/tsdB.median) $(RIN/tsdC.median) $(RIN/tsdD.median)) 4)",
                 print "RESULT-LAT99 $(div $(add $(RIN/tsdA.perc99) $(RIN/tsdB.perc99) $(RIN/tsdC.perc99) $(RIN/tsdD.perc99)) 4)",
                 print "RESULT-LAT100 $(div $(add $(RIN/tsdA.max) $(RIN/tsdB.max) $(RIN/tsdC.max) $(RIN/tsdD.max)) 4)",*/
-                set i 0,
+               /* set i 0,
                 set step 1,
                 label perc,
                 print "CDFLATVAL-$(div $(add $(RIN/tsdA.perc $i) $(RIN/tsdB.perc $i) $(RIN/tsdC.perc $i) $(RIN/tsdD.perc $i)) 4)-RESULT-CDFLATPC $(div $i 100.0)",
                 set i $(add $i $step),
                 set step $(if $(ge $i 99) 0.1 1),
                 goto perc $(le $i 100.0),
-                wait ${END_WAIT}s,
+                wait ${END_WAIT}s,*/
                 stop);

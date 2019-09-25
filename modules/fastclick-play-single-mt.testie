@@ -29,7 +29,8 @@ GEN_DESC=0
 END_AFTER=-1
 GEN_RATE?=-1
 LATENCYDUMP=/tmp/latency.csv
-ITERATION_TIME?=0.1
+ITERATION_TIME?=0
+R4=15 //Monitoring thread
 
 %late_variables
 UNQUEUE=
@@ -42,6 +43,10 @@ TIMING?=false
 GEN_BLOCKING=false
 TIMING_FNT?=
 SAMPLE?=10
+DODUMP?=0
+dump:DODUMP=1
+latval:DOLATVAL=1
+gdb:GEN_GDB=gdb -ex run -ex "signal 2" -ex "bt" -batch -args
 
 %-rate:require
 test $GEN_RATE -eq -1 || ( echo "GEN_RATE can only be -1 (deactivated) when rate is not given" && exit 1)
@@ -53,8 +58,7 @@ test $GEN_RATE -gt 1 || ( echo "GEN_RATE must be > 0" && exit 1)
 BROADCAST_IGNORE= -> c :: Classifier(-, 0/ffffffffffff)
 
 %script deps=fastclick sudo=true delay=2 name=fastclick-play
-//gdb -ex run -ex "signal 2" -ex "bt" -batch -args
-click --dpdk -l 0-15 -- PKTGEN_CONFIG
+$GEN_GDB click --dpdk -l 0-15 -- PKTGEN_CONFIG
 echo "EVENT TX_FINISHED"
 echo "Generator stopped..."
 
@@ -75,12 +79,14 @@ define($quick true)
 define($txverbose 99)
 define($rxverbose 99)
 
-fdIN :: FromDump($trace, STOP true, TIMING $TIMING, TIMING_FNT "$TIMING_FNT", END_AFTER $END_AFTER, ACTIVE false)
-tdIN :: ToDPDKDevice($port, BLOCKING $GEN_BLOCKING, BURST $bout, VERBOSE $txverbose, IQUEUE $bout, NDESC $GEN_DESC)
+//JiffieClock();
+
+fdIN :: FromDump($trace, STOP true, TIMING $TIMING, TIMING_FNT "$TIMING_FNT", END_AFTER $END_AFTER, ACTIVE false, BURST 1)
+tdIN :: ToDPDKDevice($port, BLOCKING $GEN_BLOCKING, BURST $bout, VERBOSE $txverbose, IQUEUE $bout, NDESC $GEN_DESC, IPCO true )
 
 
 elementclass Numberise { $magic |
-    input-> Strip(14) -> check :: CheckIPHeader(CHECKSUM false) -> nPacket :: NumberPacket(42) -> StoreData(40, $magic) -> SetIPChecksum -> Unstrip(14) -> output
+    input-> Strip(14) -> check :: CheckIPHeader(CHECKSUM false) -> nPacket :: NumberPacket(42) -> StoreData(40, $magic) -> ResetIPChecksum() -> Unstrip(14) -> output
 }
 
 ender :: Script(TYPE PASSIVE,
@@ -117,7 +123,7 @@ StaticThreadSched(gen1/replay 6)
 StaticThreadSched(gen2/replay 4)
 StaticThreadSched(gen3/replay 6)
 
-receiveIN :: FromDPDKDevice($port, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, PAUSE $PAUSE, NDESC $GEN_DESC, MAXTHREADS 4)
+receiveIN :: FromDPDKDevice($port, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, PAUSE $PAUSE, NDESC $GEN_DESC, MAXTHREADS 4,NUMA false)
 
 elementclass Receiver { $mac, $dir |
     input[0]
@@ -168,7 +174,8 @@ $BROADCAST_IGNORE
     tsdD[1] -> Print("WARNING: Untimestamped packet on thread 3", 64) -> Discard;
 }
 
-Script(
+ig :: Script(TYPE ACTIVE,
+    goto end $(eq $ITERATION_TIME 0),
     set s $(now),
     set lastcount 0,
     set lastbytes 0,
@@ -192,19 +199,20 @@ Script(
                 print "IG-$t-RESULT-IGDROPPED $(sub $(sub $sent $count) $(sub $lastsent $lastcount))",
                 print "IG-$t-RESULT-IGTHROUGHPUT $(div $(mul $(add $(mul $(sub $count $lastcount) 24) $(sub $bytes $lastbytes)) 8) $elapsed)",
                
-           //    print "IG-$t-RESULT-ILATENCY $(div $(add $(RIN/tsdA.average $indexA) $(RIN/tsdB.average $indexB) $(RIN/tsdC.average $indexC) $(RIN/tsdD.average $indexD)) 4)",
-           //     print "IG-$t-RESULT-ILAT99 $(div $(add $(RIN/tsdA.perc99 $indexA) $(RIN/tsdB.perc99 $indexB) $(RIN/tsdC.perc99 $indexC) $(RIN/tsdD.perc99 $indexD)) 4)",
-               set indexA $(RIN/tsdA.index),
-               set indexB $(RIN/tsdB.index),
-               set indexC $(RIN/tsdC.index),
-               set indexD $(RIN/tsdD.index),
-
-
-               set lastcount $count,
+                print "IG-$t-RESULT-ILATENCY $(div $(add $(RIN/tsdA.average $indexA) $(RIN/tsdB.average $indexB) $(RIN/tsdC.average $indexC) $(RIN/tsdD.average $indexD)) 4)",
+                print "IG-$t-RESULT-ILAT99 $(div $(add $(RIN/tsdA.perc99 $indexA) $(RIN/tsdB.perc99 $indexB) $(RIN/tsdC.perc99 $indexC) $(RIN/tsdD.perc99 $indexD)) 4)",
+                set indexA $(RIN/tsdA.index),
+                set indexB $(RIN/tsdB.index),
+                set indexC $(RIN/tsdC.index),
+                set indexD $(RIN/tsdD.index),
+                set lastcount $count,
                 set lastsent $sent,
                 set lastbytes $bytes,
     goto loop,
+    label end
 )
+
+StaticThreadSched(ig $R4);
 
 receiveIN -> RIN :: Receiver($RAW_INsrcmac,"IN");
 
@@ -239,18 +247,23 @@ DriverManager(  print "Waiting 2 seconds before launching generation...",
                 read receiveIN.hw_count,
                 read receiveIN.count,
                 read receiveIN.xstats,
-                print >$LATENCYDUMP $(RIN/tsdA.dump),
-                print >>$LATENCYDUMP $(RIN/tsdB.dump),
-                print >>$LATENCYDUMP $(RIN/tsdC.dump),
-                print >>$LATENCYDUMP $(RIN/tsdD.dump),
+                goto adump $(eq $DODUMP 0),
+                print "Dumping latency samples to $LATENCYDUMP",
+                print >$LATENCYDUMP $(RIN/tsdA.dump_list),
+                print >>$LATENCYDUMP $(RIN/tsdB.dump_list),
+                print >>$LATENCYDUMP $(RIN/tsdC.dump_list),
+                print >>$LATENCYDUMP $(RIN/tsdD.dump_list),
+                label adump,
                 print "RESULT-TESTTIME $(sub $stoptime $starttime)",
                 print "RESULT-RCVTIME $(RIN/avgA.time)",
                 print "RESULT-LATENCY $(div $(add $(RIN/tsdA.average) $(RIN/tsdB.average) $(RIN/tsdC.average) $(RIN/tsdD.average)) 4)",
- /*               print "RESULT-LAT00 $(div $(add $(RIN/tsdA.min) $(RIN/tsdB.min) $(RIN/tsdC.min) $(RIN/tsdD.min)) 4)",
+                print "RESULT-LAT00 $(div $(add $(RIN/tsdA.min) $(RIN/tsdB.min) $(RIN/tsdC.min) $(RIN/tsdD.min)) 4)",
                 print "RESULT-LAT01 $(div $(add $(RIN/tsdA.perc01) $(RIN/tsdB.perc01) $(RIN/tsdC.perc01) $(RIN/tsdD.perc01)) 4)",
                 print "RESULT-LAT50 $(div $(add $(RIN/tsdA.median) $(RIN/tsdB.median) $(RIN/tsdC.median) $(RIN/tsdD.median)) 4)",
+                print "RESULT-LAT95 $(div $(add $(RIN/tsdA.perc95) $(RIN/tsdB.perc95) $(RIN/tsdC.perc95) $(RIN/tsdD.perc95)) 4)",
                 print "RESULT-LAT99 $(div $(add $(RIN/tsdA.perc99) $(RIN/tsdB.perc99) $(RIN/tsdC.perc99) $(RIN/tsdD.perc99)) 4)",
-                print "RESULT-LAT100 $(div $(add $(RIN/tsdA.max) $(RIN/tsdB.max) $(RIN/tsdC.max) $(RIN/tsdD.max)) 4)",*/
+                print "RESULT-LAT100 $(div $(add $(RIN/tsdA.max) $(RIN/tsdB.max) $(RIN/tsdC.max) $(RIN/tsdD.max)) 4)",
+                goto alatval $(eq DOLATVAL 0),
                 set i 0,
                 set step 1,
                 label perc,
@@ -258,6 +271,7 @@ DriverManager(  print "Waiting 2 seconds before launching generation...",
                 set i $(add $i $step),
                 set step $(if $(ge $i 99) 0.1 1),
                 goto perc $(le $i 100.0),
+                label alatval,
                 print "RESULT-THROUGHPUT $(add $(RIN/avgA.link_rate) $(RIN/avgB.link_rate) $(RIN/avgC.link_rate) $(RIN/avgD.link_rate) )",
                 set sent $(add $(gen0/avgSIN.count) $(gen1/avgSIN.count) $(gen2/avgSIN.count) $(gen3/avgSIN.count)),
                 set count $(add $(RIN/avgA.count) $(RIN/avgB.count) $(RIN/avgC.count) $(RIN/avgD.count)), 
