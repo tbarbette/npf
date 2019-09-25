@@ -479,6 +479,8 @@ class Grapher:
         """series is a list of triplet (script,build,results) where
         result is the output of a script.execute_all()"""
         self.options = options
+        if self.options.graph_size is None:
+            self.options.graph_size = plt.rcParams["figure.figsize"]
         if series is None:
             series = []
 
@@ -1211,6 +1213,22 @@ class Grapher:
                     if (ymin < ymax / 5):
                         plt.ylim(ymin=0)
 
+
+                #background
+                graph_bg = self.configdict("graph_background",{})
+                if result_type in graph_bg:
+                    idx = int(graph_bg[result_type])
+                    bgcolor = lighter(graphcolor[idx],0.12,255)
+                    bgcolor2 = lighter(graphcolor[idx],0.03,255)
+                    yl = axis.get_ylim()
+                    xt = axis.get_xticks()
+                    if len(xt) > 1:
+                        w = xt[1] - xt[0]
+                    else:
+                        w = 1
+                    b = axis.bar(xt, height=yl[1] * 2, width=w, color=[bgcolor,bgcolor2], zorder=-99999)
+                    axis.set_ylim(yl[0],yl[1])
+
                 if self.options.graph_size:
                     fig = plt.gcf()
                     fig.set_size_inches(self.options.graph_size[0], self.options.graph_size[1])
@@ -1376,7 +1394,10 @@ class Grapher:
             return
         for i, (x, ys, e, build) in enumerate(data):
             if xdata:
-                x = [np.mean(x) for x in xdata[i][1]]
+                x = []
+                for yi in range(len(xdata[i][2])):
+                    x.append(np.median(xdata[i][2][yi][2]))
+
             label = str(build.pretty_name())
             boxdata=[]
             pos = []
@@ -1387,10 +1408,14 @@ class Grapher:
                 boxdata.append(y[~np.isnan(y)])
 
                 if i == 0:
-                    if type(x[yi]) is str:
-                        labels.append(x[yi])
+                    if is_numeric(x[yi]):
+                        v = get_numeric(x[yi])
+                        if not np.isnan(v):
+                            labels.append("%d" % v)
+                        else:
+                            labels.append(v)
                     else:
-                        labels.append("%d" % x[yi])
+                        labels.append(x[yi])
             axis.plot([], c= build._color , label=label)
 
 
@@ -1415,12 +1440,7 @@ class Grapher:
         xticks = (np.asarray(range(nseries)) * len(data) ) + (len(data) / 2) + 0.5
 
 
-        graph_bg = self.configdict("graph_background",{})
-        if result_type in graph_bg:
-            idx = int(graph_bg[result_type])
-            bgcolor = lighter(graphcolor[idx],0.12,255)
-            bgcolor2 = lighter(graphcolor[idx],0.03,255)
-            b = axis.bar(xticks, height=axis.get_ylim()[1], width=len(data), color=[bgcolor,bgcolor2], zorder=-99999)
+
 
 
         axis.set_xticks(xticks)

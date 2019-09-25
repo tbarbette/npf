@@ -291,7 +291,7 @@ class Repository:
 
 
         self._build_path = os.path.dirname(
-            (options.build_folder if not options.build_folder is None else 'build/') + self.reponame + '/')
+            (options.build_folder if not options.build_folder is None else npf.npf_root()+'/build/') + self.reponame + '/')
 
     def get_identifier(self):
         return self._id

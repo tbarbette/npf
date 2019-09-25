@@ -7,7 +7,6 @@ import regex
 import re
 from decimal import Decimal
 
-import matplotlib.pyplot as plt
 
 from npf.node import Node
 from .variable import VariableFactory
@@ -57,7 +56,7 @@ def add_graph_options(parser: ArgumentParser):
     o.add_argument('--output-columns', dest='output_columns', type=str, nargs='+', default=['x', 'mean'])
 
     g = parser.add_argument_group('Graph options')
-    g.add_argument('--graph-size', metavar='INCH', type=float, nargs=2, default=plt.rcParams["figure.figsize"],
+    g.add_argument('--graph-size', metavar='INCH', type=float, nargs=2, default=None,
                    help='Size of graph', dest="graph_size")
     g.add_argument('--graph-filename', metavar='graph_filename', type=str, default=None, dest='graph_filename',
                    help='path to the file to output the graph')
@@ -131,7 +130,7 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
                    help='Use data from previous version instead of running test if possible', dest='use_last',
                    nargs='?',
                    default=0)
-    t.add_argument('--result-path', metavar='path', type=str, nargs=1, help='Path to NPF\'s own database of results. By default it is a "result" folder.', default=["result"])
+    t.add_argument('--result-path', metavar='path', type=str, nargs=1, help='Path to NPF\'s own database of results. By default it is a "result" folder.', default=["results"])
     t.add_argument('--tags', metavar='tag', type=str, nargs='+', help='list of tags', default=[], action=ExtendAction)
     t.add_argument('--variables', metavar='variable=value', type=str, nargs='+', action=ExtendAction,
                    help='list of variables values to override', default=[])
@@ -205,7 +204,7 @@ def executor(role, default_role_map):
     :param role: A role name
     :return: The executor
     """
-    return node(role, default_role_map).executor
+    return nodes_for_role(role, default_role_map)[0].executor
 
 
 def parse_nodes(options):

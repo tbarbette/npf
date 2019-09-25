@@ -512,6 +512,7 @@ class SectionConfig(SectionVariable):
             'graph_variable_as_series': 'graph_variables_as_series',
             'graph_grid': 'var_grid',
             'graph_serie': 'var_serie',
+            'graph_types':'graph_type',
             'graph_linestyle': 'graph_lines',
             'var_combine': 'graph_combine_variables',
             'series_as_variables': 'graph_series_as_variables',

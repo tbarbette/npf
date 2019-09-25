@@ -558,6 +558,7 @@ class Testie:
                         param.sudo = script.params.get("sudo", False)
 
                         v["NPF_MULTI"] = i_multi
+                        v["NPF_MULTI_ID"] = i_multi
                         v["NPF_MULTI_MAX"] = node.multi if node.multi is not None else 1
                         if node.mode == "netns" and i_multi > 0:
                             param.virt = "ip netns exec npfns%d" % i_multi
@@ -698,12 +699,13 @@ class Testie:
                             vlist,
                             exitscripts,self_role = role, default_role_map = role_map)
 
-                    executor = npf.executor(role, role_map)
-                    cmd = "mkdir -p " + test_folder + " && cd " + test_folder + ";\n" + cmd
-                    pid, s_output, s_err, c = executor.exec(cmd=cmd, options=self.options)
-                    #print(s_output, s_err)
-                    output += s_output
-                    err += s_err
+                    for node in npf.nodes_for_role(role, role_map):
+                        executor=node.executor
+                        cmd = "mkdir -p " + test_folder + " && cd " + test_folder + ";\n" + cmd
+                        pid, s_output, s_err, c = executor.exec(cmd=cmd, options=self.options)
+                        #print(s_output, s_err)
+                        output += s_output
+                        err += s_err
 
 
                 all_output.append(output)

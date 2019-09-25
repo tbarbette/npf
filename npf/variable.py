@@ -123,7 +123,12 @@ def replace_variables(v: dict, content: str, self_role=None, default_role_map={}
         node = npf.nodes_for_role(varRole, self_role, default_role_map)
 
         if nic_match.groupdict()['node']:
-             return str(getattr(node[0], str(nic_match.group('node'))));
+            t = str(nic_match.group('node'))
+            v = getattr(node[0], t)
+            if v is None and t =="multi":
+                return "1"
+            else:
+                return str(v)
         else:
             return str(node[0].get_nic(
             int(nic_match.group('nic_idx') if nic_match.group('nic_idx') else v[nic_match.group('nic_var')]))[

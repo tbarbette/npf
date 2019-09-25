@@ -135,7 +135,7 @@ class Regression:
         if repo.url:
             build = repo.get_last_build(history=history)
         else:
-            build = Build(repo, 'local')
+            build = Build(repo, 'local', result_path=options.result_path )
 
 
         nok = 0
