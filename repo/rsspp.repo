@@ -1,5 +1,5 @@
-name=RSS++
 parent=metron
+name=RSS++
 url=http://github.com/rsspp/fastclick.git
 configure+= --enable-flow 
 branch=master

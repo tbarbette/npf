@@ -269,7 +269,7 @@ class Build:
 
     def build(self, force_build : bool = False, never_build : bool = False, quiet_build : bool = False, show_build_cmd : bool = False, executor=None):
         if force_build or self.is_checkout_needed():
-            force_build = True
+            force_build = "there is a new version available"
             if never_build:
                 if not quiet_build:
                     print("Warning : test will be done with an unknown state of build")
@@ -284,7 +284,7 @@ class Build:
                 self.repo._current_build = self
                 return True
             if not quiet_build:
-                print("Building %s (because %s)" % (self.repo.name, "you force the build with --force-build" if force_build else reason))
+                print("Building %s (because %s)" % (self.repo.name, "you force the build with --force-build" if force_build is True else reason if not force_build else force_build ))
             if not self.compile(quiet_build, show_build_cmd):
                 return False
         self.repo._current_build = self
