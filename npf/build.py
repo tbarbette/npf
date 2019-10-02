@@ -239,6 +239,9 @@ class Build:
         pwd = os.getcwd()
         os.chdir(self.build_path())
 
+        if self.repo.build_info:
+            print(self.repo.build_info)
+
         for what,command in [("Configuring %s..." % self.version,npf.replace_path(self.repo.configure,build=self)),
                              ("Cleaning %s..." % self.version,npf.replace_path(self.repo.clean,build=self)),
                              ("Building %s..." % self.version,npf.replace_path(self.repo.make,build=self))]:

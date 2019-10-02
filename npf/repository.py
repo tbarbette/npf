@@ -17,7 +17,7 @@ from .variable import is_numeric, VariableFactory
 
 import git
 
-repo_variables = ['name', 'branch', 'configure', 'url', 'method', 'parent', 'tags', 'make', 'version', 'clean',
+repo_variables = ['name', 'branch', 'configure', 'url', 'method', 'parent', 'tags', 'make', 'version', 'clean', 'build_info',
                   'bin_folder', 'bin_name', 'env']
 
 
@@ -187,6 +187,7 @@ class Repository:
         self.bin_folder = 'bin'
         self.env = OrderedDict()
         self.bin_name = self.reponame  # Wild guess that may work some times...
+        self.build_info = None
         self.configure = ''
         self._last_100 = None
 

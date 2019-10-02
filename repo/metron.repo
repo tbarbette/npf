@@ -4,3 +4,4 @@ branch=metron
 make=make -j1
 configure+=--enable-json --enable-ids --enable-cpu-load
 tags+=metron
+build_info=This will take a while to compile because parallel compilation has to be disabled to broken dependency in Click
