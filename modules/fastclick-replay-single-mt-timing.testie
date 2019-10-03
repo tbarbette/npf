@@ -37,7 +37,7 @@ GEN_DESC=0
 GEN_PRINT_START=
 nolinktest=0
 largemem:DPDKMEM=127000,2000
-
+dump:DODUMP=1
 R0=0
 R1=2
 R2=4
@@ -65,7 +65,7 @@ click --dpdk -l 0-15  --socket-mem $DPDKMEM --huge-dir /mnt/hugepages  -- PKTGEN
 
 %-largemem:script deps=fastclick sudo=true
 //click --dpdk -l 0-15  -- PKTGEN_CONFIG
-cat PKTGEN_CONFIG
+//cat PKTGEN_CONFIG
 gdb -ex run -ex "signal 2" -ex "bt" -batch -args click --dpdk -l 0-15  -- PKTGEN_CONFIG
 
 %file PKTGEN_CONFIG
