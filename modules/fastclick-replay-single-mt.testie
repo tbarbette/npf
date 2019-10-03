@@ -56,7 +56,7 @@ BROADCAST_IGNORE= -> c :: Classifier(-, 0/ffffffffffff)
 if [ $DODUMP -eq 1 ] ; then
     echo "Will dump latency to $LATENCYDUMP"
 fi
-cat PKTGEN_CONFIG
+//cat PKTGEN_CONFIG
 click --dpdk -l ${GEN_CPU}-15 -- PKTGEN_CONFIG
 
 %file PKTGEN_CONFIG
