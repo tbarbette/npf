@@ -56,11 +56,11 @@ class Build:
             return None
         return data.strip()
 
-    def __result_folder(self):
+    def result_folder(self):
         return (self._result_path[0] if self._result_path else "results") + '/' + self.repo.get_identifier() + '/'
 
     def result_path(self, test_name, ext, suffix='', folder=''):
-        return self.__result_folder() + self.version + ('/' + folder if folder else '') + '/' + os.path.splitext(test_name)[
+        return self.result_folder() + self.version + ('/' + folder if folder else '') + '/' + os.path.splitext(test_name)[
             0] + suffix + '.' + ext
 
     @staticmethod
@@ -74,9 +74,9 @@ class Build:
 
     def __resultFilename(self, script=None):
         if script:
-            return self.__result_folder() + self.version + '/' + script.filename + ".results"
+            return self.result_folder() + self.version + '/' + script.filename + ".results"
         else:
-            return self.__result_folder() + self.version + '.results'
+            return self.result_folder() + self.version + '.results'
 
     def writeversion(self, testie, all_results: Dataset, allow_overwrite: bool = False, kind = False, reload=True):
         if not reload and all_results:

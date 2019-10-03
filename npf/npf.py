@@ -266,7 +266,15 @@ def override(args, testies):
 
 
 def npf_root():
+    # Return the path to NPF root
     return os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+
+def from_root(path):
+    # Returns the path under NPF root if it is not absolute
+    if (os.path.isabs(path)):
+        return path
+    else:
+        return npf_root() + os.sep + path
 
 def find_local(path):
     if not os.path.exists(path):

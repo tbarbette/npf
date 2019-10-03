@@ -906,8 +906,13 @@ class Testie:
         init_done = False
         test_folder = self.make_test_folder()
 
-        v_internals = {'NPF_REPO':get_valid_filename(build.repo.name),'NPF_ROOT': '../', 'NPF_BUILD': '../' + build.build_path(),
-                       'NPF_TESTIE_PATH': '../' + (os.path.relpath(self.path) if self.path else '')}
+        #All the following paths must be relative to the NPF test folder (that is something like NPF's folder/testie1234567/)
+        full_test_folder = npf.from_root(test_folder) + os.sep
+        out_path = os.path.splitext(options.output if options.output != 'graph' else options.graph_filename)[0] + os.sep
+        v_internals = { 'NPF_REPO':get_valid_filename(build.repo.name),'NPF_ROOT': '../', 'NPF_BUILD': '../' + build.build_path(),
+                        'NPF_TESTIE_PATH': '../' + (os.path.relpath(self.path) if self.path else ''),
+                        'NPF_RESULT_PATH':os.path.relpath(build.result_folder(), full_test_folder),
+                        'NPF_OUTPUT_PATH':os.path.relpath(out_path, full_test_folder)}
 
         if not SectionScript.TYPE_SCRIPT in allowed_types:
             # If scripts is not in allowed_types, we have to run the init by force now
