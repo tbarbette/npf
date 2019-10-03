@@ -935,7 +935,10 @@ class Grapher:
             for graph in graphs:
                 data_types = graph.dataset()
 
-                result_type, lgd = self.generate_plot_for_graph(result_type, i_subplot, figure, n_cols, n_lines, graph.vars_values, data_types, graph.dyns(), graph.vars_all, graph.key, graph.subtitle if graph.subtitle else graph.title, ret, subplot_legend_titles)
+                result = self.generate_plot_for_graph(result_type, i_subplot, figure, n_cols, n_lines, graph.vars_values, data_types, graph.dyns(), graph.vars_all, graph.key, graph.subtitle if graph.subtitle else graph.title, ret, subplot_legend_titles)
+                if result is None:
+                    continue
+                result_type, lgd = result
 
                 i_subplot += len(figure)
 
