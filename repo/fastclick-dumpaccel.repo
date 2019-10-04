@@ -1,0 +1,4 @@
+parent=fastclick
+name=FastClick with support for fast replay
+url=http://github.com/rsspp/fastclick.git
+branch=genRSSPP

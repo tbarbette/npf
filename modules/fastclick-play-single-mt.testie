@@ -57,7 +57,7 @@ test $GEN_RATE -gt 1 || ( echo "GEN_RATE must be > 0" && exit 1)
 %promisc:late_variables
 BROADCAST_IGNORE= -> c :: Classifier(-, 0/ffffffffffff)
 
-%script deps=fastclick sudo=true delay=2 name=fastclick-play
+%script deps=fastclick-dumpaccel sudo=true delay=2 name=fastclick-play
 $GEN_GDB click --dpdk -l 0-15 -- PKTGEN_CONFIG
 echo "EVENT TX_FINISHED"
 echo "Generator stopped..."

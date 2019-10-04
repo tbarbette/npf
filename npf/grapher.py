@@ -932,6 +932,7 @@ class Grapher:
             fig_name = "subplot" + str(result_type)
 
             i_subplot = 0
+            lgd = None
             for graph in graphs:
                 data_types = graph.dataset()
 

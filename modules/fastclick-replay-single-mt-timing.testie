@@ -109,6 +109,7 @@ input
     $LATEENSURE
   -> rt :: RecordTimestamp(N $LIMIT, OFFSET 56)
   -> avgSIN :: AverageCounter(IGNORE $ignore)
+  -> avgSIN2 :: AverageCounter(IGNORE $ignore)
   -> output;
 }
 
@@ -142,24 +143,28 @@ $BROADCAST_IGNORE
     -> tsdA :: TimestampDiff(gen0/rt, OFFSET 42, N $NRECORD )
     -> Unstrip(14)
     -> avgA :: AverageCounterMP(IGNORE $ignore)
+    -> avgA2 :: AverageCounterMP(IGNORE $ignore)
     -> Discard;
 
     magic[1]
     -> tsdB :: TimestampDiff(gen1/rt, OFFSET 42, N $NRECORD )
     -> Unstrip(14)
     -> avgB :: AverageCounterMP(IGNORE $ignore)
+    -> avgB2 :: AverageCounterMP(IGNORE $ignore)
     -> Discard;
 
     magic[2]
     -> tsdC :: TimestampDiff(gen2/rt, OFFSET 42, N $NRECORD )
     -> Unstrip(14)
     -> avgC :: AverageCounterMP(IGNORE $ignore)
+    -> avgC2 :: AverageCounterMP(IGNORE $ignore)
     -> Discard;
 
     magic[3]
     -> tsdD :: TimestampDiff(gen3/rt, OFFSET 42, N $NRECORD )
     -> Unstrip(14)
     -> avgD :: AverageCounterMP(IGNORE $ignore)
+    -> avgD2 :: AverageCounterMP(IGNORE $ignore)
     -> Discard;
 
     magic[4]
@@ -215,6 +220,14 @@ link_initialized :: Script(TYPE PACKET,
     write RIN/avgB.reset,
     write RIN/avgC.reset,
     write RIN/avgD.reset,
+    write gen0/avgSIN2.reset,
+    write gen1/avgSIN2.reset,
+    write gen2/avgSIN2.reset,
+    write gen3/avgSIN2.reset,
+    write RIN/avgA2.reset,
+    write RIN/avgB2.reset,
+    write RIN/avgC2.reset,
+    write RIN/avgD2.reset,
     write RINswitch.switch 0 ,
     write gen0/replay.stop $replay_count,
     write gen1/replay.stop $replay_count,
@@ -303,23 +316,23 @@ DriverManager(  pause,
                 pause,
                 set stoptime $(now),
                 print "Rate : ",
-                print $(gen0/avgSIN.link_rate),
-                print $(gen1/avgSIN.link_rate),
-                print $(gen2/avgSIN.link_rate),
-                print $(gen3/avgSIN.link_rate),
-                print $(RIN/avgA.link_rate),
-                print $(RIN/avgB.link_rate),
-                print $(RIN/avgC.link_rate),
-                print $(RIN/avgD.link_rate),
+                print $(gen0/avgSIN2.link_rate),
+                print $(gen1/avgSIN2.link_rate),
+                print $(gen2/avgSIN2.link_rate),
+                print $(gen3/avgSIN2.link_rate),
+                print $(RIN/avgA2.link_rate),
+                print $(RIN/avgB2.link_rate),
+                print $(RIN/avgC2.link_rate),
+                print $(RIN/avgD2.link_rate),
                 print "Count :",
-                print $(gen0/avgSIN.count),
-                print $(gen1/avgSIN.count),
-                print $(gen2/avgSIN.count),
-                print $(gen3/avgSIN.count),
-                print $(RIN/avgA.count),
-                print $(RIN/avgB.count),
-                print $(RIN/avgC.count),
-                print $(RIN/avgD.count),
+                print $(gen0/avgSIN2.count),
+                print $(gen1/avgSIN2.count),
+                print $(gen2/avgSIN2.count),
+                print $(gen3/avgSIN2.count),
+                print $(RIN/avgA2.count),
+                print $(RIN/avgB2.count),
+                print $(RIN/avgC2.count),
+                print $(RIN/avgD2.count),
                 read receiveIN.hw_count,
                 read receiveIN.count,
                 goto adump $(eq $DODUMP 0),
@@ -330,6 +343,11 @@ DriverManager(  pause,
                 label adump,
                 print "RESULT-TESTTIME $(sub $stoptime $starttime)",
                 print "RESULT-RCVTIME $(RIN/avgA.time)",
+                 set tx $(add $(gen0/avgSIN2.link_rate) $(gen1/avgSIN2.link_rate) $(gen2/avgSIN2.link_rate) $(gen3/avgSIN2.link_rate)),
+                 set rx $(add $(RIN/avgA2.link_rate) $(RIN/avgB2.link_rate) $(RIN/avgC2.link_rate) $(RIN/avgD2.link_rate)),
+                 print "",
+                 print "RESULT-THROUGHPUT $rx",
+                 print "RESULT-TX $tx",
                 print "RESULT-LATENCY $(div $(add $(RIN/tsdA.average) $(RIN/tsdB.average) $(RIN/tsdC.average) $(RIN/tsdD.average)) 4)",
 /*              print "RESULT-LAT00 $(div $(add $(RIN/tsdA.min) $(RIN/tsdB.min) $(RIN/tsdC.min) $(RIN/tsdD.min)) 4)",
                 print "RESULT-LAT01 $(div $(add $(RIN/tsdA.perc01) $(RIN/tsdB.perc01) $(RIN/tsdC.perc01) $(RIN/tsdD.perc01)) 4)",
