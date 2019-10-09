@@ -1,0 +1,233 @@
+%info
+UDP Traffic generator Module with latency test, one side only
+
+This will generate UDP traffic using 1 NICs and receive it back on another NIC.
+
+Roles : client:0 (first NIC of the server running this file) will send traffic
+towards "dut" and should receive back the packets on client:1.
+
+See tests/generic_dpdk/l2_fwd_latency.testie for example using the "dual" (bidirectional) version of this test
+
+The client generates $GEN_FLOWS flows of $GEN_BURST packets in loop, and plays a max of $LIMIT packets
+
+%config
+default_role_map={dut:client,server:client}
+require_tags=import,dpdk
+
+%variables
+GEN_BURST=32
+GEN_FLOWS=128
+GEN_LENGTH=64
+GEN_BLOCKING=true
+GEN_REPLAY=1
+GEN_INIT_WAIT=5
+GEN_THREADS=4
+//Change not supported as of now
+-rate:LIMIT=1000000
+rate:RATE=1000
+RCV_NIC=1
+SND_NIC=0
+
+R0=0
+R1=2
+R2=4
+R3=6
+R4=8
+
+
+
+%late_variables
+//rate:LIMIT=EXPAND( $(( $RATE * 10 if $RATE < 100000 else 1000000 )) )
+NBBUF=EXPAND( $(( (($LIMIT + ($GEN_BURST * 2) ) * $GEN_THREADS ) + 8192 )) )
+gdb:GDB=gdb -ex run -ex "signal 2" -ex "bt" -batch -args 
+
+CHECKORDER?=0
+
+REPLAY=ReplayUnqueue(STOP 0, QUICK_CLONE true)
+
+PULL=
+PULLASSIGN=Idle -> puller::Null -> Discard;
+rate:REPLAY=Replay(STOP 0, QUICK_CLONE true)
+rate:PULL=EXPAND( -> puller :: RatedUnqueue( $(( int($RATE / $GEN_THREADS) )) ) )
+rate:PULLASSIGN=
+
+
+noreplay:REPLAY=Null
+
+NG=[0-3]
+LAUNCH_CODE=EXPAND( write gen0/display_th.run, write gen0/rcv$NG/avg.reset, write gen0/gen$NG/sndavg.reset, write gen0/gen$NG/replay.stop $replay_count, write gen0/gen$NG/replay.active true, )
+LAUNCH_CODE=HEAD($GEN_THREADS, $LAUNCH_CODE)
+
+ALL_AVG=EXPAND( $(gen0/rcv$NG/tsd.average) )
+ALL_AVG=HEAD($GEN_THREADS, $ALL_AVG)
+
+ALL_CNT=EXPAND( $(gen0/gen$NG/sndavg.count) )
+ALL_CNT=HEAD($GEN_THREADS, $ALL_CNT)
+
+ALL_SND=EXPAND( $(gen0/gen$NG/sndavg.link_rate) )
+ALL_SND=HEAD($GEN_THREADS, $ALL_SND)
+
+ALL_RATE=EXPAND( $(gen0/rcv$NG/avg.rate) )
+ALL_RATE=HEAD($GEN_THREADS, $ALL_RATE)
+
+ALL_LINK=EXPAND( $(gen0/rcv$NG/avg.link_rate) )
+ALL_LINK=HEAD($GEN_THREADS, $ALL_LINK)
+
+%script deps=fastclick sudo=true delay=2
+$GDB click --dpdk -c 0xff -- PKTGEN_CONFIG
+
+%file PKTGEN_CONFIG
+d :: DPDKInfo($NBBUF)
+
+define($replay_count $GEN_REPLAY)
+
+elementclass Numberise { $magic |
+    input-> Strip(14) -> check :: CheckIPHeader -> StoreData(36,$magic) ->  nPacket :: NumberPacket(40) -> SetIPChecksum -> Unstrip(14) -> output
+}
+
+elementclass Generator { $NUM, $srcmac, $dstmac, $srcip, $dstip, $th |
+    fastudp :: FastUDPFlows(RATE 0, LIMIT $LIMIT, LENGTH $GEN_LENGTH, SRCETH $srcmac, DSTETH $dstmac, SRCIP $srcip, DSTIP $dstip, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST)
+    -> MarkMACHeader
+    -> EnsureDPDKBuffer
+	-> Numberise(\<123400>$NUM)
+	-> Strip(14)
+	-> MarkIPHeader()
+    -> SetIPChecksum()
+    -> SetUDPChecksum 
+    -> MoveData(SRC_OFFSET 26, DST_OFFSET -4, LENGTH 2)
+    -> Unstrip(14)
+	-> replay :: $REPLAY
+    $PULL	
+    -> rt :: RecordTimestamp(N $LIMIT, OFFSET 54)
+    -> sndavg :: AverageCounter() //Single thread here
+    -> output;
+$PULLASSIGN
+    StaticThreadSched(replay $th,puller $th);
+}
+
+elementclass Receiver { $rt |
+    input
+    -> tsd :: TimestampDiff($rt, N $(( $LIMIT * $GEN_REPLAY)) ) //MT path !!
+    -> Unstrip(14)
+    -> avg :: AverageCounterMP
+    -> Discard;
+
+    unt :: Print("WARNING: Untimestamped packet", -1)
+    -> Discard;
+    tsd[1] -> unt;
+}
+
+elementclass MultiThreadGenerator { $port, $outPort, $srcmac, $dstmac, $outSrcmac, $srcip, $dstip |
+    tdOUT::ToDPDKDevice($port, BLOCKING $GEN_BLOCKING);
+
+    gen0 :: Generator(\<01>, $srcmac, $dstmac, $srcip, $dstip, 0) -> tdOUT;
+    gen1 :: Generator(\<02>, $srcmac, $dstmac, $srcip, $dstip, 1) -> tdOUT;
+    gen2 :: Generator(\<03>, $srcmac, $dstmac, $srcip, $dstip, 2) -> tdOUT;
+    gen3 :: Generator(\<04>, $srcmac, $dstmac, $srcip, $dstip, 3) -> tdOUT;
+
+    fd :: FromDPDKDevice($outPort, MAC $outSrcmac, PROMISC false, VERBOSE 99)
+    -> c0 :: Classifier(12/0806 20/0001,
+                        12/0806 20/0002,
+                        12/0800,
+                        -)[2]
+    -> Strip(14)
+    -> MarkIPHeader
+//    -> fwp :: FlowWorkPackage(SEQUENTIAL 0, TABLE_SIZE 655360, FREAD 0, FWRITE 0, PREAD 0, PWRITE 0, W 0, ORDER 40, ACTIVE $CHECKORDER) 
+    -> magic :: Classifier( 36/12340001,
+                            36/12340002,
+                            36/12340003,
+                            36/12340004,
+                            -)
+
+    magic[0] -> rcv0 :: Receiver(gen0/rt);
+    magic[1] -> rcv1 :: Receiver(gen1/rt);
+    magic[2] -> rcv2 :: Receiver(gen2/rt);
+    magic[3] -> rcv3 :: Receiver(gen3/rt);
+
+    magic[4]
+    -> Print("WARNING: Unknown magic / untimestamped packet", -1)
+    -> Discard;
+
+    c0[3]
+    -> Print("WARNING: Non-IP packet !")
+    -> Discard;
+
+    c0[0] -> ARPResponder($srcip $srcmac)
+          -> tdOUT;
+    c0[1] -> Discard;
+
+    input -> tdOUT;
+
+display_th :: Script(TYPE PASSIVE,
+                     set indexA 0,
+                     set indexB 0,
+                     set indexC 0,
+                     set indexD 0,
+                     set stime $(now),
+                     label g,
+                    wait ${ITERATION_TIME},
+                     set diff $(sub $(now) $time),
+                     print "Diff $diff",
+                     set time $(sub $(now) $stime),
+                     print "",
+                     //print "IGEN-$time-RESULT-ITHROUGHPUT $rx",
+                     print "IGEN-$time-RESULT-ILATENCY $(div $(add $(rcv0/tsd.average $indexA) $(rcv1/tsd.average $indexB) $(rcv2/tsd.average $indexC) $(rcv3/tsd.average $indexD)) 4)",
+                     print "IGEN-$time-RESULT-ILAT99 $(div $(add $(rcv0/tsd.perc99 $indexA) $(rcv1/tsd.perc99 $indexB) $(rcv2/tsd.perc99 $indexC) $(rcv3/tsd.perc99 $indexD)) 4)",
+
+                     print "IGEN-$time-RESULT-ILAT95 $(div $(add $(rcv0/tsd.perc95 $indexA) $(rcv1/tsd.perc95 $indexB) $(rcv2/tsd.perc95 $indexC) $(rcv3/tsd.perc95 $indexD)) 4)",
+
+                     print "IGEN-$time-RESULT-ILAT05 $(div $(add $(rcv0/tsd.perc 5 $indexA) $(rcv1/tsd.perc 5 $indexB) $(rcv2/tsd.perc 5 $indexC) $(rcv3/tsd.perc 5 $indexD)) 4)",
+                    // print "IGEN-$time-RESULT-ITX $tx",
+                    // print "IGEN-$time-RESULT-ILOSS $(sub $rx $tx)",
+
+                     //set received $(add $(RIN/avgA.count) $(RIN/avgB.count) $(RIN/avgC.count) $(RIN/avgD.count) ),
+                     //set sent $(add $(gen0/avgSIN.count) $(gen1/avgSIN.count) $(gen2/avgSIN.count) $(gen3/avgSIN.count) ),
+                     //print "IGEN-$time-RESULT-ICOUNT $received",
+                     //print "IGEN-$time-RESULT-IDROPPED $(sub $sent $received)",
+                     //print "IGEN-$time-RESULT-IDROPPEDPS $(div $(sub $sent $received) $diff)",
+                     set indexA $(rcv0/tsd.index),
+                     set indexB $(rcv1/tsd.index),
+                     set indexC $(rcv2/tsd.index),
+                     set indexD $(rcv3/tsd.index),
+                     
+                     goto g)
+
+StaticThreadSched(display_th $R4)
+
+
+
+}
+
+gen0 :: MultiThreadGenerator(${client:$RCV_NIC:pci}, ${client:$RCV_NIC:pci}, ${client:$RCV_NIC:mac}, ${dut:$RCV_NIC:mac}, ${client:$RCV_NIC:mac}, ${client:$RCV_NIC:ip}, ${dut:$RCV_NIC:ip})
+
+
+
+//Advertise return MAC address
+adv :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH 60, SRCETH ${client:$SND_NIC:mac}, DSTETH ${dut:$SND_NIC:mac}, SRCIP ${client:$SND_NIC:ip}, DSTIP ${dut:$SND_NIC:ip}, FLOWS 1, FLOWSIZE 1, ACTIVE $advertise)
+ -> RatedUnqueue(1)
+ -> gen0;
+// -> ToDPDKDevice(1);
+
+DriverManager(
+    pause,
+    pause,
+    pause,
+    pause,
+    wait ${GEN_INIT_WAIT}s,
+    read d.pool_count,
+    print "EVENT GEN_BEGIN\n\r",
+    print "Launching replay",
+    $LAUNCH_CODE
+    set starttime $(now),
+    pause,
+    read d.pool_count,
+    print "RESULT-TESTTIME $(sub $(now) $starttime)",
+    print "RESULT-RCVTIME $(gen0/rcv0/avg.time)",
+    print "RESULT-LATENCY $(div $(add $ALL_AVG 0) $GEN_THREADS)",
+    print "RESULT-TX $(add $ALL_SND )",
+    print "RESULT-PPS $(add $ALL_RATE )",
+    print "RESULT-THROUGHPUT $(add $ALL_LINK )",
+    print "RESULT-RCV_OUTOFORDER $(gen0/fwp.outoforder)",
+    set count $(add $ALL_CNT),
+    print "RESULT-RCV_OUTOFORDERPC $(div $(gen0/fwp.outoforder) $count)"
+)
