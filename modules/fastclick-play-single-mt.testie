@@ -48,6 +48,19 @@ dump:DODUMP=1
 latval:DOLATVAL=1
 gdb:GEN_GDB=gdb -ex run -ex "signal 2" -ex "bt" -batch -args
 
+
+gen_nolat:DOLAT=0
+gen_nolat:GEN_TSDIFF=NoTimestampDiff
+gen_nolat:GEN_NUMBER=
+gen_nolat:GEN_RECORD=
+gen_nolat:GEN_MAGIC=-> magic :: {[0]-> RoundRobinSwitch()[0-3] => [0-3]output;Idle->[4]output;}
+GEN_TSDIFF?=TimestampDiff
+GEN_NUMBER?=-> nPacket :: NumberPacket(42) -> StoreData(40, $magic)
+GEN_RECORD?=EXPAND(-> rt :: RecordTimestamp(N $LIMIT, OFFSET 56))
+GEN_MAGIC?=    -> magic :: Classifier( 40/5741,  40/5722,    40/57E3,      40/5774,  -);
+DOLAT?=1
+
+
 %-rate:require
 test $GEN_RATE -eq -1 || ( echo "GEN_RATE can only be -1 (deactivated) when rate is not given" && exit 1)
 
@@ -84,9 +97,15 @@ define($rxverbose 99)
 fdIN :: FromDump($trace, STOP true, TIMING $TIMING, TIMING_FNT "$TIMING_FNT", END_AFTER $END_AFTER, ACTIVE false, BURST 1)
 tdIN :: ToDPDKDevice($port, BLOCKING $GEN_BLOCKING, BURST $bout, VERBOSE $txverbose, IQUEUE $bout, NDESC $GEN_DESC, IPCO true )
 
+elementclass NoTimestampDiff { $a, $b, $c, $d |
+input -> output;
+Idle->[1]output;
+}
 
 elementclass Numberise { $magic |
-    input-> Strip(14) -> check :: CheckIPHeader(CHECKSUM false) -> nPacket :: NumberPacket(42) -> StoreData(40, $magic) -> ResetIPChecksum() -> Unstrip(14) -> output
+    input-> Strip(14) -> check :: CheckIPHeader(CHECKSUM false)
+    $GEN_NUMBER
+    -> ResetIPChecksum() -> Unstrip(14) -> output
 }
 
 ender :: Script(TYPE PASSIVE,
@@ -108,7 +127,7 @@ input
   -> Pad()
   -> Numberise($magic)
   -> avgSIN :: AverageCounter(IGNORE $ignore)
-  -> rt :: RecordTimestamp(N $LIMIT, OFFSET 56)
+  $GEN_RECORD
   -> output;
 }
 
@@ -130,35 +149,32 @@ elementclass Receiver { $mac, $dir |
 $BROADCAST_IGNORE
     -> Strip(14)
     -> CheckIPHeader(CHECKSUM false)
-    -> magic :: Classifier( 40/5741,
-                            40/5722,
-                            40/57E3,
-                            40/5774,
-                            -);
+
+$GEN_MAGIC
 
     c[1] //Not for this computer or broadcasts
     -> Discard;
 
     magic[0]
-    -> tsdA :: TimestampDiff(gen0/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE )
+    -> tsdA :: $GEN_TSDIFF(gen0/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE )
     -> Unstrip(14)
     -> avgA :: AverageCounterMP(IGNORE $ignore)
     -> Discard;
 
     magic[1]
-    -> tsdB :: TimestampDiff(gen1/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE )
+    -> tsdB :: $GEN_TSDIFF(gen1/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE )
     -> Unstrip(14)
     -> avgB :: AverageCounterMP(IGNORE $ignore)
     -> Discard;
 
     magic[2]
-    -> tsdC :: TimestampDiff(gen2/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE )
+    -> tsdC :: $GEN_TSDIFF(gen2/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE )
     -> Unstrip(14)
     -> avgC :: AverageCounterMP(IGNORE $ignore)
     -> Discard;
 
     magic[3]
-    -> tsdD :: TimestampDiff(gen3/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE )
+    -> tsdD :: $GEN_TSDIFF(gen3/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE )
     -> Unstrip(14)
     -> avgD :: AverageCounterMP(IGNORE $ignore)
     -> Discard;
@@ -192,22 +208,26 @@ ig :: Script(TYPE ACTIVE,
     set elapsed $(sub $n $last),
     set last $n,
                 set sent $(add $(gen0/avgSIN.count) $(gen1/avgSIN.count) $(gen2/avgSIN.count) $(gen3/avgSIN.count)),
+                set bytessent $(add $(gen0/avgSIN.byte_count) $(gen1/avgSIN.byte_count) $(gen2/avgSIN.byte_count) $(gen3/avgSIN.byte_count)),
                 set count $(add $(RIN/avgA.count) $(RIN/avgB.count) $(RIN/avgC.count) $(RIN/avgD.count)), 
                 set bytes $(add $(RIN/avgA.byte_count) $(RIN/avgB.byte_count) $(RIN/avgC.byte_count) $(RIN/avgD.byte_count)),
                 print "IG-$t-RESULT-IGCOUNT $(sub $count $lastcount)",
                 print "IG-$t-RESULT-IGISENT $(sub $sent $lastsent)",
                 print "IG-$t-RESULT-IGDROPPED $(sub $(sub $sent $count) $(sub $lastsent $lastcount))",
                 print "IG-$t-RESULT-IGTHROUGHPUT $(div $(mul $(add $(mul $(sub $count $lastcount) 24) $(sub $bytes $lastbytes)) 8) $elapsed)",
-               
+                print "IG-$t-RESULT-IGTX $(div $(mul $(add $(mul $(sub $sent $lastsent) 24) $(sub $bytessent $lastbytessent)) 8) $elapsed)",
+                goto next $(eq $DOLAT 0),
                 print "IG-$t-RESULT-ILATENCY $(div $(add $(RIN/tsdA.average $indexA) $(RIN/tsdB.average $indexB) $(RIN/tsdC.average $indexC) $(RIN/tsdD.average $indexD)) 4)",
                 print "IG-$t-RESULT-ILAT99 $(div $(add $(RIN/tsdA.perc99 $indexA) $(RIN/tsdB.perc99 $indexB) $(RIN/tsdC.perc99 $indexC) $(RIN/tsdD.perc99 $indexD)) 4)",
                 set indexA $(RIN/tsdA.index),
                 set indexB $(RIN/tsdB.index),
                 set indexC $(RIN/tsdC.index),
                 set indexD $(RIN/tsdD.index),
+                label next,
                 set lastcount $count,
                 set lastsent $sent,
                 set lastbytes $bytes,
+                set lastbytessent $bytessent,
     goto loop,
     label end
 )
@@ -263,7 +283,7 @@ DriverManager(  print "Waiting 2 seconds before launching generation...",
                 print "RESULT-LAT95 $(div $(add $(RIN/tsdA.perc95) $(RIN/tsdB.perc95) $(RIN/tsdC.perc95) $(RIN/tsdD.perc95)) 4)",
                 print "RESULT-LAT99 $(div $(add $(RIN/tsdA.perc99) $(RIN/tsdB.perc99) $(RIN/tsdC.perc99) $(RIN/tsdD.perc99)) 4)",
                 print "RESULT-LAT100 $(div $(add $(RIN/tsdA.max) $(RIN/tsdB.max) $(RIN/tsdC.max) $(RIN/tsdD.max)) 4)",
-                goto alatval $(eq DOLATVAL 0),
+                goto alatval $(eq ${DOLATVAL} 0),
                 set i 0,
                 set step 1,
                 label perc,
