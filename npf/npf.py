@@ -281,6 +281,19 @@ def find_local(path):
         return npf_root() + '/' + path
     return path
 
+def splitpath(hint):
+    if hint is None:
+        hint = "results"
+    dirname, c_filename = os.path.split(hint)
+    if c_filename == '':
+        basename = ''
+        ext = ''
+    else:
+        basename, ext = os.path.splitext(c_filename)
+        if not ext and basename.startswith('.'):
+            ext = basename
+            basename = ''
+    return dirname, basename, ext
 
 def build_filename(testie, build, hint, variables, def_ext, type_str='', show_serie=False, suffix='', force_ext = False, data_folder = False):
     var_str = get_valid_filename('_'.join(
@@ -292,15 +305,7 @@ def build_filename(testie, build, hint, variables, def_ext, type_str='', show_se
         else:
             path = build.result_path(testie.filename, def_ext, suffix=var_str + ('-' + type_str if type_str else '') + ('-' + get_valid_filename(build.pretty_name()) if show_serie else '') )
     else:
-        dirname, c_filename = os.path.split(hint)
-        if c_filename == '':
-            basename = ''
-            ext = ''
-        else:
-            basename, ext = os.path.splitext(c_filename)
-            if not ext and basename.startswith('.'):
-                ext = basename
-                basename = ''
+        dirname, basename, ext = splitpath(hint)
 
         if ext is None or ext == '' or force_ext:
             ext = '.' + def_ext

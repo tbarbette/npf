@@ -1457,6 +1457,7 @@ class Grapher:
 
         minX = None
 
+        #Sync a variable, make all start at 0
         if self.config_bool_or_in("var_sync", key):
             for i, (x, y, e, build) in enumerate(data):
                 if minX is None:

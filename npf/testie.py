@@ -908,9 +908,11 @@ class Testie:
 
         #All the following paths must be relative to the NPF test folder (that is something like NPF's folder/testie1234567/)
         full_test_folder = npf.from_root(test_folder) + os.sep
-        out_path = os.path.splitext(options.output if options.output != 'graph' else options.graph_filename)[0] + os.sep
+
+        dirname, basename, ext = npf.splitpath(options.output if options.output != 'graph' else options.graph_filename)
+        out_path = dirname + os.sep
         v_internals = { 'NPF_REPO':get_valid_filename(build.repo.name),'NPF_ROOT': '../', 'NPF_BUILD': '../' + build.build_path(),
-                        'NPF_TESTIE_PATH': '../' + (os.path.relpath(self.path) if self.path else ''),
+                        'NPF_TESTIE_PATH':os.path.relpath(self.path,full_test_folder),
                         'NPF_RESULT_PATH':os.path.relpath(build.result_folder(), full_test_folder),
                         'NPF_OUTPUT_PATH':os.path.relpath(out_path, full_test_folder)}
 
@@ -932,8 +934,14 @@ class Testie:
 
         for runs_this_pass in total_runs:  # Number of results to ensure for this run
             n = 0
-            for variables in self.variables.expand(method=options.expand):
+            for root_variables in self.variables.expand(method=options.expand):
                 n += 1
+
+                variables= {}
+                for imp in self.get_imports():
+                    for k,v in imp.testie.variables.statics().items():
+                        variables[k] = v.makeValues()[0]
+                variables.update(root_variables)
                 run = Run(variables)
                 run.variables.update(build.repo.overriden_variables)
                 variables = run.variables.copy()
