@@ -1,7 +1,9 @@
 %info
-UDP Traffic generator Module with latency test, one side only
+UDP Traffic generator Module with latency test, one NIC only
 
-This will generate UDP traffic using 1 NICs and receive it back on another NIC.
+This version differs with udpgen-latency-single by allowing to track the latency over time.
+
+This will generate UDP traffic using 1 NICs and receive it back on (maybe another) NIC.
 
 Roles : client:0 (first NIC of the server running this file) will send traffic
 towards "dut" and should receive back the packets on client:1.
@@ -21,8 +23,7 @@ GEN_LENGTH=64
 GEN_BLOCKING=true
 GEN_REPLAY=1
 GEN_INIT_WAIT=5
-GEN_THREADS=4
-//Change not supported as of now
+GEN_THREADS=4 //Change not supported as of now
 -rate:LIMIT=1000000
 rate:RATE=1000
 RCV_NIC=1
@@ -37,11 +38,13 @@ R4=8
 
 
 %late_variables
-//rate:LIMIT=EXPAND( $(( $RATE * 10 if $RATE < 100000 else 1000000 )) )
+rate:LIMIT?=EXPAND( $(( $RATE * 10 if $RATE < 100000 else 1000000 )) )
 NBBUF=EXPAND( $(( (($LIMIT + ($GEN_BURST * 2) ) * $GEN_THREADS ) + 8192 )) )
 gdb:GDB=gdb -ex run -ex "signal 2" -ex "bt" -batch -args 
 
 CHECKORDER?=0
+
+advertise?=1
 
 REPLAY=ReplayUnqueue(STOP 0, QUICK_CLONE true)
 
@@ -74,7 +77,26 @@ ALL_LINK=EXPAND( $(gen0/rcv$NG/avg.link_rate) )
 ALL_LINK=HEAD($GEN_THREADS, $ALL_LINK)
 
 %script deps=fastclick sudo=true delay=2
-$GDB click --dpdk -c 0xff -- PKTGEN_CONFIG
+cat SPRAYER PKTGEN_CONFIG > C
+$GDB click --dpdk -c 0xff -- C
+
+%sprayer:file SPRAYER
+elementclass Sprayer {
+    input
+    -> Strip(14)
+    -> MarkIPHeader()
+    -> SetIPChecksum()
+    -> SetUDPChecksum
+    -> MoveData(SRC_OFFSET 26, DST_OFFSET -4, LENGTH 2)
+    -> Unstrip(14)
+    -> output
+}
+
+%-sprayer:file SPRAYER
+elementclass Sprayer {
+    input
+    -> output
+}
 
 %file PKTGEN_CONFIG
 d :: DPDKInfo($NBBUF)
@@ -89,15 +111,10 @@ elementclass Generator { $NUM, $srcmac, $dstmac, $srcip, $dstip, $th |
     fastudp :: FastUDPFlows(RATE 0, LIMIT $LIMIT, LENGTH $GEN_LENGTH, SRCETH $srcmac, DSTETH $dstmac, SRCIP $srcip, DSTIP $dstip, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST)
     -> MarkMACHeader
     -> EnsureDPDKBuffer
-	-> Numberise(\<123400>$NUM)
-	-> Strip(14)
-	-> MarkIPHeader()
-    -> SetIPChecksum()
-    -> SetUDPChecksum 
-    -> MoveData(SRC_OFFSET 26, DST_OFFSET -4, LENGTH 2)
-    -> Unstrip(14)
-	-> replay :: $REPLAY
-    $PULL	
+    -> Numberise(\<123400>$NUM)
+    -> Sprayer
+    -> replay :: $REPLAY
+    $PULL
     -> rt :: RecordTimestamp(N $LIMIT, OFFSET 54)
     -> sndavg :: AverageCounter() //Single thread here
     -> output;
@@ -199,8 +216,6 @@ StaticThreadSched(display_th $R4)
 }
 
 gen0 :: MultiThreadGenerator(${client:$RCV_NIC:pci}, ${client:$RCV_NIC:pci}, ${client:$RCV_NIC:mac}, ${dut:$RCV_NIC:mac}, ${client:$RCV_NIC:mac}, ${client:$RCV_NIC:ip}, ${dut:$RCV_NIC:ip})
-
-
 
 //Advertise return MAC address
 adv :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH 60, SRCETH ${client:$SND_NIC:mac}, DSTETH ${dut:$SND_NIC:mac}, SRCIP ${client:$SND_NIC:ip}, DSTIP ${dut:$SND_NIC:ip}, FLOWS 1, FLOWSIZE 1, ACTIVE $advertise)
