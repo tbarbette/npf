@@ -70,8 +70,8 @@ ALL_LINK=EXPAND( $(gen0/rcv$NG/avg.link_rate) )
 ALL_LINK=HEAD($GEN_THREADS, $ALL_LINK)
 
 %script deps=fastclick sudo=true delay=2
-cat SPRAYER PKTGEN_CONFIG > C
-$GDB click --dpdk -c 0xff -- C
+cat SPRAYER PKTGEN_CONFIG > CGEN
+$GDB click --dpdk -c 0xff -- CGEN
 
 %sprayer:file SPRAYER
 elementclass Sprayer {
