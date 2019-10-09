@@ -47,6 +47,7 @@ R4=8
 
 %late_variables
 STARTAFTER?=0
+GEN_BLOCKING?=true
 -nodpdkload:NBBUF=EXPAND( $(( ( ( $LIMIT * $GEN_THREADS ) + (max(4096,$PKTGEN_BURST_OUT) * 2 * 8 ) ) + 8192 )) )
 -nodpdkload:ENSURE= -> EnsureDPDKBuffer
 -nodpdkload:LATEENSURE=
@@ -89,7 +90,7 @@ define($rxverbose 99)
 HTTPServer
 
 fdIN :: FromDump($trace, STOP false, TIMING false, START_AFTER $STARTAFTER)
-tdIN :: ToDPDKDevice($port, BLOCKING true, BURST $bout, VERBOSE $txverbose, IQUEUE $bout, NDESC $GEN_DESC)
+tdIN :: ToDPDKDevice($port, BLOCKING $GEN_BLOCKING, BURST $bout, VERBOSE $txverbose, IQUEUE $bout, NDESC $GEN_DESC)
 
 
 elementclass Numberise { $magic |
@@ -272,8 +273,16 @@ display_th :: Script(TYPE PASSIVE,
                      set time $(sub $(now) $stime),
                      set tx $(add $(gen0/avgSIN.link_rate) $(gen1/avgSIN.link_rate) $(gen2/avgSIN.link_rate) $(gen3/avgSIN.link_rate)),
                      set rx $(add $(RIN/avgA.link_rate) $(RIN/avgB.link_rate) $(RIN/avgC.link_rate) $(RIN/avgD.link_rate)),
-                     print "",
+                     set received $(add $(RIN/avgA.count) $(RIN/avgB.count) $(RIN/avgC.count) $(RIN/avgD.count) ),
+                     set sent $(add $(gen0/avgSIN.count) $(gen1/avgSIN.count) $(gen2/avgSIN.count) $(gen3/avgSIN.count) ),
+                     print "IGEN-$time-RESULT-ICOUNT $received",
+                     print "IGEN-$time-RESULT-IDROPPED $(sub $sent $received)",
+                     print "IGEN-$time-RESULT-IDROPPEDPS $(div $(sub $sent $received) $diff)",
                      print "IGEN-$time-RESULT-ITHROUGHPUT $rx",
+
+                     //If no packets, do not print latency
+                     goto g $(eq $(RIN/tsdA.index) $indexA),
+                     print "",
                      print "IGEN-$time-RESULT-ILATENCY $(div $(add $(RIN/tsdA.average $indexA) $(RIN/tsdB.average $indexB) $(RIN/tsdC.average $indexC) $(RIN/tsdD.average $indexD)) 4)",
                      print "IGEN-$time-RESULT-ILAT99 $(div $(add $(RIN/tsdA.perc99 $indexA) $(RIN/tsdB.perc99 $indexB) $(RIN/tsdC.perc99 $indexC) $(RIN/tsdD.perc99 $indexD)) 4)",
 
@@ -283,11 +292,6 @@ display_th :: Script(TYPE PASSIVE,
                      print "IGEN-$time-RESULT-ITX $tx",
                      print "IGEN-$time-RESULT-ILOSS $(sub $rx $tx)",
 
-                     set received $(add $(RIN/avgA.count) $(RIN/avgB.count) $(RIN/avgC.count) $(RIN/avgD.count) ),
-                     set sent $(add $(gen0/avgSIN.count) $(gen1/avgSIN.count) $(gen2/avgSIN.count) $(gen3/avgSIN.count) ),
-                     print "IGEN-$time-RESULT-ICOUNT $received",
-                     print "IGEN-$time-RESULT-IDROPPED $(sub $sent $received)",
-                     print "IGEN-$time-RESULT-IDROPPEDPS $(div $(sub $sent $received) $diff)",
                      set indexA $(RIN/tsdA.index),
                      set indexB $(RIN/tsdB.index),
                      set indexC $(RIN/tsdC.index),
