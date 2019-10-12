@@ -21,7 +21,7 @@ GEN_BURST=32
 GEN_FLOWS=128
 GEN_LENGTH=64
 GEN_BLOCKING=true
-GEN_REPLAY=1
+PKTGEN_REPLAY_COUNT=1
 GEN_INIT_WAIT=5
 GEN_THREADS=4 //Change not supported as of now
 -rate:LIMIT=1000000
@@ -41,7 +41,7 @@ R4=8
 rate:LIMIT?=EXPAND( $(( $RATE * 10 if $RATE < 100000 else 1000000 )) )
 NBBUF=EXPAND( $(( (($LIMIT + ($GEN_BURST * 2) ) * $GEN_THREADS ) + 8192 )) )
 gdb:GDB=gdb -ex run -ex "signal 2" -ex "bt" -batch -args 
-
+GEN_REPLAY?=EXPAND($PKTGEN_REPLAY_COUNT)
 CHECKORDER?=0
 
 advertise?=1
@@ -80,7 +80,7 @@ ALL_LINK=HEAD($GEN_THREADS, $ALL_LINK)
 cat SPRAYER PKTGEN_CONFIG > CGEN
 $GDB click --dpdk -c 0xff -- CGEN
 
-%sprayer:file SPRAYER
+%sprayer|sprayergen:file SPRAYER
 elementclass Sprayer {
     input
     -> Strip(14)
@@ -92,7 +92,7 @@ elementclass Sprayer {
     -> output
 }
 
-%-sprayer:file SPRAYER
+%-sprayer,-sprayergen:file SPRAYER
 elementclass Sprayer {
     input
     -> output

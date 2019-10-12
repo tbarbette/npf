@@ -46,6 +46,7 @@ R4=8
 
 
 %late_variables
+SAMPLE?=1
 STARTAFTER?=0
 GEN_BLOCKING?=true
 -nodpdkload:NBBUF=EXPAND( $(( ( ( $LIMIT * $GEN_THREADS ) + (max(4096,$PKTGEN_BURST_OUT) * 2 * 8 ) ) + 8192 )) )
@@ -55,7 +56,7 @@ nodpdkload:NBBUF=65536
 nodpdkload:ENSURE= -> MarkMACHeader()
 nodpdkload:LATEENSURE=
 DODUMP?=0
-NRECORD=EXPAND( $(( $LIMIT * $PKTGEN_REPLAY_COUNT  * 2 )) )
+NRECORD=EXPAND( $(( $LIMIT / $SAMPLE * $PKTGEN_REPLAY_COUNT  * 2 )) )
 BROADCAST_IGNORE= -> c :: Classifier(0/$mac,-) //Ignore broadcasts
 
 %promisc:late_variables
@@ -141,28 +142,28 @@ $BROADCAST_IGNORE
     -> Discard;
 
     magic[0]
-    -> tsdA :: TimestampDiff(gen0/rt, OFFSET 42, N $NRECORD )
+    -> tsdA :: TimestampDiff(gen0/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE )
     -> Unstrip(14)
     -> avgA :: AverageCounterMP(IGNORE $ignore)
     -> avgA2 :: AverageCounterMP(IGNORE $ignore)
     -> Discard;
 
     magic[1]
-    -> tsdB :: TimestampDiff(gen1/rt, OFFSET 42, N $NRECORD )
+    -> tsdB :: TimestampDiff(gen1/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE )
     -> Unstrip(14)
     -> avgB :: AverageCounterMP(IGNORE $ignore)
     -> avgB2 :: AverageCounterMP(IGNORE $ignore)
     -> Discard;
 
     magic[2]
-    -> tsdC :: TimestampDiff(gen2/rt, OFFSET 42, N $NRECORD )
+    -> tsdC :: TimestampDiff(gen2/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE )
     -> Unstrip(14)
     -> avgC :: AverageCounterMP(IGNORE $ignore)
     -> avgC2 :: AverageCounterMP(IGNORE $ignore)
     -> Discard;
 
     magic[3]
-    -> tsdD :: TimestampDiff(gen3/rt, OFFSET 42, N $NRECORD )
+    -> tsdD :: TimestampDiff(gen3/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE )
     -> Unstrip(14)
     -> avgD :: AverageCounterMP(IGNORE $ignore)
     -> avgD2 :: AverageCounterMP(IGNORE $ignore)
