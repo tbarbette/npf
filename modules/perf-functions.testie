@@ -7,6 +7,9 @@ PERF_TIME?=4
 PERF_EVENT=cycles
 PERF_MIN=1
 
+%late_variables
+PERF_PATH?=perf
+
 %script sudo=true autokill=false
 trap : INT
 sh script.sh
@@ -14,8 +17,8 @@ sh script.sh
 %file script.sh
 echo "Launching perf record..."
 trap : INT
-perf record -r 80 -F 1000 -a -g $PERF_OPT -o perf.data -e $PERF_EVENT sleep $PERF_TIME
-perf report -s overhead -F symbol,overhead,pid --call-graph none -t "," $PERF_OPT --no-children --percentage relative | grep -v '^#' > perf.list
+${PERF_PATH} record -r 80 -F 1000 -a -g $PERF_OPT -o perf.data -e $PERF_EVENT sleep $PERF_TIME
+${PERF_PATH} report -s overhead -F symbol,overhead,pid --call-graph none -t "," $PERF_OPT --no-children --percentage relative | grep -v '^#' > perf.list
 cat perf.list | while read line; do
     sym=$(echo $line | cut -d',' -f1 | xargs)
     pc=$(echo $line | cut -d',' -f2 | xargs | grep -oE '[0-9.]*' )
