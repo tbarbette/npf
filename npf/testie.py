@@ -260,7 +260,7 @@ class Testie:
                     toSend.add((deprepo.reponame,role,node,deprepo.get_build_path()))
         for repo,role,node,bp in toSend.difference(done):
             print("Sending software %s to %s... " % (repo, role), end ='')
-            t = node.executor.sendFolder(bp)
+            t = node.executor.sendFolder(os.path.relpath(bp,npf.npf_root()),local=npf.npf_root())
             if (t > 0):
                 print("%d bytes sent." % t)
             else:
@@ -286,7 +286,7 @@ class Testie:
                         fpath = './npf/' + fpath
                     fpath = os.path.relpath(fpath)
                     print("Sending files %s to %s... " % (fpath, role), end = '')
-                    t = node.executor.sendFolder(fpath)
+                    t = node.executor.sendFolder(os.path.relpath(fpath,npf.npf_root()))
                     if (t > 0):
                         print("%d bytes sent." % t)
                     else:
@@ -1155,7 +1155,7 @@ class Testie:
 
         if not self.options.preserve_temp:
             try:
-                shutil.rmtree(test_folder)
+                shutil.rmtree(npf.npf_root() + test_folder)
             except PermissionError:
                 pass
         else:
@@ -1247,5 +1247,5 @@ class Testie:
 
     def make_test_folder(self):
         test_folder = "testie%s-%05d" % (datetime.datetime.now().strftime("%y%m%d%H%M"), random.randint(1, 2 << 16))
-        os.mkdir(test_folder)
+        os.mkdir( npf.npf_root() + test_folder)
         return test_folder

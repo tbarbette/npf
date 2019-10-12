@@ -167,7 +167,7 @@ class SSHExecutor(Executor):
             print("Error while connecting to %s" % self.addr)
             raise e
 
-    def sendFolder(self, path):
+    def sendFolder(self, path, local=None):
         try:
             with paramiko.SSHClient() as ssh:
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -186,14 +186,14 @@ class SSHExecutor(Executor):
                 def _send(path):
                     total = 0
                     rlist = sftp.listdir(self.path + path)
-
-                    for entry in os.scandir(path):
+                    lpath = lpath if not local else local + os.sep + path
+                    for entry in os.scandir(lpath):
                         if entry.is_file():
                             remote = self.path + path + '/' + entry.name
                             if not entry.name in rlist or entry.stat().st_size != sftp.stat(remote).st_size:
                                 try:
                                     es = entry.stat()
-                                    sftp.put(path + '/' + entry.name, remote)
+                                    sftp.put(lpath + '/' + entry.name, remote)
                                     sftp.chmod(remote, es.st_mode)
                                     total += es.st_size
                                 except FileNotFoundError:
@@ -202,35 +202,41 @@ class SSHExecutor(Executor):
                             if entry.name in ignored:
                                 continue
                             if entry.name not in rlist:
-                                sftp.mkdir(self.path + path + '/' + entry.name, mode=777)
+                                sftp.mkdir(self.path + path + '/' + entry.name, mode=0o777 )
                                 total += _send(path +'/'+entry.name + '/')
                     return total
                 curpath = ''
                 total = 0
                 for d in path.split('/'):
                     curpath = curpath + d + '/'
-                    if not os.path.isdir(curpath):
+                    lcurpath = curpath if not local else local + os.sep + curpath
+                    if not os.path.isdir(lcurpath):
                         remote = self.path + path
                         try:
                             sftp.stat(remote)
                         except IOError as e:
                             if e.errno is errno.ENOENT:
-                                es = os.stat(path)
-                                sftp.put(path, remote)
+                                lpath = path if not local else local + os.sep + path
+                                es = os.stat(lpath)
+                                sftp.put(lpath, remote)
                                 sftp.chmod(remote, es.st_mode)
                                 total += es.st_size
                         finally:
                             sftp.close()
                         return total
                     try:
-                        sftp.stat(self.path + '/' + curpath)
+                        f = self.path + '/' + curpath
+                        sftp.stat(f)
                     except FileNotFoundError:
                         try:
-                            f = self.path + '/' + curpath
-                            sftp.mkdir(f,mode=777)
+                            sftp.mkdir(f,mode=0o777)
                         except IOError as e:
                             print("Could not make folder %s" % f)
                             raise e
+                    except PermissionError as e:
+                        print("Could not make folder %s" % f)
+                        raise e
+
 
                 total += _send(path)
 
