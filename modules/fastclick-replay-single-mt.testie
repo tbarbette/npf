@@ -48,6 +48,14 @@ SND_NIC?=EXPAND($CLIENT_NIC)
 RCV_NIC?=EXPAND($CLIENT_NIC)
 DODUMP?=0
 
+-nolat:GEN_LAT_NUMBERISE= -> Numberise($magic)
+-nolat:GEN_LAT_RECORD=-> rt :: RecordTimestamp(N $LIMIT, OFFSET 56)
+-nolat:GEN_LAT_DISPATCH=-> magic :: Classifier( 40/5601, 40/5602, 40/5603, 40/5604, -)
+-nolat:GEN_LAT_TSDIFF= TimestampDiff
+GEN_LAT_NUMBERISE?=
+GEN_LAT_RECORD?=
+GEN_LAT_DISPATCH?= -> magic :: {[0] -> RoundRobinSwitch() => [0-3]; Idle->[4]}
+GEN_LAT_TSDIFF?= NoTimestampDiff
 
 %promisc:late_variables
 BROADCAST_IGNORE= -> c :: Classifier(-, 0/ffffffffffff)
@@ -81,6 +89,10 @@ define($rxverbose 99)
 fdIN :: FromDump($trace, STOP false, TIMING false)
 tdIN :: ToDPDKDevice($txport, BLOCKING true, BURST $bout, VERBOSE $txverbose, IQUEUE $bout, NDESC $GEN_DESC)
 
+elementclass NoTimestampDiff { $a, $b, $c, $d |
+    input -> output;
+    Idle->[1]output;
+}
 
 elementclass Numberise { $magic |
     input-> Strip(14) -> check :: CheckIPHeader(CHECKSUM false) -> nPacket :: NumberPacket(42) -> StoreData(40, $magic) -> SetIPChecksum -> Unstrip(14) -> output
@@ -94,10 +106,10 @@ input
   -> EnsureDPDKBuffer
   //-> rwIN :: EtherRewrite($INsrcmac,$INdstmac)
   -> Pad()
-  -> Numberise($magic)
+  $GEN_LAT_NUMBERISE
 //  -> Print(TIMESTAMP true)
   -> replay :: ReplayUnqueue(STOP 0, STOP_TIME $PKTGEN_REPLAY_TIME, QUICK_CLONE $quick, VERBOSE true, ACTIVE true, LIMIT $LIMIT, TIMING $TIMING)
-  -> rt :: RecordTimestamp(N $LIMIT, OFFSET 56)
+  $GEN_LAT_RECORD
   -> avgSIN :: AverageCounter(IGNORE $ignore)
   -> output;
 }
@@ -119,35 +131,31 @@ elementclass Receiver { $mac, $dir |
 $BROADCAST_IGNORE
     -> Strip(14)
     -> CheckIPHeader(CHECKSUM false)
-    -> magic :: Classifier( 40/5601,
-                            40/5602,
-                            40/5603,
-                            40/5604,
-                            -);
+   $GEN_LAT_DISPATCH
 
     c[1] //Not for this computer or broadcasts
     -> Discard;
 
     magic[0]
-    -> tsdA :: TimestampDiff(gen0/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE )
+    -> tsdA :: $GEN_LAT_TSDIFF(gen0/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE )
     -> Unstrip(14)
     -> avgA :: AverageCounterMP(IGNORE $ignore)
     -> Discard;
 
     magic[1]
-    -> tsdB :: TimestampDiff(gen1/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE )
+    -> tsdB :: $GEN_LAT_TSDIFF(gen1/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE )
     -> Unstrip(14)
     -> avgB :: AverageCounterMP(IGNORE $ignore)
     -> Discard;
 
     magic[2]
-    -> tsdC :: TimestampDiff(gen2/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE )
+    -> tsdC :: $GEN_LAT_TSDIFF(gen2/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE )
     -> Unstrip(14)
     -> avgC :: AverageCounterMP(IGNORE $ignore)
     -> Discard;
 
     magic[3]
-    -> tsdD :: TimestampDiff(gen3/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE )
+    -> tsdD :: $GEN_LAT_TSDIFF(gen3/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE )
     -> Unstrip(14)
     -> avgD :: AverageCounterMP(IGNORE $ignore)
     -> Discard;

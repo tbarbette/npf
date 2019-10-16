@@ -95,7 +95,7 @@ tdIN :: ToDPDKDevice($port, BLOCKING $GEN_BLOCKING, BURST $bout, VERBOSE $txverb
 
 
 elementclass Numberise { $magic |
-    input-> Strip(14) -> check :: CheckIPHeader(CHECKSUM false) -> nPacket :: NumberPacket(42) -> StoreData(40, $magic) -> SetIPChecksum -> Unstrip(14) -> output
+    input-> Strip(14) -> check :: CheckIPHeader(CHECKSUM false) -> nPacket :: NumberPacket(42) -> StoreData(40, $magic) -> ResetIPChecksum(L4 true) -> Unstrip(14) -> output
 }
 
 fdIN
