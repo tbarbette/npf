@@ -39,6 +39,7 @@ SAMPLE?=10
 
 nolinktest=0
 dump:DODUMP=1
+nolat:NOLAT=1
 
 %late_variables
 NBBUF=EXPAND( $(( ( ( $LIMIT * $GEN_THREADS ) + (max(4096,$PKTGEN_BURST_OUT) * 2 * 4 ) ) + 8192 )) )
@@ -47,12 +48,13 @@ BROADCAST_IGNORE= -> c :: Classifier(0/$mac,-) //Ignore broadcasts
 SND_NIC?=EXPAND($CLIENT_NIC)
 RCV_NIC?=EXPAND($CLIENT_NIC)
 DODUMP?=0
+NOLAT?=0
 
 -nolat:GEN_LAT_NUMBERISE= -> Numberise($magic)
--nolat:GEN_LAT_RECORD=-> rt :: RecordTimestamp(N $LIMIT, OFFSET 56)
+-nolat:GEN_LAT_RECORD=-> rt :: RecordTimestamp(N $limit, OFFSET 56)
 -nolat:GEN_LAT_DISPATCH=-> magic :: Classifier( 40/5601, 40/5602, 40/5603, 40/5604, -)
 -nolat:GEN_LAT_TSDIFF= TimestampDiff
-GEN_LAT_NUMBERISE?=
+GEN_LAT_NUMBERISE?= -> NoNumberise($magic)
 GEN_LAT_RECORD?=
 GEN_LAT_DISPATCH?= -> magic :: {[0] -> RoundRobinSwitch() => [0-3]; Idle->[4]}
 GEN_LAT_TSDIFF?= NoTimestampDiff
@@ -85,6 +87,7 @@ define($rxport ${self:$RCV_NIC:pci})
 define($quick true)
 define($txverbose 99)
 define($rxverbose 99)
+define($limit $LIMIT)
 
 fdIN :: FromDump($trace, STOP false, TIMING false)
 tdIN :: ToDPDKDevice($txport, BLOCKING true, BURST $bout, VERBOSE $txverbose, IQUEUE $bout, NDESC $GEN_DESC)
@@ -96,6 +99,10 @@ elementclass NoTimestampDiff { $a, $b, $c, $d |
 
 elementclass Numberise { $magic |
     input-> Strip(14) -> check :: CheckIPHeader(CHECKSUM false) -> nPacket :: NumberPacket(42) -> StoreData(40, $magic) -> SetIPChecksum -> Unstrip(14) -> output
+}
+
+elementclass NoNumberise { $magic |
+    input-> Strip(14) -> check :: CheckIPHeader(CHECKSUM false) -> Unstrip(14) -> output
 }
 
 fdIN
@@ -278,6 +285,7 @@ DriverManager(  pause,
                 print >>$LATENCYDUMP $(RIN/tsdC.dump_list),
                 print >>$LATENCYDUMP $(RIN/tsdD.dump_list),
                 label adump,
+                goto ldump $(eq $NOLAT 1),
                 print "RESULT-LATENCY $(div $(add $(RIN/tsdA.average) $(RIN/tsdB.average) $(RIN/tsdC.average) $(RIN/tsdD.average)) 4)",
                 print "RESULT-LAT00 $(div $(add $(RIN/tsdA.min) $(RIN/tsdB.min) $(RIN/tsdC.min) $(RIN/tsdD.min)) 4)",
                 print "RESULT-LAT01 $(div $(add $(RIN/tsdA.perc01) $(RIN/tsdB.perc01) $(RIN/tsdC.perc01) $(RIN/tsdD.perc01)) 4)",
@@ -287,6 +295,7 @@ DriverManager(  pause,
                 print "RESULT-LAT95 $(div $(add $(RIN/tsdA.perc95) $(RIN/tsdB.perc95) $(RIN/tsdC.perc95) $(RIN/tsdD.perc95)) 4)",
                 print "RESULT-LAT99 $(div $(add $(RIN/tsdA.perc99) $(RIN/tsdB.perc99) $(RIN/tsdC.perc99) $(RIN/tsdD.perc99)) 4)",
                 print "RESULT-LAT100 $(div $(add $(RIN/tsdA.max) $(RIN/tsdB.max) $(RIN/tsdC.max) $(RIN/tsdD.max)) 4)",
+                label ldump,
                 print "RESULT-THROUGHPUT $(add $(RIN/avgA.link_rate) $(RIN/avgB.link_rate) $(RIN/avgC.link_rate) $(RIN/avgD.link_rate) )",
                 print "RESULT-COUNT $(add $(RIN/avgA.count) $(RIN/avgB.count) $(RIN/avgC.count) $(RIN/avgD.count) )",
                 print "RESULT-TX $(add $(gen0/avgSIN.link_rate)  $(gen1/avgSIN.link_rate) $(gen2/avgSIN.link_rate) $(gen3/avgSIN.link_rate))",
