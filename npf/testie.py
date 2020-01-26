@@ -73,8 +73,11 @@ def _parallel_exec(param: RemoteParameters):
         return False, o, e, c, param.script
     else:
         if param.autokill is not None:
+                param.event.c.acquire()
                 param.autokill.value = param.autokill.value - 1
-                if param.autokill.value == 0:
+                v = param.autokill.value
+                param.event.c.release()
+                if v == 0:
                     Testie.killall(param.queue, param.event)
 
         elif pid == -1:
