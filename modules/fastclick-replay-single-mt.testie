@@ -300,4 +300,5 @@ DriverManager(  pause,
                 print "RESULT-COUNT $(add $(RIN/avgA.count) $(RIN/avgB.count) $(RIN/avgC.count) $(RIN/avgD.count) )",
                 print "RESULT-TX $(add $(gen0/avgSIN.link_rate)  $(gen1/avgSIN.link_rate) $(gen2/avgSIN.link_rate) $(gen3/avgSIN.link_rate))",
                 print "RESULT-PPS $(add $(RIN/avgA.rate)  $(RIN/avgB.rate) $(RIN/avgC.rate) $(RIN/avgD.rate))",
+                print "EVENT GEN_DONE",
                 stop);
