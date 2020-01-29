@@ -20,6 +20,7 @@ CLIENT_NIC=0
 TRACE_TIME=8
 LIMIT=200000
 PROMISC=false
+SAMPLE=1
 promisc:PROMISC=true
 
 nolinktest=0
@@ -27,6 +28,7 @@ nolinktest=0
 %late_variables
 NBBUF=EXPAND( $(( ( $LIMIT + ($PKTGEN_BURST_OUT * 2) ) + 8192 )) )
 BROADCAST_IGNORE= -> c :: Classifier(0/$mac,-) //Ignore broadcasts
+NRECORD=EXPAND( $(( $LIMIT / $SAMPLE * $PKTGEN_REPLAY_COUNT  * 2 )) )
 
 %promisc:late_variables
 BROADCAST_IGNORE= -> c :: Classifier(-, 0/ffffffffffff)
@@ -94,7 +96,7 @@ $BROADCAST_IGNORE
 
 receiveIN -> RINswitch :: Switch(2) -> RIN :: Receiver($RAW_INsrcmac,"IN")
 //-> IPPrint(IN)
-  -> Strip(14) -> tsd :: TimestampDiff(rt, N $LIMIT, OFFSET 40) -> Unstrip(14)
+  -> Strip(14) -> tsd :: TimestampDiff(rt, N $NRECORD, OFFSET 40, SAMPLE $SAMPLE) -> Unstrip(14)
 -> avgRIN :: AverageCounter(IGNORE $ignore) -> Discard;
 
 
@@ -166,4 +168,5 @@ DriverManager(  pause,
                 print "Min Delay: $(tsd.min) µs",
                 print "Max Delay: $(tsd.max) µs",
                 print "Delay StdDev: $(tsd.stddev) µs",
+                print "EVENT GEN_DONE",
                 stop);
