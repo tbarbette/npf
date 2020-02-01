@@ -5,6 +5,7 @@ results/
 CONFIG
 CONFIG2
 build
+archives
 result
 tests/local
 .idea/modules.xml
