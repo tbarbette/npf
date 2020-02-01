@@ -739,6 +739,15 @@ class Testie:
                     vs.update(v)
                     exec(self.pyexit.content, vs)
 
+                glob_sync = self.config.get_list("glob_sync")
+                glob_min = []
+                for g in glob_sync:
+
+                    for kind, kind_results in new_kind_results.items():
+                        if kind in glob_sync:
+                            m = min(kind_results.keys())
+                            glob_min.append(m)
+
                 for kind, kind_results in new_kind_results.items():
                   if kind_results:
                     all_kind_results.setdefault(kind,{})
@@ -752,7 +761,7 @@ class Testie:
                         nz = False
 
                     last_val = {}
-                    acc = self.config.get_list("time_sync")
+                    #acc = self.config.get_list("time_sync")
                     for kind_value, results in sorted(kind_results.items()):
                         if not nz: #We still haven't found a non zero kind_value
                             for result_type, result in results.items():
@@ -761,8 +770,8 @@ class Testie:
 
                                 if result != 0:
                                     nz = True
-                                    if (not acc or result_type in acc):
-                                        min_kind_value = kind_value
+#                                    if (not acc or result_type in acc):
+#                                        min_kind_value = kind_value
                             if not nz:
                                 continue
                             else:
@@ -915,7 +924,7 @@ class Testie:
         dirname, basename, ext = npf.splitpath(options.output if options.output != 'graph' else options.graph_filename)
         out_path = dirname + os.sep
         v_internals = { 'NPF_REPO':get_valid_filename(build.repo.name),'NPF_ROOT': '../', 'NPF_BUILD': '../' + build.build_path(),
-                        'NPF_TESTIE_PATH':os.path.relpath(self.path,full_test_folder),
+                        'NPF_TESTIE_PATH':os.path.relpath(self.path if self.path else "./",full_test_folder),
                         'NPF_RESULT_PATH':os.path.relpath(build.result_folder(), full_test_folder),
                         'NPF_OUTPUT_PATH':os.path.relpath(out_path, full_test_folder)}
 
@@ -1014,7 +1023,7 @@ class Testie:
 
                 if run_results:
                     for result_type in self.config.get_list('results_expect'):
-                        print(self.config.get_list('results_expect'))
+                        print("Could not find result :", self.config.get_list('results_expect'))
                         if result_type not in run_results:
                             found = False
                             if prev_kind_results:

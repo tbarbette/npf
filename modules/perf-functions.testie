@@ -1,3 +1,6 @@
+%info
+Simple module that will record the time spent in each perf function
+
 %config
 
 

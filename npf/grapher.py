@@ -1145,7 +1145,7 @@ class Grapher:
                     ax = data[0][0]
                     if npf.all_num(ax) and is_log(ax) is not False:
                         isLog = True
-                        baseLog = l
+                        baseLog = is_log(ax)
 
                 if isLog and not barplot:
                     ax = data[0][0]
@@ -1176,9 +1176,10 @@ class Grapher:
                             if index[-1] != len(xticks) -1:
                                 index = np.append(index,[len(xticks)-1])
                             xticks = np.delete(xticks,np.delete(np.array(range(len(xticks))),index))
-                        if not xlims and min(data[0][0] >= 1):
-                            xlims = [1]
-                            axis.set_xlim(xlims[0])
+#Weird code.
+#                        if not xlims and min(data[0][0]) >= 1:
+#                            xlims = [1]
+#                            axis.set_xlim(xlims[0])
                         plt.xticks(xticks)
                     else:
                         plt.xscale('symlog')

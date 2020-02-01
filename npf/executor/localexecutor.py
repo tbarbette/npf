@@ -19,6 +19,8 @@ class LocalKiller:
     def is_alive(self):
         try:
             os.killpg(self.pgpid, 0)
+        except PermissionError:
+            return True
         except ProcessLookupError:
             return False
         return True

@@ -551,6 +551,7 @@ class SectionConfig(SectionVariable):
         self.__add("timeout", 30)
         self.__add("time_precision", 1)
         self.__add("time_sync", True)
+        self.__add_list("glob_sync", [])
         self.__add_list("var_sync", ["time"])
         self.__add_dict("var_shift", {})
 

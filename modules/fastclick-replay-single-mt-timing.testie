@@ -66,9 +66,9 @@ BROADCAST_IGNORE= -> c :: Classifier(-, 0/ffffffffffff)
 click --dpdk -l 0-15  --socket-mem $DPDKMEM --huge-dir /mnt/hugepages  -- PKTGEN_CONFIG
 
 %-largemem:script deps=fastclick sudo=true
-//click --dpdk -l 0-15  -- PKTGEN_CONFIG
+click --dpdk -l 0-15  -- PKTGEN_CONFIG
 //cat PKTGEN_CONFIG
-gdb -ex run -ex "signal 2" -ex "bt" -batch -args click --dpdk -l 0-15  -- PKTGEN_CONFIG
+//gdb -ex run -ex "signal 2" -ex "bt" -batch -args click --dpdk -l 0-15  -- PKTGEN_CONFIG
 
 %file PKTGEN_CONFIG
 d :: DPDKInfo(NB_SOCKET_MBUF $NBBUF, NB_SOCKET_MBUF 8192)

@@ -33,6 +33,8 @@ NRECORD=EXPAND( $(( $LIMIT / $SAMPLE * $PKTGEN_REPLAY_COUNT  * 2 )) )
 %promisc:late_variables
 BROADCAST_IGNORE= -> c :: Classifier(-, 0/ffffffffffff)
 
+IGNORE?=0
+
 %script sudo=true deps=fastclick
 click --dpdk -c 0x3 -- PKTGEN-CONFIG
 
@@ -46,7 +48,7 @@ define($RAW_INsrcmac ${client:$CLIENT_NIC:raw_mac})
 define($INdstmac ${server:$NIC:mac})
 define($RAW_INdstmac ${server:$NIC:raw_mac})
 
-define($ignore 0)
+define($ignore $IGNORE)
 define($wait 2)
 define($replay_count $PKTGEN_REPLAY_COUNT)
 define($port ${self:$NIC:pci})

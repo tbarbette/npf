@@ -29,6 +29,14 @@ rate:RATE=1000
 RCV_NIC=1
 SND_NIC=0
 
+SAMPLE?=1
+
+DOLAT=1
+DODUMP=0
+DOLATVAL=0
+dump:DODUMP=1
+dump:LATENCYDUMP?=/tmp/latency.csv
+
 R0=0
 R1=2
 R2=4
@@ -60,6 +68,12 @@ noreplay:REPLAY=Null
 NG=[0-3]
 LAUNCH_CODE=EXPAND( write gen0/display_th.run, write gen0/rcv$NG/avg.reset, write gen0/gen$NG/sndavg.reset, write gen0/gen$NG/replay.stop $replay_count, write gen0/gen$NG/replay.active true, )
 LAUNCH_CODE=HEAD($GEN_THREADS, $LAUNCH_CODE)
+
+ALL_DUMP=EXPAND( print >>$LATENCYDUMP $(gen0/rcv$NG/tsd.dump_list), )
+ALL_DUMP=HEAD($GEN_THREADS, $ALL_DUMP)
+
+ALL_RCV=EXPAND( gen0/rcv$NG, )
+ALL_RCV=HEAD($GEN_THREADS, $ALL_RCV)
 
 ALL_AVG=EXPAND( $(gen0/rcv$NG/tsd.average) )
 ALL_AVG=HEAD($GEN_THREADS, $ALL_AVG)
@@ -124,7 +138,7 @@ $PULLASSIGN
 
 elementclass Receiver { $rt |
     input
-    -> tsd :: TimestampDiff($rt, N $(( $LIMIT * $GEN_REPLAY)) ) //MT path !!
+    -> tsd :: TimestampDiff($rt, N $(( $LIMIT * $GEN_REPLAY)), SAMPLE $SAMPLE ) //MT path !!
     -> Unstrip(14)
     -> avg :: AverageCounterMP
     -> Discard;
@@ -181,8 +195,9 @@ display_th :: Script(TYPE PASSIVE,
                      set indexC 0,
                      set indexD 0,
                      set stime $(now),
+                     goto next $(eq $DOLAT 0),
                      label g,
-                    wait ${ITERATION_TIME},
+                     wait ${ITERATION_TIME},
                      set diff $(sub $(now) $time),
                      print "Diff $diff",
                      set time $(sub $(now) $stime),
@@ -190,7 +205,7 @@ display_th :: Script(TYPE PASSIVE,
                      //print "IGEN-$time-RESULT-ITHROUGHPUT $rx",
                      print "IGEN-$time-RESULT-ILATENCY $(div $(add $(rcv0/tsd.average $indexA) $(rcv1/tsd.average $indexB) $(rcv2/tsd.average $indexC) $(rcv3/tsd.average $indexD)) 4)",
                      print "IGEN-$time-RESULT-ILAT99 $(div $(add $(rcv0/tsd.perc99 $indexA) $(rcv1/tsd.perc99 $indexB) $(rcv2/tsd.perc99 $indexC) $(rcv3/tsd.perc99 $indexD)) 4)",
-
+                     print "IGEN-$time-RESULT-ILAT50 $(div $(add $(rcv0/tsd.perc50 $indexA) $(rcv1/tsd.perc50 $indexB) $(rcv2/tsd.perc50 $indexC) $(rcv3/tsd.perc50 $indexD)) 4)",
                      print "IGEN-$time-RESULT-ILAT95 $(div $(add $(rcv0/tsd.perc95 $indexA) $(rcv1/tsd.perc95 $indexB) $(rcv2/tsd.perc95 $indexC) $(rcv3/tsd.perc95 $indexD)) 4)",
 
                      print "IGEN-$time-RESULT-ILAT05 $(div $(add $(rcv0/tsd.perc 5 $indexA) $(rcv1/tsd.perc 5 $indexB) $(rcv2/tsd.perc 5 $indexC) $(rcv3/tsd.perc 5 $indexD)) 4)",
@@ -207,7 +222,8 @@ display_th :: Script(TYPE PASSIVE,
                      set indexC $(rcv2/tsd.index),
                      set indexD $(rcv3/tsd.index),
                      
-                     goto g)
+                     goto g,
+                     label next)
 
 StaticThreadSched(display_th $R4)
 
@@ -236,9 +252,24 @@ DriverManager(
     set starttime $(now),
     pause,
     read d.pool_count,
+    goto adump $(eq $DODUMP 0),
+    print "Dumping latency samples to $LATENCYDUMP",
+    print >$LATENCYDUMP "",
+    $ALL_DUMP
+    label adump,
     print "RESULT-TESTTIME $(sub $(now) $starttime)",
     print "RESULT-RCVTIME $(gen0/rcv0/avg.time)",
     print "RESULT-LATENCY $(div $(add $ALL_AVG 0) $GEN_THREADS)",
+                goto alatval $(eq ${DOLATVAL} 0),
+                set i 0,
+                set step 1,
+                label perc,
+                print "CDFLATVAL-$(math.perc $i)-RESULT-CDFLATPC $(div $i 100.0)",
+                set i $(add $i $step),
+                set step $(if $(ge $i 99) 0.1 1),
+                goto perc $(le $i 100.0),
+                label alatval,
+
     print "RESULT-TX $(add $ALL_SND )",
     print "RESULT-PPS $(add $ALL_RATE )",
     print "RESULT-THROUGHPUT $(add $ALL_LINK )",
