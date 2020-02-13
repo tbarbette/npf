@@ -148,7 +148,7 @@ def group_val(result, t):
                                return np.nan
 
 
-def write_output(datasets, statics, options, run_list):
+def write_output(datasets, statics, options, run_list, kind=None):
     if options.output is None:
         return
 
@@ -160,14 +160,14 @@ def write_output(datasets, statics, options, run_list):
                 all_result_types.add(result_type)
     for testie, build, all_results in datasets:
         csvs = OrderedDict()
-
+        print("kind",kind)
         for run in run_list:
             results_types = all_results.get(run, OrderedDict())
             for result_type in all_result_types:
                 if result_type in csvs:
                     type_filename,csvfile,wr = csvs[result_type]
                 else:
-                    type_filename = npf.build_filename(testie, build, options.output if options.output != 'graph' else options.graph_filename, statics, 'csv', type_str=result_type,show_serie=(len(datasets) > 1 or options.show_serie), force_ext=True, data_folder=True)
+                    type_filename = npf.build_filename(testie, build, options.output if options.output != 'graph' else options.graph_filename, statics, 'csv', type_str=result_type, show_serie=(len(datasets) > 1 or options.show_serie), force_ext=True, data_folder=True, prefix = kind + '-' if kind else None)
                     csvfile = open(type_filename, 'w')
                     wr = csv.writer(csvfile, delimiter=' ',
                                 quotechar='"', quoting=csv.QUOTE_MINIMAL)
@@ -203,8 +203,8 @@ def write_output(datasets, statics, options, run_list):
                 print("Output written to %s" % csvs[result_type][0])
                 csvs[result_type][1].close()
 
-def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list, key, do_x_sort, statics, options, max_series = None, series_sort=None, y_group={}, color=[]) -> AllXYEB:
-    write_output(datasets, statics, options, run_list)
+def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list, key, do_x_sort, statics, options, max_series = None, series_sort=None, y_group={}, color=[], kind = None) -> AllXYEB:
+    write_output(datasets, statics, options, run_list, kind)
     data_types = OrderedDict()
     all_result_types = OrderedSet()
 

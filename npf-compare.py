@@ -139,12 +139,14 @@ def do_graph(filename,args,series,kind_series,options):
             n_kind_series[kind].append((testie, build, ndataset))
 
     grapher = Grapher()
+    print("Generating graphs...")
     g = grapher.graph(series=series,
                       filename=filename,
                       options=args,
                       title=args.graph_title)
     if options.do_time:
         for kind,series in n_kind_series.items():
+            print("Generating graph %s..." % kind)
             g = grapher.graph(series=series,
                           filename=filename,
                           fileprefix=kind,

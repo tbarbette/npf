@@ -20,7 +20,7 @@ from npf import npf, variable
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from matplotlib.ticker import LinearLocator, ScalarFormatter, Formatter, MultipleLocator
+from matplotlib.ticker import LinearLocator, ScalarFormatter, Formatter, MultipleLocator, NullLocator
 from matplotlib.lines import Line2D
 from matplotlib.ticker import FuncFormatter, FormatStrFormatter
 
@@ -122,7 +122,7 @@ class Graph:
     def dyns(self):
         return [var for var,values in self.vars_values.items() if len(values) > 1]
 
-    def dataset(self):
+    def dataset(self,kind=None):
         if not self.data_types:
 
             self.data_types = dataset.convert_to_xyeb(
@@ -136,6 +136,7 @@ class Graph:
                 statics=self.statics(),
                 y_group=self.grapher.configdict('graph_y_group'),
                 color=[get_numeric(v) for v in self.grapher.configlist('graph_color')],
+                kind=kind
                 )
 
         return self.data_types
@@ -878,7 +879,7 @@ class Grapher:
         graph = graphs[0]
         if len(graph.series) == 0:
             return
-        data_types = graph.dataset()
+        data_types = graph.dataset(kind=fileprefix)
         one_testie,one_build,whatever = graph.series[0]
 
         if self.options.no_graph:
@@ -934,7 +935,7 @@ class Grapher:
             i_subplot = 0
             lgd = None
             for graph in graphs:
-                data_types = graph.dataset()
+                data_types = graph.dataset(kind=fileprefix)
 
                 result = self.generate_plot_for_graph(result_type, i_subplot, figure, n_cols, n_lines, graph.vars_values, data_types, graph.dyns(), graph.vars_all, graph.key, graph.subtitle if graph.subtitle else graph.title, ret, subplot_legend_titles)
                 if result is None:
@@ -1552,6 +1553,7 @@ class Grapher:
         if (unit and unit[0] == 'k'):
             unit=unit[1:]
             mult = 1024 if unit[0] == "B" else 1000
+        axis.set_minor_locator(NullLocator())
         if format:
             formatter = FormatStrFormatter(format)
             axis.set_major_formatter(formatter)
@@ -1600,7 +1602,13 @@ class Grapher:
         isLog = False
         baseLog = self.scriptconfig('var_log_base', "result",result_type=result_type, default=None)
         if baseLog:
-            plt.yscale('symlog', basey=float(baseLog))
+            baseLog = baseLog.split('-')
+            if len(baseLog) is 2:
+                thresh = float(baseLog[1])
+            else:
+                thresh=1
+            baseLog = float(baseLog[0])
+            plt.yscale('symlog', basey=baseLog, linthreshy=thresh)
             isLog = True
         elif self.result_in_list('var_log', result_type):
             plt.yscale('symlog' if yformat else 'log')

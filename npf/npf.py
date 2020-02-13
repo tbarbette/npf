@@ -295,15 +295,16 @@ def splitpath(hint):
             basename = ''
     return dirname, basename, ext
 
-def build_filename(testie, build, hint, variables, def_ext, type_str='', show_serie=False, suffix='', force_ext = False, data_folder = False):
+def build_filename(testie, build, hint, variables, def_ext, type_str='', show_serie=False, suffix='', force_ext = False, data_folder = False, prefix=None):
     var_str = get_valid_filename('_'.join(
         ["%s=%s" % (k, (val[1] if type(val) is tuple else val)) for k, val in sorted(variables.items()) if val]))
 
     if hint is None:
+
         if data_folder:
-            path = build.result_path(testie.filename, def_ext, folder = var_str + ('-' + type_str if type_str else ''), suffix = ('-' + get_valid_filename(build.pretty_name()) if show_serie else ''))
+            path = build.result_path(testie.filename, def_ext, folder = var_str + ('-' + type_str if type_str else ''), prefix=prefix, suffix = ('-' + get_valid_filename(build.pretty_name()) if show_serie else ''))
         else:
-            path = build.result_path(testie.filename, def_ext, suffix=var_str + ('-' + type_str if type_str else '') + ('-' + get_valid_filename(build.pretty_name()) if show_serie else '') )
+            path = build.result_path(testie.filename, def_ext, suffix=var_str + ('-' + type_str if type_str else '') + ('-' + get_valid_filename(build.pretty_name()) if show_serie else '') , prefix=prefix)
     else:
         dirname, basename, ext = splitpath(hint)
 
@@ -314,6 +315,9 @@ def build_filename(testie, build, hint, variables, def_ext, type_str='', show_se
             basename = var_str
 
         if not data_folder:
+            if prefix:
+                basename = prefix + basename
+
             if not dirname or show_serie:
                 basename = (get_valid_filename(build.pretty_name()) if show_serie else '') + basename
             path = (dirname + '/' if dirname else '') + basename + (
@@ -321,7 +325,7 @@ def build_filename(testie, build, hint, variables, def_ext, type_str='', show_se
         else:
             if not dirname or show_serie:
                 dirname = (dirname + "/" if dirname else '') + basename
-            path = (dirname + '/' if dirname else '')+ (get_valid_filename(build.pretty_name()) if show_serie else '') + (type_str if type_str else '') + ('' if not suffix else ("-" + suffix)) + ext
+            path = (dirname + '/' if dirname else '') + (prefix if prefix else '') + (get_valid_filename(build.pretty_name()) if show_serie else '') + (type_str if type_str else '') + ('' if not suffix else ("-" + suffix)) + ext
 
     folder = os.path.dirname(path)
     if folder and not os.path.exists(folder):

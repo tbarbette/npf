@@ -742,16 +742,18 @@ class Testie:
                 glob_sync = self.config.get_list("glob_sync")
                 glob_min = []
                 for g in glob_sync:
-
                     for kind, kind_results in new_kind_results.items():
                         if kind in glob_sync:
-                            m = min(kind_results.keys())
-                            glob_min.append(m)
+                            mg = min(kind_results.keys())
+                            glob_min.append(mg)
 
                 for kind, kind_results in new_kind_results.items():
                   if kind_results:
                     all_kind_results.setdefault(kind,{})
-                    min_kind_value = min(kind_results.keys())
+                    if kind in glob_sync:
+                        min_kind_value = min(glob_min)
+                    else:
+                        min_kind_value = min(kind_results.keys())
                     nonzero = set()
                     update = {}
                     all_result_types = set()
@@ -761,7 +763,7 @@ class Testie:
                         nz = False
 
                     last_val = {}
-                    #acc = self.config.get_list("time_sync")
+                    acc = self.config.get_list("time_sync")
                     for kind_value, results in sorted(kind_results.items()):
                         if not nz: #We still haven't found a non zero kind_value
                             for result_type, result in results.items():
@@ -770,8 +772,8 @@ class Testie:
 
                                 if result != 0:
                                     nz = True
-#                                    if (not acc or result_type in acc):
-#                                        min_kind_value = kind_value
+                                    if (not acc or result_type in acc) and not kind in glob_sync:
+                                        min_kind_value = kind_value
                             if not nz:
                                 continue
                             else:
