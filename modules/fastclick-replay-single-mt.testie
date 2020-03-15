@@ -49,6 +49,7 @@ SND_NIC?=EXPAND($CLIENT_NIC)
 RCV_NIC?=EXPAND($CLIENT_NIC)
 DODUMP?=0
 NOLAT?=0
+gdb:GDB=gdb -ex run -ex "signal 2" -ex bt -batch -args
 
 -nolat:GEN_LAT_NUMBERISE= -> Numberise($magic)
 -nolat:GEN_LAT_RECORD=-> rt :: RecordTimestamp(N $limit, OFFSET 56)
@@ -67,7 +68,7 @@ if [ $DODUMP -eq 1 ] ; then
     echo "Will dump latency to $LATENCYDUMP"
 fi
 //cat PKTGEN_CONFIG
-click --dpdk -l ${GEN_CPU}-15 -- PKTGEN_CONFIG
+$GDB click --dpdk -l ${GEN_CPU}-15 -- PKTGEN_CONFIG
 
 %file PKTGEN_CONFIG
 d :: DPDKInfo(NB_SOCKET_MBUF $NBBUF, NB_SOCKET_MBUF 8192)
@@ -301,4 +302,5 @@ DriverManager(  pause,
                 print "RESULT-TX $(add $(gen0/avgSIN.link_rate)  $(gen1/avgSIN.link_rate) $(gen2/avgSIN.link_rate) $(gen3/avgSIN.link_rate))",
                 print "RESULT-PPS $(add $(RIN/avgA.rate)  $(RIN/avgB.rate) $(RIN/avgC.rate) $(RIN/avgD.rate))",
                 print "EVENT GEN_DONE",
+//                read receiveIN.xstats,
                 stop);

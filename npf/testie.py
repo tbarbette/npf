@@ -953,6 +953,7 @@ class Testie:
 
                 variables= {}
                 for imp in self.get_imports():
+                  if imp.is_include:
                     for k,v in imp.testie.variables.statics().items():
                         variables[k] = v.makeValues()[0]
                 variables.update(root_variables)

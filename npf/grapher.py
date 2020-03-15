@@ -94,7 +94,8 @@ def find_base(ax):
 class Map(OrderedDict):
     def __init__(self, fname):
         super().__init__()
-        for fn in fname.split('+'):
+        if fname:
+          for fn in fname.split('+'):
             f = open(fn, 'r')
             for line in f:
                 line = line.strip()
@@ -105,7 +106,7 @@ class Map(OrderedDict):
 
     def search(self, map_v):
         for k,v in self.items():
-            if re.search(k,map_v):
+            if re.search(k,str(map_v)):
                 return v
         return None
 
@@ -476,6 +477,34 @@ class Grapher:
             graph.series = series
         return graph
 
+    def map_variables(self, map_k, fmap, series, vars_values):
+            transformed_series = []
+            for i, (testie, build, all_results) in enumerate(series):
+                new_results={}
+                for run, run_results in all_results.items():
+                    if map_k and not map_k in run.variables:
+                        new_results[run] = run_results
+                        continue
+                    map_v = run.variables[map_k]
+                    new_v = fmap.search(map_v)
+                    if new_v:
+                        if map_v in vars_values[map_k]:
+                            vars_values[map_k].remove(map_v)
+                        if new_v and new_v != " ":
+                            run.variables[map_k] = new_v
+                            vars_values[map_k].add(new_v)
+                            if run in new_results:
+                              for result_type, results in new_results[run].items():
+                                nr = run_results[result_type]
+                                for i in range(min(len(results),len(nr))):
+                                    results[i] += nr[i]
+                            else:
+                              new_results[run] = run_results
+                    else:
+                        new_results[run] = run_results
+                transformed_series.append((testie, build, new_results))
+            return transformed_series
+
     def graph(self, filename, options, fileprefix=None, graph_variables: List[Run] = None, title=False, series=None):
         """series is a list of triplet (script,build,results) where
         result is the output of a script.execute_all()"""
@@ -759,31 +788,14 @@ class Grapher:
         #Map and combine variables values
         for map_k, fmap in self.configdict('graph_map',{}).items():
             fmap = Map(fmap)
-            transformed_series = []
-            for i, (testie, build, all_results) in enumerate(series):
-                new_results={}
-                for run, run_results in all_results.items():
-                    if not map_k in run.variables:
-                        new_results[run] = run_results
-                        continue
-                    map_v = run.variables[map_k]
-                    new_v = fmap.search(map_v)
-                    if new_v:
-                        if map_v in vars_values[map_k]:
-                            vars_values[map_k].remove(map_v)
-                        run.variables[map_k] = new_v
-                        vars_values[map_k].add(new_v)
-                        if run in new_results:
-                            for result_type, results in new_results[run].items():
-                                nr = run_results[result_type]
-                                for i in range(min(len(results),len(nr))):
-                                    results[i] += nr[i]
-                        else:
-                            new_results[run] = run_results
-                    else:
-                        new_results[run] = run_results
-                transformed_series.append((testie, build, new_results))
-            series = transformed_series
+            series = self.map_variables(fmap=fmap, map_k=map_k, series=series, vars_values=vars_values)
+
+        m = self.configdict('graph_map_inline',{})
+        if m:
+            fmap = Map(None)
+            fmap.update(m)
+            for k in vars_values.keys():
+                series = self.map_variables(fmap=fmap, map_k=str(k), series=series, vars_values=vars_values)
 
         #round values of a variable to a given precision, if it creates a merge, the list is appended
         for var, prec in self.configdict("var_round",{}).items():
@@ -1402,7 +1414,7 @@ class Grapher:
             if xdata:
                 x = []
                 for yi in range(len(xdata[i][2])):
-                    x.append(np.median(xdata[i][2][yi][2]))
+                    x.append(np.mean(xdata[i][2][yi][2]))
 
             label = str(build.pretty_name())
             boxdata=[]
@@ -1596,7 +1608,7 @@ class Grapher:
         yticks = self.scriptconfig("var_ticks", "result", default=None, result_type=result_type)
         shift = int(shift)
         if self.config_bool_or_in('var_grid',result_type):
-            axis.grid(True,linestyle=self.graphlines[( shift - 1 if shift > 0 else 0) % len(self.graphlines)],color=gridcolors[shift], axis="y" if not self.config_bool_or_in('var_grid',key) else "xy" )
+            axis.grid(True,linestyle=self.graphlines[( shift - 1 if shift > 0 else 0) % len(self.graphlines)],color=gridcolors[shift], axis="y" if not self.config_bool_or_in('var_grid',key) else "both" )
             axis.set_axisbelow(True)
         isLog = False
         baseLog = self.scriptconfig('var_log_base', "result",result_type=result_type, default=None)

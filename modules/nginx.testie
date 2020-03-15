@@ -15,7 +15,7 @@ ssl:NGINX_SSL=1
 NGINX_SRVTYPE=default_server
 NGINX_SERVER_CONFIG?=
 ssl:NGINX_SRVTYPE=ssl
-ssl:NGINX_SERVER_CONFIG+=ssl on;ssl_certificate nginx-selfsigned.crt;ssl_certificate_key nginx-selfsigned.key;
+ssl:NGINX_SERVER_CONFIG=ssl on;ssl_certificate nginx-selfsigned.crt;ssl_certificate_key nginx-selfsigned.key;
 
 %init
 mkdir -p nginx
@@ -122,7 +122,7 @@ open_file_cache_errors on;
 server {
 	listen $NGINX_PORT $NGINX_SRVTYPE reuseport;
 
-    $NGINX_SERVER_CONFIG
+    ${NGINX_SERVER_CONFIG}
 
 	root $NGINX_ROOT;
 
