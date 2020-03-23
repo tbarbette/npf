@@ -1157,7 +1157,10 @@ class Testie:
                 # Save results
                 if all_data_results and have_new_results:
                     if prev_results or prev_kind_results:
-                        prev_results[run] = all_data_results[run]
+                        if all_data_results[run]:
+                            if prev_results is None:
+                                prev_results = {}
+                            prev_results[run] = all_data_results[run]
                         build.writeversion(self, prev_results, allow_overwrite=True)
                         for kind, kr in kind_results.items():
                             prev_kind_results.setdefault(kind,OrderedDict())
