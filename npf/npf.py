@@ -223,7 +223,7 @@ def parse_nodes(options):
         if not match:
             raise Exception("Bad definition of node : %s" % mapping)
         if match.group('addr') == 'localhost':
-            node = roles['default']
+            node = roles['default'][0]
         else:
             node = Node.makeSSH(user=match.group('user'), addr=match.group('addr'), path=match.group('path'),
                             options=options)
