@@ -160,7 +160,6 @@ def write_output(datasets, statics, options, run_list, kind=None):
                 all_result_types.add(result_type)
     for testie, build, all_results in datasets:
         csvs = OrderedDict()
-        print("kind",kind)
         for run in run_list:
             results_types = all_results.get(run, OrderedDict())
             for result_type in all_result_types:
