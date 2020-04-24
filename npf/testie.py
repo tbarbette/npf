@@ -52,7 +52,13 @@ def _parallel_exec(param: RemoteParameters):
     nodes = npf.nodes_for_role(param.role)
     executor = nodes[param.role_id].executor
     if param.waitfor:
-        param.event.listen(param.waitfor)
+        n=1
+        print("Waiting for %s" % param.waitfor)
+        if param.waitfor[0].isdigit():
+            n=int(param.waitfor[0])
+            param.waitfor=param.waitfor[1:]
+        for i in range(n):
+            param.event.listen(param.waitfor)
 
     param.event.wait_for_termination(param.delay)
     if param.event.is_terminated():
@@ -191,12 +197,14 @@ class Testie:
             if 'delay' in imp.params:
                 delay = imp.params.setdefault('delay', 0)
                 for script in imp.testie.scripts:
-                    script.params['delay'] = float(delay) + float(imp.params['delay'])
+                    if not 'delay' in script.params:
+                        script.params['delay'] = float(delay) + float(imp.params['delay'])
                 del imp.params['delay']
             if 'waitfor' in imp.params:
                 for script in imp.testie.scripts:
                     if script.type == SectionScript.TYPE_SCRIPT:
-                        script.params['waitfor'] = imp.params['waitfor']
+                        if not 'waitfor' in script.params:
+                            script.params['waitfor'] = imp.params['waitfor']
                 del imp.params['waitfor']
             if 'autokill' in imp.params:
                 for script in imp.testie.scripts:
@@ -548,7 +556,7 @@ class Testie:
                           if node.multi:
                               multi = range(1, node.multi + 1)
                           else:
-                              multi = [0]
+                              multi = [1]
                       elif type(multi) == str:
                           multi = [int(multi)]
 
@@ -704,8 +712,11 @@ class Testie:
 
                     for node in npf.nodes_for_role(role, role_map):
                         executor=node.executor
-                        cmd = "mkdir -p " + test_folder + " && cd " + test_folder + ";\n" + cmd
-                        pid, s_output, s_err, c = executor.exec(cmd=cmd, options=self.options)
+                        ncmd = "mkdir -p " + test_folder + " && cd " + test_folder + ";\n" + cmd
+                        try:
+                            pid, s_output, s_err, c = executor.exec(cmd=ncmd, options=self.options)
+                        except Exception as e:
+                            print("An error occured!", e)
                         #print(s_output, s_err)
                         output += s_output
                         err += s_err
@@ -787,7 +798,7 @@ class Testie:
                             nonzero.add(result_type)
                             all_result_types.add(result_type)
                             event_t = Decimal(
-                                ("%.0" + str(self.config['time_precision']) + "f") % round(float(kind_value - (min_kind_value if get_bool(self.config['time_sync']) else 0)), int(
+                                ("%.0" + str(self.config['time_precision']) + "f") % round(float(kind_value - (min_kind_value if self.config.get_bool_or_in("time_sync", kind) else 0)), int(
                                     self.config['time_precision'])))
                             update.setdefault(event_t, {}).setdefault(result_type, [])
                             update[event_t][result_type].extend(result if type(result) is list else [result])

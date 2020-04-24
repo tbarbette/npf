@@ -973,9 +973,13 @@ class Grapher:
                 ret[result_type] = buf.read()
             else:
                 type_filename = npf.build_filename(one_testie, one_build, filename if not filename is True else None, graph.statics(), 'pdf', type_str=(fileprefix +'-' if fileprefix else "") +result_type, show_serie=False)
-                plt.savefig(type_filename, bbox_extra_artists=(lgd,) if lgd else [], bbox_inches='tight', dpi=self.options.graph_dpi, transparent=True)
+                try:
+                    plt.savefig(type_filename, bbox_extra_artists=(lgd,) if lgd else [], bbox_inches='tight', dpi=self.options.graph_dpi, transparent=True)
+                    print("Graph of test written to %s" % type_filename)
+                except Exception as e:
+                    print("ERROR : Could not draw the graph!")
+                    print(e)
                 ret[result_type] = None
-                print("Graph of test written to %s" % type_filename)
             plt.clf()
         return ret
 
@@ -1256,7 +1260,7 @@ class Grapher:
 
                 try:
                     plt.tight_layout()
-                except ValueError:
+                except Exception:
                     print("Could not make the graph fit. It may be because you have too many points or variables to graph")
                     print("Try reducing the number of dynamic variables : ")
                     for dyn in dyns:

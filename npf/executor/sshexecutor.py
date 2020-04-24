@@ -33,16 +33,16 @@ class SSHExecutor(Executor):
         return ssh
 
 
-    def exec(self, cmd, bin_paths : List[str] = None, queue: Queue = None, options = None, stdin = None, timeout=None, sudo=False, testdir=None, event=None, title=None, env={}, virt = ""):
+    def exec(self, cmd, bin_paths : List[str] = None, queue: Queue = None, options = None, stdin = None, timeout=None, sudo=False, testdir=None, event=None, title=None, env={}, virt = "", raw = False):
         if not title:
             title = self.addr
         if not event:
             event = EventBus()
         path_list = [p if os.path.isabs(p) else self.path+'/'+p for p in (bin_paths if bin_paths is not None else [])]
         if options and options.show_cmd:
-            print("Executing on %s%s (PATH+=%s) :\n%s" % (self.addr,(' with sudo' if sudo and self.user != "root" else ''),':'.join(path_list), cmd.strip()))
+            print("Executing on %s%s (PATH+=%s) :\n%s" % (self.addr,(' with sudo' if sudo and self.user != "root" else ''),':'.join(path_list) + (("NS:"  + virt) if virt else ""), cmd.strip()))
 
-        pre = 'cd '+ self.path + '\n'
+        pre = 'cd '+ self.path + ';'
 
         if self.path:
             env['NPF_ROOT'] = self.path
@@ -55,20 +55,26 @@ class SSHExecutor(Executor):
         else:
             path_cmd = ''
 
-        if sudo and self.user != "root":
-            cmd = "sudo -E " + virt +" bash -c '"+path_cmd + cmd.replace("'", "'\"'\"'") + "'";
+        if raw:
+            unbuffer = ""
         else:
-            cmd = virt +" bash -c '"+path_cmd + cmd.replace("'", "'\"'\"'") + "'";
+            unbuffer = "unbuffer"
+            if stdin is not None:
+                unbuffer = unbuffer + " -p"
+
+        if sudo and self.user != "root":
+            cmd = "sudo -E " + virt +" "+unbuffer+" bash -c '"+path_cmd + cmd.replace("'", "'\"'\"'") + "'";
+        else:
+            cmd = virt +" "+unbuffer+" bash -c '"+path_cmd + cmd.replace("'", "'\"'\"'") + "'";
             #pre = path_cmd + pre
 
         try:
             ssh = self.get_connection(cache=False)
 
-            ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command(pre + cmd,timeout=timeout, get_pty=True)
-
+            ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command("echo $$;"+ pre + cmd,timeout=timeout, get_pty=True)
+            rpid = int(ssh_stdout.readline())
             if stdin is not None:
                 ssh_stdin.write(stdin)
-
             channels = [ssh_stdout, ssh_stderr]
             output = ['','']
 
@@ -113,6 +119,8 @@ class SSHExecutor(Executor):
             if event.is_terminated():
                 if not ssh_stdin.channel.closed:
                     ssh_stdin.channel.send(chr(3))
+                    ssh.exec_command("kill "+str(rpid))
+#                   unneeded ssh.exec_command("kill $(ps -s  "+str(rpid)+" -o pid=)" )
                     i=0
                     ssh_stdout.channel.status_event.wait(timeout=1)
 

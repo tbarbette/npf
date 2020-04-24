@@ -107,8 +107,8 @@ class Node:
         if options.do_test and options.do_conntest:
             print("Testing connection to %s..." % node.executor.addr)
             time.sleep(0.01)
-            pid, out, err, ret = sshex.exec(cmd="echo \"test\"")
+            pid, out, err, ret = sshex.exec(cmd="if ! type 'unbuffer' ; then ( sudo apt install -y expect || sudo yum install -y expect ) && sudo echo 'test' ; else sudo echo 'test' ; fi", raw=True)
             out = out.strip()
-            if ret != 0 or out != "test":
-                raise Exception("Could not communicate with node %s, got %s" %  (sshex.addr, out))
+            if ret != 0 or out.split("\n")[-1] != "test":
+                raise Exception("Could not communicate with node %s, unbuffer (expect package) could not be installed, or passwordless sudo is not working, got %s" %  (sshex.addr, out))
         return node

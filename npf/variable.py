@@ -125,8 +125,13 @@ def replace_variables(v: dict, content: str, self_role=None, default_role_map={}
         if nic_match.groupdict()['node']:
             t = str(nic_match.group('node'))
             v = getattr(node[0], t)
-            if v is None and t =="multi":
-                return "1"
+            if v is None:
+                if t == "multi":
+                    return "1"
+                elif t == "node":
+                    return str(len(node))
+                else:
+                    raise Exception("Unknown node variable %s" % t)
             else:
                 return str(v)
         else:
@@ -143,12 +148,16 @@ def replace_variables(v: dict, content: str, self_role=None, default_role_map={}
     aeval = Interpreter(usersyms={'parseBool':get_bool,'randint':ae_rand})
 
     def do_replace_math(match):
+
+        prefix = match.group('prefix')
         expr = match.group('expr').strip()
         expr = re.sub(
             Variable.VARIABLE_REGEX,
             do_replace, expr)
-
-        return str(aeval(expr))
+        if prefix:
+            return "$((" + str(expr) + "))"
+        else:
+            return str(aeval(expr))
 
     content = re.sub(
         Variable.MATH_REGEX,
@@ -209,9 +218,9 @@ class Variable:
     VARIABLE_REGEX = r'(?<!\\)[$](' \
                      r'[{](?P<varname_in>' + NAME_REGEX + ')[}]|' \
                      r'(?P<varname_sp>' + NAME_REGEX + ')(?=}|[^a-zA-Z0-9_]|$))'
-    MATH_REGEX = r'(?<!\\)[$][(][(](?P<expr>.*?)[)][)]'
+    MATH_REGEX = r'(?P<prefix>\\)?[$][(][(](?P<expr>.*?)[)][)]'
     ALLOWED_NODE_VARS = 'path|user|addr|tags|nfs|arch|port'
-    NICREF_REGEX = r'(?P<role>[a-z0-9]+)[:](:?(?P<nic_idx>[0-9]+)[:](?P<type>' + NIC.TYPES + '+)|(?P<node>'+ALLOWED_NODE_VARS+'|ip|multi))'
+    NICREF_REGEX = r'(?P<role>[a-z0-9]+)[:](:?(?P<nic_idx>[0-9]+)[:](?P<type>' + NIC.TYPES + '+)|(?P<node>'+ALLOWED_NODE_VARS+'|ip|multi|mode|node))'
     VARIABLE_NICREF_REGEX = r'(?<!\\)[$][{]' + NICREF_REGEX + '[}]'
 
 # For each value N of nums, generate a variable with the first N element of values
