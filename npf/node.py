@@ -103,7 +103,11 @@ class Node:
         sshex = SSHExecutor(user, addr, path, port)
         node = Node(addr, sshex, options.tags)
         cls._nodes[addr] = node
-        node.ip = socket.gethostbyname(node.executor.addr)
+        try:
+            node.ip = socket.gethostbyname(node.executor.addr)
+        except Exception as e:
+            print("Could not resolve '%s'!" % node.executor.addr)
+            raise(e)
         if options.do_test and options.do_conntest:
             print("Testing connection to %s..." % node.executor.addr)
             time.sleep(0.01)
