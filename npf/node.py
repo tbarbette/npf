@@ -106,7 +106,7 @@ class Node:
         try:
             node.ip = socket.gethostbyname(node.executor.addr)
         except Exception as e:
-            print("Could not resolve '%s'!" % node.executor.addr)
+            print("Could not resolve hostname '%s'" % node.executor.addr)
             raise(e)
         if options.do_test and options.do_conntest:
             print("Testing connection to %s..." % node.executor.addr)

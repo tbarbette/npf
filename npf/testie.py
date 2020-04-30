@@ -1184,7 +1184,7 @@ class Testie:
 
         if not self.options.preserve_temp:
             try:
-                shutil.rmtree(npf.npf_root() + test_folder)
+                shutil.rmtree(npf.npf_root() + os.sep + test_folder)
             except PermissionError:
                 pass
         else:
@@ -1276,5 +1276,5 @@ class Testie:
 
     def make_test_folder(self):
         test_folder = "testie%s-%05d" % (datetime.datetime.now().strftime("%y%m%d%H%M"), random.randint(1, 2 << 16))
-        os.mkdir( npf.npf_root() + test_folder)
+        os.mkdir( npf.npf_root() + os.sep + test_folder)
         return test_folder

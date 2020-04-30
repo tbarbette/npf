@@ -124,12 +124,12 @@ def replace_variables(v: dict, content: str, self_role=None, default_role_map={}
 
         if nic_match.groupdict()['node']:
             t = str(nic_match.group('node'))
+            if t == "node":
+                return str(len(node))
             v = getattr(node[0], t)
             if v is None:
                 if t == "multi":
                     return "1"
-                elif t == "node":
-                    return str(len(node))
                 else:
                     raise Exception("Unknown node variable %s" % t)
             else:
@@ -168,7 +168,7 @@ def replace_variables(v: dict, content: str, self_role=None, default_role_map={}
 class VariableFactory:
     @staticmethod
     def build(name, valuedata, vsection=None):
-        result = re.match("\[(-?[0-9.]+)([+-]|[*])(-?[0-9.]+)([#][0-9.]+)?\]", valuedata)
+        result = re.match("\[(-?[0-9.]+)([+-]|[*]|[,])(-?[0-9.]+)([#][0-9.]+)?\]", valuedata)
         if result:
             return RangeVariable(name, result.group(1), result.group(3), result.group(2) == "*", (get_numeric(result.group(4)[1:]) if result.group(4) else None))
 
