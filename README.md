@@ -63,12 +63,12 @@ how different branches/implementations behaves against each others
 ### NPF Run
 NPF-Run is the main NPF tool.
 
-It checks out or update a given repository (described in the repo
+It checkouts or updates a given repository (described in the repo
 folder), build the software, and launch the given testies
 
 Example :
 ```bash
-    python3 npf-run.py click #Produce a graph for each click-based tests with the result
+    python3 npf-run.py click --testie tests/click/ #Produce a graph for each click-based tests with the result
 ```
 
 #### Regression
@@ -77,9 +77,9 @@ for all testies using the --regress flag.
 
 ```bash
     #click master is updated
-    python3 npf-run.py click --regress #The graph now compares HEAD and the last commit, if major performances changes are found, the return code will be different than 0
+    python3 npf-run.py click --testie tests/click/ --regress #The graph now compares HEAD and the last commit, if major performances changes are found, the return code will be different than 0
     #click master is updated again
-    python3 npf-run.py click --regress #The graph includes the older commit for reference, up to "--graph-num", default is 8
+    python3 npf-run.py click --testie tests/click/ --regress #The graph includes the older commit for reference, up to "--graph-num", default is 8
 ```
 
 Example of a generated graph for the Click Modular Router, just when IPFilter compilation process was re-worked :
@@ -87,7 +87,7 @@ Example of a generated graph for the Click Modular Router, just when IPFilter co
 
 Alternatively, you can force npf-run.py to re-build and compute the data for the old runs directly with the --allow-old-build option :
 ```bash
-    python3 npf-run.py click --allow-old-build [--graph-num=8] #Graph the performance of the current version and the last 8 previous ones
+    python3 npf-run.py click --testie tests/click/ --allow-old-build [--graph-num=8] #Graph the performance of the current version and the last 8 previous ones
 ```
 
 #### Statistics
@@ -95,7 +95,7 @@ NPF-Run can produce statistics about the results such as the best set of variabl
 a regression tree and the importance of each features.
 
 ```bash
-    python3 npf-run.py click --statistics
+    python3 npf-run.py click --testie tests/click/ --statistics
 ```
 
 See *python3 npf-run.py --help* for more options
