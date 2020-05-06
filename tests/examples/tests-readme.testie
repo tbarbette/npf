@@ -1,0 +1,8 @@
+%variables
+NUMBER=[1-10]
+
+%script
+ADD=$(echo "$NUMBER + $NUMBER" | bc)
+MULT=$(echo "$NUMBER * $NUMBER" | bc)
+echo "RESULT-ADDITION $ADD"
+echo "RESULT-MULT $MULT"
