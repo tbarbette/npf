@@ -528,7 +528,7 @@ class Testie:
                 err = ''
 
                 if before_test:
-                    before_test(i_try)
+                    before_test(i,i_try)
 
                 queue = m.Queue()
 
@@ -1085,16 +1085,17 @@ class Testie:
                                          v_internals=v_internals)
                         init_done = True
 
-                    def print_header(i_try):
+                    def print_header(i, i_try):
                         pass
                     if not self.options.quiet:
                         if len(run_results) > 0:
                             if not dall:
                                 print("Results %s are missing some points..." % ", ".join(l))
                         if len(self.variables) > 0:
-                            def print_header(i_try):
+                            def print_header(i, i_try):
+                                n_try=int(self.config["n_retry"])
                                 print(run.format_variables(self.config["var_hide"]),
-                                  "[run %d/%d for test %d/%d]" % (i_try + 1, n_runs, n, len(self.variables)))
+                                  "[%srun %d/%d for test %d/%d]" % (  ("retrying %d/%d " % (i_try + 1,n_try)) if i_try > 0 else "", i+1, n_runs, n, len(self.variables)))
                         else:
                             print("Executing single run...")
 
