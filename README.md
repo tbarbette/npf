@@ -292,4 +292,4 @@ This section is in rework.
  * **graph_text**=string Add some texts under all graphs.
 
 ### Where to continue from here?
-Read the testie files in tests/click mostly, then write your owns !
+Have you read [tests/README.md](tests/README.md)? Then, inspire yourself from the testie files in tests/click mostly, then write your own!
