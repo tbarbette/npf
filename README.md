@@ -1,23 +1,41 @@
 Network Performance Framework
 =============================
 
-Run performance tests on Network software 
-using
-configuration files much like [Click Modular Router](https://github.com/kohler/click/)'s testies but supports any networking software.
+Run performance tests on network software by running snippets of bash scripts on a cluster
+following a simple definition file. For instance, the following configuration to test iPerf3 performance (omitting design options):
+```
+%variables
+PARALLEL=[1-8]
+ZEROCOPY={:without,-Z:with}
 
-Testie files allow to define a matrix of parameters 
-to try many combinations of
+%script@server
+iperf3 -s &> /dev/null
+
+%script@client delay=1
+result=$(iperf3 -f k -t 2 -P $PARALLEL $ZEROCOPY -c ${server:0:ip} | tail -n 3 | grep -ioE "[0-9.]+ [kmg]bits")
+echo "RESULT $result"
+```
+Will automatically produce the following graph:
+
+![sample picture](tests/tcp/01-iperf.png "Result for tests/tcp/01-iperf.png")
+
+The configuration files, called testies, are much like [Click Modular Router](https://github.com/kohler/click/)'s
+testies but with many extended functionalities to run any networking software.
+
+Testie files allow to define a matrix of parameters to try many combinations of
 variables for each test and report performance results and evolution for each
 line of the matrix.
 
-Finally, a graph will be built and statistical results computed for each test 
-showing the evolution of performances through commits.
+Finally, a graph will be built and statistical results may be computed for each test 
+showing the difference between variables, different softwares, or the evolution of
+performances through commits.
 
 Testie files are simple to write, and easy to share, as such we encourage
-users to make pull requests, especially to support more software
-through repo files and give a few examples testie for each of them.
+users to share their testies with their code to allow other users to reproduce
+theur performance results, and graphs.
 
-NPF supports running the given test across a custer, allowing to try your tests in multiple different configuration very quickly and on serious hardware.
+NPF supports running the given test across a custer, allowing to try your tests
+in multiple different configuration very quickly and on serious hardware.
 
 ### Installation
 NPF is built using Python 3
