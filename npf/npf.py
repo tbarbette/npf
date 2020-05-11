@@ -300,9 +300,8 @@ def build_filename(testie, build, hint, variables, def_ext, type_str='', show_se
         ["%s=%s" % (k, (val[1] if type(val) is tuple else val)) for k, val in sorted(variables.items()) if val]))
 
     if hint is None:
-
         if data_folder:
-            path = build.result_path(testie.filename, def_ext, folder = var_str + ('-' + type_str if type_str else ''), prefix=prefix, suffix = ('-' + get_valid_filename(build.pretty_name()) if show_serie else ''))
+            path = build.result_path(testie.filename, def_ext, folder = var_str + (('-' if var_str else '') + type_str if type_str else ''), prefix=prefix, suffix = ('-' + get_valid_filename(build.pretty_name()) if show_serie else ''))
         else:
             path = build.result_path(testie.filename, def_ext, suffix=var_str + ('-' + type_str if type_str else '') + ('-' + get_valid_filename(build.pretty_name()) if show_serie else '') , prefix=prefix)
     else:

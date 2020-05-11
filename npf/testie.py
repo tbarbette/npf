@@ -748,7 +748,12 @@ class Testie:
                 if hasattr(self, 'pyexit'):
                     vs = {'RESULTS': new_data_results, 'TIME_RESULTS': new_kind_results["time"], 'KIND_RESULTS':new_kind_results}
                     vs.update(v)
-                    exec(self.pyexit.content, vs)
+                    try:
+                        exec(self.pyexit.content, vs)
+                    except Exception as e:
+                        print("ERROR WHILE EXECUTING SCRIPT:")
+                        print(e)
+
 
                 glob_sync = self.config.get_list("glob_sync")
                 glob_min = []
