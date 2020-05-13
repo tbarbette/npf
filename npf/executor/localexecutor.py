@@ -47,9 +47,9 @@ class LocalExecutor(Executor):
             print("Executing (PATH+=%s) :\n%s" % (':'.join(bin_paths), cmd.strip()))
 
         if sudo and pwd.getpwuid(os.getuid()).pw_name != "root":
-            cmd = "sudo -E " + virt + "  bash -c '"+ cmd.replace("'", "\\'") + "'";
+            cmd = "sudo -E " + virt + "  bash -c \""+ cmd.replace("\"", "\\\"") + "\"";
         else:
-            cmd = virt + " bash -c '"+ cmd.replace("'", "\\'") + "'";
+            cmd = virt + " bash -c \""+ cmd.replace("\"", "\\\"") + "\"";
 
 
         p = Popen(cmd,
