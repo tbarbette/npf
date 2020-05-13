@@ -53,6 +53,8 @@ def add_graph_options(parser: ArgumentParser):
     o = parser.add_argument_group('Output data')
     o.add_argument('--output',
                    help='Output data to CSV', dest='output', type=str, nargs='?', const='graph', default=None)
+    o.add_argument('--pandas', metavar='pandas_filename', type=str, default=None, dest='pandas_filename',
+                    help='Output a Pandas dataframe to CSV')
     o.add_argument('--output-columns', dest='output_columns', type=str, nargs='+', default=['x', 'mean'])
 
     g = parser.add_argument_group('Graph options')
