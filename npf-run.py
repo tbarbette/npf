@@ -253,9 +253,10 @@ def main():
                 except FileNotFoundError:
                     print("Previous build %s could not be found, we will not graph it !" % g_build.version)
 
+            filename = args.graph_filename if args.graph_filename else build.result_path(testie.filename, 'pdf')
             grapher.graph(series=[(testie, build, all_results)] + g_series,
                           title=testie.get_title(),
-                          filename=args.graph_filename,
+                          filename=filename,
                           graph_variables=[Run(x) for x in testie.variables],
                           options = args)
             if time_results:
@@ -264,7 +265,7 @@ def main():
                         continue
                     grapher.graph(series=[(testie, build, results)],
                           title=testie.get_title(),
-                          filename=args.graph_filename,
+                          filename=filename,
                           options = args)
         if last_build and args.graph_num > 0:
             graph_builds = [last_build] + graph_builds[:-1]
