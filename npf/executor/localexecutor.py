@@ -39,7 +39,7 @@ class LocalExecutor(Executor):
         env.update(os.environ)
         if bin_paths:
             if not sudo:
-                env["PATH"] = ':'.join([cwd + '/' + path for path in bin_paths]) + ":" + env["PATH"]
+                env["PATH"] = ':'.join([cwd + '/' + path if not os.path.abspath(path) else path for path in bin_paths]) + ":" + env["PATH"]
             else:
                 cmd = 'export PATH=' + ':'.join([cwd + '/' + path for path in bin_paths]) + ":" + '$PATH\n' + cmd
 
