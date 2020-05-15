@@ -214,6 +214,7 @@ def main():
                 if all_results is None and time_results is None:
                     all_results, time_results, init_done = testie.execute_all(build, prev_results=prev_results, prev_kind_results=prev_kind_results, do_test=args.do_test, options=args)
                 if not all_results and not time_results:
+                    returncode+=1
                     continue
             except ScriptInitException:
                 continue

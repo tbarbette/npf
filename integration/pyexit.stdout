@@ -1,22 +1,38 @@
 Executing testie pyexit.testie
 pyexit.testie
 Executing init scripts...
-CPU = 1, R = 50, T = 100 [3 runs for 1/8]
+CPU = 1, R = 50, T = 100 [run 1/3 for test 1/8]
+CPU = 1, R = 50, T = 100 [run 2/3 for test 1/8]
+CPU = 1, R = 50, T = 100 [run 3/3 for test 1/8]
 LOSS: [-50.0, -50.0, -50.0], RX: [50.0, 50.0, 50.0], TX: [100.0, 100.0, 100.0]
-CPU = 2, R = 50, T = 100 [3 runs for 2/8]
+CPU = 2, R = 50, T = 100 [run 1/3 for test 2/8]
+CPU = 2, R = 50, T = 100 [run 2/3 for test 2/8]
+CPU = 2, R = 50, T = 100 [run 3/3 for test 2/8]
 LOSS: [-50.0, -50.0, -50.0], RX: [50.0, 50.0, 50.0], TX: [100.0, 100.0, 100.0]
-CPU = 3, R = 50, T = 100 [3 runs for 3/8]
+CPU = 3, R = 50, T = 100 [run 1/3 for test 3/8]
+CPU = 3, R = 50, T = 100 [run 2/3 for test 3/8]
+CPU = 3, R = 50, T = 100 [run 3/3 for test 3/8]
 LOSS: [-50.0, -50.0, -50.0], RX: [50.0, 50.0, 50.0], TX: [100.0, 100.0, 100.0]
-CPU = 4, R = 50, T = 100 [3 runs for 4/8]
+CPU = 4, R = 50, T = 100 [run 1/3 for test 4/8]
+CPU = 4, R = 50, T = 100 [run 2/3 for test 4/8]
+CPU = 4, R = 50, T = 100 [run 3/3 for test 4/8]
 LOSS: [-50.0, -50.0, -50.0], RX: [50.0, 50.0, 50.0], TX: [100.0, 100.0, 100.0]
-CPU = 5, R = 50, T = 100 [3 runs for 5/8]
+CPU = 5, R = 50, T = 100 [run 1/3 for test 5/8]
+CPU = 5, R = 50, T = 100 [run 2/3 for test 5/8]
+CPU = 5, R = 50, T = 100 [run 3/3 for test 5/8]
 LOSS: [-50.0, -50.0, -50.0], RX: [50.0, 50.0, 50.0], TX: [100.0, 100.0, 100.0]
-CPU = 6, R = 50, T = 100 [3 runs for 6/8]
+CPU = 6, R = 50, T = 100 [run 1/3 for test 6/8]
+CPU = 6, R = 50, T = 100 [run 2/3 for test 6/8]
+CPU = 6, R = 50, T = 100 [run 3/3 for test 6/8]
 LOSS: [-50.0, -50.0, -50.0], RX: [50.0, 50.0, 50.0], TX: [100.0, 100.0, 100.0]
-CPU = 7, R = 50, T = 100 [3 runs for 7/8]
+CPU = 7, R = 50, T = 100 [run 1/3 for test 7/8]
+CPU = 7, R = 50, T = 100 [run 2/3 for test 7/8]
+CPU = 7, R = 50, T = 100 [run 3/3 for test 7/8]
 LOSS: [-50.0, -50.0, -50.0], RX: [50.0, 50.0, 50.0], TX: [100.0, 100.0, 100.0]
-CPU = 8, R = 50, T = 100 [3 runs for 8/8]
+CPU = 8, R = 50, T = 100 [run 1/3 for test 8/8]
+CPU = 8, R = 50, T = 100 [run 2/3 for test 8/8]
+CPU = 8, R = 50, T = 100 [run 3/3 for test 8/8]
 LOSS: [-50.0, -50.0, -50.0], RX: [50.0, 50.0, 50.0], TX: [100.0, 100.0, 100.0]
-Graph of test written to results/click-2017/bbec36c/pyexitR50_T100-LOSS.pdf
-Graph of test written to results/click-2017/bbec36c/pyexitR50_T100-RX.pdf
-Graph of test written to results/click-2017/bbec36c/pyexitR50_T100-TX.pdf
+Graph of test written to results/click-2017/bbec36c/pyexit-LOSS.pdf
+Graph of test written to results/click-2017/bbec36c/pyexit-RX.pdf
+Graph of test written to results/click-2017/bbec36c/pyexit-TX.pdf
