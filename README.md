@@ -192,6 +192,18 @@ same.
 To force re-computing the tests, use the --force-test option. The --force-rebuild
 may also be something you want.
 
+### Output
+
+You can customize the output of NFP by passing different arguments. Below, you can find some of the common outputs:
+
+* **pandas [PATH]** NFP produces a Pandas dataframe if you use this argument. Later, you can load the dataframe for post-processing. The following code shows one example for a sample dataframe (i.e., `test-pandas.csv`) with two variables (i.e., `X` and `Y`). Line `3` produces the median of multiple runs, while line `4` shows values of all runs in a list, which can be used for a boxplot.
+
+```python
+1 import pandas as pd
+2 df = pd.read_csv("test-pandas.csv")
+3 df[['X','Y']].groupby('X').agg({'Y' : ['median']})
+4 df[['X','Y']].groupby('X').agg({'Y' : lambda x : list(x)})
+```
 
 ## Tags
 All programs have the --tags argument, allowing to give a set of tags

@@ -30,6 +30,8 @@ import math
 import os
 import webcolors
 
+import pandas as pd
+
 graphcolor = [(31, 119, 180), (174, 199, 232), (255, 127, 14), (255, 187, 120),
               (44, 160, 44), (152, 223, 138), (214, 39, 40), (255, 152, 150),
               (148, 103, 189), (197, 176, 213), (140, 86, 75), (196, 156, 148),
@@ -524,6 +526,24 @@ class Grapher:
         # Get all scripts
         for i, (testie, build, all_results) in enumerate(series):
             self.scripts.add(testie)
+
+        # Add series to a pandas dataframe
+        if options.pandas_filename is not None:
+            all_results_df=pd.DataFrame() # Empty dataframe
+            for testie, build, all_results in series:
+                for i, (x) in enumerate(all_results):
+                    x_vars=pd.DataFrame(x.variables,index=[0])
+                    x_vars=pd.concat([pd.DataFrame({'build' :build.pretty_name()},index=[0]), pd.DataFrame({'test_index' :i},index=[0]), x_vars],axis=1)
+                    x_data=pd.DataFrame.from_dict(all_results[x],orient='index').transpose() #Use orient='index' to handle lists with different lengths
+                    x_data['run_index']=x_data.index
+                    x_vars = pd.concat([x_vars]*len(x_data), ignore_index=True)
+                    x_df = pd.concat([x_vars, x_data],axis=1)
+                    all_results_df= all_results_df.append(x_df,ignore_index = True)
+        
+            # Save the pandas dataframe into a csv
+            pandas_df_name=options.pandas_filename.split(".")[0] +"-pandas" + ".csv"
+            all_results_df.to_csv(pandas_df_name, index=True, index_label="index", sep=",", header=True)
+            print("Pandas dataframe written to %s" % pandas_df_name)
 
         #Overwrite markers and lines from user
         self.graphmarkers = self.configlist("graph_markers")
