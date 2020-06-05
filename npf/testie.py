@@ -571,6 +571,8 @@ class Testie:
                         v["NPF_MULTI"] = i_multi
                         v["NPF_MULTI_ID"] = i_multi
                         v["NPF_MULTI_MAX"] = node.multi if node.multi is not None else 1
+                        v["NPF_ARRAY_ID"] = len(nodes) * i_node + i_multi
+                        v["NPF_ARRAY_MAX"] = len(nodes) * v["NPF_MULTI_MAX"]
                         if node.mode == "netns" and i_multi > 0:
                             param.virt = "ip netns exec npfns%d" % i_multi
                             param.sudo = True
@@ -706,11 +708,13 @@ class Testie:
 
                     role = script.get_role()
 
-                    cmd = SectionVariable.replace_variables(
+                    for i_node, node in enumerate(npf.nodes_for_role(role, role_map)):
+                        vlist["NPF_NODE"] = node.get_name()
+                        vlist["NPF_NODE_ID"] = i_node
+
+                        cmd = SectionVariable.replace_variables(
                             vlist,
                             exitscripts,self_role = role, default_role_map = role_map)
-
-                    for node in npf.nodes_for_role(role, role_map):
                         executor=node.executor
                         ncmd = "mkdir -p " + test_folder + " && cd " + test_folder + ";\n" + cmd
                         try:
@@ -745,7 +749,7 @@ class Testie:
                     has_err = True
                 if this_has_value:
                     has_values = True
-                if hasattr(self, 'pyexit'):
+                if hasattr(self, 'pyexit') and allowed_types != set([SectionScript.TYPE_INIT]):
                     vs = {'RESULTS': new_data_results, 'TIME_RESULTS': new_kind_results["time"], 'KIND_RESULTS':new_kind_results}
                     vs.update(v)
                     try:

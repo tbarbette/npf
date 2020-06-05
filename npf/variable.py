@@ -6,6 +6,7 @@ import random
 from npf import npf
 from npf.nic import NIC
 from asteval import Interpreter
+import itertools
 
 import random
 
@@ -96,7 +97,17 @@ def is_log(l):
             return False
     return n
 
-def replace_variables(v: dict, content: str, self_role=None, default_role_map={}):
+
+def ae_product_range(a,b):
+    return itertools.product(range(a),range(b))
+
+def ae_rand(a,b):
+    return random.randint(a,b)
+
+aeval = Interpreter(usersyms ={'parseBool':get_bool,"randint":ae_rand,"productrange":ae_product_range,"chain":itertools.chain})
+
+
+def replace_variables(v: dict, content: str, self_role=None, default_role_map={}, role_index = 0):
     """
     Replace all variable and nics references in content
     This is done in two step : variables first, then NICs reference so variable can be used in NIC references
@@ -120,13 +131,13 @@ def replace_variables(v: dict, content: str, self_role=None, default_role_map={}
     def do_replace_nics(nic_match):
         varRole = nic_match.group('role')
 
-        node = npf.nodes_for_role(varRole, self_role, default_role_map)
-
+        nodes = npf.nodes_for_role(varRole, self_role, default_role_map)
+        nodeidx = role_index % len(nodes)
         if nic_match.groupdict()['node']:
             t = str(nic_match.group('node'))
             if t == "node":
-                return str(len(node))
-            v = getattr(node[0], t)
+                return str(len(nodes))
+            v = getattr(nodes[nodeidx], t)
             if v is None:
                 if t == "multi":
                     return "1"
@@ -135,7 +146,7 @@ def replace_variables(v: dict, content: str, self_role=None, default_role_map={}
             else:
                 return str(v)
         else:
-            return str(node[0].get_nic(
+            return str(nodes[nodeidx].get_nic(
             int(nic_match.group('nic_idx') if nic_match.group('nic_idx') else v[nic_match.group('nic_var')]))[
                        nic_match.group('type')])
 
@@ -143,9 +154,7 @@ def replace_variables(v: dict, content: str, self_role=None, default_role_map={}
         Variable.VARIABLE_NICREF_REGEX,
         do_replace_nics, content)
 
-    def ae_rand(a,b):
-        return random.randint(a,b)
-    aeval = Interpreter(usersyms={'parseBool':get_bool,'randint':ae_rand})
+
 
     def do_replace_math(match):
 
@@ -440,9 +449,6 @@ class IfVariable(Variable):
 
     def makeValues(self):
         vs = []
-        def ae_rand():
-            return math.randint()
-        aeval = Interpreter(usersyms ={"randint":ae_rand})
         if aeval(self.cond):
             return [self.a]
         else:

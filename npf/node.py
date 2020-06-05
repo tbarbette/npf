@@ -62,6 +62,9 @@ class Node:
         pass
 
     def get_nic(self, nic_idx):
+        if nic_idx >= len(self.active_nics):
+            raise Exception("ERROR: node %s has no nic number %d" % (self.name, nic_idx))
+
         return self._nics[self.active_nics[nic_idx]]
 
     def get_name(self):

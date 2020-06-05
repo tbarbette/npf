@@ -326,7 +326,7 @@ class SectionVariable(Section):
 
     @staticmethod
     def replace_variables(v: dict, content: str, self_role=None, default_role_map={}):
-        return replace_variables(v,content,self_role,default_role_map)
+        return replace_variables(v, content, self_role, default_role_map)
 
     def replace_all(self, value):
         """Return a list of all possible replacement in values for each combination of variables"""
