@@ -22,11 +22,12 @@ WRK_HOST=EXPAND(${dut:0:ip})
 WRK_PROTOCOL=http
 
 %late_variables
-
+WRK_SCRIPT?=
 
 %script deps=wrk-tbarbette title=WRKClient
 fname=$RANDOM
-wrk -c $GEN_CONCURRENT -r --latency -t $(( $GEN_THREADS if $GEN_THREADS <= $GEN_CONCURRENT else $GEN_CONCURRENT)) -d${GEN_TIME}s ${WRK_PROTOCOL}://${WRK_HOST}:${HTTP_PORT}/${FILE_PATH} | tee $fname
+which wrk
+wrk -c $GEN_CONCURRENT -r --latency -t $(( $GEN_THREADS if $GEN_THREADS <= $GEN_CONCURRENT else $GEN_CONCURRENT)) -d${GEN_TIME}s $(( "-s ${WRK_SCRIPT}" if "${WRK_SCRIPT}" else "" )) ${WRK_PROTOCOL}://${WRK_HOST}:${HTTP_PORT}/${FILE_PATH} | tee $fname
 stat=$?
 cat $fname | grep "Transfer/sec" | awk '{printf "RESULT-THROUGHPUT %s\n", $2}' | head -n 1
 cat $fname | grep "Requests/sec" | awk '{printf "RESULT-REQUEST %s\n", $2}' | head -n 1
