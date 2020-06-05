@@ -122,6 +122,7 @@ fdIN
 elementclass Generator { $magic |
 input
   -> replay :: Pipeliner(BLOCKING true)
+  -> MarkMACHeader
   -> EnsureDPDKBuffer
   -> doethRewrite :: { input[0] -> active::Switch(OUTPUT $GEN_NOREWRITE_ETHER)[0] -> rwIN :: EtherRewrite($INsrcmac,$INdstmac) -> [0]output;
   active[1] -> [0]output}
