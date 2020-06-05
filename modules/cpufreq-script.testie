@@ -15,13 +15,17 @@ CPUFREQ= //This must be passed by the script absolutely
 %script sudo=true autokill=false
 if [ -n "$CPUFREQ" ] ; then
     if [ -e "/sys/devices/system/cpu/intel_pstate" ] ; then
-        cpupower frequency-set -u $CPUFREQ -d $CPUFREQ
+        cpupower frequency-set -u ${CPUFREQ}M -d ${CPUFREQ}M
         echo "CPU Frequency set to $CPUFREQ through pstate range"
     else
-        cpupower frequency-set -f $CPUFREQ
+        cpupower frequency-set -f ${CPUFREQ}M
         echo "CPU Frequency set to $CPUFREQ"
     fi
 else
-    cpupower frequency-set -g performance
-    echo "CPU Frequency set to performance"
+    min=$(cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_min_freq)
+    max=$(cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq)
+    echo "CPU Frequency set to default $min-$max through pstate range"
+    sudo cpupower frequency-set -u ${max}K -d ${min}K
 fi
+cpupower frequency-set -g performance
+echo "CPU Frequency set to performance"
