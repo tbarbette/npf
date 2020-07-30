@@ -602,7 +602,7 @@ class SectionConfig(SectionVariable):
         self.__add_list("test_time_sync", [])
         self.__add("var_serie",None)
         self.__add_dict("var_names", {"result-LATENCY":"Latency (µs)","result-THROUGHPUT":"Throughput","boxplot":""})
-        self.__add_dict("var_unit", {"result": "bps","result-LATENCY":"us","latency":"us","throughput":"bps"})
+        self.__add_dict("var_unit", {"result": "","result-LATENCY":"us","latency":"us","throughput":"bps"})
         self.__add("graph_show_fliers", True)
         self.__add_dict("graph_cross_reference", {})
         self.__add_dict("graph_background", {})
