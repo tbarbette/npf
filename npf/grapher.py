@@ -1157,7 +1157,8 @@ class Grapher:
                     axis.yaxis.label.set_color(legendcolors[sl])
                     axis.tick_params(axis='y',colors=legendcolors[sl])
 
-                var_lim = self.scriptconfig("var_lim", key=key, result_type=result_type)
+                #For x limits, we don't want result-RESULTYPE
+                var_lim = self.scriptconfig("var_lim", key=key)
                 if var_lim and var_lim is not key:
                     matches = re.match("([-]?[0-9.]+)[-]?([-]?[0-9.]+)?", var_lim)
                     xlims = [float(x) for x in matches.groups() if x is not None]
