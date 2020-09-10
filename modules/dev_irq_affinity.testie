@@ -2,13 +2,16 @@
 Module to set the IRQ affinity for a given device
 
 %variables
-N=1
+N=
 NIC=0
 OFFSET=0
 
+%late_variables
+OFFSET?=0
+
 %script sudo=true autokill=false
 killall irqbalance &> /dev/null
-if [ -e /usr/sbin/set_irq_affinity_cpulist.sh ] ; then
+if [ -n "$N" -a -e /usr/sbin/set_irq_affinity_cpulist.sh ] ; then
     set_irq_affinity_cpulist.sh $OFFSET-$(( $OFFSET + $N - 1 )) ${self:$NIC:ifname}
     exit $?
 else
