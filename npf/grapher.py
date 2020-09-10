@@ -539,7 +539,7 @@ class Grapher:
                     x_vars = pd.concat([x_vars]*len(x_data), ignore_index=True)
                     x_df = pd.concat([x_vars, x_data],axis=1)
                     all_results_df= all_results_df.append(x_df,ignore_index = True)
-        
+
             # Save the pandas dataframe into a csv
             pandas_df_name=options.pandas_filename.split(".")[0] +"-pandas" + ".csv"
             all_results_df.to_csv(pandas_df_name, index=True, index_label="index", sep=",", header=True)
@@ -1302,6 +1302,8 @@ class Grapher:
                 doleg = self.config_bool_or_in('graph_legend', result_type)
                 if ndyn > 0 and doleg:
                     loc = self.config("legend_loc")
+                    if type(loc) is dict or type(loc) is list:
+                        loc = self.scriptconfig("legend_loc",key="result",result_type=result_type)
                     if subplot_type=="axis" and len(figure) > 1:
                       if self.config_bool("graph_subplot_unique_legend"):
                         if ilegend != len(subplot_handles) - 1 : continue
