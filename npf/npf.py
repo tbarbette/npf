@@ -150,7 +150,7 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
                    default=True, help='Run tests in the same thread. If there is multiple script, they will run '
                                       'one after the other, hence breaking most of the tests.')
     t.add_argument('--expand', type=str, default=None, dest="expand")
-
+    t.add_argument('--rand-env', type=int, default=65536, dest="rand_env")
     return t
 
 

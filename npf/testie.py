@@ -8,6 +8,7 @@ import random
 import shutil
 import datetime
 import itertools
+import string
 from pathlib import Path
 from queue import Empty
 from typing import Tuple, Dict
@@ -613,6 +614,8 @@ class Testie:
                         param.env.update([(k, v.replace('$NPF_BUILD_PATH', build.repo.get_build_path())) for k, v in
                                           build.repo.env.items()])
 
+                        if self.options.rand_env:
+                            param.env['RANDENV'] = ''.join(random.choice(string.ascii_lowercase) for i in range(random.randint(0,self.options.rand_env)))
                         if 'waitfor' in script.params:
                             param.waitfor = script.params['waitfor']
 
@@ -755,7 +758,7 @@ class Testie:
                     try:
                         exec(self.pyexit.content, vs)
                     except Exception as e:
-                        print("ERROR WHILE EXECUTING SCRIPT:")
+                        print("ERROR WHILE EXECUTING PYEXIT SCRIPT:")
                         print(e)
 
 

@@ -21,7 +21,8 @@ GEN_LENGTH=64
 GEN_BLOCKING=true
 GEN_REPLAY=1
 GEN_INIT_WAIT=5
-GEN_THREADS=4 //Change not supported as of now
+//Change not supported as of now
+GEN_THREADS=4
 -rate:LIMIT=1000000
 rate:RATE=1000
 RCV_NIC=1
