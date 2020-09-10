@@ -14,11 +14,16 @@ CPUFREQ= //This must be passed by the script absolutely
 
 %script sudo=true autokill=false
 if [ -n "$CPUFREQ" ] ; then
+    if [ $CPUFREQ -gt 10000 ] ; then
+        UNIT=
+    else
+        UNIT=M
+    fi
     if [ -e "/sys/devices/system/cpu/intel_pstate" ] ; then
-        cpupower frequency-set -u ${CPUFREQ}M -d ${CPUFREQ}M
+        cpupower frequency-set -u ${CPUFREQ}${UNIT} -d ${CPUFREQ}${UNIT}
         echo "CPU Frequency set to $CPUFREQ through pstate range"
     else
-        cpupower frequency-set -f ${CPUFREQ}M
+        cpupower frequency-set -f ${CPUFREQ}${UNIT}
         echo "CPU Frequency set to $CPUFREQ"
     fi
 else
