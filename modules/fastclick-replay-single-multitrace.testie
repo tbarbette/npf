@@ -18,6 +18,7 @@ default_role_map={server:dut}
 PKTGEN_BURST_OUT=32
 PKTGEN_REPLAY_COUNT=1
 PKTGEN_REPLAY_TIME=0
+PKTGEN_BLOCKING=1
 NIC=0
 RCV_NIC=0
 SND_NIC=0
@@ -87,7 +88,9 @@ define($txverbose 99)
 define($rxverbose 99)
 define($limit $LIMIT)
 
-tdIN :: ToDPDKDevice($txport, BLOCKING true, BURST $bout, VERBOSE $txverbose, IQUEUE $bout, NDESC $GEN_DESC)
+
+    out :: Null
+    -> tdIN :: ToDPDKDevice($txport, BLOCKING $PKTGEN_BLOCKING, BURST $bout, VERBOSE $txverbose, IQUEUE $bout, NDESC $GEN_DESC, TCO true, IPCO true)
 
 elementclass NoTimestampDiff { $a, $b, $c, $d |
     input -> output;
@@ -95,7 +98,7 @@ elementclass NoTimestampDiff { $a, $b, $c, $d |
 }
 
 elementclass Numberise { $magic |
-    input-> Strip(14) -> check :: CheckIPHeader(CHECKSUM false) -> nPacket :: NumberPacket(42) -> StoreData(40, $magic) -> SetIPChecksum -> Unstrip(14) -> output
+    input-> Strip(14) -> check :: CheckIPHeader(CHECKSUM false) -> nPacket :: NumberPacket(42) -> StoreData(40, $magic) -> ResetIPChecksum(L4 true) -> Unstrip(14) -> output
 }
 
 elementclass NoNumberise { $magic |
@@ -117,18 +120,17 @@ input
 }
 
 
-$(( "\n".join(["fdIN%d :: FromDump(${trace}-%d, STOP false, TIMING false) -> gen%d :: Generator(\<56%02x>) -> tdIN;" %(i,i,i,i) for i in range(1,${GEN_TRACES}+1) ]) ))
+$(( "\n".join(["fdIN%d :: FromDump(${trace}-%d, STOP false, TIMING false, END_AFTER %d) -> gen%d :: Generator(\<56%02x>) -> out;" %  (i,i,${GEN_TIME} * ${TIMING} / 100 if ${GEN_TIME} else 0 ,i,i) for i in range(1,${GEN_TRACES}+1) ]) ))
 
 $(( "\n".join(["StaticThreadSched(gen%d/replay %d)" % (i,(i-1) % ${GEN_THREADS}) for i in range (1,${GEN_TRACES} + 1 ) ]) ))
 
-receiveIN :: FromDPDKDevice($rxport, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, PAUSE $PAUSE, NDESC $GEN_DESC, NUMA true)
+receiveIN :: FromDPDKDevice($rxport, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, PAUSE $PAUSE, NDESC $GEN_DESC, NUMA true, MAXTHREADS $GEN_THREADS)
 
 elementclass Receiver { $mac, $dir |
     input[0]
 $BROADCAST_IGNORE
     -> Strip(14)
     -> CheckIPHeader(CHECKSUM false)
-    -> avg :: AverageCounterIMP(IGNORE $ignore)
    $GEN_LAT_DISPATCH
 
     c[1] //Not for this computer or broadcasts
@@ -136,7 +138,7 @@ $BROADCAST_IGNORE
 
 
 
-    $(( "\n".join(["magic[%d] -> tsd%d :: $GEN_LAT_TSDIFF(gen%d/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE) -> Unstrip(14) -> avg%d :: AverageCounterIMP(IGNORE $ignore) -> Discard;" %  (i - 1,i,i,i) for i in range(1,${GEN_TRACES} + 1) ]) ))
+    $(( "\n".join(["magic[%d] -> tsd%d :: $GEN_LAT_TSDIFF(gen%d/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE) -> Unstrip(14) -> avg%d :: AverageCounter(IGNORE $ignore) -> Discard;" %  (i - 1,i,i,i) for i in range(1,${GEN_TRACES} + 1) ]) ))
 
 
     magic[ $(( ${GEN_TRACES} )) ]
@@ -154,12 +156,14 @@ receiveIN -> RINswitch :: Switch(2)[0] -> RIN :: Receiver($RAW_INsrcmac,"IN");
 
 tsd :: HandlerAggregate( $(( ",".join(["ELEMENT RIN/tsd%d" % (i) for i in range(1,${GEN_TRACES}+1) ]) )) );
 
+avg :: HandlerAggregate( $(( ",".join(["ELEMENT RIN/avg%d" % (i) for i in range(1,${GEN_TRACES}+1) ]) )) );
+
 //----------------
 //Link initializer
 //----------------
 adv0 :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH 64, SRCETH $INsrcmac, DSTETH $INsrcmac, SRCIP ${self:$NIC:ip}, DSTIP ${self:$NIC:ip}, FLOWS 1, FLOWSIZE 1)
     -> advq0 :: RatedUnqueue(1)
-    -> tdIN;
+    -> out;
 
 //Check that it received its packet from 2 outputs and emits packets on output 0 when it's the case
 linkoklock :: PathSpinlock() [0]
@@ -186,7 +190,8 @@ link_initialized :: Script(TYPE PACKET,
 
     print "Starting replay...",
     $(( "\n".join(["write gen%d/avgSIN.reset," % (i) for i in range(1,${GEN_TRACES}+1) ]) ))
-    write RIN/avg.reset,
+
+    $(( "\n".join(["write RIN/avg%d.reset," % (i) for i in range(1,${GEN_TRACES}+1) ]) ))
     write RINswitch.switch 0 ,
     $(( "\n".join(["write gen%d/replay.stop $replay_count," % (i) for i in range(1,${GEN_TRACES}+1) ]) ))
     $(( "\n".join(["write gen%d/replay.active true," % (i) for i in range(1,${GEN_TRACES}+1) ]) ))
@@ -203,6 +208,7 @@ run_test :: Script(TYPE PASSIVE,
 
 RINswitch[1]->Print(LATEIN) -> Discard;
 
+
 DriverManager(  
 $(( "\n".join(["pause," for i in range($GEN_TRACES)]) ))
                 goto waitagain $(eq 1 0),
@@ -213,32 +219,19 @@ $(( "\n".join(["pause," for i in range($GEN_TRACES)]) ))
                 label waitagain,
 		        print "EVENT GEN_STARTED",
                 set starttime $(now),
-                $(( "\n".join(["pause," for i in range($GEN_TRACES)]) ))
+//                $(( "\n".join(["pause," for i in range($GEN_TRACES)]) ))
+                wait $(( ${GEN_TIME} - $IGNORE if ${GEN_TIME} else "" )) ,
                 set stoptime $(now),
-                print "Rate : ",
-/*                print $(gen0/avgSIN.link_rate),
-                print $(gen1/avgSIN.link_rate),
-                print $(gen2/avgSIN.link_rate),
-                print $(gen3/avgSIN.link_rate),
-                print $(RIN/avgA.link_rate),
-                print $(RIN/avgB.link_rate),
-                print $(RIN/avgC.link_rate),
-                print $(RIN/avgD.link_rate),*/
-                print $(RIN/avg.link_ratet),
-                print "Count :",
-/*                print $(gen0/avgSIN.count),
-                print $(gen1/avgSIN.count),
-                print $(gen2/avgSIN.count),
-                print $(gen3/avgSIN.count),*/
-                print $(RIN/avg.count),
-/*                print $(RIN/avgB.count),
-                print $(RIN/avgC.count),
-                print $(RIN/avgD.count),*/
+                $(( "\n".join(["write gen%d/replay.active false," % (i) for i in range(1,${GEN_TRACES}+1) ]) ))
                 read receiveIN.hw_count,
                 read receiveIN.count,
         		print "EVENT GEN_DONE",
                 print "RESULT-TESTTIME $(sub $stoptime $starttime)",
-                print "RESULT-RCVTIME $(RIN/avg.time)",
+                print "RESULT-THROUGHPUT $(avg.add link_rate)",
+                print "RESULT-COUNT $(avg.add count)",
+                print "RESULT-TX $(add
+                $(( " ".join(["$(gen%d/avgSIN.link_rate)" % (i) for i in range (1,${GEN_TRACES} + 1 ) ]) ))
+                )",
                 goto adump $(eq $DODUMP 0),
 /*                print >$LATENCYDUMP $(RIN/tsdA.dump_list),
                 print >>$LATENCYDUMP $(RIN/tsdB.dump_list),
@@ -256,11 +249,5 @@ $(( "\n".join(["pause," for i in range($GEN_TRACES)]) ))
                 print "RESULT-LAT99 $(div $(add $(RIN/tsdA.perc99) $(RIN/tsdB.perc99) $(RIN/tsdC.perc99) $(RIN/tsdD.perc99)) 4)",
                 print "RESULT-LAT100 $(div $(add $(RIN/tsdA.max) $(RIN/tsdB.max) $(RIN/tsdC.max) $(RIN/tsdD.max)) 4)",*/
                 label ldump,
-                print "RESULT-THROUGHPUT $(add $(RIN/avg.link_rate) )",
-                print "RESULT-COUNT $(add $(RIN/avg.count) )",
-                print "RESULT-TX $(add
-                $(( " ".join(["$(gen%d/avgSIN.link_rate)" % (i) for i in range (1,${GEN_TRACES} + 1 ) ]) ))
-                )",
-//                print "RESULT-PPS $(add $(RIN/avgA.rate)  $(RIN/avgB.rate) $(RIN/avgC.rate) $(RIN/avgD.rate))",
-//                read receiveIN.xstats,
+                read receiveIN.xstats,
                 stop);
