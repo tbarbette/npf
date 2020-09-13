@@ -1090,6 +1090,9 @@ class Grapher:
 
                 r = True
 
+                tick_params = self.configdict("graph_tick_params",default={})
+                axis.tick_params(**tick_params)
+
                 graph_type = False
                 if ndyn == 0:
                     graph_type = "simple_bar"
@@ -1356,9 +1359,9 @@ class Grapher:
                     if loc and loc.startswith("outer"):
                         loc = loc[5:].strip()
                         legend_bbox=self.configlist("legend_bbox")
-                        lgd = axis.legend(handles=handles, labels=labels, loc=loc,bbox_to_anchor=(legend_bbox if legend_bbox and len(legend_bbox) > 1 else None), mode=self.config("legend_mode"), borderaxespad=0.,ncol=ncol, title=legend_title,bbox_transform=plt.gcf().transFigure)
+                        lgd = axis.legend(handles=handles, labels=labels, loc=loc,bbox_to_anchor=(legend_bbox if legend_bbox and len(legend_bbox) > 1 else None), mode=self.config("legend_mode"), borderaxespad=0.,ncol=ncol, title=legend_title,bbox_transform=plt.gcf().transFigure,frameon=self.config_bool("legend_frameon"))
                     else:
-                        lgd = axis.legend(handles=handles, labels=labels, loc=loc,ncol=ncol, title=legend_title)
+                        lgd = axis.legend(handles=handles, labels=labels, loc=loc,ncol=ncol, title=legend_title, frameon=self.config_bool("legend_frameon") )
             return result_type, lgd
 
 
@@ -1635,7 +1638,8 @@ class Grapher:
         yticks = self.scriptconfig("var_ticks", "result", default=None, result_type=result_type)
         shift = int(shift)
         if self.config_bool_or_in('var_grid',result_type):
-            axis.grid(True,linestyle=self.graphlines[( shift - 1 if shift > 0 else 0) % len(self.graphlines)],color=gridcolors[shift], axis="y" if not self.config_bool_or_in('var_grid',key) else "both" )
+            axis.grid(True,color=gridcolors[shift], axis="y" if not self.config_bool_or_in('var_grid',key) else "both", linestyle=self.config("graph_grid_linestyle") )
+            #linestyle=self.graphlines[( shift - 1 if shift > 0 else 0) % len(self.graphlines)]
             axis.set_axisbelow(True)
         isLog = False
         baseLog = self.scriptconfig('var_log_base', "result",result_type=result_type, default=None)

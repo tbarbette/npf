@@ -590,6 +590,8 @@ class SectionConfig(SectionVariable):
         self.__add_list("graph_lines", ['-', '--', '-.', ':'])
         self.__add_list("legend_bbox", [0, 1, 1, .05])
         self.__add("legend_loc", "best")
+
+        self.__add("legend_frameon", False)
         self.__add("legend_ncol", 1)
         self.__add("var_hide", {})
         self.__add_list("var_log", [])
@@ -599,6 +601,8 @@ class SectionConfig(SectionVariable):
         self.__add_dict("var_format", {})
         self.__add_dict("var_ticks", {})
         self.__add_list("var_grid", [])
+        self.__add("graph_grid_linestyle", "-")
+        self.__add_dict("graph_tick_params", {})
         self.__add_list("test_time_sync", [])
         self.__add("var_serie",None)
         self.__add_dict("var_names", {"result-LATENCY":"Latency (µs)","result-THROUGHPUT":"Throughput","boxplot":""})
