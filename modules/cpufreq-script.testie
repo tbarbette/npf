@@ -4,17 +4,17 @@ CPU frequency
 
 This module sets the CPU frequency to a given value using cpupower
 
-You can specify which cores to apply the settings with CORES=%. If not specified, settings will
+You can specify which cores to apply the settings with CPUFREQ_CORES=%. If not specified, settings will
 be applied to all cores of the system.
 
 If no CPUFREQ is given, the default limits are set.
-If the CORES are specified and no frequency is specified, it is safer to 
+If the CPUFREQ_CORES are specified and no frequency is specified, it is safer to 
 set also the NUMA, although limit requencies should be equal on different sockets.
 
 Set SILENT if you use '--show-all' and you want a cleaner output.
 
 
-//%import@client cpufreq CPUFREQ=1200 [CORES=18-25] [NUMA=1] [SILENT=1]
+//%import@client cpufreq CPUFREQ=1200 [CPUFREQ_CORES=18-25] [CPUFREQ_NUMA=1] [CPUFREQ_SILENT=1]
 
 
 %config
@@ -22,17 +22,17 @@ require_tags={import}
 
 %variables
 CPUFREQ= //This must be passed by the script absolutely
-NUMA=
-CORES=
-SILENT=
+CPUFREQ_NUMA=
+CPUFREQ_CORES=
+CPUFREQ_SILENT=
 
 %late_variables
-CPUCORES?= $(("-c $CORES" if "$CORES" != "" else "" ))
-NUMA?=0
-FIRST_ONLY= $(( "| head -n1" if "$SILENT" else "" ))
+CPUFREQ_CPUCORES?= $(("-c $CPUFREQ_CORES" if "$CPUFREQ_CORES" != "" else "" ))
+CPUFREQ_NUMA?=0
+CPUFREQ_FIRST_ONLY= $(( "| head -n1" if "$CPUFREQ_SILENT" else "" ))
 
 %script sudo=true autokill=false
-echo "Setting $CORES to $CPUFREQ"
+echo "Setting $CPUFREQ_CORES to $CPUFREQ"
 if [ -n "$CPUFREQ" ] ; then
     if [ $CPUFREQ -gt 10000 ] ; then
         UNIT=
@@ -40,24 +40,25 @@ if [ -n "$CPUFREQ" ] ; then
         UNIT=M
     fi
     if [ -e "/sys/devices/system/cpu/intel_pstate" ] ; then
-        cpupower $CPUCORES frequency-set -u ${CPUFREQ}${UNIT} -d ${CPUFREQ}${UNIT} ${FIRST_ONLY}
-        echo "CPU Frequency set to $CPUFREQ through pstate range"
+        cpupower ${CPUFREQ_CPUCORES} frequency-set -u ${CPUFREQ}${UNIT} -d ${CPUFREQ}${UNIT} ${CPUFREQ_FIRST_ONLY}
+        echo "CPU Frequency set to ${CPUFREQ} through pstate range"
     else
-        cpupower $CPUCORES frequency-set -f ${CPUFREQ}${UNIT} ${FIRST_ONLY}
-        echo "CPU Frequency set to $CPUFREQ"
+        cpupower ${CPUFREQ_CPUCORES} frequency-set -f ${CPUFREQ}${UNIT} ${CPUFREQ_FIRST_ONLY}
+        echo "CPU Frequency set to ${CPUFREQ}"
     fi
 else
 
-    if [ -n "$NUMA" ];then
-	FIRST_CPU=$(lscpu |egrep "NUMA node${NUMA}.*:"| sed -e "s/\(.*: *\)\([0-9]*\)\(.*\)/\2/g")
+    if [ -n "$CPUFREQ_NUMA" ];then
+       # Obtain the first CPU of this NUMA node
+       FIRST_CPU=$(lscpu |egrep "NUMA node${CPUFREQ_NUMA}.*:"| sed -e "s/\(.*: *\)\([0-9]*\)\(.*\)/\2/g")
     else
-	FIRST_CPU=0
+	     FIRST_CPU=0
     fi
     min=$(cat /sys/devices/system/cpu/cpu${FIRST_CPU}/cpufreq/cpuinfo_min_freq)
     max=$(cat /sys/devices/system/cpu/cpu${FIRST_CPU}/cpufreq/cpuinfo_max_freq)
     echo "CPU Frequency set to default $min-$max through pstate range"
-    sudo cpupower $CPUCORES frequency-set -u ${max}K -d ${min}K ${FIRST_ONLY}
+    sudo cpupower ${CPUFREQ_CPUCORES} frequency-set -u ${max}K -d ${min}K ${CPUFREQ_FIRST_ONLY}
 fi
 
-cpupower $CPUCORES frequency-set -g performance ${FIRST_ONLY}
+cpupower ${CPUFREQ_CPUCORES} frequency-set -g performance ${CPUFREQ_FIRST_ONLY}
 echo "CPU Frequency set to performance"
