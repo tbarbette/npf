@@ -1310,7 +1310,7 @@ class Grapher:
                 if type(ncol) == list:
                     ncol = ncol[ilegend % len(ncol)]
                 doleg = self.config_bool_or_in('graph_legend', result_type)
-                if ndyn > 0 and doleg:
+                if graph_type != "simple_bar" and doleg:
                     loc = self.config("legend_loc")
                     if type(loc) is dict or type(loc) is list:
                         loc = self.scriptconfig("legend_loc",key="result",result_type=result_type)
@@ -1501,7 +1501,7 @@ class Grapher:
         axis.set_xticks(xticks)
         return True
 
-    def do_line_plot(self, axis, key, result_type, data : XYEB,shift=0,idx=0):
+    def do_line_plot(self, axis, key, result_type, data : XYEB,shift=0,idx=0,xdata = None):
         xmin, xmax = (float('inf'), 0)
         drawstyle = self.scriptconfig('var_drawstyle',result_type,default='default')
 
@@ -1519,7 +1519,10 @@ class Grapher:
             self.format_figure(axis, result_type, shift, key=key)
             c = build._color
 
-
+            if xdata:
+                x = []
+                for yi in range(len(xdata[i][2])):
+                    x.append(np.mean(xdata[i][2][yi][2]))
             if not npf.all_num(x):
                 if variable.numericable(x):
                     ax = [variable.get_numeric(v) for i, v in enumerate(x)]

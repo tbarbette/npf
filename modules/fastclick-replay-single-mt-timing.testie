@@ -56,7 +56,7 @@ nodpdkload:NBBUF=65536
 nodpdkload:ENSURE= -> MarkMACHeader()
 nodpdkload:LATEENSURE=
 DODUMP?=0
-NRECORD=EXPAND( $(( $LIMIT / $SAMPLE * $PKTGEN_REPLAY_COUNT  * 2 )) )
+NRECORD=EXPAND( $(( int($LIMIT / $SAMPLE * $PKTGEN_REPLAY_COUNT  * 2) )) )
 BROADCAST_IGNORE= -> c :: Classifier(0/$mac,-) //Ignore broadcasts
 
 %promisc:late_variables

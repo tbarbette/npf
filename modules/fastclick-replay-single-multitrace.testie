@@ -19,6 +19,7 @@ PKTGEN_BURST_OUT=32
 PKTGEN_REPLAY_COUNT=1
 PKTGEN_REPLAY_TIME=0
 PKTGEN_BLOCKING=1
+PKTGEN_PRELOAD=1
 NIC=0
 RCV_NIC=0
 SND_NIC=0
@@ -39,6 +40,7 @@ dump:DODUMP=1
 nolat:NOLAT=1
 
 %late_variables
+GEN_BEFORE_REPLAY?=
 NBBUF?=EXPAND( $(( ( ( $LIMIT * $GEN_TRACES ) + (max(4096,$PKTGEN_BURST_OUT) * 2 * 4 ) ) + 8192 )) )
 NRECORD=EXPAND( $(( int($LIMIT / $SAMPLE * $PKTGEN_REPLAY_COUNT  * 2 ) )) )
 BROADCAST_IGNORE= -> c :: Classifier(0/$mac,-) //Ignore broadcasts
@@ -52,7 +54,7 @@ gdb:GDB=gdb -ex run -ex "signal 2" -ex bt -batch -args
 -nolat:GEN_LAT_NUMBERISE= -> Numberise($magic)
 -nolat:GEN_LAT_RECORD=-> rt :: RecordTimestamp(N $limit, OFFSET 56)
 -nolat:GEN_LAT_DISPATCH=-> magic :: Classifier( $(( ",".join([ "40/56%02x" % (i+1) for i in range(${GEN_TRACES}) ]) )), -) // 40/5601
--nolat:GEN_LAT_TSDIFF= TimestampDiff
+-nolat:GEN_LAT_TSDIFF?= TimestampDiff
 GEN_LAT_NUMBERISE?= -> NoNumberise($magic)
 GEN_LAT_RECORD?=
 GEN_LAT_DISPATCH?= -> magic :: {[0] -> RoundRobinSwitch() => [0-3]; Idle->[4]}
@@ -113,7 +115,8 @@ input
   -> Pad()
   $GEN_LAT_NUMBERISE
 //  -> Print(TIMESTAMP true)
-  -> replay :: ReplayUnqueue(STOP 0, STOP_TIME $PKTGEN_REPLAY_TIME, QUICK_CLONE $quick, VERBOSE true, ACTIVE true, LIMIT $LIMIT, TIMING $TIMING, BURST $PKTGEN_BURST_OUT)
+  $GEN_BEFORE_REPLAY
+$(( "  -> replay :: ReplayUnqueue(STOP 0, STOP_TIME $PKTGEN_REPLAY_TIME, QUICK_CLONE $quick, VERBOSE true, ACTIVE true, LIMIT $LIMIT, TIMING $TIMING, BURST $PKTGEN_BURST_OUT) " if $PKTGEN_PRELOAD else "-> replay :: Unqueue " ))
   $GEN_LAT_RECORD
   -> avgSIN :: AverageCounter(IGNORE $ignore)
   -> output;
@@ -138,7 +141,7 @@ $BROADCAST_IGNORE
 
 
 
-    $(( "\n".join(["magic[%d] -> tsd%d :: $GEN_LAT_TSDIFF(gen%d/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE) -> Unstrip(14) -> avg%d :: AverageCounter(IGNORE $ignore) -> Discard;" %  (i - 1,i,i,i) for i in range(1,${GEN_TRACES} + 1) ]) ))
+    $(( "\n".join(["magic[%d] -> tsd%d :: $GEN_LAT_TSDIFF(gen%d/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE, TC_OFFSET 5, TC_MASK 15) -> Unstrip(14) -> avg%d :: AverageCounter(IGNORE $ignore) -> Discard;" %  (i - 1,i,i,i) for i in range(1,${GEN_TRACES} + 1) ]) ))
 
 
     magic[ $(( ${GEN_TRACES} )) ]
@@ -240,6 +243,22 @@ $(( "\n".join(["pause," for i in range($GEN_TRACES)]) ))
                 label adump,
                 goto ldump $(eq $NOLAT 1),
                 print "RESULT-LATENCY $(tsd.avg average)",
+/*                print "RESULT-LATENCY-TC00 $(tsd.avg avg_tc 0)",
+                print "RESULT-LATENCY-TC01 $(tsd.avg avg_tc 1)",
+                print "RESULT-LATENCY-TC02 $(tsd.avg avg_tc 2)",
+                print "RESULT-LATENCY-TC03 $(tsd.avg avg_tc 3)",
+                print "RESULT-LATENCY-TC04 $(tsd.avg avg_tc 4)",
+                print "RESULT-LATENCY-TC05 $(tsd.avg avg_tc 5)",
+                print "RESULT-LATENCY-TC06 $(tsd.avg avg_tc 6)",
+                print "RESULT-LATENCY-TC07 $(tsd.avg avg_tc 7)",
+                print "RESULT-LATENCY-TC08 $(tsd.avg avg_tc 8)",
+                print "RESULT-LATENCY-TC09 $(tsd.avg avg_tc 9)",
+                print "RESULT-LATENCY-TC0a $(tsd.avg avg_tc 10)",
+                print "RESULT-LATENCY-TC0b $(tsd.avg avg_tc 11)",
+                print "RESULT-LATENCY-TC0c $(tsd.avg avg_tc 12)",
+                print "RESULT-LATENCY-TC0d $(tsd.avg avg_tc 13)",
+                print "RESULT-LATENCY-TC0e $(tsd.avg avg_tc 14)",
+                print "RESULT-LATENCY-TC0f $(tsd.avg avg_tc 15)",*/
 /*                print "RESULT-LAT00 $(div $(add $(RIN/tsdA.min) $(RIN/tsdB.min) $(RIN/tsdC.min) $(RIN/tsdD.min)) 4)",
                 print "RESULT-LAT01 $(div $(add $(RIN/tsdA.perc01) $(RIN/tsdB.perc01) $(RIN/tsdC.perc01) $(RIN/tsdD.perc01)) 4)",
                 print "RESULT-LAT25 $(div $(add $(RIN/tsdA.perc25) $(RIN/tsdB.perc25) $(RIN/tsdC.perc25) $(RIN/tsdD.perc25)) 4)",
