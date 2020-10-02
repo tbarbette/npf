@@ -154,7 +154,7 @@ class Graph:
         return sg
 
     # Divide all series by the first one, making a percentage of difference
-    def series_prop(self, prop):
+    def series_prop(self, prop, exclusions = []):
             series = self.series
             if len(series) == 1:
                 raise Exception("Cannot make proportional series with only one serie !")
@@ -181,7 +181,9 @@ class Graph:
                             base = base[:len(results)]
                         elif len(results) > len(base):
                             results = results[:len(base)]
-                        results = results / base * prop
+                        if result_type not in exclusions:
+                            results = results / base * abs(prop) + prop if prop < 0 else 0
+
                         run_results[result_type] = results
                     new_results[run] = run_results
                 newseries.append((script, build, new_results))
@@ -868,7 +870,7 @@ class Grapher:
 
                 graph = self.extract_variable_to_series(sv, vars_values.copy(), all_results, dyns.copy(), build, script)
                 if prop:
-                    graph.series_prop(prop)
+                    graph.series_prop(prop,  self.configdict('graph_cross_reference').values())
                 if graph_series_label:
                     for i, (testie, build, all_results) in enumerate(series):
                         v = {}
@@ -886,7 +888,7 @@ class Grapher:
         else:
             graph = self.series_to_graph(series, dyns, vars_values, vars_all)
             if prop:
-                graph.series_prop(prop)
+                graph.series_prop(prop, self.configdict('graph_cross_reference').values())
             graph.title = title
             graphs.append(graph)
 
@@ -1027,7 +1029,7 @@ class Grapher:
                     if i_s_subplot > 0:
                         axis = plt.subplot(n_lines, n_cols, isubplot + 1, sharex=axiseis[0])
                         plt.setp(axiseis[0].get_xticklabels(), visible=False)
-                        axiseis[0].set_xlabel("")
+                        #axiseis[0].set_xlabel("")
                     else:
                         axis = plt.subplot(n_lines, n_cols, isubplot + 1)
                     ihandle = 0
@@ -1119,8 +1121,8 @@ class Grapher:
                         graph_types = [graph_types]
                     graph_types.extend([graph_type, "line"])
                     graph_type = graph_types[isubplot if isubplot < len(graph_types) else len(graph_types) - 1]
-                if ndyn == 0 and graph_type != "simple_bar" and graph_type != "boxplot":
-                    print("WARNING: Cannot graph %s without dynamic variables" % graph_type)
+                if ndyn == 0 and graph_type == "line":
+                    print("WARNING: Cannot graph %s as a line without dynamic variables" % graph_type)
                     graph_type = "simple_bar"
                 barplot = False
 
@@ -1131,7 +1133,7 @@ class Grapher:
                         barplot = True
                     elif graph_type == "line":
                         """One dynamic variable used as X, series are version line plots"""
-                        r = self.do_line_plot(axis, key, result_type, data,shift, isubplot)
+                        r = self.do_line_plot(axis, key, result_type, data,shift, isubplot, xdata)
                     elif graph_type == "boxplot":
                         """One dynamic variable used as X, series are version line plots"""
                         r = self.do_box_plot(axis, key, result_type, data, xdata, shift, isubplot)
@@ -1234,11 +1236,16 @@ class Grapher:
                         plt.gca().xaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
                     plt.xticks([variable.get_numeric(x) for x in xticks.split('+')])
 
-                plt.xlabel(self.var_name(cross_key))
+                if bool(self.config_bool('graph_x_label', True)):
+                    plt.xlabel(self.var_name(cross_key))
 
                 var_lim = self.scriptconfig("var_lim", "result", result_type=result_type, default=None)
                 if var_lim:
-                    n = var_lim.split('-')
+                    if var_lim.startswith('-'):
+                        n = var_lim[1:].split('-',1)
+                        n[0] = "-"+n[0]
+                    else:
+                        n = var_lim.split('-',1)
                     try:
                       if len(n) == 2:
                         ymin, ymax = (npf.parseUnit(x) for x in n)

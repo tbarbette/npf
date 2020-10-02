@@ -591,7 +591,7 @@ class SectionConfig(SectionVariable):
         self.__add_list("legend_bbox", [0, 1, 1, .05])
         self.__add("legend_loc", "best")
 
-        self.__add("legend_frameon", False)
+        self.__add("legend_frameon", True)
         self.__add("legend_ncol", 1)
         self.__add("var_hide", {})
         self.__add_list("var_log", [])

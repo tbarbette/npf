@@ -357,10 +357,13 @@ def parseBool(s):
        return bool(s)
 
 def parseUnit(u):
-    r = re.match('([0-9]+)[ ]*([GMK]?)',u)
+    r = re.match('([-]?)([0-9]+)[ ]*([GMK]?)',u)
     if r != None:
-        n = float(r.group(1))
-        unit = r.group(2)
+        n = float(r.group(2))
+        unit = r.group(3)
+        if r.group(1) == "-":
+            n = -n
+
         if unit is None or unit == '':
             return n
         if unit == 'G':

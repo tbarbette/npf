@@ -41,7 +41,7 @@ class LocalExecutor(Executor):
             if not sudo:
                 env["PATH"] = ':'.join([cwd + '/' + path if not os.path.abspath(path) else path for path in bin_paths]) + ":" + env["PATH"]
             else:
-                cmd = 'export PATH=' + ':'.join([cwd + '/' + path for path in bin_paths]) + ":" + '$PATH\n' + cmd
+                cmd = 'export PATH=' + ':'.join([cwd + '/' + path if not os.path.abspath(path) else path for path in bin_paths]) + ":" + '$PATH\n' + cmd
 
         if options is not None and options.show_cmd:
             print("Executing (PATH+=%s) :\n%s" % (':'.join(bin_paths), cmd.strip()))
