@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import LinearLocator, ScalarFormatter, Formatter, MultipleLocator, NullLocator
 from matplotlib.lines import Line2D
 from matplotlib.ticker import FuncFormatter, FormatStrFormatter
-
+import matplotlib.transforms as mtransforms
 
 import itertools
 import math
@@ -897,6 +897,11 @@ class Grapher:
 
 
     def plot_graphs(self, graphs, filename, fileprefix):
+        """
+        Each graph is a dataset that contains multiple result types, there may be multiple graphs if there are multiple series.
+        There may be multiple graphs in the case of regression tests for instance
+        """
+        print(len(graphs), graphs)
         assert(len(graphs) > 0)
         matched_set = set()
 
@@ -1011,236 +1016,32 @@ class Grapher:
             subplot_handles=[]
             axiseis = []
             savekey=key
+
+            #Get global plotting variables
             cross_reference =  self.configdict('graph_cross_reference')
+            tick_params = self.configdict("graph_tick_params",default={})
+            gcolor = self.configlist('graph_color')
+
+
+#            for result_type in figure:
+
+
+            #A figure may be composed of multiple subplots if user asked for subplots OR shared axis
+            # but each subplot may use broken axis that are in fact fake subplot
             for i_s_subplot, result_type in enumerate(figure):
+                #Variable that depends on the figure
                 key=savekey
-                isubplot = int(i_subplot * len(figure) + i_s_subplot)
+                var_lim = self.scriptconfig("var_lim", "result", result_type=result_type, default=None)
+                print(var_lim,result_type)
                 data = data_types[result_type]
 
-                if result_type in cross_reference:
-                    cross_key = cross_reference[result_type]
-                    xdata = data_types[cross_key]
-                else:
-                    cross_key=key
-                    xdata = None
-                ymin, ymax = (float('inf'), 0)
-
-                if subplot_type=="subplot":
-                    if i_s_subplot > 0:
-                        axis = plt.subplot(n_lines, n_cols, isubplot + 1, sharex=axiseis[0])
-                        plt.setp(axiseis[0].get_xticklabels(), visible=False)
-                        #axiseis[0].set_xlabel("")
-                    else:
-                        axis = plt.subplot(n_lines, n_cols, isubplot + 1)
-                    ihandle = 0
-                    shift = 0
-                else: #subplot_type=="axis" for dual axis
-                    if isubplot == 0:
-                        fix,axis=plt.subplots()
-                        ihandle = 0
-                    elif isubplot == len(figure) - 1:
-                        axis=axis.twinx()
-                        ihandle = 1
-                    else:
-                        axis=axiseis[0]
-                        ihandle = 0
-                    if len(figure) > 1:
-                        shift = isubplot + 1
-                    else:
-                        shift = 0
-
-                if not axis in axiseis:
-                    axiseis.append(axis)
-                    subplot_handles.append((axis,result_type,[]))
-                subplot_handles[ihandle][2].append(result_type)
-
-                if len(figure) > 1:
-                  for i, (x, y, e, build) in enumerate(data):
-                    if self.config_bool("graph_subplot_unique_legend", False):
-                        build._line=self.graphlines[i_subplot% len(self.graphlines)]
-                    else:
-                        build._line=self.graphlines[i_s_subplot% len(self.graphlines)]
-
-                gcolor = self.configlist('graph_color')
-                gi = {} #Index per-color
-                for i, (x, y, e, build) in enumerate(data):
-                    if not gcolor and shift == 0 and not hasattr(build,"_color_set"):
-                        build._color=graphcolorseries[0][i % len(graphcolorseries[0])]
-                    else:
-                        if hasattr(build,"_color_index"):
-                            s = build._color_index
-                            tot = [build._color_index for x,y,e,build in data].count(s)
-                        elif gcolor:
-                            s=gcolor[(i + isubplot*len(data)) % len(gcolor)]
-                            tot = gcolor.count(s)
-                        else:
-                            s=shift
-                            tot = len(data)
-                        gi.setdefault(s,0)
-                        slen = len(graphcolorseries[s % len(graphcolorseries)])
-                        n = slen / tot
-                        if n < 0:
-                            n = 1
-                        #For the default colors we take them in order
-                        if s == 0:
-                            f = gi[s]
-                        else:
-                            f = round((gi[s] + (0.33 if gi[s] < tot / 2 else 0.66)) * n)
-                        gi[s]+=1
-                        cserie = graphcolorseries[s % len(graphcolorseries)]
-                        build._color=cserie[f % len(cserie)]
-
-                r = True
-
-                tick_params = self.configdict("graph_tick_params",default={})
-                axis.tick_params(**tick_params)
-
-                graph_type = False
-                if ndyn == 0:
-                    graph_type = "simple_bar"
-                elif ndyn == 1 and len(vars_all) > 2 and npf.all_num(vars_values[key]):
-                    graph_type = "line"
-                graph_types = self.config("graph_type",[])
-
-                if len(graph_types) > 0 and (type(graph_types[0]) is tuple or type(graph_types) is tuple):
-                    if type(graph_types) is tuple:
-                        graph_types = dict([graph_types])
-                    else:
-                        graph_types = dict(graph_types)
-                    if result_type in graph_types:
-                        graph_type = graph_types[result_type]
-                    elif "default" in graph_types:
-                        graph_type = graph_types["default"]
-                    elif "result" in graph_types:
-                        graph_type = graph_types["result"]
-                    else:
-                        graph_type = "line"
-
-                else:
-                    if type(graph_types) is str:
-                        graph_types = [graph_types]
-                    graph_types.extend([graph_type, "line"])
-                    graph_type = graph_types[isubplot if isubplot < len(graph_types) else len(graph_types) - 1]
-                if ndyn == 0 and graph_type == "line":
-                    print("WARNING: Cannot graph %s as a line without dynamic variables" % graph_type)
-                    graph_type = "simple_bar"
-                barplot = False
-
-                try:
-                    if graph_type == "simple_bar":
-                        """No dynamic variables : do a barplot X=version"""
-                        r = self.do_simple_barplot(axis,result_type, data, shift, isubplot)
-                        barplot = True
-                    elif graph_type == "line":
-                        """One dynamic variable used as X, series are version line plots"""
-                        r = self.do_line_plot(axis, key, result_type, data,shift, isubplot, xdata)
-                    elif graph_type == "boxplot":
-                        """One dynamic variable used as X, series are version line plots"""
-                        r = self.do_box_plot(axis, key, result_type, data, xdata, shift, isubplot)
-                    else:
-                        """Barplot. X is all seen variables combination, series are version"""
-                        self.do_barplot(axis,vars_all, dyns, result_type, data, shift)
-                        barplot = True
-                except Exception as e:
-                    print("ERROR : could not graph %s" % result_type)
-                    print(e)
-                    print(traceback.format_exc())
-                    continue
-                if not r:
-                    continue
-
-                type_config = "" if not result_type else "-" + result_type
-
-                lgd = None
-                if len(figure) == 1:
-                    sl = 0
-                elif gcolor:
-                    sl = gcolor[(isubplot * len(data)) % len(gcolor)] % len(legendcolors)
-                else:
-                    sl = shift % len(legendcolors)
-                if legendcolors[sl]:
-                    axis.yaxis.label.set_color(legendcolors[sl])
-                    axis.tick_params(axis='y',colors=legendcolors[sl])
-
-                #For x limits, we don't want result-RESULTYPE
-                var_lim = self.scriptconfig("var_lim", key=key)
-                if var_lim and var_lim is not key:
-                    matches = re.match("([-]?[0-9.]+)[-]?([-]?[0-9.]+)?", var_lim)
-                    xlims = [float(x) for x in matches.groups() if x is not None]
-                    if barplot:
-                        print("WARNING You set xlims for %s to be %s, however I'm drawing a barplot, where x limits have no sense, so I'll ignore it. Remove limits for %s to avoid this warning." % (key,var_lim,key))
-                    else:
-                        if len(xlims) == 2:
-                            axis.set_xlim(xlims[0], xlims[1])
-                        else:
-                            axis.set_xlim(xlims[0])
-                else:
-                    xlims = None
-
-                xunit = self.scriptconfig("var_unit", key, default="n,")
-                xformat = self.scriptconfig("var_format", key, default="")
-                isLog = key in self.config('var_log', {})
-                baseLog = self.scriptconfig('var_log_base', key, default=None)
-                if baseLog:
-                    isLog = True
-                if not isLog:
-                    ax = data[0][0]
-                    if npf.all_num(ax) and is_log(ax) is not False:
-                        isLog = True
-                        baseLog = is_log(ax)
-
-                if isLog and not barplot:
-                    ax = data[0][0]
-                    if ax is not None and len(ax) > 1:
-                        if baseLog:
-                            base = float(baseLog)
-                        else:
-                            base = find_base(ax)
-
-                        plt.xscale('symlog',basex=base)
-                        xticks = data[0][0]
-                        if not is_log(xticks) and xlims:
-                            i = xlims[0]
-                            if len(xlims) > 1:
-                                top = xlims[1]
-                            else:
-                                top = max(xticks)
-                            xticks = []
-                            while i <= top:
-                                xticks.append(i)
-                                if i <= 0:
-                                    i = 1
-                                else:
-                                    i = i * base
-                        if len(xticks) > (float(self.options.graph_size[0]) * 1.5):
-                            n =int(math.ceil(len(xticks) / 8))
-                            index = np.array(range(len(xticks)))[1::n]
-                            if index[-1] != len(xticks) -1:
-                                index = np.append(index,[len(xticks)-1])
-                            xticks = np.delete(xticks,np.delete(np.array(range(len(xticks))),index))
-#Weird code.
-#                        if not xlims and min(data[0][0]) >= 1:
-#                            xlims = [1]
-#                            axis.set_xlim(xlims[0])
-                        plt.xticks(xticks)
-                    else:
-                        plt.xscale('symlog')
-                    plt.gca().xaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%d'))
-
-                if not barplot:
-                    formatterSet, unithandled = self.set_axis_formatter(plt.gca().xaxis, xformat, xunit.strip(), isLog, True)
-
-                xticks = self.scriptconfig("var_ticks", key, default=None)
-                if xticks:
-                    if isLog:
-                        plt.gca().xaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
-                    plt.xticks([variable.get_numeric(x) for x in xticks.split('+')])
-
-                if bool(self.config_bool('graph_x_label', True)):
-                    plt.xlabel(self.var_name(cross_key))
-
-                var_lim = self.scriptconfig("var_lim", "result", result_type=result_type, default=None)
+                #Number of broken axis
+                brokenaxes = []
                 if var_lim:
+                  for var_lim in var_lim.split('+'):
+                    ymin = None
+                    ymax = None
+
                     if var_lim.startswith('-'):
                         n = var_lim[1:].split('-',1)
                         n[0] = "-"+n[0]
@@ -1249,38 +1050,312 @@ class Grapher:
                     try:
                       if len(n) == 2:
                         ymin, ymax = (npf.parseUnit(x) for x in n)
-                        plt.ylim(ymin=ymin, ymax=ymax)
                       else:
                         f=float(n[0])
                         if f==0:
-                            plt.ylim(ymin=f)
+                            ymin=f
                         else:
-                            plt.ylim(ymax=f)
+                            ylim=f
                     except Exception as e:
                         print(e)
+                    brokenaxes.append([ymin,ymax])
 
                 else:
-                    if (ymin >= 0 > plt.ylim()[0]):
-                        plt.ylim(0, plt.ylim()[1])
+                    ymin = None
+                    ymax = None
+#                    ymin, ymax = (float('inf'), 0)
 
-                    if (ymin < ymax / 5):
-                        plt.ylim(ymin=0)
+#                    if (ymin >= 0 > plt.ylim()[0]):
+#                        plt.ylim(0, plt.ylim()[1])
 
+#                    if (ymin < ymax / 5):
+#                        plt.ylim(ymin=0)
+                    brokenaxes.append([ymin,ymax])
 
-                #background
-                graph_bg = self.configdict("graph_background",{})
-                if result_type in graph_bg:
-                    idx = int(graph_bg[result_type])
-                    bgcolor = lighter(graphcolor[idx],0.12,255)
-                    bgcolor2 = lighter(graphcolor[idx],0.03,255)
-                    yl = axis.get_ylim()
-                    xt = axis.get_xticks()
-                    if len(xt) > 1:
-                        w = xt[1] - xt[0]
+                isubplot = int(i_subplot * len(figure) + i_s_subplot)
+
+                if result_type in cross_reference:
+                    cross_key = cross_reference[result_type]
+                    xdata = data_types[cross_key]
+                else:
+                    cross_key=key
+                    xdata = None
+
+                if len(figure) > 1:
+                  for i, (x, y, e, build) in enumerate(data):
+                    if self.config_bool("graph_subplot_unique_legend", False):
+                        build._line=self.graphlines[i_subplot% len(self.graphlines)]
                     else:
-                        w = 1
-                    b = axis.bar(xt, height=yl[1] * 2, width=w, color=[bgcolor,bgcolor2], zorder=-99999)
-                    axis.set_ylim(yl[0],yl[1])
+                        build._line=self.graphlines[i_s_subplot% len(self.graphlines)]
+
+                r = True
+
+                nbroken = len(brokenaxes)
+
+                if nbroken > 1:
+
+                    ytot = 0
+                    for ymin,ymax in brokenaxes:
+                        if ymin != None and ymax != None:
+                            ytot += ymax - ymin
+
+                    fig = plt.figure(constrained_layout=False)
+                    spec = fig.add_gridspec(ncols=1,nrows = nbroken, height_ratios=[ymax-ymin for ymin,ymax in reversed(brokenaxes)])
+
+                #For every broken axis
+                for ibroken,(ymin,ymax) in enumerate(reversed(brokenaxes)):
+                    if nbroken > 1:
+                        if len(figure) > 1:
+                            print("Broken axis with subplots is not supported!")
+                        axis = fig.add_subplot(spec[ibroken, 0])
+                        shift = 0
+                        ihandle = 0
+                    else:
+                        # Finding subplot indexes
+                        if subplot_type=="subplot":
+                            if i_s_subplot > 0:
+                                axis = plt.subplot(n_lines * nbroken, n_cols, isubplot + 1 + ibroken, sharex=axiseis[0])
+                                plt.setp(axiseis[0].get_xticklabels(), visible=False)
+                                #axiseis[0].set_xlabel("")
+                            else:
+                                axis = plt.subplot(n_lines * nbroken, n_cols, isubplot + 1 + ibroken, sharex=axiseis[0] if ibroken > 0 and nbroken > 1 else None)
+                            ihandle = 0
+                            shift = 0
+                        else: #subplot_type=="axis" for dual axis
+                            if isubplot == 0:
+                                fix,axis=plt.subplots(nbroken)
+                                ihandle = 0
+                            elif isubplot == len(figure) - 1:
+                                axis=axis.twinx()
+                                ihandle = 1
+                            else:
+                                axis=axiseis[0]
+                                ihandle = 0
+                            if len(figure) > 1:
+                                shift = isubplot + 1
+                            else:
+                                shift = 0
+
+                    if not axis in axiseis:
+                        axiseis.append(axis)
+                        subplot_handles.append((axis,result_type,[]))
+                    subplot_handles[ihandle][2].append(result_type)
+
+                    #Handling colors
+                    gi = {} #Index per-color
+                    for i, (x, y, e, build) in enumerate(data):
+                        if not gcolor and shift == 0 and not hasattr(build,"_color_set"):
+                            build._color=graphcolorseries[0][i % len(graphcolorseries[0])]
+                        else:
+                            if hasattr(build,"_color_index"):
+                                s = build._color_index
+                                tot = [build._color_index for x,y,e,build in data].count(s)
+                            elif gcolor:
+                                s=gcolor[(i + isubplot*len(data)) % len(gcolor)]
+                                tot = gcolor.count(s)
+                            else:
+                                s=shift
+                                tot = len(data)
+                            gi.setdefault(s,0)
+                            slen = len(graphcolorseries[s % len(graphcolorseries)])
+                            n = slen / tot
+                            if n < 0:
+                                n = 1
+                            #For the default colors we take them in order
+                            if s == 0:
+                                f = gi[s]
+                            else:
+                                f = round((gi[s] + (0.33 if gi[s] < tot / 2 else 0.66)) * n)
+                            gi[s]+=1
+                            cserie = graphcolorseries[s % len(graphcolorseries)]
+                            build._color=cserie[f % len(cserie)]
+
+
+
+                    axis.tick_params(**tick_params)
+
+                    graph_type = False
+                    if ndyn == 0:
+                        graph_type = "simple_bar"
+                    elif ndyn == 1 and len(vars_all) > 2 and npf.all_num(vars_values[key]):
+                        graph_type = "line"
+                    graph_types = self.config("graph_type",[])
+
+                    if len(graph_types) > 0 and (type(graph_types[0]) is tuple or type(graph_types) is tuple):
+                        if type(graph_types) is tuple:
+                            graph_types = dict([graph_types])
+                        else:
+                            graph_types = dict(graph_types)
+                        if result_type in graph_types:
+                            graph_type = graph_types[result_type]
+                        elif "default" in graph_types:
+                            graph_type = graph_types["default"]
+                        elif "result" in graph_types:
+                            graph_type = graph_types["result"]
+                        else:
+                            graph_type = "line"
+
+                    else:
+                        if type(graph_types) is str:
+                            graph_types = [graph_types]
+                        graph_types.extend([graph_type, "line"])
+                        graph_type = graph_types[isubplot if isubplot < len(graph_types) else len(graph_types) - 1]
+                    if ndyn == 0 and graph_type == "line":
+                        print("WARNING: Cannot graph %s as a line without dynamic variables" % graph_type)
+                        graph_type = "simple_bar"
+                    barplot = False
+
+
+                    try:
+                        if graph_type == "simple_bar":
+                            """No dynamic variables : do a barplot X=version"""
+                            r = self.do_simple_barplot(axis,result_type, data, shift, isubplot)
+                            barplot = True
+                        elif graph_type == "line":
+                            """One dynamic variable used as X, series are version line plots"""
+                            r = self.do_line_plot(axis, key, result_type, data,shift, isubplot, xdata)
+                        elif graph_type == "boxplot":
+                            """One dynamic variable used as X, series are version line plots"""
+                            r = self.do_box_plot(axis, key, result_type, data, xdata, shift, isubplot)
+                        else:
+                            """Barplot. X is all seen variables combination, series are version"""
+                            self.do_barplot(axis,vars_all, dyns, result_type, data, shift)
+                            barplot = True
+                    except Exception as e:
+                        print("ERROR : could not graph %s" % result_type)
+                        print(e)
+                        print(traceback.format_exc())
+                        continue
+                    if not r:
+                        continue
+
+                    plt.ylim(ymin=ymin, ymax=ymax)
+
+
+                    if nbroken > 1:
+                        if ibroken == 0:
+                            # hide the spines between ax and ax2
+                            axis.spines['bottom'].set_visible(False)
+                            axis.xaxis.tick_top()
+                            axis.tick_params(labeltop=False)  # don't put tick labels at the top
+                            axis.yaxis.label.set_transform(mtransforms.blended_transform_factory(
+                                       mtransforms.IdentityTransform(), fig.transFigure # specify x, y transform
+                                              )) # changed from default blend (IdentityTransform(), a[0].transAxes)
+                            axis.yaxis.label.set_position((0, 0.5))
+                            axis.set_ylabel(axis.yname)
+                        else:
+                            axis.spines['top'].set_visible(False)
+                            axis.xaxis.tick_bottom()
+#                            fig.text(0.05, 0.5, axis.yname, va='center', rotation='vertical')
+
+                    else:
+                        plt.ylabel(axis.yname)
+
+
+                    type_config = "" if not result_type else "-" + result_type
+
+                    lgd = None
+                    if len(figure) == 1:
+                        sl = 0
+                    elif gcolor:
+                        sl = gcolor[(isubplot * len(data)) % len(gcolor)] % len(legendcolors)
+                    else:
+                        sl = shift % len(legendcolors)
+                    if legendcolors[sl]:
+                        axis.yaxis.label.set_color(legendcolors[sl])
+                        axis.tick_params(axis='y',colors=legendcolors[sl])
+
+                    #For x limits, we don't want result-RESULTYPE
+                    var_lim = self.scriptconfig("var_lim", key=key)
+                    if var_lim and var_lim is not key:
+                        matches = re.match("([-]?[0-9.]+)[-]?([-]?[0-9.]+)?", var_lim)
+                        xlims = [float(x) for x in matches.groups() if x is not None]
+                        if barplot:
+                            print("WARNING You set xlims for %s to be %s, however I'm drawing a barplot, where x limits have no sense, so I'll ignore it. Remove limits for %s to avoid this warning." % (key,var_lim,key))
+                        else:
+                            if len(xlims) == 2:
+                                axis.set_xlim(xlims[0], xlims[1])
+                            else:
+                                axis.set_xlim(xlims[0])
+                    else:
+                        xlims = None
+
+                    xunit = self.scriptconfig("var_unit", key, default="n,")
+                    xformat = self.scriptconfig("var_format", key, default="")
+                    isLog = key in self.config('var_log', {})
+                    baseLog = self.scriptconfig('var_log_base', key, default=None)
+                    if baseLog:
+                        isLog = True
+                    if not isLog:
+                        ax = data[0][0]
+                        if npf.all_num(ax) and is_log(ax) is not False:
+                            isLog = True
+                            baseLog = is_log(ax)
+
+                    if isLog and not barplot:
+                        ax = data[0][0]
+                        if ax is not None and len(ax) > 1:
+                            if baseLog:
+                                base = float(baseLog)
+                            else:
+                                base = find_base(ax)
+
+                            plt.xscale('symlog',basex=base)
+                            xticks = data[0][0]
+                            if not is_log(xticks) and xlims:
+                                i = xlims[0]
+                                if len(xlims) > 1:
+                                    top = xlims[1]
+                                else:
+                                    top = max(xticks)
+                                xticks = []
+                                while i <= top:
+                                    xticks.append(i)
+                                    if i <= 0:
+                                        i = 1
+                                    else:
+                                        i = i * base
+                            if len(xticks) > (float(self.options.graph_size[0]) * 1.5):
+                                n =int(math.ceil(len(xticks) / 8))
+                                index = np.array(range(len(xticks)))[1::n]
+                                if index[-1] != len(xticks) -1:
+                                    index = np.append(index,[len(xticks)-1])
+                                xticks = np.delete(xticks,np.delete(np.array(range(len(xticks))),index))
+#Weird code.
+#                        if not xlims and min(data[0][0]) >= 1:
+#                            xlims = [1]
+#                            axis.set_xlim(xlims[0])
+                            plt.xticks(xticks)
+                        else:
+                            plt.xscale('symlog')
+                        plt.gca().xaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%d'))
+
+                    if not barplot:
+                        formatterSet, unithandled = self.set_axis_formatter(plt.gca().xaxis, xformat, xunit.strip(), isLog, True)
+
+                    xticks = self.scriptconfig("var_ticks", key, default=None)
+                    if xticks:
+                        if isLog:
+                            plt.gca().xaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
+                        plt.xticks([variable.get_numeric(x) for x in xticks.split('+')])
+
+                    if bool(self.config_bool('graph_x_label', True)) and ibroken == nbroken -1:
+                        plt.xlabel(self.var_name(cross_key))
+
+                    #background
+                    graph_bg = self.configdict("graph_background",{})
+                    if result_type in graph_bg:
+                        idx = int(graph_bg[result_type])
+                        bgcolor = lighter(graphcolor[idx],0.12,255)
+                        bgcolor2 = lighter(graphcolor[idx],0.03,255)
+                        yl = axis.get_ylim()
+                        xt = axis.get_xticks()
+                        if len(xt) > 1:
+                            w = xt[1] - xt[0]
+                        else:
+                            w = 1
+                        b = axis.bar(xt, height=yl[1] * 2, width=w, color=[bgcolor,bgcolor2], zorder=-99999)
+                        axis.set_ylim(yl[0],yl[1])
 
                 if self.options.graph_size:
                     fig = plt.gcf()
@@ -1290,7 +1365,21 @@ class Grapher:
                     plt.title(title)
 
                 try:
-                    plt.tight_layout()
+
+
+                    if nbroken > 1:
+
+#                        plt.tight_layout(rect=[0, 0, 1, 1])
+                        plt.subplots_adjust(hspace=0.1,wspace=0)  # adjust space between axes
+                        d = .5  # proportion of vertical to horizontal extent of the slanted line
+                        kwargs = dict(marker=[(-1, -d), (1, d)], markersize=12,
+                                              linestyle="none", color='k', mec='k', mew=1, clip_on=False)
+                        axiseis[0].plot([0, 1], [0, 0], transform=axiseis[0].transAxes, **kwargs)
+                        axiseis[1].plot([0, 1], [1, 1], transform=axiseis[1].transAxes, **kwargs)
+                    else:
+
+                        plt.tight_layout()
+
                 except Exception:
                     print("Could not make the graph fit. It may be because you have too many points or variables to graph")
                     print("Try reducing the number of dynamic variables : ")
@@ -1343,8 +1432,10 @@ class Grapher:
                         if len(labels) == 1:
                             legend_title = None
 
+
                         if legend_title:
-                            axis.set_ylabel(self.var_name(legend_title))
+                            t = self.var_name(legend_title)
+                            axis.set_ylabel(t)
 
                         if len(plots) == len(labels):
                             labels = []
@@ -1666,12 +1757,11 @@ class Grapher:
             plt.yscale('symlog' if yformat else 'log')
             isLog = True
         whatever, handled = self.set_axis_formatter(axis.yaxis,yformat,yunit,isLog)
-
         yname = self.var_name("result", result_type=result_type)
         if yname != "result":
             if not handled and not '(' in yname and yunit and yunit.strip():
                 yname = yname + ' (' + yunit + ')'
-            plt.ylabel(yname)
+        axis.yname = yname
 
         if yticks:
             ticks = [variable.get_numeric(npf.parseUnit(y)) for y in yticks.split('+')]
