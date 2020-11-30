@@ -19,6 +19,8 @@ from npf import npf, variable
 
 import matplotlib
 matplotlib.use('Agg')
+matplotlib.rcParams['pdf.fonttype'] = 42
+matplotlib.rcParams['ps.fonttype'] = 42
 import matplotlib.pyplot as plt
 from matplotlib.ticker import LinearLocator, ScalarFormatter, Formatter, MultipleLocator, NullLocator
 from matplotlib.lines import Line2D
@@ -396,6 +398,8 @@ class Grapher:
         vars_all = list(new_varsall)
         if len(dyns) == 1:
             key = dyns[0]
+            do_sort = True
+        elif len(dyns) == 0:
             do_sort = True
         else:
             key = "Variables"
@@ -1291,16 +1295,21 @@ class Grapher:
                         if npf.all_num(ax) and is_log(ax) is not False:
                             isLog = True
                             baseLog = is_log(ax)
-
+                    thresh=1
                     if isLog and not barplot:
                         ax = data[0][0]
                         if ax is not None and len(ax) > 1:
                             if baseLog:
-                                base = float(baseLog)
+                                baseLog = baseLog.split("-")
+                                base = float(baseLog[0])
+                                if len(baseLog) > 1:
+                                    thresh=float(baseLog[1])
                             else:
                                 base = find_base(ax)
-
-                            plt.xscale('symlog',basex=base)
+                            if thresh > 0:
+                                plt.xscale('symlog',basex=base,linthreshx=thresh )
+                            else:
+                                plt.xscale('log',basex=base)
                             xticks = data[0][0]
                             if not is_log(xticks) and xlims:
                                 i = xlims[0]

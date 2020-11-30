@@ -54,7 +54,7 @@ def _parallel_exec(param: RemoteParameters):
     executor = nodes[param.role_id].executor
     if param.waitfor:
         n=1
-        print("Waiting for %s" % param.waitfor)
+        #print("Waiting for %s" % param.waitfor)
         if param.waitfor[0].isdigit():
             n=int(param.waitfor[0])
             param.waitfor=param.waitfor[1:]
@@ -292,8 +292,8 @@ class Testie:
             for node in nodes:
               if not node.nfs:
                 for fpath in fpaths:
-                    fpath = SectionVariable.replace_variables(st, fpath, role,
-                                                              self.config.get_dict("default_role_map"))
+                    fpath = SectionVariable.replace_variables(st, fpath, role, self_node=node,
+                                                              default_role_map=self.config.get_dict("default_role_map"))
                     if not os.path.isabs(fpath):
                         fpath = './npf/' + fpath
                     fpath = os.path.relpath(fpath)
@@ -323,7 +323,7 @@ class Testie:
             role = s.get_role() if s.get_role() else self_role
             v["NPF_NODE_MAX"] = len(npf.nodes_for_role(role))
             if not s.noparse:
-                p = SectionVariable.replace_variables(v, s.content, role, self.config.get_dict("default_role_map"))
+                p = SectionVariable.replace_variables(v, s.content, role,default_role_map = self.config.get_dict("default_role_map"))
             else:
                 p = s.content
             list.append((s.filename, p, role))
@@ -546,7 +546,7 @@ class Testie:
 
                     autokill = m.Value('i', 0) if npf.parseBool(script.params.get("autokill", t.config["autokill"])) else None
                     v["NPF_NODE_MAX"] = len(nodes)
-                    for i_node,node in enumerate(nodes):
+                    for i_node, node in enumerate(nodes):
                       v["NPF_NODE"] = node.get_name()
                       v["NPF_NODE_ID"] = i_node
                       multi = script.multi
@@ -572,7 +572,7 @@ class Testie:
                         v["NPF_MULTI"] = i_multi
                         v["NPF_MULTI_ID"] = i_multi
                         v["NPF_MULTI_MAX"] = node.multi if node.multi is not None else 1
-                        v["NPF_ARRAY_ID"] = len(nodes) * i_node + i_multi
+                        v["NPF_ARRAY_ID"] = (i_node * v["NPF_MULTI_MAX"]) + i_multi
                         v["NPF_ARRAY_MAX"] = len(nodes) * v["NPF_MULTI_MAX"]
                         if node.mode == "netns" and i_multi > 0:
                             param.virt = "ip netns exec npfns%d" % i_multi
@@ -581,8 +581,8 @@ class Testie:
                         param.commands = "mkdir -p " + test_folder + " && cd " + test_folder + ";\n" + SectionVariable.replace_variables(
                             v,
                             script.content,
-                            srole,
-                            self.config.get_dict(
+                            self_role = srole, self_node=node,
+                            default_role_map= self.config.get_dict(
                                 "default_role_map"))
                         param.options = self.options
                         param.queue = queue

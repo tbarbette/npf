@@ -63,7 +63,7 @@ class SSHExecutor(Executor):
                 unbuffer = unbuffer + " -p"
 
         if sudo and self.user != "root":
-            cmd = "sudo -E " + virt +" "+unbuffer+" bash -c '"+path_cmd + cmd.replace("'", "'\"'\"'") + "'";
+            cmd = "mkdir -p "+testdir+" && sudo -E " + virt +" "+unbuffer+" bash -c '"+path_cmd + cmd.replace("'", "'\"'\"'") + "'";
         else:
             cmd = virt +" "+unbuffer+" bash -c '"+path_cmd + cmd.replace("'", "'\"'\"'") + "'";
             #pre = path_cmd + pre

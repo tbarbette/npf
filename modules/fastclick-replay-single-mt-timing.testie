@@ -23,7 +23,7 @@ CLIENT_NIC=0
 RCV_NIC=0
 LIMIT=500000
 TIMING=5
-TIMING_FNT=0
+TIMING_FNT=100
 GEN_THREADS=4
 PROMISC=false
 promisc:PROMISC=true
@@ -46,6 +46,7 @@ R4=8
 
 
 %late_variables
+GEN_HOOK?=
 SAMPLE?=1
 STARTAFTER?=0
 GEN_BLOCKING?=true
@@ -107,6 +108,7 @@ input
   //-> rwIN :: EtherRewrite($INsrcmac,$INdstmac)
   -> Pad()
   -> Numberise($magic)
+  $GEN_HOOK
   -> replay :: ReplayUnqueue(STOP 0,STOP_TIME $PKTGEN_REPLAY_TIME, QUICK_CLONE $quick, VERBOSE true, ACTIVE true, LIMIT $LIMIT, TIMING $TIMING, BURST $PKTGEN_BURST_OUT, TIMING_FNT "$TIMING_FNT")
     $LATEENSURE
   -> rt :: RecordTimestamp(N $LIMIT, OFFSET 56)
@@ -367,4 +369,5 @@ DriverManager(  pause,
                 set step $(if $(ge $i 99) 0.1 1),
                 goto perc $(le $i 100.0),
                 wait ${END_WAIT}s,*/
+                read receiveIN.xstats,
                 stop);

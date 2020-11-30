@@ -325,8 +325,8 @@ class SectionVariable(Section):
         self.aliases = {}
 
     @staticmethod
-    def replace_variables(v: dict, content: str, self_role=None, default_role_map={}):
-        return replace_variables(v, content, self_role, default_role_map)
+    def replace_variables(v: dict, content: str, self_role=None,self_node=None, default_role_map={}):
+        return replace_variables(v, content, self_role, self_node, default_role_map)
 
     def replace_all(self, value):
         """Return a list of all possible replacement in values for each combination of variables"""
@@ -519,6 +519,7 @@ class SectionConfig(SectionVariable):
             'var_as_series': 'graph_variables_as_series',
             'result_as_variables': 'graph_result_as_variables',
             'y_group': 'graph_y_group',
+            'graph_serie_sort':'graph_series_sort',
             'series_prop': 'graph_series_prop',
             'graph_legend_ncol': 'legend_ncol'
         }

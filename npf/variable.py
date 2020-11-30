@@ -107,7 +107,7 @@ def ae_rand(a,b):
 aeval = Interpreter(usersyms ={'parseBool':get_bool,"randint":ae_rand,"productrange":ae_product_range,"chain":itertools.chain})
 
 
-def replace_variables(v: dict, content: str, self_role=None, default_role_map={}, role_index = 0):
+def replace_variables(v: dict, content: str, self_role=None, self_node=None, default_role_map={}, role_index = 0):
     """
     Replace all variable and nics references in content
     This is done in two step : variables first, then NICs reference so variable can be used in NIC references
@@ -131,7 +131,7 @@ def replace_variables(v: dict, content: str, self_role=None, default_role_map={}
     def do_replace_nics(nic_match):
         varRole = nic_match.group('role')
 
-        nodes = npf.nodes_for_role(varRole, self_role, default_role_map)
+        nodes = npf.nodes_for_role(varRole, self_role, self_node, default_role_map)
         nodeidx = role_index % len(nodes)
         if nic_match.groupdict()['node']:
             t = str(nic_match.group('node'))

@@ -186,12 +186,14 @@ nodePattern = regex.compile(
 roles = {}
 
 
-def nodes_for_role(role, self_role=None, default_role_map={}):
+def nodes_for_role(role, self_role=None, self_node=None, default_role_map={}):
     if role is None or role == '':
         role = 'default'
     if role == 'self':
         if self_role:
             role = self_role
+            if self_node:
+                return [self_node]
         else:
             raise Exception("Using self without a role context. Usually, this happens when self is used in a %file")
     if role not in roles:

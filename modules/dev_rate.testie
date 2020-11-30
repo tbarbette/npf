@@ -12,6 +12,7 @@ exit 0
 #!/bin/bash
 
 intif=$1
+echo "Rate of $intif"
 old_bytes=$(cat /sys/class/net/$intif/statistics/rx_bytes)
 old_len=$(cat /sys/class/net/$intif/statistics/rx_packets)
 start=`date +%s%N`
