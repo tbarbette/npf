@@ -1,25 +1,30 @@
-from distutils.core import setup
+import setuptools
 
-desc = """\
-Network Performance Framework
-"""
+with open("README.md", "r") as fh:
+    long_description = fh.read()
 
-install_requires=['python>=3',
-          'numpy',
-          'regex',
-          'matplotlib',
-          'gitpython',
-          'typing'
-          ]
-
-
-setup(name='npf',
-      version='1.0',
-      packages=['npf'],
-      author='Tom Barbette',
-      license='GPL',
-      author_email='tom.barbette@ulg.ac.be',
-      long_description=desc,
-      py_modules=['watcher','regression'],
-      url='http://github.com/tbarbette/clickwatcher/',
-      )
+setuptools.setup(
+    name="npf",
+    version="1.0.0",
+    author="Tom Barbette",
+    author_email="t.barbette@gmail.com",
+    description="NPF",
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    url="https://github.com/tbarbette/npf",
+    packages=setuptools.find_packages(),
+    py_modules=['npf_run','npf_compare','npf_watch'],
+    classifiers=[
+        "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: OS Independent",
+    ],
+    python_requires='>=3.6',
+    entry_points = {
+              'console_scripts': [
+                  'npf-run=npf_run:main',
+                  'npf-compare=npf_compare:main',
+                  'npf-watch=npf_watch:main',
+              ],
+          },
+)
