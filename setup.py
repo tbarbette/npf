@@ -3,6 +3,29 @@ import setuptools
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
+install_requires=[
+    'require-python-3',
+    'pandas',
+    'numpy',
+    'regex',
+    'matplotlib',
+    'gitpython',
+    'typing',
+    'pydotplus',
+    'scipy',
+    'sklearn',
+    'orderedset',
+    'paramiko',
+    'asteval',
+    'cryptography',
+    'gitdb',
+    'pyasn1',
+    'natsort',
+    'webcolors',
+    'colorama',
+    'pygtrie'
+        ]
+
 setuptools.setup(
     name="npf",
     version="1.0.0",

@@ -38,25 +38,13 @@ NPF supports running the given test across a custer, allowing to try your tests
 in multiple different configuration very quickly and on serious hardware.
 
 ### Installation
-NPF is built using Python 3
+NPF is built using Python 3, and is published on pypi, so it can be installed
+with pip using:
 
-#### Auto
-To install python3, pip, and python dependencies you can do
 ```bash
-sudo ./setup.sh
+pip3 install --user npf
 ```
 
-#### Manual
-To install python 3, pip and required devel headers on ubuntu, use :
-```bash
-sudo apt-get install python3 python3-pip libssl-dev
-```
-
-Then to install python dependencies using pip3, do :
-```bash
-sudo pip3 install numpy
-sudo pip3 install -r requirements.txt
-```
 ### Run-time dependencies ###
 
 #### SSH ####
@@ -72,10 +60,10 @@ If this is not the case, the dependencies (software built by NPF) will be sent t
 
 ## Tools
 Three tools come with this performance framework :
-  * npf-run.py for advance regression and statistics tests on one repository
-  * npf-watch.py to watch one or multiple repositories for any new commit and e-mail regression results in case
+  * npf-run for advance regression and statistics tests on one repository
+  * npf-watch to watch one or multiple repositories for any new commit and e-mail regression results in case
 of change in performances due to the last commits
-  * npf-compare.py to compare one testie but across multiple repository, mainly to compare
+  * npf-compare to compare one testie but across multiple repository, mainly to compare
 how different branches/implementations behaves against each others
 
 ### NPF Run
@@ -86,7 +74,7 @@ folder), build the software, and launch the given testies
 
 Example :
 ```bash
-    python3 npf-run.py click --testie tests/click/ #Produce a graph for each click-based tests with the result
+    npf-run click --testie tests/click/ #Produce a graph for each click-based tests with the result
 ```
 
 #### Regression
@@ -95,17 +83,17 @@ for all testies using the --regress flag.
 
 ```bash
     #click master is updated
-    python3 npf-run.py click --testie tests/click/ --regress #The graph now compares HEAD and the last commit, if major performances changes are found, the return code will be different than 0
+    npf-run click --testie tests/click/ --regress #The graph now compares HEAD and the last commit, if major performances changes are found, the return code will be different than 0
     #click master is updated again
-    python3 npf-run.py click --testie tests/click/ --regress #The graph includes the older commit for reference, up to "--graph-num", default is 8
+    npf-run click --testie tests/click/ --regress #The graph includes the older commit for reference, up to "--graph-num", default is 8
 ```
 
 Example of a generated graph for the Click Modular Router, just when IPFilter compilation process was re-worked :
 ![alt tag](doc/sample_graph2.png)
 
-Alternatively, you can force npf-run.py to re-build and compute the data for the old runs directly with the --allow-old-build option :
+Alternatively, you can force npf-run to re-build and compute the data for the old runs directly with the --allow-old-build option :
 ```bash
-    python3 npf-run.py click --testie tests/click/ --allow-old-build [--graph-num=8] #Graph the performance of the current version and the last 8 previous ones
+    npf-run click --testie tests/click/ --allow-old-build [--graph-num=8] #Graph the performance of the current version and the last 8 previous ones
 ```
 
 #### Statistics
@@ -113,20 +101,20 @@ NPF-Run can produce statistics about the results such as the best set of variabl
 a regression tree and the importance of each features.
 
 ```bash
-    python3 npf-run.py click --testie tests/click/ --statistics
+    npf-run click --testie tests/click/ --statistics
 ```
 
-See *python3 npf-run.py --help* for more options
+See *npf-run --help* for more options
 
 ### NPF Watcher
 
-Watcher is a stripped down version of npf-run.py (without statistics support mostly), but allowing to
+Watcher is a stripped down version of npf-run (without statistics support mostly), but allowing to
 loop through a given list of repositories watching for changes. When
 a new commit is seen, it will run all given testies and e-mail the results
 to a given list of addresses.
 
 ```bash
-python3 npf-watch.py click fastclick --mail-to tom.barbette@ulg.ac.be --tags fastregression --history 1
+npf-watch click fastclick --mail-to tom.barbette@ulg.ac.be --tags fastregression --history 1
 ```
 The arguments are :
  * click fastclick : List of repos to watch, as described in the repos folder
@@ -134,11 +122,11 @@ The arguments are :
  an e-mail for each commits of each repos.
  * --tags TAG1 TAG2 [...] allows to set flags which change variables in the tests, see below.
 
-See *python3 npf-watch.py --help* for more options
+See *npf-watch --help* for more options
 
 ### NPF Compare
 
-NPF-Compare allows to do the contrary of npf-run.py : instead of
+NPF-Compare allows to do the contrary of npf-run : instead of
  testing multiple testies on one repository, it tests one testie across
  multiple repositories.
  
@@ -146,7 +134,7 @@ This example allows to compare Click against [FastClick](https://github.com/tbar
   test case :
 
 ```bash
-python3 npf-compare.py click fastclick --testie tests/pktgen/infinitesource-01.testie --variables LENGTH=64
+npf-compare click fastclick --testie tests/pktgen/infinitesource-01.testie --variables LENGTH=64
 ```
  * click fastclick : List of repos to compare
  * --testie FILENAME : Testie to test. This argument is available in all tools.
@@ -161,18 +149,18 @@ Just for relevance, batching is what makes this difference.
 
 This tool has also less options than NPF-Run. You should use NPF-Run
 to create your tests and tune parameters for each repository independently.
-And then only use npf-compare.py when ready. Compare does not support statistics or regression tests.
+And then only use npf-compare when ready. Compare does not support statistics or regression tests.
 
-See *python3 npf-compare.py --help* for more options
+See *npf-compare --help* for more options
 
 ### Which one to use
-Use npf-run.py for development, trying big matrices of configuration,
+Use npf-run for development, trying big matrices of configuration,
 get extended graph and customized tests for each testies.
 
-Use npf-watch.py with the fastregression tags to send you an e-mail automatically
+Use npf-watch with the fastregression tags to send you an e-mail automatically
 when some new commits introduce performances problems.
 
-Use npf-compare.py to compare multiple repositories, multiples branches or multiple
+Use npf-compare to compare multiple repositories, multiples branches or multiple
 different softwares. The testies included in this repository support comparing throughput of Click and FastClick in diverse
 configurations, or NetPerf and Iperf as packet generators.
 
@@ -235,13 +223,13 @@ combinations.
 
 To choose the type of graph, the number of dynamic variables is taken into account.
 
-Below, npf-run.py gave two series to the Grapher (current and last commit), while the testie
+Below, npf-run gave two series to the Grapher (current and last commit), while the testie
 generate a matrix of Burst and Lengths, that is 2 dynamic variables and only a barplot can render that correctly
 as lines would be uncomparable.
 
 ![alt tag](doc/sample_graph.png)
 
-If a "previous version" is not given to npf-run.py (so it just runs the test for the current master but do not compare 
+If a "previous version" is not given to npf-run (so it just runs the test for the current master but do not compare
 the results), the graph will use one variable as the serie as having only one
 line would be a loss of space, leaving only one dybamic variable :
 ![alt tag](doc/sample_graph3.png)
