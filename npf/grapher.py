@@ -905,7 +905,6 @@ class Grapher:
         Each graph is a dataset that contains multiple result types, there may be multiple graphs if there are multiple series.
         There may be multiple graphs in the case of regression tests for instance
         """
-        print(len(graphs), graphs)
         assert(len(graphs) > 0)
         matched_set = set()
 
@@ -1036,7 +1035,6 @@ class Grapher:
                 #Variable that depends on the figure
                 key=savekey
                 var_lim = self.scriptconfig("var_lim", "result", result_type=result_type, default=None)
-                print(var_lim,result_type)
                 data = data_types[result_type]
 
                 #Number of broken axis
