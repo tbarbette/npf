@@ -1,0 +1,11 @@
+%variables
+
+N=[1-10]
+
+%config
+graph_result_as_variable={CPU-(.*):CPU-LOAD}
+
+%script
+echo "RESULT-ITER $N"
+echo "RESULT-CPU-1 $(($N*1.3))"
+echo "RESULT-CPU-2 $(($N*1.7))"

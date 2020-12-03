@@ -9,7 +9,8 @@ from npf.types.dataset import Run, Dataset
 import copy
 
 renametable = {
-    'npf.script': 'npf.testie',
+    'npf.script': 'npf.npf',
+    'npf.testie': 'npf.npf'
 }
 
 

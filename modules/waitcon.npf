@@ -1,0 +1,29 @@
+%info
+Wait until the number of current connections resets below a value
+
+Use waitfor=SERVER_CLEAN to start your scripts only when the server is clean
+
+%variables
+
+WAIT_GREP=10.221
+
+%script sudo=true autokill=false name=waitcon
+echo "Waiting for connections on server..."
+bash waitcon.sh
+
+%file waitcon.sh
+killall nginx
+sleep 1
+killall -9 nginx
+sleep 1
+l=$(netstat -n | grep TIME_WAIT | wc -l)
+while [ $l -gt 100 ] ; do
+    echo "Waiting for less connections (have $l)..."
+    sleep 1
+    cleaned=$(netstat -n | grep $WAIT_GREP | grep TIME_WAIT | awk '{print $4"\t"$5}' | tee /proc/net/tcpdropsock | wc -l)
+    echo "Cleaned $cleaned !"
+    l=$(netstat -n | grep TIME_WAIT | wc -l)
+done
+echo "EVENT SERVER_CLEAN"
+exit 0
+

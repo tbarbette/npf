@@ -1,0 +1,32 @@
+%script
+unbuffer python3 cpuload.py
+
+%variables
+CPUMIN=0
+CPUMAX=128
+
+%file cpuload.py
+from time import sleep,time
+from parse import parse
+from collections import defaultdict
+
+last_idle = defaultdict(int)
+last_total = defaultdict(int)
+while True:
+    t = time()
+    with open('/proc/stat') as f:
+      f.readline()
+      while True:
+        fields = f.readline().strip().split()
+        matches = parse("cpu{}", fields[0])
+        if matches is None:
+            break
+        cpuid = int(matches[0])
+        fields = [float(column) for column in fields[1:]]
+        idle, total = fields[3], sum(fields)
+        idle_delta, total_delta = idle - last_idle[cpuid], total - last_total[cpuid]
+        last_idle[cpuid], last_total[cpuid] = idle, total
+        utilisation = 100.0 * (1.0 - idle_delta / total_delta)
+        if cpuid < $CPUMAX and cpuid >= $CPUMIN:
+            print('TLOAD-%f-RESULT-CPU-%d %f' % (t,cpuid,utilisation))
+    sleep(1)

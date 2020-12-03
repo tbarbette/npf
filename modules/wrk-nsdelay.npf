@@ -1,0 +1,179 @@
+%info
+HTTP Request sizes
+
+Generate HTTP requests towards "http://server/bin-XK" files using WRK
+
+The HTTP server configuration is not part of this testie. Your main testie
+should include something like FILE_PATH={file1,file2}
+
+The address to make the request will use the adress from the node having the "dut" role. The port can be changed setting the HTTP_PORT variable.
+
+See generic/http.wrk for examples such as fetching files with sizes from 1K to 1G
+See experiments/test_wrk.testie for an experiment trying to find best configuration for 1K requests varying GEN_THREADS and GEN_CONCURRENT on a 16 cores CPU
+
+%variables
+wrkpath:WRKSCRIPTCMD=EXPAND(-s $WRKSCRIPT )
+-wrkpath:WRKSCRIPTCMD=
+GEN_CONCURRENT=128
+GEN_PROCESS_RATE?=0
+GEN_THREADS=16
+GEN_PROCESS=1
+FILE_PATH=index.htm
+HTTP_PORT=80
+GEN_TIME=10
+WRKNIC=0
+WRK_HOST=EXPAND(${dut:0:ip})
+WRK_PROTOCOL=http
+
+%late_variables
+GEN_PROCESS?=1
+GEN_PROCESS_RATE?=0
+
+
+%file client.sh
+function waitfor() {
+    while ! ip link show $1 &> /dev/null ; do
+        sleep 0.1
+    done
+}
+
+function waitwhile() {
+    while ip link show $1 &> /dev/null ; do
+        sleep 0.1
+    done
+}
+
+%script title=WRKClientPre sudo=true autokill=false
+source client.sh
+
+ifconfig brns down
+brctl delbr brns &> /dev/null
+
+brctl addbr brns
+brctl addif brns ${self:0:ifname}
+ifconfig ${self:0:ifname} promisc up 
+ifconfig ${self:0:ifname} 0.0.0.0
+ifconfig brns up
+
+for P in $(seq $GEN_PROCESS) ; do
+    ns=ns${NPF_MULTI_ID}-$P
+    ip link del $ns-veth0
+    ip link del $ns-veth1
+    sleep 0.1
+    echo "Waiting for veth to disappear"
+    waitwhile $ns-veth0
+    waitwhile $ns-veth1
+    ip netns del $ns &> /dev/null
+    sleep 0.1
+    ip netns add $ns
+    sleep 0.1
+
+    ip link add $ns-veth0 type veth peer name $ns-veth1
+    sleep 0.1
+    echo "Waiting for veth to appear"
+    waitfor $ns-veth0
+    waitfor $ns-veth1
+if [ $GEN_PROCESS_RATE -gt 0 ] ; then
+    tc qdisc add dev $ns-veth1 root handle 1: htb default 1
+    tc class add dev $ns-veth1 parent 1: classid 1:1 htb rate ${GEN_PROCESS_RATE}mbit
+fi
+    ip link set $ns-veth0 netns $ns up
+    ip link set $ns-veth1 up
+    sleep 0.1
+    ip=${CLI_PREFIX}.\$(( ${NPF_NODE_ID}*${NPF_NODE_MAX}*${GEN_PROCESS} + ${NPF_MULTI_ID}*${NPF_MULTI_MAX} + $P + ${NPF_NODE_MAX} ))
+    echo "Launching WRK on ip $ip"
+
+if [ $GEN_PROCESS_RATE -gt 0 ] ; then
+    ip netns exec $ns tc qdisc add dev $ns-veth0 root handle 1: htb default 1
+    ip netns exec $ns tc class add dev $ns-veth0 parent 1: classid 1:1 htb rate ${GEN_PROCESS_RATE}mbit
+fi
+    ip netns exec $ns ifconfig $ns-veth0 $ip netmask 255.255.255.0 
+    ip netns exec $ns arp -s ${PGW_IP} ${pgw:0:mac}
+    ip netns exec $ns ip route add default dev $ns-veth0 via ${PGW_IP}
+    brctl addif brns $ns-veth1
+done
+echo "EVENT WRK_READY"
+
+
+
+%script deps=wrk-tbarbette title=WRKClientLaunch sudo=true waitfor=2WRK_READY delay=0
+name=wrk${NPF_NODE_ID}-${NPF_MULTI_ID}
+for P in $(seq $GEN_PROCESS) ; do
+    fname=${name}-$P
+    ns=ns${NPF_MULTI_ID}-$P
+    echo "unbuffer wrk -c $(( int(max(1, ${GEN_CONCURRENT} / ${GEN_PROCESS}) ) )) -r --latency -t $(( $GEN_THREADS if $GEN_THREADS <= $GEN_CONCURRENT else $GEN_CONCURRENT )) $WRKSCRIPTCMD -d${GEN_TIME}s \"${WRK_PROTOCOL}://${WRK_HOST}:${HTTP_PORT}/${FILE_PATH}\" &> $fname " >> $fname.sh
+    ip netns exec $ns bash $fname.sh &
+done
+
+start=$(date "+%s")
+echo "All launched at $(date)"
+wait
+sync
+echo "All finished at $(date)"
+stop=$(date "+%s")
+t=\$(($stop - $start))
+if [ $t -lt $(( ${GEN_TIME} - 1 )) ] ; then
+    exit 5
+fi
+sleep 2
+
+bytes=0
+th=0
+req=0
+lat=0
+lat50=0
+lat99=0
+timeout=0
+nok=0
+for P in $(seq $GEN_PROCESS) ; do
+    fname=${name}-$P
+    if [ -s "$fname" ] ; then
+        nbytes=$(cat $fname | grep -Po "([0-9]+.[0-9]+)(?=B read)" |  awk '{printf "%s", $1}')
+        ok=$(echo "$nbytes > 0" | bc)
+        if [ -n "$nbytes" -a "$ok" -eq 1 ] ; then
+            bytes=$(echo "$bytes + $nbytes" | bc)
+            nok=$(echo "$nok + 1" | bc)
+        fi
+
+        nth=$(cat $fname | grep "Transfer/sec" | awk '{printf "%s", $2}' | head -n 1)
+        th=$(echo "$th + $nth" | bc)
+
+        nreq=$(cat $fname | grep "Requests/sec" | awk '{printf "%s", $2}' | head -n 1)
+        req=$(echo "$req + $nreq" | bc)
+
+        nlat=$(cat $fname | grep "Latency" | awk '{printf "%s", $2}' | grep -Po '[0-9]+[.][0-9]+'  | head -n 1)
+        if [ -n "$nlat" -a $(echo "$nlat > 0" | bc) -eq 1 ] ; then
+            lat=$(echo "$lat + $nlat" | bc)
+        fi
+
+#    lat50cat $fname | sed -n -e '/Latency Distribution/,/requests/p' | head -n -1 | tail -n+2 | grep "50.00 " | awk '{printf "%s", $2}' | head -n 1
+#    bytes=$(echo "$bytes + $nbytes" | bc)
+
+#    cat $fname | sed -n -e '/Latency Distribution/,/requests/p' | head -n -1 | tail -n+2 | grep "99.00 " | awk '{printf "%s", $2}' | head -n 1
+#    bytes=$(echo "$bytes + $nbytes" | bc)
+        
+        ntimeout=$(cat $fname | grep "Socket errors" | awk '{printf "%s", $10 }' | head -n 1)
+        if [ -n "$ntimeout" ] ; then
+            echo "ntimeout $ntimeout" 
+            if [ "$ntimeout" -gt 0 ] ; then
+                timeout=$(echo "$timeout + $ntimeout" | bc)
+            fi
+        fi
+    else
+        echo "Ouch... $fname is empty!"
+        cat $fname
+    fi
+#    rm $fname
+done
+
+echo "RESULT-BYTES $bytes"
+echo "RESULT-THROUGHPUT $th"
+echo "RESULT-REQUEST $req"
+echo "Latency is $lat"
+echo "RESULT-LATENCY $(echo "$lat / ${GEN_PROCESS}" | bc)"
+echo "RESULT-HTTPTIMEOUT $timeout"
+echo "RESULT-HTTPOK $nok"
+
+sleep 2
+stat=0
+exit $stat

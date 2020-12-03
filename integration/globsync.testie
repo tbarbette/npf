@@ -1,0 +1,11 @@
+%config
+glob_sync={A,B}
+
+%script
+echo "A-100-RESULT-V 5"
+echo "A-105-RESULT-V 5"
+echo "B-105-RESULT-V 50"
+echo "A-110-RESULT-V 10"
+echo "B-110-RESULT-V 100"
+echo "A-115-RESULT-V 5"
+echo "B-115-RESULT-V 50"

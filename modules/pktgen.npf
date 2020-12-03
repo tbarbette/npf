@@ -1,0 +1,37 @@
+%variables
+GEN_CPU=8
+SND_NIC=0
+GEN_TIME=5
+GEN_LENGTH=512
+
+%file cfg.lua
+package.path = package.path ..";?.lua;test/?.lua;app/?.lua;"
+
+require "Pktgen"
+pktgen.set("all", "size", $GEN_LENGTH);
+pktgen.start("all");
+pktgen.delay(${GEN_TIME}000);
+pktgen.stop("all");
+--pktgen.stop("all");
+stat = pktgen.portStats(0, "port")[0];
+rate = pktgen.portStats(0, "rate")[0];
+file = io.open("pktgen.results", "w")
+file:write(string.format('RESULT-THROUGHPUT %dMbps\n', rate.mbits_rx));
+file:write(string.format('RESULT-TX %dMbps\n', rate.mbits_tx));
+file:close();
+pktgen.quit();
+
+%file pktgen.sh
+cd $NPF_ROOT/build/pktgen-dpdk/
+./app/$RTE_TARGET/pktgen -w ${self:$SND_NIC:pci} -l 0-$GEN_CPU -n 4 -- -P -m "[1-$CPU:1-$CPU].0" -f cfg.lua &> pktgen.log
+cat pktgen.results
+//cat pktgen.log
+
+%script deps=pktgen-dpdk sudo=true
+killall pktgen
+killall -9 pktgen
+cp cfg.lua  $NPF_ROOT/build/pktgen-dpdk/
+bash pktgen.sh
+//pktgen dies like shit
+exit 0
+

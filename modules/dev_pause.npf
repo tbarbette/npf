@@ -1,0 +1,9 @@
+%info
+Set the number of hardware queues for a given device
+
+%variables
+PAUSE=off
+NIC=0
+
+%init sudo=true
+ethtool -A ${self:$NIC:ifname} rx $PAUSE tx $PAUSE

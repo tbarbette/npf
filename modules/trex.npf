@@ -1,0 +1,2 @@
+%script deps=trex
+./t-rex-64 -c 8 -l

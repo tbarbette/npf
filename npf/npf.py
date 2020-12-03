@@ -139,7 +139,7 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
     t.add_argument('--config', metavar='config=value', type=str, nargs='+', action=ExtendAction,
                    help='list of config values to override', default=[])
 
-    t.add_argument('--testie', metavar='path or testie', type=str, nargs='?', default='tests',
+    t.add_argument('--testie', '--test', '--npf', metavar='path or testie', type=str, nargs='?', default='tests',
                    help='script or script folder. Default is tests')
 
     t.add_argument('--cluster', metavar='user@address:path', type=str, nargs='*', default=[],

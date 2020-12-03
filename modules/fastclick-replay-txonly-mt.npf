@@ -1,0 +1,119 @@
+%info
+Module to replay a trace with throughput and latency testing
+
+Packets are directed towards one NIC of the "server" role using one NIC of the CLIENT. There is no L3 support (ARP).
+
+Suggested usage example in your testie (omit the prefixed "//" that prevent loop import here)
+
+//%import@client fastclick-replay-single trace=path/to.pcap NIC=0 CLIENT_NIC=0
+
+%config
+n_retry=0
+n_runs=1
+require_tags=import,dpdk
+timeout=60
+
+%variables
+PKTGEN_BURST_OUT=32
+PKTGEN_REPLAY_COUNT=1
+NIC=0
+CLIENT_NIC=0
+LIMIT=200000
+GEN_THREADS=4
+PROMISC=false
+promisc:PROMISC=true
+IGNORE=0
+PAUSE=none
+GEN_DESC=0
+
+nolinktest=0
+
+%late_variables
+NBBUF=EXPAND( $(( ( ( $LIMIT * $GEN_THREADS ) + ($PKTGEN_BURST_OUT * 2) ) + 8192 )) )
+NRECORD=EXPAND( $(( $LIMIT * $PKTGEN_REPLAY_COUNT  * 2 )) )
+BROADCAST_IGNORE= -> c :: Classifier(0/$mac,-) //Ignore broadcasts
+
+%promisc:late_variables
+BROADCAST_IGNORE= -> c :: Classifier(-, 0/ffffffffffff)
+
+%script deps=fastclick sudo=true delay=2
+click --dpdk -l 0-15 -- PKTGEN_CONFIG
+
+%file PKTGEN_CONFIG
+d :: DPDKInfo($NBBUF)
+
+define($bout $PKTGEN_BURST_OUT)
+define($INsrcmac ${client:$CLIENT_NIC:mac})
+define($RAW_INsrcmac ${client:$CLIENT_NIC:raw_mac})
+
+define($INdstmac ${server:$NIC:mac})
+define($RAW_INdstmac ${server:$NIC:raw_mac})
+
+define($ignore $IGNORE)
+define($replay_count $PKTGEN_REPLAY_COUNT)
+define($port ${self:$CLIENT_NIC:pci})
+define($quick true)
+define($txverbose 99)
+define($rxverbose 99)
+
+fdIN :: FromDump($trace, STOP false, TIMING false)
+tdIN :: ToDPDKDevice($port, BLOCKING true, BURST $bout, VERBOSE $txverbose, IQUEUE $bout, NDESC $GEN_DESC)
+
+
+elementclass Numberise { $magic |
+    input-> Strip(14) -> check :: CheckIPHeader  -> SetIPChecksum -> Unstrip(14) -> output
+}
+
+fdIN
+    -> rr :: PathSpinlock;
+
+elementclass Generator { $magic |
+input
+  -> EnsureDPDKBuffer
+  -> rwIN :: EtherRewrite($INsrcmac,$INdstmac)
+  -> Pad()
+  -> Numberise($magic)
+  -> replay :: ReplayUnqueue(STOP $replay_count, QUICK_CLONE $quick, VERBOSE true, ACTIVE true, LIMIT $LIMIT)
+  -> avgSIN :: AverageCounter(IGNORE $ignore)
+  -> output;
+}
+
+rr -> gen0 :: Generator(\<5601>) -> tdIN;
+rr -> gen1 :: Generator(\<5602>) -> tdIN;
+rr -> gen2 :: Generator(\<5603>) -> tdIN;
+rr -> gen3 :: Generator(\<5604>) -> tdIN;
+
+StaticThreadSched(gen0/replay 0)
+StaticThreadSched(gen1/replay 2)
+StaticThreadSched(gen2/replay 4)
+StaticThreadSched(gen3/replay 6)
+
+
+
+//----------------
+//Link initializer
+//----------------
+
+DriverManager(  set starttime $(now),
+                pause,
+                pause,
+                pause,
+                pause,
+                set stoptime $(now),
+                print "Rate : ",
+                print $(gen0/avgSIN.link_rate),
+                print $(gen1/avgSIN.link_rate),
+                print $(gen2/avgSIN.link_rate),
+                print $(gen3/avgSIN.link_rate),
+                print "Count :",
+                print $(gen0/avgSIN.count),
+                print $(gen1/avgSIN.count),
+                print $(gen2/avgSIN.count),
+                print $(gen3/avgSIN.count),
+                print "RESULT-TESTTIME $(sub $stoptime $starttime)",
+                print "RESULT-TX $(add $(gen0/avgSIN.link_rate)  $(gen1/avgSIN.link_rate) $(gen2/avgSIN.link_rate) $(gen3/avgSIN.link_rate))",
+                print "Mean Delay: $(tsd.average) µs",
+                print "Min Delay: $(tsd.min) µs",
+                print "Max Delay: $(tsd.max) µs",
+                print "Delay StdDev: $(tsd.stddev) µs",
+                stop);

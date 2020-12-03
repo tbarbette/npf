@@ -28,14 +28,16 @@ install_requires=[
 
 setuptools.setup(
     name="npf",
-    version="1.0.0",
+    version="1.0.3",
     author="Tom Barbette",
     author_email="t.barbette@gmail.com",
+    install_requires=install_requires,
     description="NPF",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/tbarbette/npf",
     packages=setuptools.find_packages(),
+    package_data={'': ['*.repo', '*.npf']},
     py_modules=['npf_run','npf_compare','npf_watch'],
     classifiers=[
         "Programming Language :: Python :: 3",

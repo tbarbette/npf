@@ -229,7 +229,7 @@ as lines would be uncomparable.
 
 ![alt tag](doc/sample_graph.png)
 
-If a "previous version" is not given to npf-run (so it just runs the test for the current master but do not compare
+If a "previous version" is not given to npf-run (so it just runs the test for the current master but do not compare 
 the results), the graph will use one variable as the serie as having only one
 line would be a loss of space, leaving only one dybamic variable :
 ![alt tag](doc/sample_graph3.png)

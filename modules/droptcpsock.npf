@@ -1,0 +1,11 @@
+%script sudo=true autokill=false name=tcpdropsock
+//insmod ./drop-tcp-sock.ko
+bash dropcon.sh
+
+%file dropcon.sh
+echo "Killing TIME_WAIT connections..."
+ncon=$(netstat -n | grep TIME_WAIT | awk '{print $4"\t"$5}' | xargs -I "%" -n 1 sh -c "echo '%' \| tee /proc/net/tcpdropsock" | wc -l)
+nleft=$(netstat -n | wc -l)
+echo "Killed $ncon connections $nleft left"
+echo "EVENT TCP_CLEAN"
+

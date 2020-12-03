@@ -1,0 +1,58 @@
+%script deps=wrk-tbarbette
+
+echo "Launching WRK on $NPF_NODE"
+if [ $SRV_NS -eq 1 ] ; then
+    bash mid.sh 1
+else
+
+for mid in $(seq $SRV_NS) ; do
+    bash mid.sh $mid &
+done
+echo "WAITING FOR WRKs to finish"
+wait
+echo "WRKs FINISHED"
+fi
+
+
+%-rate:file@client mid.sh
+#!/bin/bash
+mid=$1
+ncpus=$(grep -c "^processor" /proc/cpuinfo)
+nclients=$(echo "$SRV_NS * $NPF_NODE_MAX" | bc)
+file=results-$RANDOM-$mid
+th=$(echo "$ncpus / $SRV_NS" | bc)
+if [ $th -lt 1 ] ; then
+    th=1
+fi
+#//$GEN_THREADS / $SRV_NS
+con=$( echo "$GEN_CONCURRENT / $nclients" | bc)
+ip=${EXTERNAL_PREFIX}.$(shuf -i 0-255 -n 1).$(shuf -i 1-254 -n 1)
+cpuid=$( echo " ( $mid - 1 ) % $ncpus " | bc )
+echo "[$mid/$SRV_NS/$NPF_NODE_MAX] Launching WRK with $th threads for $con connections, at $rate conn/s with ip $ip"
+//sudo ip addr add $ip/16 dev ${self:0:ifname}
+if [ $th -ge $con ] ; then
+    th=$con
+fi
+
+echo "EVENT LOAD_START"
+timeout $(( ${GEN_TIME} + 10 )) taskset -c $cpuid wrk -c $con -r --latency -t $th -d${GEN_TIME}s --bind $ip $WRKSCRIPTCMD "${WRK_PROTOCOL}://${EXTERNAL_PREFIX}.0.1:${HTTP_PORT}/${FILE_PATH}" | tee $file
+stat=$?
+if [ $stat -ne 0 ] ; then
+    echo "ERROR"
+    cat $file
+fi
+cat $file | grep "requests in " | awk '{printf "RESULT-NBREQ %s\n", $1}' | head -n 1
+cat $file | grep "Transfer/sec" | awk '{printf "RESULT-THROUGHPUT %s\n", $2}' | head -n 1
+cat $file | grep "Requests/sec" | awk '{printf "RESULT-REQUEST %s\n", $2}' | head -n 1
+cat $file | grep "Latency" | awk '{printf "RESULT-LATENCY %s\n", $2}' | head -n 1
+cat $file | sed -n -e '/Latency Distribution/,/requests/p' | head -n -1 | tail -n+2 | grep -E "50.00 |99.00 " | awk '{printf "RESULT-LAT%d %s\n", $1, $2}' | head -n 2
+cat $file | grep "Socket errors" | awk '{printf "RESULT-HTTPTIMEOUT %s\n", $10 }' | head -n 1
+
+
+
+echo "EVENT WRK_FINISHED"
+
+rm $file
+exit $stat
+
+

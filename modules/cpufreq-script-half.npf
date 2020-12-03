@@ -1,0 +1,36 @@
+%info
+This is not a test, this is a module to be imported using "%import" to set the
+CPU frequency
+
+This module sets the CPU frequency to a given value using cpupower
+
+//%import@client cpufreq CPUFREQ=%
+
+%config
+require_tags={import}
+
+%variables
+CPUFREQ= //This must be passed by the script absolutely
+
+%script sudo=true autokill=false
+if [ -n "$CPUFREQ" ] ; then
+    if [ $CPUFREQ -gt 10000 ] ; then
+        UNIT=
+    else
+        UNIT=M
+    fi
+    if [ -e "/sys/devices/system/cpu/intel_pstate" ] ; then
+        cpupower --cpu 0-17 frequency-set -u ${CPUFREQ}${UNIT} -d ${CPUFREQ}${UNIT}
+        echo "CPU Frequency set to $CPUFREQ through pstate range"
+    else
+        cpupower --cpu 0-17  frequency-set -f ${CPUFREQ}${UNIT}
+        echo "CPU Frequency set to $CPUFREQ"
+    fi
+else
+    min=$(cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_min_freq)
+    max=$(cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq)
+    echo "CPU Frequency set to default $min-$max through pstate range"
+    sudo cpupower frequency-set -u ${max}K -d ${min}K
+fi
+cpupower frequency-set -g performance
+echo "CPU Frequency set to performance"

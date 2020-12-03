@@ -1,0 +1,70 @@
+%info
+
+Print load of the machine
+
+%variables
+PREFIX=
+NCPU=16
+THRESH=50
+
+%script name=load sudo=true autokill=false
+export BPREFIX=$PREFIX
+export BCPU=$NCPU
+export BTHRESH=$THRESH
+
+bash load.sh
+
+%file load.sh
+#!/bin/bash
+echo "Prefix $BPREFIX NCPU $BCPU THRESH $BTHRESH"
+t=0.0
+i=0.0
+al=()
+running=true
+function finish {
+    echo "$t $i $tl"
+    tl=0
+    il=0
+    for i in ${al[@]::${#al}-1}; do
+          let tl+=$i
+          let il+=1
+    done
+    avg=$(echo "$tl / $il" | bc -l )
+    cpur=$(echo "$tl / $il / $NCPU" | bc -l )
+    echo "RESULT-${BPREFIX}CPUA $avg"
+    echo "RESULT-${BPREFIX}CPUR $cpur"
+    running=false
+    exit 0
+}
+
+trap finish SIGINT SIGTERM
+SRVC=$( echo "$BCPU - 1" | bc )
+function load { 
+    l=$(mpstat 1 1 -P 0-$SRVC | grep Average | awk '$12 ~ /[0-9.]+/ { print 100 - $12 }' |  awk '{s+=$1} END {print int(s)}');echo $l; 
+}
+
+while  [ $(echo "$(load) < $BTHRESH" | bc) -eq 1 -a $running ] ; do
+    sleep 1
+done
+
+echo "Starting load computation ($(load) > $BTHRESH) on $BPREFIX ($BCPU CPU)"
+
+sleep 2
+
+while $running; do
+    l=$(load)
+#    if [ $(echo "$l < $BTHRESH" | bc) -eq 1 ] ; then
+#        break;
+#    fi
+    al+=($l)
+    t=$(echo "$t + $l" | bc)
+    i=$(echo "$i +  1" | bc)
+    echo "$BPREFIX t $t i $i"
+done
+
+echo "Stopping load computation"
+if $running ; then
+    finish
+fi
+
+
