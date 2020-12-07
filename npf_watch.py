@@ -1,4 +1,4 @@
-#! /usr/bin/env python3
+#!/usr/bin/env python3
 """
 NPF repository watcher. Essentially a loop watching for commits in a list of git repo to execute given testies when
 a commit is made. If you want to integrate npf in your CI test suite, use npf-run. Passive watching is intended
