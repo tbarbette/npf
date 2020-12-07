@@ -298,8 +298,8 @@ class Testie:
                 for fpath in fpaths:
                     fpath = SectionVariable.replace_variables(st, fpath, role, self_node=node,
                                                               default_role_map=self.config.get_dict("default_role_map"))
-                    if not os.path.isabs(fpath):
-                        fpath = './npf/' + fpath
+#                    if not os.path.isabs(fpath):
+#                        fpath = './npf/' + fpath
                     fpath = os.path.relpath(fpath)
                     print("Sending files %s to %s... " % (fpath, role), end = '')
                     t = node.executor.sendFolder(os.path.relpath(fpath,npf.npf_root()))
@@ -390,6 +390,14 @@ class Testie:
                 killer.force_kill()
             except OSError:
                 pass
+
+    def update_constants(self, v_internals, build, full_test_folder, out_path):
+        print(full_test_folder)
+        v_internals.update({ 'NPF_REPO':get_valid_filename(build.repo.name),'NPF_ROOT': '../', 'NPF_BUILD': '../' + build.build_path(),
+                        'NPF_TESTIE_PATH':os.path.relpath(self.path if self.path else "./",full_test_folder),
+                        'NPF_RESULT_PATH':os.path.relpath(build.result_folder(), full_test_folder)})
+        if out_path:
+            v_internals.update({'NPF_OUTPUT_PATH':os.path.relpath(out_path, full_test_folder)})
 
     def parse_results(self, regex_list: str, output: str, new_kind_results: dict, new_data_results: dict) -> Tuple[
         bool, bool]:
@@ -573,6 +581,8 @@ class Testie:
                         param = RemoteParameters()
                         param.sudo = script.params.get("sudo", False)
 
+                        full_test_folder = (node.executor.path if node.executor.path else '..') + os.sep + test_folder + os.sep
+                        self.update_constants(v, build, full_test_folder, out_path=None)
                         v["NPF_MULTI"] = i_multi
                         v["NPF_MULTI_ID"] = i_multi
                         v["NPF_MULTI_MAX"] = node.multi if node.multi is not None else 1
@@ -952,10 +962,8 @@ class Testie:
 
         dirname, basename, ext = npf.splitpath(options.output if options.output != 'graph' else options.graph_filename)
         out_path = dirname + os.sep
-        v_internals = { 'NPF_REPO':get_valid_filename(build.repo.name),'NPF_ROOT': '../', 'NPF_BUILD': '../' + build.build_path(),
-                        'NPF_TESTIE_PATH':os.path.relpath(self.path if self.path else "./",full_test_folder),
-                        'NPF_RESULT_PATH':os.path.relpath(build.result_folder(), full_test_folder),
-                        'NPF_OUTPUT_PATH':os.path.relpath(out_path, full_test_folder)}
+        v_internals = {}
+        self.update_constants(v_internals, build, full_test_folder, out_path)
 
         if not SectionScript.TYPE_SCRIPT in allowed_types:
             # If scripts is not in allowed_types, we have to run the init by force now
