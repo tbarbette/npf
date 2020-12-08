@@ -194,4 +194,5 @@ DriverManager(
     print "RESULT-LATENCY $(div $(add $ALL_AVG 0) $GEN_THREADS)",
     print "RESULT-TX $(add $ALL_SND )",
     print "RESULT-PPS $(add $ALL_RATE )",
-    print "RESULT-THROUGHPUT $(add $ALL_LINK )")
+    print "RESULT-THROUGHPUT $(add $ALL_LINK )",
+    print "EVENT GEN_DONE")
