@@ -986,15 +986,25 @@ class Testie:
             for root_variables in self.variables.expand(method=options.expand):
                 n += 1
 
-                variables= {}
+                variables = {}
+                shadow_variables = {}
                 for imp in self.get_imports():
+                  #If the module is an include, the variables should be visible to the user, for a real module, it's only a default initialization
                   if imp.is_include:
                     for k,v in imp.testie.variables.statics().items():
                         variables[k] = v.makeValues()[0]
-                variables.update(root_variables)
+                  else:
+                    for k,v in imp.testie.variables.statics().items():
+                        shadow_variables[k] = v.makeValues()[0]
+
                 run = Run(variables)
+                variables.update(root_variables)
                 run.variables.update(build.repo.overriden_variables)
                 variables = run.variables.copy()
+                if shadow_variables:
+                    shadow_variables.update(root_variables)
+                    shadow_variables.update(build.repo.overriden_variables)
+                    variables.update(shadow_variables)
 
                 for late_variables in self.get_late_variables():
                     variables.update(late_variables.execute({**variables, **v_internals}, testie=self))
