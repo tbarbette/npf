@@ -185,7 +185,7 @@ class VariableFactory:
         if result:
             return DictVariable(name, result.captures(1) + result.captures(2))
 
-        result = regex.match("\{([^,]*)(?:(?:,)([^,]+))*}", valuedata)
+        result = regex.match("\{([^,]+)(?:(?:,)([^,]*))*}", valuedata)
         if result:
             return ListVariable(name, result.captures(1) + result.captures(2))
 
