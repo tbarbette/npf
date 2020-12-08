@@ -266,6 +266,7 @@ class Build:
                 print(err)
                 self.__write_file('.build_version', '')
                 os.chdir(pwd)
+                print("Compilation of %s FAILED. Check the log above, or look at the source at %s" % (self.repo.pretty_name(), self.build_path()) )
                 return False
 
         os.chdir(pwd)
