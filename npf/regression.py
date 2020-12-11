@@ -41,6 +41,7 @@ class Regression:
         tests_passed = 0
         tests_total = 0
         supp_done = False
+        r = False
         tot_runs = testie.config["n_runs"] + testie.config["n_supplementary_runs"]
         for v in variable_list:
             tests_total += 1
@@ -58,6 +59,7 @@ class Regression:
                         continue
 
                     ok, diff = self.accept_diff(testie, result, old_result)
+                    r = True
                     if not ok and len(result) < tot_runs and allow_supplementary:
                         need_supp = True
                         break
@@ -67,7 +69,7 @@ class Regression:
                     if old_all_results:
                         old_all_results[run] = {}
 
-            if need_supp and testie.options.do_test and testie.options.allow_supplementary:
+            if r and need_supp and testie.options.do_test and testie.options.allow_supplementary:
                 try:
                     if not testie.options.quiet_regression:
                         print(
@@ -99,6 +101,7 @@ class Regression:
                             if old_result is None:
                                 continue
                             ok, diff = self.accept_diff(testie, result, old_result)
+                            r = True
                             if ok is False:
                                 break
                     else:
@@ -106,7 +109,7 @@ class Regression:
                 except ScriptInitException:
                     pass
 
-            if len(results_types) > 0:
+            if r and len(results_types) > 0:
                 if not ok:
                     print(
                         "ERROR: Test %s is outside acceptable margin between %s and %s : difference of %.2f%% !" % (
