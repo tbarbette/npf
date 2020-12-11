@@ -53,10 +53,15 @@ class MethodGit(Method):
         except gitdb.exc.BadName:
             b_commit = self.gitrepo().tag('refs/tags/' + branch).commit
 
-        for i, commit in enumerate(b_commit.iter_items(repo=b_commit.repo, rev=b_commit, skip=0)):
-            versions.append(commit.hexsha[:7])
+#        for i, commit in enumerate(b_commit.iter_items(repo=b_commit.repo, rev=b_commit, skip=0)):
+        # The above is not suitable as we don't care about the "fake" merged commits
+        i_commit = b_commit
+        while (True):
+            versions.append(i_commit.hexsha[:7])
             if (len(versions) >= limit):
                 break
+            i_commit = i_commit.parents[0]
+
         return versions
 
     def get_history(self, version, limit=1):
