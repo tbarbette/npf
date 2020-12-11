@@ -27,6 +27,7 @@ GEN_THREADS=4
 rate:RATE=1000
 RCV_NIC=1
 SND_NIC=0
+SAMPLE=1
 
 R0=0
 R1=2
@@ -40,7 +41,7 @@ R4=8
 rate:LIMIT=EXPAND( $(( $RATE * 10 if $RATE < 100000 else 1000000 )) )
 NBBUF=EXPAND( $(( (($LIMIT + ($GEN_BURST * 2) ) * $GEN_THREADS ) + 8192 )) )
 gdb:GDB=gdb -ex run -ex "signal 2" -ex "bt" -batch -args
-
+NRECORD=EXPAND( $(( int($LIMIT / $SAMPLE * $PKTGEN_REPLAY_COUNT  * 2 ) )) )
 advertise?=1
 
 REPLAY=ReplayUnqueue(STOP 0, QUICK_CLONE true)
@@ -118,7 +119,7 @@ $PULLASSIGN
 
 elementclass Receiver { $rt |
     input
-    -> tsd :: TimestampDiff($rt, N $(( $LIMIT * $PKTGEN_REPLAY_COUNT)) ) //MT path !!
+    -> tsd :: TimestampDiff($rt, N $NRECORD, SAMPLE $SAMPLE ) //MT path !!
     -> Unstrip(14)
     -> avg :: AverageCounterMP
     -> Discard;
