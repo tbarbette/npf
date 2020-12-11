@@ -37,7 +37,6 @@ class MethodGit(Method):
             return self.checkout()
 
     def get_last_versions(self, limit=100, branch=None, force_fetch=False):
-        versions = []
         origin = self.gitrepo().remote('origin')
         if not self.repo.options.no_build and (force_fetch or not self._fetch_done):
             if not self.repo.options.quiet_build:
@@ -55,7 +54,13 @@ class MethodGit(Method):
 
 #        for i, commit in enumerate(b_commit.iter_items(repo=b_commit.repo, rev=b_commit, skip=0)):
         # The above is not suitable as we don't care about the "fake" merged commits
-        i_commit = b_commit
+        versions = self.get_history(version=b_commit, limit = limit)
+
+        return [b_commit.hexsha[:7]] + versions
+
+    def get_history(self, version, limit=1):
+        versions = []
+        i_commit = next(self.gitrepo().iter_commits(version)).parents[0]
         while (True):
             versions.append(i_commit.hexsha[:7])
             if (len(versions) >= limit):
@@ -64,13 +69,6 @@ class MethodGit(Method):
 
         return versions
 
-    def get_history(self, version, limit=1):
-        versions = []
-        for commit in next(self.gitrepo().iter_commits(version)).iter_parents():
-            versions.append(commit.hexsha[:7])
-            if len(versions) == limit:
-                break
-        return versions
 
     def is_checkout_needed(self, version):
         gitrepo = self.gitrepo()

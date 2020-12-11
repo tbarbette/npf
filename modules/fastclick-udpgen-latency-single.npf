@@ -19,7 +19,7 @@ GEN_BURST=32
 GEN_FLOWS=128
 GEN_LENGTH=64
 GEN_BLOCKING=true
-GEN_REPLAY=1
+PKTGEN_REPLAY_COUNT=1
 GEN_INIT_WAIT=5
 //Change not supported as of now
 GEN_THREADS=4
@@ -95,7 +95,7 @@ elementclass Sprayer {
 %file PKTGEN_CONFIG
 d :: DPDKInfo($NBBUF)
 
-define($replay_count $GEN_REPLAY)
+define($replay_count $PKTGEN_REPLAY_COUNT)
 
 elementclass Numberise { $magic |
     input-> Strip(14) -> check :: CheckIPHeader -> StoreData(36,$magic) ->  nPacket :: NumberPacket(40) -> SetIPChecksum -> Unstrip(14) -> output
@@ -118,7 +118,7 @@ $PULLASSIGN
 
 elementclass Receiver { $rt |
     input
-    -> tsd :: TimestampDiff($rt, N $(( $LIMIT * $GEN_REPLAY)) ) //MT path !!
+    -> tsd :: TimestampDiff($rt, N $(( $LIMIT * $PKTGEN_REPLAY_COUNT)) ) //MT path !!
     -> Unstrip(14)
     -> avg :: AverageCounterMP
     -> Discard;
