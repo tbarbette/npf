@@ -882,7 +882,10 @@ class Testie:
             self.cleanup()
         os.chdir(save_path)
         if not self.options.preserve_temp and f_mine:
-            shutil.rmtree(test_folder)
+            try:
+                shutil.rmtree(test_folder)
+            except FileNotFoundError:
+                print("Could not delete folder %s..." % test_folder)
         return data_results, all_kind_results, all_output, all_err, n_exec, n_err
 
     def ensure_time(self, event_t, result_type, update):
