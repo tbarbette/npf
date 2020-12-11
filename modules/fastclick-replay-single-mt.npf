@@ -42,7 +42,11 @@ nolinktest=0
 dump:DODUMP=1
 nolat:NOLAT=1
 
+trace_is_ip:GEN_TRACE_SUP=->MarkMACHeader->EnsureDPDKBuffer->Unstrip(14)->MarkMACHeader->StoreData(12,\<0800>)
+
 %late_variables
+GEN_IP_OFFSET?=14
+GEN_TRACE_SUP?=
 NBBUF=EXPAND( $(( ( ( $LIMIT * $GEN_THREADS ) + (max(4096,$PKTGEN_BURST_OUT) * 2 * 4 ) ) + 8192 )) )
 NRECORD=EXPAND( $(( int($LIMIT / $SAMPLE * $PKTGEN_REPLAY_COUNT  * 2 ) )) )
 BROADCAST_IGNORE= -> c :: Classifier(0/$mac,-) //Ignore broadcasts
@@ -102,7 +106,7 @@ elementclass NoTimestampDiff { $a, $b, $c, $d |
 }
 
 elementclass Numberise { $magic |
-    input-> Strip(14) -> check :: CheckIPHeader(CHECKSUM false) -> nPacket :: NumberPacket(42) -> StoreData(40, $magic) -> SetIPChecksum -> Unstrip(14) -> output
+    input-> Strip(${GEN_IP_OFFSET}) -> check :: CheckIPHeader(CHECKSUM false) -> nPacket :: NumberPacket(42) -> StoreData(40, $magic) -> SetIPChecksum -> Unstrip(14) -> output
 }
 
 elementclass NoNumberise { $magic |
@@ -110,12 +114,13 @@ elementclass NoNumberise { $magic |
 }
 
 fdIN
+    ${GEN_TRACE_SUP}
     -> rr :: PathSpinlock;
 
 elementclass Generator { $magic |
 input
   -> EnsureDPDKBuffer
-  //-> rwIN :: EtherRewrite($INsrcmac,$INdstmac)
+  -> rwIN :: EtherRewrite($INsrcmac,$INdstmac)
   -> Pad()
   $GEN_LAT_NUMBERISE
 //  -> Print(TIMESTAMP true)
