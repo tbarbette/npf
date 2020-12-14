@@ -1050,7 +1050,7 @@ class Grapher:
                     else:
                         n = var_lim.split('-',1)
                     try:
-                      if len(n) == 2:
+                      if len(n) == 2 and n[1] != "":
                         ymin, ymax = (npf.parseUnit(x) for x in n)
                       else:
                         f=float(n[0])
