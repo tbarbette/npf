@@ -19,6 +19,8 @@ GEN_BURST=32
 GEN_FLOWS=128
 GEN_LENGTH=64
 GEN_BLOCKING=true
+GEN_PROMISC=false
+promisc:GEN_PROMISC=true
 PKTGEN_REPLAY_COUNT=1
 GEN_INIT_WAIT=5
 //Change not supported as of now
@@ -73,7 +75,7 @@ ALL_LINK=HEAD($GEN_THREADS, $ALL_LINK)
 
 %script deps=fastclick sudo=true delay=2
 cat SPRAYER PKTGEN_CONFIG > CGEN
-$GDB click --dpdk -c 0xff -- CGEN
+$GDB click --dpdk -l 0-15 -- CGEN
 
 %sprayer:file SPRAYER
 elementclass Sprayer {
@@ -121,7 +123,7 @@ elementclass Receiver { $rt |
     input
     -> tsd :: TimestampDiff($rt, N $NRECORD, SAMPLE $SAMPLE ) //MT path !!
     -> Unstrip(14)
-    -> avg :: AverageCounterMP
+    -> avg :: AverageCounterIMP
     -> Discard;
 
     unt :: Print("WARNING: Untimestamped packet", -1)
@@ -132,12 +134,12 @@ elementclass Receiver { $rt |
 elementclass MultiThreadGenerator { $port, $outPort, $srcmac, $dstmac, $outSrcmac, $srcip, $dstip |
     tdOUT::ToDPDKDevice($port, BLOCKING $GEN_BLOCKING);
 
-    gen0 :: Generator(\<01>, $srcmac, $dstmac, $srcip, $dstip, 0) -> tdOUT;
-    gen1 :: Generator(\<02>, $srcmac, $dstmac, $srcip, $dstip, 1) -> tdOUT;
-    gen2 :: Generator(\<03>, $srcmac, $dstmac, $srcip, $dstip, 2) -> tdOUT;
-    gen3 :: Generator(\<04>, $srcmac, $dstmac, $srcip, $dstip, 3) -> tdOUT;
+    gen0 :: Generator(\<01>, $srcmac, $dstmac, $srcip, $dstip, 0/0) -> tdOUT;
+    gen1 :: Generator(\<02>, $srcmac, $dstmac, $srcip, $dstip, 0/1) -> tdOUT;
+    gen2 :: Generator(\<03>, $srcmac, $dstmac, $srcip, $dstip, 0/2) -> tdOUT;
+    gen3 :: Generator(\<04>, $srcmac, $dstmac, $srcip, $dstip, 0/3) -> tdOUT;
 
-    fd :: FromDPDKDevice($outPort, MAC $outSrcmac, PROMISC false, VERBOSE 99)
+    fd :: FromDPDKDevice($outPort, MAXTHREADS 4, MAC $outSrcmac, PROMISC $GEN_PROMISC, VERBOSE 99)
     -> c0 :: Classifier(12/0806 20/0001,
                         12/0806 20/0002,
                         12/0800,

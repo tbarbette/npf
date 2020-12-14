@@ -28,7 +28,7 @@ install_requires=[
 
 setuptools.setup(
     name="npf",
-    version="1.0.7",
+    version="1.0.8",
     author="Tom Barbette",
     author_email="t.barbette@gmail.com",
     install_requires=install_requires,
