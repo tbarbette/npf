@@ -1551,7 +1551,17 @@ class Grapher:
         rects = plt.bar(ticks, y, label=x, color=c, width=width, yerr=( y - mean + std, mean - y +  std))
 
         self.write_labels(rects, plt,c)
-        plt.xticks(ticks, x, rotation='vertical' if (ndata > 8) else 'horizontal')
+
+        if self.config('graph_force_diagonal_labels'):
+            direction='diagonal'
+        else:
+            direction = self.scriptconfig('var_label_dir', 'result', result_type=result_type, default=None)
+        
+        if direction == 'diagonal' or direction == 'oblique':
+            plt.xticks(ticks, x, rotation = 45, ha='right')
+        else:
+            plt.xticks(ticks, x, rotation = 'vertical' if (ndata > 8 or direction =='vertical') else 'horizontal')
+
         plt.gca().set_xlim(0, len(x))
         return True
 
