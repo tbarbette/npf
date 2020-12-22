@@ -7,7 +7,7 @@ Suggested usage example in your testie (omit the prefixed "//" that prevent loop
 
 //%import@client fastclick-replay-single-mt trace=path/to.pcap NIC=0 CLIENT_NIC=0
 
-Use the "gen_dump" tag to use a FromIPSummaryDump instead of FromDump, the trace parameter should therefore follow the FromIPSummaryDump format
+Set GEN_DUMP=1 to use a FromIPSummaryDump instead of FromDump, the trace parameter should therefore follow the FromIPSummaryDump format. Similarly, use GEN_DUMP=2 to use FromMinDump.
 
 The normal way to use multi-threading would be to round-robin the trace between the threads. Use the "GEN_MULTI_TRACE=1" to use multiple traces, using -1, -2, ... -GEN_THREADS suffixes to the trace.
 
@@ -51,7 +51,7 @@ gen_mindump:GEN_DUMP=2
 UNQUEUE=
 //unqueue :: Unqueue()
 rate:UNQUEUE=EXPAND( -> unqueue :: BandwidthRatedUnqueue($GEN_RATE, EXTRA_LENGTH true, LINK_RATE true, BURST_DURATION 1, BURST 1) )
-NRECORD=EXPAND( $(( ($LIMIT + 32) * 2 )) )
+NRECORD=EXPAND( $(( ($LIMIT + 1024) * 2 )) )
 BROADCAST_IGNORE= -> c :: Classifier(0/$mac,-) //Ignore broadcasts
 GEN_NOREWRITE_ETHER?=0
 TIMING?=false
@@ -72,10 +72,11 @@ gen_nolat:GEN_RECORD=
 gen_nolat:GEN_MAGIC=EXPAND(-> magic :: {[0]-> RoundRobinSwitch(SPLITBATCH false)[0-$(( $GEN_THREADS - 1 ))] => [0-$(( $GEN_THREADS - 1 ))]output;Idle->[$GEN_THREADS]output;})
 GEN_TSDIFF?=TimestampDiff
 -gen_preped:GEN_NUMBER?= -> check :: MarkIPHeader  -> nPacket :: NumberPacket(42) -> StoreData(40, $magic)
-GEN_RECORD?=EXPAND(-> rt :: RecordTimestamp(N $LIMIT, OFFSET 56))
+GEN_RECORD?=EXPAND(-> rt :: RecordTimestamp(N $NRECORD, OFFSET 56))
 GEN_MAGIC?=EXPAND(    -> magic :: Classifier( $(( ", ".join([ "40/57%02x" % t for t in range($GEN_THREADS) ]) )),  -);)
 DOLAT?=1
 FDDISPATCH=EXPAND( $((" rr :: RoundRobinSwitch(SPLITBATCH false);" if $GEN_THREADS > 1 and $GEN_PIPELINE else "rr :: MyNull;")) )
+NBBUF?=200000
 
 gen_preped:GEN_NUMBER= -> MarkIPHeader
 gen_preped:FDDISPATCH?=  rr :: Classifier( 40/5741,  40/5722,    40/57E3,      40/5774);
@@ -99,7 +100,7 @@ echo "EVENT TX_FINISHED"
 echo "Generator stopped..."
 
 %file PKTGEN_CONFIG
-//d :: DPDKInfo($NBBUF)
+d :: DPDKInfo($NBBUF)
 
 define($bout $PKTGEN_BURST_OUT)
 define($INsrcmac ${client:$CLIENT_NIC:mac})
@@ -117,9 +118,8 @@ define($rxverbose 99)
 
 elementclass MyNull { [0-$(( $GEN_NGEN - 1 ))]=>[0- $(($GEN_NGEN - 1)) ]; };
 
-//JiffieClock();
-
-$(( "\n".join( [ ("fdIN%d :: FromDump(%s, STOP true, TIMING $TIMING, TIMING_FNT "$TIMING_FNT", END_AFTER $END_AFTER, ACTIVE false, BURST 1);" if not $GEN_DUMP else "fdIN%d :: FromIPSummaryDump(%s, TIMES $replay_count, TIMESTAMP $TIMING, ZERO false, BURST 32, STOP true);") % (t, ("${trace}-"+str(t+1) ) if $GEN_MULTI_TRACE else "$trace") for t in range( $GEN_NGEN )  ] ) ))
+//JiffieClock()
+$(( "\n".join( [ ("fdIN%d :: FromDump(%s, STOP true, TIMING $TIMING, TIMING_FNT "$TIMING_FNT", END_AFTER $END_AFTER, ACTIVE false, BURST 1);" if not $GEN_DUMP else "fdIN%d :: FromIPSummaryDump(%s, TIMES $replay_count, TIMESTAMP $TIMING, ZERO false, BURST 32, STOP true);" if $GEN_DUMP==1 else "fdIN%d :: FromMinDump(%s, TIMES $replay_count,  BURST 32, STOP true, DPDK true);") % (t, ("${trace}-"+str(t+1) ) if $GEN_MULTI_TRACE else "$trace") for t in range( $GEN_NGEN )  ] ) ))
 
 tdIN ::
  $(( " Pipeliner(CAPACITY 1024, ALWAYS_UP true) -> " if $GEN_TX_PIPELINE == 1 else "PathSpinlock -> " if $GEN_TX_PIPELINE == 2 else "" ))
@@ -142,15 +142,16 @@ ender :: Script(TYPE PASSIVE,
                 stop);
 $FDDISPATCH
 
-$(( "\n".join([ ( "fdIN%d" + (  "-> limit%d   :: Counter(COUNT_CALL "+str(int($LIMIT / $GEN_NGEN) ) +" ender.run)" if $LIMIT > 0 else "" ) + "$UNQUEUE" + " -> [%d]rr" ) % (t,t,t) for t in range($GEN_NGEN) ] ) ))
+$(( "\n".join([ ( "fdIN%d" % (t) + (  ("-> limit%d   :: Counter(COUNT_CALL "+str(int($LIMIT / $GEN_NGEN) ) +" ender.run)") % (t) if $LIMIT > 0 else "" ) + str("$UNQUEUE") + " -> [%d]rr" % (t) ) for t in range($GEN_NGEN) ] ) ))
 
 elementclass Generator { $magic |
 input
- $(( " -> replay :: Pipeliner(BLOCKING false, CAPACITY 1024, ALWAYS_UP true)" if $GEN_PIPELINE else ""))
+ $(( " -> replay :: Pipeliner(BLOCKING "+("true" if $GEN_THREADS == 1 else "false")+", CAPACITY 1024, ALWAYS_UP true)" if $GEN_PIPELINE else ""))
   -> MarkMACHeader
-  -> EnsureDPDKBuffer
+$(( "-> EnsureDPDKBuffer" if $GEN_DUMP < 2 else "" ))
   $(( "  -> doethRewrite :: { input[0] -> active::Switch(OUTPUT $GEN_NOREWRITE_ETHER)[0] -> rwIN :: EtherRewrite($INsrcmac,$INdstmac) -> [0]output;   active[1] -> [0]output}" if not $GEN_DUMP else "-> EtherEncap(0x0800, $INsrcmac, $INdstmac)" ))
-  -> Pad()
+
+$(( "-> Pad " if $GEN_DUMP < 2 else "" ))
   -> Numberise($magic)
   -> avgSIN :: AverageCounter(IGNORE $ignore)
   $GEN_RECORD
@@ -160,7 +161,7 @@ input
 $(( "\n".join( [ ( "rr[%d] -> gen%d :: Generator(\<57%02x>) -> tdIN;" +  ("StaticThreadSched(gen%d/replay ${GEN_SOCKET}/%d);" if $GEN_PIPELINE else "StaticThreadSched(fdIN%d ${GEN_SOCKET}/%d)" ) ) % (t,t,t,t,t  + 1) for t in range($GEN_THREADS) ] ) ))
 
 
-$(( " StaticThreadSched(fdIN 0/0, unqueue 0/0);" if $GEN_PIPELINE else "" ))
+$(( " StaticThreadSched(fdIN0 0/0, unqueue0 0/0);" if $GEN_PIPELINE else "" ))
 
 $(( " StaticThreadSched(tdIN 0/%d);" % ($GEN_THREADS + 1) if $GEN_TX_PIPELINE else "" ))
 
@@ -235,7 +236,7 @@ StaticThreadSched(ig $R4);
 
 receiveIN -> RIN :: Receiver($RAW_INsrcmac,"IN");
 
-tsd :: HandlerAggregate( $(( ",".join(["ELEMENT RIN/tsd%d" % (i) for i in range($GEN_THREADS) ]) )) );
+$(( (  "tsd :: HandlerAggregate( " + ",".join(["ELEMENT RIN/tsd%d" % (i) for i in range($GEN_THREADS) ]) + " );" ) if $DOLAT else "" ))
 
 DriverManager(  print "Waiting 2 seconds before launching generation...",
                 wait 2s,
@@ -284,7 +285,7 @@ DriverManager(  print "Waiting 2 seconds before launching generation...",
 
                 print "RESULT-LAT00 $(tsd.avg min)",
                 print "RESULT-LAT01 $(tsd.avg perc01)",
-                print "RESULT-LAT50 $(tsd.avg perc50)",
+                print "RESULT-LAT50 $(tsd.avg median)",
                 print "RESULT-LAT95 $(tsd.avg perc95)",
                 print "RESULT-LAT99 $(tsd.avg perc99)",
                 print "RESULT-LAT100 $(tsd.avg max)",
