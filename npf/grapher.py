@@ -115,6 +115,13 @@ class Map(OrderedDict):
         return None
 
 
+def guess_type(d):
+    for k,v in d.items():
+        if is_numeric(v):
+            d[k]=get_numeric(v)
+    return d
+
+
 class Graph:
     def __init__(self, grapher:'Grapher'):
         self.grapher = grapher
@@ -1394,6 +1401,7 @@ class Grapher:
                         print(dyn)
                     return None
 
+            legend_params = guess_type(self.configdict("graph_legend_params",default={}))
             lgd = None
             for ilegend,(axis, result_type, plots) in enumerate(subplot_handles):
                 handles, labels = axis.get_legend_handles_labels()
@@ -1464,9 +1472,9 @@ class Grapher:
                     if loc and loc.startswith("outer"):
                         loc = loc[5:].strip()
                         legend_bbox=self.configlist("legend_bbox")
-                        lgd = axis.legend(handles=handles, labels=labels, loc=loc,bbox_to_anchor=(legend_bbox if legend_bbox and len(legend_bbox) > 1 else None), mode=self.config("legend_mode"), borderaxespad=0.,ncol=ncol, title=legend_title,bbox_transform=plt.gcf().transFigure,frameon=self.config_bool("legend_frameon"))
+                        lgd = axis.legend(handles=handles, labels=labels, loc=loc,bbox_to_anchor=(legend_bbox if legend_bbox and len(legend_bbox) > 1 else None), mode=self.config("legend_mode"), borderaxespad=0.,ncol=ncol, title=legend_title,bbox_transform=plt.gcf().transFigure,frameon=self.config_bool("legend_frameon"), **legend_params)
                     else:
-                        lgd = axis.legend(handles=handles, labels=labels, loc=loc,ncol=ncol, title=legend_title, frameon=self.config_bool("legend_frameon") )
+                        lgd = axis.legend(handles=handles, labels=labels, loc=loc,ncol=ncol, title=legend_title, frameon=self.config_bool("legend_frameon"), **legend_params )
             return result_type, lgd
 
 
@@ -1659,15 +1667,16 @@ class Grapher:
 
             marker=build._marker
 
+            fillstyle = self.config("graph_fillstyle")
             sm = self.scriptconfig("var_markers", key=key, result_type=result_type, default=None)
             if sm is not None:
                 m = sm.split(';')
                 marker = m[i % len(m)]
 
             if self.config_bool_or_in("graph_scatter", result_type):
-                rects = axis.scatter(ax[mask], y[mask], label=lab, color=c,  marker=marker)
+                rects = axis.scatter(ax[mask], y[mask], label=lab, color=c,  marker=marker, fillstyle=fillstyle)
             else:
-                rects = axis.plot(ax[mask], y[mask], label=lab, color=c, linestyle=build._line, marker=marker,markevery=(1 if len(ax[mask]) < 20 else math.ceil(len(ax[mask]) / 20)),drawstyle=drawstyle)
+                rects = axis.plot(ax[mask], y[mask], label=lab, color=c, linestyle=build._line, marker=marker,markevery=(1 if len(ax[mask]) < 20 else math.ceil(len(ax[mask]) / 20)),drawstyle=drawstyle, fillstyle=fillstyle)
             error_type = self.scriptconfig('graph_error', 'result', result_type=result_type, default = "bar").lower()
             if error_type != 'none':
                 if error_type == 'bar' or (error_type == None and not self.config('graph_error_fill')):
@@ -1745,8 +1754,9 @@ class Grapher:
         yformat = self.scriptconfig("var_format", "result", default=None, result_type=result_type)
         yticks = self.scriptconfig("var_ticks", "result", default=None, result_type=result_type)
         shift = int(shift)
+        tick_params = self.configdict("graph_tick_params",default={})
         if self.config_bool_or_in('var_grid',result_type):
-            axis.grid(True,color=gridcolors[shift], axis="y" if not self.config_bool_or_in('var_grid',key) else "both", linestyle=self.config("graph_grid_linestyle") )
+            axis.grid(True,color=gridcolors[shift], axis="y" if not self.config_bool_or_in('var_grid',key) else "both", **({"linestyle":self.config("graph_grid_linestyle")} if "grid_linestyle" not in tick_params else {}) )
             #linestyle=self.graphlines[( shift - 1 if shift > 0 else 0) % len(self.graphlines)]
             axis.set_axisbelow(True)
         isLog = False

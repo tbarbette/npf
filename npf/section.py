@@ -601,8 +601,12 @@ class SectionConfig(SectionVariable):
         self.__add_dict("var_lim", {})
         self.__add_dict("var_format", {})
         self.__add_dict("var_ticks", {})
+
+        self.__add_dict("graph_legend_params", {})
         self.__add_list("var_grid", [])
         self.__add("graph_grid_linestyle", "-")
+
+        self.__add("graph_fillstyle", "full")
         self.__add_dict("graph_tick_params", {})
         self.__add_list("test_time_sync", [])
         self.__add("var_serie",None)
