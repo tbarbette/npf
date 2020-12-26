@@ -1305,10 +1305,13 @@ class Grapher:
                         ax = data[0][0]
                         if ax is not None and len(ax) > 1:
                             if baseLog:
-                                baseLog = baseLog.split("-")
-                                base = float(baseLog[0])
-                                if len(baseLog) > 1:
-                                    thresh=float(baseLog[1])
+                                if type(baseLog) is str:
+                                    baseLog = baseLog.split("-")
+                                    base = float(baseLog[0])
+                                    if len(baseLog) > 1:
+                                        thresh=float(baseLog[1])
+                                else:
+                                    base=baseLog
                             else:
                                 base = find_base(ax)
                             if thresh > 0:

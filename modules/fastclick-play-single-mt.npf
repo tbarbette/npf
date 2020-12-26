@@ -32,6 +32,7 @@ GEN_THREADS=4
 GEN_PIPELINE=1
 GEN_TX_PIPELINE=0
 GEN_SOCKET=0
+GEN_BURST=32
 PROMISC=false
 promisc:PROMISC=true
 IGNORE?=0
@@ -48,9 +49,15 @@ gen_dump:GEN_DUMP=1
 gen_mindump:GEN_DUMP=2
 
 %late_variables
+
+GEN_NGEN=EXPAND( $((1 if $GEN_PIPELINE else $GEN_THREADS)) )
+
 UNQUEUE=
 //unqueue :: Unqueue()
-rate:UNQUEUE=EXPAND( -> unqueue :: BandwidthRatedUnqueue($GEN_RATE, EXTRA_LENGTH true, LINK_RATE true, BURST_DURATION 1, BURST 1) )
+rate:UNQUEUE=EXPAND( BandwidthRatedUnqueue( $(( int($GEN_RATE / $GEN_NGEN) )), EXTRA_LENGTH true, LINK_RATE true, BURST_DURATION 1, BURST 1) )
+prate:UNQUEUE=EXPAND( RatedUnqueue($(( int($GEN_RATE / $GEN_NGEN)  )), BURST 1) )
+HAVE_UNQUEUE?=0
+prate|rate:HAVE_UNQUEUE=1
 NRECORD=EXPAND( $(( ($LIMIT + 1024) * 2 )) )
 BROADCAST_IGNORE= -> c :: Classifier(0/$mac,-) //Ignore broadcasts
 GEN_NOREWRITE_ETHER?=0
@@ -82,7 +89,6 @@ gen_preped:GEN_NUMBER= -> MarkIPHeader
 gen_preped:FDDISPATCH?=  rr :: Classifier( 40/5741,  40/5722,    40/57E3,      40/5774);
 gen_preped:FDDISPATCH=EXPAND( rr :: Classifier( $(( ", ".join([ "40/57%02x" % t for t in range($GEN_THREADS) ]) )),  -);)
 
-GEN_NGEN=EXPAND( $((1 if $GEN_PIPELINE else $GEN_THREADS)) )
 
 
 %-rate:require
@@ -95,7 +101,7 @@ test $GEN_RATE -gt 1 || ( echo "GEN_RATE must be > 0" && exit 1)
 BROADCAST_IGNORE= -> c :: Classifier(-, 0/ffffffffffff)
 
 %script deps=fastclick sudo=true delay=2 name=fastclick-play
-$GEN_GDB click --dpdk -l 0-15 -- PKTGEN_CONFIG
+$GEN_GDB click --dpdk -- PKTGEN_CONFIG
 echo "EVENT TX_FINISHED"
 echo "Generator stopped..."
 
@@ -119,7 +125,7 @@ define($rxverbose 99)
 elementclass MyNull { [0-$(( $GEN_NGEN - 1 ))]=>[0- $(($GEN_NGEN - 1)) ]; };
 
 //JiffieClock()
-$(( "\n".join( [ ("fdIN%d :: FromDump(%s, STOP true, TIMING $TIMING, TIMING_FNT "$TIMING_FNT", END_AFTER $END_AFTER, ACTIVE false, BURST 1);" if not $GEN_DUMP else "fdIN%d :: FromIPSummaryDump(%s, TIMES $replay_count, TIMESTAMP $TIMING, ZERO false, BURST 32, STOP true);" if $GEN_DUMP==1 else "fdIN%d :: FromMinDump(%s, TIMES $replay_count,  BURST 32, STOP true, DPDK true);") % (t, ("${trace}-"+str(t+1) ) if $GEN_MULTI_TRACE else "$trace") for t in range( $GEN_NGEN )  ] ) ))
+$(( "\n".join( [ ("fdIN%d :: FromDump(%s, STOP true, TIMING $TIMING, TIMING_FNT "$TIMING_FNT", END_AFTER $END_AFTER, ACTIVE false, BURST 1);" if not $GEN_DUMP else "fdIN%d :: FromIPSummaryDump(%s, TIMES $replay_count, TIMESTAMP $TIMING, ZERO false, BURST $GEN_BURST, STOP true);" if $GEN_DUMP==1 else "fdIN%d :: FromMinDump(%s, TIMES $replay_count,  BURST $GEN_BURST, STOP true, DPDK true);") % (t, ("${trace}-"+str(t+1) ) if $GEN_MULTI_TRACE else "$trace") for t in range( $GEN_NGEN )  ] ) ))
 
 tdIN ::
  $(( " Pipeliner(CAPACITY 1024, ALWAYS_UP true) -> " if $GEN_TX_PIPELINE == 1 else "PathSpinlock -> " if $GEN_TX_PIPELINE == 2 else "" ))
@@ -142,7 +148,7 @@ ender :: Script(TYPE PASSIVE,
                 stop);
 $FDDISPATCH
 
-$(( "\n".join([ ( "fdIN%d" % (t) + (  ("-> limit%d   :: Counter(COUNT_CALL "+str(int($LIMIT / $GEN_NGEN) ) +" ender.run)") % (t) if $LIMIT > 0 else "" ) + str("$UNQUEUE") + " -> [%d]rr" % (t) ) for t in range($GEN_NGEN) ] ) ))
+$(( "\n".join([ ( "fdIN%d" % (t) + (  ("-> limit%d   :: Counter(COUNT_CALL "+str(int($LIMIT / $GEN_NGEN) ) +" ender.run)") % (t) if $LIMIT > 0 else "" ) + ( ( "-> unqueue%d :: " % t + str( "$UNQUEUE") ) if $HAVE_UNQUEUE else "" ) + " -> [%d]rr" % (t) ) for t in range($GEN_NGEN) ] ) ))
 
 elementclass Generator { $magic |
 input
@@ -158,7 +164,7 @@ $(( "-> Pad " if $GEN_DUMP < 2 else "" ))
   -> output;
 }
 
-$(( "\n".join( [ ( "rr[%d] -> gen%d :: Generator(\<57%02x>) -> tdIN;" +  ("StaticThreadSched(gen%d/replay ${GEN_SOCKET}/%d);" if $GEN_PIPELINE else "StaticThreadSched(fdIN%d ${GEN_SOCKET}/%d)" ) ) % (t,t,t,t,t  + 1) for t in range($GEN_THREADS) ] ) ))
+$(( "\n".join( [ ( "rr[%d] -> gen%d :: Generator(\<57%02x>) -> tdIN;" +  ("StaticThreadSched(gen%d/replay ${GEN_SOCKET}/%d);" if $GEN_PIPELINE else "StaticThreadSched(fdIN%d ${GEN_SOCKET}/%d, unqueue%d ${GEN_SOCKET}/%d)" ) ) % (t,t,t,t,t  + 1, t, t+1) for t in range($GEN_THREADS) ] ) ))
 
 
 $(( " StaticThreadSched(fdIN0 0/0, unqueue0 0/0);" if $GEN_PIPELINE else "" ))
@@ -190,6 +196,12 @@ $(( (  "avg :: HandlerAggregate( " + ",".join(["ELEMENT avg%d" % (i) for i in ra
 
 
 }
+
+/*Script(TYPE ACTIVE,
+    label loop,
+    read load,
+    wait 1s,
+    goto loop)*/
 
 ig :: Script(TYPE ACTIVE,
     goto end $(eq $ITERATION_TIME 0),
@@ -264,7 +276,7 @@ DriverManager(  print "Waiting 2 seconds before launching generation...",
                 print >>$LATENCYDUMP $(RIN/tsdD.dump_list),*/
                 label adump,
                 print "RESULT-TESTTIME $(sub $stoptime $starttime)",
-                print "RESULT-RCVTIME $(RIN/avgA.time)",
+                print "RESULT-RCVTIME $(RIN/avg.avg time)",
                 print "RESULT-LATENCY $(tsd.avg average)",
 
                 print "RESULT-LAT00 $(tsd.avg min)",
