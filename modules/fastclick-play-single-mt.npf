@@ -47,17 +47,18 @@ GEN_MULTI_TRACE=0
 GEN_DUMP=0
 gen_dump:GEN_DUMP=1
 gen_mindump:GEN_DUMP=2
+udpgen:GEN_DUMP=-1
 
 %late_variables
-
+GEN_TX_DESC?=EXPAND($GEN_DESC)
 GEN_NGEN=EXPAND( $((1 if $GEN_PIPELINE else $GEN_THREADS)) )
 
 UNQUEUE=
-//unqueue :: Unqueue()
+udpgen:UNQUEUE=Unqueue()
 rate:UNQUEUE=EXPAND( BandwidthRatedUnqueue( $(( int($GEN_RATE / $GEN_NGEN) )), EXTRA_LENGTH true, LINK_RATE true, BURST_DURATION 1, BURST 1) )
 prate:UNQUEUE=EXPAND( RatedUnqueue($(( int($GEN_RATE / $GEN_NGEN)  )), BURST 1) )
 HAVE_UNQUEUE?=0
-prate|rate:HAVE_UNQUEUE=1
+udpgen|prate|rate|replay:HAVE_UNQUEUE=1
 NRECORD=EXPAND( $(( ($LIMIT + 1024) * 2 )) )
 BROADCAST_IGNORE= -> c :: Classifier(0/$mac,-) //Ignore broadcasts
 GEN_NOREWRITE_ETHER?=0
@@ -89,6 +90,9 @@ gen_preped:GEN_NUMBER= -> MarkIPHeader
 gen_preped:FDDISPATCH?=  rr :: Classifier( 40/5741,  40/5722,    40/57E3,      40/5774);
 gen_preped:FDDISPATCH=EXPAND( rr :: Classifier( $(( ", ".join([ "40/57%02x" % t for t in range($GEN_THREADS) ]) )),  -);)
 
+//For UDP gen
+GEN_FLOWS?=128
+
 
 
 %-rate:require
@@ -99,6 +103,7 @@ test $GEN_RATE -gt 1 || ( echo "GEN_RATE must be > 0" && exit 1)
 
 %promisc:late_variables
 BROADCAST_IGNORE= -> c :: Classifier(-, 0/ffffffffffff)
+
 
 %script deps=fastclick sudo=true delay=2 name=fastclick-play
 $GEN_GDB click --dpdk -- PKTGEN_CONFIG
@@ -125,11 +130,11 @@ define($rxverbose 99)
 elementclass MyNull { [0-$(( $GEN_NGEN - 1 ))]=>[0- $(($GEN_NGEN - 1)) ]; };
 
 //JiffieClock()
-$(( "\n".join( [ ("fdIN%d :: FromDump(%s, STOP true, TIMING $TIMING, TIMING_FNT "$TIMING_FNT", END_AFTER $END_AFTER, ACTIVE false, BURST 1);" if not $GEN_DUMP else "fdIN%d :: FromIPSummaryDump(%s, TIMES $replay_count, TIMESTAMP $TIMING, ZERO false, BURST $GEN_BURST, STOP true);" if $GEN_DUMP==1 else "fdIN%d :: FromMinDump(%s, TIMES $replay_count,  BURST $GEN_BURST, STOP true, DPDK true);") % (t, ("${trace}-"+str(t+1) ) if $GEN_MULTI_TRACE else "$trace") for t in range( $GEN_NGEN )  ] ) ))
+$(( "\n".join( [ "fdIN%d :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH $GEN_LENGTH, SRCETH $INsrcmac, DSTETH $INdstmac, SRCIP ${client:0:ip}, DSTIP ${server:0:ip}, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST)" % t if $GEN_DUMP==-1 else (  "fdIN%d :: FromDump(%s, STOP true, TIMING $TIMING, TIMING_FNT "$TIMING_FNT", END_AFTER $END_AFTER, ACTIVE false, BURST 1);" if $GEN_DUMP == 0 else "fdIN%d :: FromIPSummaryDump(%s, TIMES $replay_count, TIMESTAMP $TIMING, ZERO false, BURST $GEN_BURST, STOP true);" if $GEN_DUMP==1 else "fdIN%d :: FromMinDump(%s, TIMES $replay_count,  BURST $GEN_BURST, STOP true, DPDK true);") % (t, ("${trace}-"+str(t+1) ) if $GEN_MULTI_TRACE else "$trace") for t in range( $GEN_NGEN )  ] ) ))
 
 tdIN ::
  $(( " Pipeliner(CAPACITY 1024, ALWAYS_UP true) -> " if $GEN_TX_PIPELINE == 1 else "PathSpinlock -> " if $GEN_TX_PIPELINE == 2 else "" ))
-    ToDPDKDevice($port, BLOCKING $GEN_BLOCKING, BURST $bout, VERBOSE $txverbose, IQUEUE $bout, NDESC $GEN_DESC, IPCO true )
+    ToDPDKDevice($port, BLOCKING $GEN_BLOCKING, BURST $bout, VERBOSE $txverbose, IQUEUE $bout, NDESC $GEN_TX_DESC, IPCO true )
 
 elementclass NoTimestampDiff { $a, $b, $c, $d |
 input -> output;
@@ -155,7 +160,7 @@ input
  $(( " -> replay :: Pipeliner(BLOCKING "+("true" if $GEN_THREADS == 1 else "false")+", CAPACITY 1024, ALWAYS_UP true)" if $GEN_PIPELINE else ""))
   -> MarkMACHeader
 $(( "-> EnsureDPDKBuffer" if $GEN_DUMP < 2 else "" ))
-  $(( "  -> doethRewrite :: { input[0] -> active::Switch(OUTPUT $GEN_NOREWRITE_ETHER)[0] -> rwIN :: EtherRewrite($INsrcmac,$INdstmac) -> [0]output;   active[1] -> [0]output}" if not $GEN_DUMP else "-> EtherEncap(0x0800, $INsrcmac, $INdstmac)" ))
+  $(( "  -> doethRewrite :: { input[0] -> active::Switch(OUTPUT $GEN_NOREWRITE_ETHER)[0] -> rwIN :: EtherRewrite($INsrcmac,$INdstmac) -> [0]output;   active[1] -> [0]output}" if  $GEN_DUMP <= 0 else "-> EtherEncap(0x0800, $INsrcmac, $INdstmac)" ))
 
 $(( "-> Pad " if $GEN_DUMP < 2 else "" ))
   -> Numberise($magic)
@@ -164,7 +169,7 @@ $(( "-> Pad " if $GEN_DUMP < 2 else "" ))
   -> output;
 }
 
-$(( "\n".join( [ ( "rr[%d] -> gen%d :: Generator(\<57%02x>) -> tdIN;" +  ("StaticThreadSched(gen%d/replay ${GEN_SOCKET}/%d);" if $GEN_PIPELINE else "StaticThreadSched(fdIN%d ${GEN_SOCKET}/%d, unqueue%d ${GEN_SOCKET}/%d)" ) ) % (t,t,t,t,t  + 1, t, t+1) for t in range($GEN_THREADS) ] ) ))
+$(( "\n".join( [ ( "rr[%d] -> gen%d :: Generator(\<57%02x>) -> tdIN;" +  ("StaticThreadSched(gen%d/replay ${GEN_SOCKET}/%d);" if $GEN_PIPELINE else "StaticThreadSched(fdIN%d ${GEN_SOCKET}/%d " +(", unqueue%d ${GEN_SOCKET}/%d" % (t,t+1) if $HAVE_UNQUEUE else "" ) + ")" ) ) % (t,t,t,t,t  + 1) for t in range($GEN_THREADS) ] ) ))
 
 
 $(( " StaticThreadSched(fdIN0 0/0, unqueue0 0/0);" if $GEN_PIPELINE else "" ))
@@ -256,11 +261,11 @@ DriverManager(  print "Waiting 2 seconds before launching generation...",
                 wait 2s,
                 print "Starting gen...",
                 print "EVENT GEN_BEGIN",
-                write fdIN.active true,
+//                write fdIN.active true,
                 print "Starting timer wait...",
                 set starttime $(now),
                 wait $LIMIT_TIME,
-                write fdIN.active 0,
+//                write fdIN.active 0,
                 set stoptime $(now),
                 print "EVENT GEN_DONE",
                 wait 1s,

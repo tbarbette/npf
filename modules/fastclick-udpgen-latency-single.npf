@@ -13,6 +13,7 @@ The client generates $GEN_FLOWS flows of $GEN_BURST packets in loop, and plays a
 %config
 default_role_map={dut:client,server:client}
 require_tags=import,dpdk
+timeout=60
 
 %variables
 GEN_BURST=32
