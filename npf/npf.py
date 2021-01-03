@@ -220,7 +220,7 @@ def parse_nodes(options):
 
     for val in options.cluster:
         variables = val.split(',')
-        if len(variables) is 0:
+        if len(variables) == 0:
             raise Exception("Bad definition of cluster parameter : %s" % variables)
         mapping=variables[0].strip()
         match = nodePattern.match(mapping)
@@ -314,7 +314,7 @@ def build_filename(testie, build, hint, variables, def_ext, type_str='', show_se
         if ext is None or ext == '' or force_ext:
             ext = '.' + def_ext
 
-        if basename is None or basename is '':
+        if basename is None or basename == '':
             basename = var_str
 
         if not data_folder:
