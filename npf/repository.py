@@ -54,17 +54,14 @@ class MethodGit(Method):
 
 #        for i, commit in enumerate(b_commit.iter_items(repo=b_commit.repo, rev=b_commit, skip=0)):
         # The above is not suitable as we don't care about the "fake" merged commits
-        versions = self.get_history(version=b_commit, limit = limit)
-
+        versions = self.get_history(version=b_commit, limit = limit - 1)
         return [b_commit.hexsha[:7]] + versions
 
     def get_history(self, version, limit=1):
         versions = []
         i_commit = next(self.gitrepo().iter_commits(version)).parents[0]
-        while (True):
+        while len(versions) < limit:
             versions.append(i_commit.hexsha[:7])
-            if (len(versions) >= limit):
-                break
             i_commit = i_commit.parents[0]
 
         return versions
