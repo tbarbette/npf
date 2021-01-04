@@ -392,7 +392,6 @@ class Testie:
                 pass
 
     def update_constants(self, v_internals, build, full_test_folder, out_path):
-        print(full_test_folder)
         v_internals.update({ 'NPF_REPO':get_valid_filename(build.repo.name),'NPF_ROOT': '../', 'NPF_BUILD': '../' + build.build_path(),
                         'NPF_TESTIE_PATH':os.path.relpath(self.path if self.path else "./",full_test_folder),
                         'NPF_RESULT_PATH':os.path.relpath(build.result_folder(), full_test_folder)})
