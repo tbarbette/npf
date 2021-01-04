@@ -380,6 +380,8 @@ class SectionVariable(Section):
         if not var in self.vlist:
             print("WARNING : %s does not override anything" % var)
         if isinstance(val, Variable):
+            if val.is_default:
+                return
             if val.assign == '+=':
                 self.vlist[var] += val
             elif val.assign == '?=' and not var in self.vlist:
@@ -495,14 +497,19 @@ class SectionLateVariable(SectionVariable):
 
 class SectionConfig(SectionVariable):
     def __add(self, var, val):
-        self.vlist[var.lower()] = SimpleVariable(var, val)
+        v = SimpleVariable(var, val)
+        v.is_default = True
+        self.vlist[var.lower()] = v
 
     def __add_list(self, var, list):
-        self.vlist[var.lower()] = ListVariable(var, list)
+        v = ListVariable(var, list)
+        v.is_default = True
+        self.vlist[var.lower()] = v
 
     def __add_dict(self, var, dict):
-        self.vlist[var.lower()] = DictVariable(var, dict)
-
+        v = DictVariable(var, dict)
+        v.is_default = True
+        self.vlist[var.lower()] = v
     def __init__(self):
         super().__init__('config')
         self.content = ''

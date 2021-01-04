@@ -224,6 +224,9 @@ class Testie:
             for k, v in imp.params.items():
                 overriden_variables[k] = VariableFactory.build(k, v)
             imp.testie.variables.override_all(overriden_variables)
+
+            imp.testie.config.override_all(self.config.vlist)
+            self.config = imp.testie.config
             if not imp.is_include:
                 for script in imp.testie.scripts:
                     if script.get_role():

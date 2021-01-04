@@ -220,6 +220,7 @@ class VariableFactory:
 class Variable:
     def __init__(self):
         self.assign = '='
+        self.is_default = False
 
     NAME_REGEX = r'[a-zA-Z0-9._-]+'
     TAGS_REGEX = r'[a-zA-Z0-9._,|!-]+'

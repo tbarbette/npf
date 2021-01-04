@@ -10,7 +10,6 @@ Suggested usage example in your testie (omit the prefixed "//" that prevent loop
 %config
 n_retry=0
 n_runs=1
-require_tags=import,dpdk
 timeout=60
 default_role_map={server:dut}
 
@@ -22,7 +21,7 @@ NIC=0
 RCV_NIC=0
 SND_NIC=0
 TIMING=0
-LIMIT=200000
+LIMIT=500000
 GEN_THREADS=4
 PROMISC=false
 promisc:PROMISC=true
