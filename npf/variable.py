@@ -309,6 +309,12 @@ class SimpleVariable(Variable):
         self.value += other.makeValues()[0]
         return self
 
+    def pop(self, item):
+        if self.value == item:
+            return ListVariable(None, [])
+        else:
+            return self
+
 
 class ListVariable(Variable):
     def __init__(self, name, l):
@@ -352,6 +358,11 @@ class ListVariable(Variable):
     def is_numeric(self):
         return self.all_num
 
+    def pop(self, item):
+        if item in self.lvalues:
+            self.lvalues.remove(item)
+        return self
+
 
 class DictVariable(Variable):
     def __init__(self, name, data):
@@ -382,6 +393,10 @@ class DictVariable(Variable):
         self.vdict.update(other.vdict)
         return self
 
+    def pop(self, item):
+        if item in self.vdict:
+            del self.vdict[item]
+        return self
 
 class RangeVariable(Variable):
     def __init__(self, name, valuestart, valueend, log, step = None):

@@ -229,7 +229,7 @@ class SectionImport(Section):
         self.multi = None
         if is_include:
             self.module = module
-        elif module is not None and module is not '':
+        elif module is not None and module != '':
             self.module = 'modules/' + module
         else:
             if not 'testie' in params:

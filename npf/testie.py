@@ -225,6 +225,9 @@ class Testie:
                 overriden_variables[k] = VariableFactory.build(k, v)
             imp.testie.variables.override_all(overriden_variables)
 
+            if "require_tags" in imp.testie.config.vlist:
+                imp.testie.config.vlist["require_tags"] = imp.testie.config.vlist["require_tags"].pop("import")
+
             imp.testie.config.override_all(self.config.vlist)
             self.config = imp.testie.config
             if not imp.is_include:

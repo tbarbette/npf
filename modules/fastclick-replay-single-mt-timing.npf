@@ -10,7 +10,7 @@ Suggested usage example in your testie (omit the prefixed "//" that prevent loop
 %config
 n_retry=0
 n_runs=1
-require_tags=import,dpdk
+require_tags=import
 timeout=60
 default_role_map={server:dut}
 
@@ -59,6 +59,7 @@ nodpdkload:LATEENSURE=
 DODUMP?=0
 NRECORD=EXPAND( $(( int($LIMIT / $SAMPLE * $PKTGEN_REPLAY_COUNT  * 2) )) )
 BROADCAST_IGNORE= -> c :: Classifier(0/$mac,-) //Ignore broadcasts
+GEN_RX_THREADS?=EXPAND($GEN_THREADS)
 
 %promisc:late_variables
 BROADCAST_IGNORE= -> c :: Classifier(-, 0/ffffffffffff)
@@ -127,7 +128,7 @@ StaticThreadSched(gen1/replay $R1)
 StaticThreadSched(gen2/replay $R2)
 StaticThreadSched(gen3/replay $R3)
 
-receiveIN :: FromDPDKDevice($port, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, PAUSE $PAUSE, NDESC $GEN_DESC)
+receiveIN :: FromDPDKDevice($port, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, PAUSE $PAUSE, NDESC $GEN_DESC, MAXTHREADS $GEN_RX_THREADS)
 
 elementclass Receiver { $mac, $dir |
     input[0]

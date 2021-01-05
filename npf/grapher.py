@@ -265,6 +265,37 @@ class Grapher:
     def formats(self,x,pos,mult):
         return "%d" % (x * mult)
 
+    def get_var_lim(self, key, result_type):
+        var_lim = self.scriptconfig("var_lim", key, result_type=result_type, default=None)
+        axes = []
+        if var_lim:
+          for var_lim in var_lim.split('+'):
+            ymin = None
+            ymax = None
+
+            if var_lim.startswith('-'):
+                n = var_lim[1:].split('-',1)
+                n[0] = "-"+n[0]
+            else:
+                n = var_lim.split('-',1)
+            try:
+              if len(n) == 2 and n[1] != "":
+                ymin, ymax = (npf.parseUnit(x) for x in n)
+              else:
+                f=float(n[0])
+                if f==0:
+                    ymin=f
+                else:
+                    ylim=f
+            except Exception as e:
+                print(e)
+            axes.append([ymin,ymax])
+        else:
+            ymin = None
+            ymax = None
+
+            axes.append([ymin,ymax])
+        return axes
 
 
     class ByteFormatter(Formatter):
@@ -421,7 +452,6 @@ class Grapher:
         graph.vars_values = vars_values
         graph.series = series
         return graph
-
 
     # Convert a list of series to a graph object
     #  if the list has a unique item and there are dynamic variables, one
@@ -1032,54 +1062,18 @@ class Grapher:
             tick_params = self.configdict("graph_tick_params",default={})
             gcolor = self.configlist('graph_color')
 
-
-#            for result_type in figure:
-
-
             #A figure may be composed of multiple subplots if user asked for subplots OR shared axis
             # but each subplot may use broken axis that are in fact fake subplot
             for i_s_subplot, result_type in enumerate(figure):
                 #Variable that depends on the figure
                 key=savekey
-                var_lim = self.scriptconfig("var_lim", "result", result_type=result_type, default=None)
                 data = data_types[result_type]
 
                 #Number of broken axis
-                brokenaxes = []
-                if var_lim:
-                  for var_lim in var_lim.split('+'):
-                    ymin = None
-                    ymax = None
+                brokenaxesY = self.get_var_lim(key="result", result_type=result_type)
+                brokenaxesX = self.get_var_lim(key=key, result_type=None)
 
-                    if var_lim.startswith('-'):
-                        n = var_lim[1:].split('-',1)
-                        n[0] = "-"+n[0]
-                    else:
-                        n = var_lim.split('-',1)
-                    try:
-                      if len(n) == 2 and n[1] != "":
-                        ymin, ymax = (npf.parseUnit(x) for x in n)
-                      else:
-                        f=float(n[0])
-                        if f==0:
-                            ymin=f
-                        else:
-                            ylim=f
-                    except Exception as e:
-                        print(e)
-                    brokenaxes.append([ymin,ymax])
-
-                else:
-                    ymin = None
-                    ymax = None
-#                    ymin, ymax = (float('inf'), 0)
-
-#                    if (ymin >= 0 > plt.ylim()[0]):
-#                        plt.ylim(0, plt.ylim()[1])
-
-#                    if (ymin < ymax / 5):
-#                        plt.ylim(ymin=0)
-                    brokenaxes.append([ymin,ymax])
+                print(brokenaxesX, brokenaxesY)
 
                 isubplot = int(i_subplot * len(figure) + i_s_subplot)
 
@@ -1099,40 +1093,36 @@ class Grapher:
 
                 r = True
 
-                nbroken = len(brokenaxes)
+                nbrokenY = len(brokenaxesY)
 
-                if nbroken > 1:
+                nbrokenX = len(brokenaxesX)
 
-                    ytot = 0
-                    for ymin,ymax in brokenaxes:
-                        if ymin != None and ymax != None:
-                            ytot += ymax - ymin
-
+                if nbrokenY * nbrokenX > 1:
                     fig = plt.figure(constrained_layout=False)
-                    spec = fig.add_gridspec(ncols=1,nrows = nbroken, height_ratios=[ymax-ymin for ymin,ymax in reversed(brokenaxes)])
+                    spec = fig.add_gridspec(ncols=nbrokenX, nrows = nbrokenY, height_ratios=[ymax-ymin if( ymax is not None and ymin is not None) else 1 for ymin,ymax in reversed(brokenaxesY)],width_ratios=[xmax-xmin if (xmax is not None and xmin is not None) else 1 for xmin,xmax in reversed(brokenaxesX)])
 
+                xname=self.var_name(cross_key)
                 #For every broken axis
-                for ibroken,(ymin,ymax) in enumerate(reversed(brokenaxes)):
-                    if nbroken > 1:
+                for ibrokenY,(ymin,ymax) in enumerate(reversed(brokenaxesY)):
+                  for ibrokenX,(xmin, xmax) in enumerate(brokenaxesX):
+                    if nbrokenY > 1:
                         if len(figure) > 1:
                             print("Broken axis with subplots is not supported!")
-                        axis = fig.add_subplot(spec[ibroken, 0])
+                        axis = fig.add_subplot(spec[ibrokenY, ibrokenX])
                         shift = 0
                         ihandle = 0
                     else:
                         # Finding subplot indexes
                         if subplot_type=="subplot":
                             if i_s_subplot > 0:
-                                axis = plt.subplot(n_lines * nbroken, n_cols, isubplot + 1 + ibroken, sharex=axiseis[0])
                                 plt.setp(axiseis[0].get_xticklabels(), visible=False)
                                 #axiseis[0].set_xlabel("")
-                            else:
-                                axis = plt.subplot(n_lines * nbroken, n_cols, isubplot + 1 + ibroken, sharex=axiseis[0] if ibroken > 0 and nbroken > 1 else None)
+                            axis = plt.subplot(n_lines * nbrokenY, n_cols * nbrokenX, isubplot + 1 + ibrokenY, sharex=axiseis[0] if ibrokenY > 0 and nbrokenY > 1 else None, sharey = axiseis[0] if ibrokenX > 0 and nbrokenX > 1 else None)
                             ihandle = 0
                             shift = 0
                         else: #subplot_type=="axis" for dual axis
                             if isubplot == 0:
-                                fix,axis=plt.subplots(nbroken)
+                                fix,axis=plt.subplots(nbrokenY * nbrokenX)
                                 ihandle = 0
                             elif isubplot == len(figure) - 1:
                                 axis=axis.twinx()
@@ -1239,19 +1229,20 @@ class Grapher:
                         continue
 
                     plt.ylim(ymin=ymin, ymax=ymax)
+                    plt.xlim(xmin=xmin, xmax=xmax)
 
-
-                    if nbroken > 1:
-                        if ibroken == 0:
+                    if nbrokenY > 1:
+                        if ibrokenY == 0:
                             # hide the spines between ax and ax2
                             axis.spines['bottom'].set_visible(False)
                             axis.xaxis.tick_top()
                             axis.tick_params(labeltop=False)  # don't put tick labels at the top
-                            axis.yaxis.label.set_transform(mtransforms.blended_transform_factory(
+                            if ibrokenX == 0:
+                               axis.yaxis.label.set_transform(mtransforms.blended_transform_factory(
                                        mtransforms.IdentityTransform(), fig.transFigure # specify x, y transform
                                               )) # changed from default blend (IdentityTransform(), a[0].transAxes)
-                            axis.yaxis.label.set_position((0, 0.5))
-                            axis.set_ylabel(axis.yname)
+                               axis.yaxis.label.set_position((0, 0.5))
+                               axis.set_ylabel(axis.yname)
                         else:
                             axis.spines['top'].set_visible(False)
                             axis.xaxis.tick_bottom()
@@ -1260,6 +1251,25 @@ class Grapher:
                     else:
                         plt.ylabel(axis.yname)
 
+                    if nbrokenX > 1:
+                        if ibrokenX == 0:
+                            # hide the spines between ax and ax2
+                            axis.spines['right'].set_visible(False)
+                            axis.yaxis.tick_left()
+                            axis.tick_params(labelleft=False)  # don't put tick labels at the top
+#                            axis.xaxis.label.set_transform(mtransforms.blended_transform_factory(
+#                                       mtransforms.IdentityTransform(), fig.transFigure # specify x, y transform
+#                                              )) # changed from default blend (IdentityTransform(), a[0].transAxes)
+#                            axis.xaxis.label.set_position((0, 0.5))
+                            if ibrokenY == nbrokenY - 1:
+                                axis.set_xlabel(xname)
+                        else:
+                            axis.spines['left'].set_visible(False)
+                            axis.yaxis.tick_right()
+#                            fig.text(0.05, 0.5, axis.yname, va='center', rotation='vertical')
+
+                    else:
+                        plt.xlabel(xname)
 
                     type_config = "" if not result_type else "-" + result_type
 
@@ -1274,78 +1284,64 @@ class Grapher:
                         axis.yaxis.label.set_color(legendcolors[sl])
                         axis.tick_params(axis='y',colors=legendcolors[sl])
 
-                    #For x limits, we don't want result-RESULTYPE
-                    var_lim = self.scriptconfig("var_lim", key=key)
-                    if var_lim and var_lim is not key:
-                        matches = re.match("([-]?[0-9.]+)[-]?([-]?[0-9.]+)?", var_lim)
-                        xlims = [float(x) for x in matches.groups() if x is not None]
-                        if barplot:
-                            print("WARNING You set xlims for %s to be %s, however I'm drawing a barplot, where x limits have no sense, so I'll ignore it. Remove limits for %s to avoid this warning." % (key,var_lim,key))
-                        else:
-                            if len(xlims) == 2:
-                                axis.set_xlim(xlims[0], xlims[1])
-                            else:
-                                axis.set_xlim(xlims[0])
-                    else:
-                        xlims = None
-
-                    xunit = self.scriptconfig("var_unit", key, default="n,")
-                    xformat = self.scriptconfig("var_format", key, default="")
-                    isLog = key in self.config('var_log', {})
-                    baseLog = self.scriptconfig('var_log_base', key, default=None)
-                    if baseLog:
-                        isLog = True
-                    if not isLog:
-                        ax = data[0][0]
-                        if npf.all_num(ax) and is_log(ax) is not False:
+                    if ibrokenX == 0:
+                        xunit = self.scriptconfig("var_unit", key, default="n,")
+                        xformat = self.scriptconfig("var_format", key, default="")
+                        isLog = key in self.config('var_log', {})
+                        baseLog = self.scriptconfig('var_log_base', key, default=None)
+                        if baseLog:
                             isLog = True
-                            baseLog = is_log(ax)
-                    thresh=1
-                    if isLog and not barplot:
-                        ax = data[0][0]
-                        if ax is not None and len(ax) > 1:
-                            if baseLog:
-                                if type(baseLog) is str:
-                                    baseLog = baseLog.split("-")
-                                    base = float(baseLog[0])
-                                    if len(baseLog) > 1:
-                                        thresh=float(baseLog[1])
-                                else:
-                                    base=baseLog
-                            else:
-                                base = find_base(ax)
-                            if thresh > 0:
-                                plt.xscale('symlog',basex=base,linthreshx=thresh )
-                            else:
-                                plt.xscale('log',basex=base)
-                            xticks = data[0][0]
-                            if not is_log(xticks) and xlims:
-                                i = xlims[0]
-                                if len(xlims) > 1:
-                                    top = xlims[1]
-                                else:
-                                    top = max(xticks)
-                                xticks = []
-                                while i <= top:
-                                    xticks.append(i)
-                                    if i <= 0:
-                                        i = 1
+                        if not isLog:
+                            ax = data[0][0]
+                            if npf.all_num(ax) and is_log(ax) is not False:
+                                isLog = True
+                                baseLog = is_log(ax)
+                        thresh=1
+                        if isLog and not barplot:
+                            ax = data[0][0]
+                            if ax is not None and len(ax) > 1:
+                                if baseLog:
+                                    if type(baseLog) is str:
+                                        baseLog = baseLog.split("-")
+                                        base = float(baseLog[0])
+                                        if len(baseLog) > 1:
+                                            thresh=float(baseLog[1])
                                     else:
-                                        i = i * base
-                            if len(xticks) > (float(self.options.graph_size[0]) * 1.5):
-                                n =int(math.ceil(len(xticks) / 8))
-                                index = np.array(range(len(xticks)))[1::n]
-                                if index[-1] != len(xticks) -1:
-                                    index = np.append(index,[len(xticks)-1])
-                                xticks = np.delete(xticks,np.delete(np.array(range(len(xticks))),index))
+                                        base=baseLog
+                                else:
+                                    base = find_base(ax)
+                                if thresh > 0:
+                                    plt.xscale('symlog',basex=base,linthreshx=thresh )
+                                else:
+                                    plt.xscale('log',basex=base)
+                                xticks = data[0][0]
+                                if not is_log(xticks) and xmin:
+                                    i = xmin
+                                    if xmax:
+                                        top = xmax
+                                    else:
+                                        top = max(xticks)
+                                    xticks = []
+                                    while i <= top:
+                                        xticks.append(i)
+                                        if i <= 0:
+                                            i = 1
+                                        else:
+                                            i = i * base
+                                if len(xticks) > (float(self.options.graph_size[0]) * 1.5):
+                                    n =int(math.ceil(len(xticks) / 8))
+                                    index = np.array(range(len(xticks)))[1::n]
+                                    if index[-1] != len(xticks) -1:
+                                        index = np.append(index,[len(xticks)-1])
+                                    xticks = np.delete(xticks,np.delete(np.array(range(len(xticks))),index))
 #Weird code.
 #                        if not xlims and min(data[0][0]) >= 1:
 #                            xlims = [1]
 #                            axis.set_xlim(xlims[0])
-                            plt.xticks(xticks)
-                        else:
-                            plt.xscale('symlog')
-                        plt.gca().xaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%d'))
+                                plt.xticks(xticks)
+                            else:
+                                plt.xscale('symlog')
+                            plt.gca().xaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%d'))
 
                     if not barplot:
                         formatterSet, unithandled = self.set_axis_formatter(plt.gca().xaxis, xformat, xunit.strip(), isLog, True)
@@ -1356,8 +1352,6 @@ class Grapher:
                             plt.gca().xaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
                         plt.xticks([variable.get_numeric(x) for x in xticks.split('+')])
 
-                    if bool(self.config_bool('graph_x_label', True)) and ibroken == nbroken -1:
-                        plt.xlabel(self.var_name(cross_key))
 
                     #background
                     graph_bg = self.configdict("graph_background",{})
@@ -1374,6 +1368,24 @@ class Grapher:
                         b = axis.bar(xt, height=yl[1] * 2, width=w, color=[bgcolor,bgcolor2], zorder=-99999)
                         axis.set_ylim(yl[0],yl[1])
 
+                    if nbrokenY * nbrokenX > 1:
+                        if nbrokenY > 1:
+                            d = .5  # proportion of vertical to horizontal extent of the slanted line
+                            kwargs = dict(marker=[(-1, -d), (1, d)], markersize=12,
+                                                  linestyle="none", color='k', mec='k', mew=1, clip_on=False)
+                            if ibrokenX == 0:
+                                if ibrokenY < nbrokenY - 1:
+                                    axis.plot([0], [0], transform=axis.transAxes, **kwargs)
+                                if ibrokenY > 0:
+                                    axis.plot([0], [1], transform=axis.transAxes, **kwargs)
+                            if ibrokenX == 1:
+                                if ibrokenY < nbrokenY -1:
+                                    axis.plot([1], [0], transform=axis.transAxes, **kwargs)
+                                if ibrokenY > 0:
+                                    axis.plot([1], [1], transform=axis.transAxes, **kwargs)
+
+
+
                 if self.options.graph_size:
                     fig = plt.gcf()
                     fig.set_size_inches(self.options.graph_size[0], self.options.graph_size[1])
@@ -1383,30 +1395,25 @@ class Grapher:
 
                 try:
 
+                    if nbrokenY * nbrokenX > 1:
 
-                    if nbroken > 1:
-
-#                        plt.tight_layout(rect=[0, 0, 1, 1])
-                        plt.subplots_adjust(hspace=0.1,wspace=0)  # adjust space between axes
-                        d = .5  # proportion of vertical to horizontal extent of the slanted line
-                        kwargs = dict(marker=[(-1, -d), (1, d)], markersize=12,
-                                              linestyle="none", color='k', mec='k', mew=1, clip_on=False)
-                        axiseis[0].plot([0, 1], [0, 0], transform=axiseis[0].transAxes, **kwargs)
-                        axiseis[1].plot([0, 1], [1, 1], transform=axiseis[1].transAxes, **kwargs)
+                        plt.subplots_adjust(hspace=0.1 if nbrokenY > 1 else 0,wspace=0.1 if nbrokenX > 1 else 0)  # adjust space between axes
                     else:
 
                         plt.tight_layout()
 
-                except Exception:
+                except Exception as e:
                     print("Could not make the graph fit. It may be because you have too many points or variables to graph")
                     print("Try reducing the number of dynamic variables : ")
                     for dyn in dyns:
                         print(dyn)
+                    print(e)
                     return None
 
             legend_params = guess_type(self.configdict("graph_legend_params",default={}))
             lgd = None
-            for ilegend,(axis, result_type, plots) in enumerate(subplot_handles):
+            if ibrokenY == 0 and ibrokenX == 0:
+              for ilegend,(axis, result_type, plots) in enumerate(subplot_handles):
                 handles, labels = axis.get_legend_handles_labels()
                 for i,label in enumerate(labels):
                     labels[i] = label.replace('_', ' ')
@@ -1766,7 +1773,7 @@ class Grapher:
         baseLog = self.scriptconfig('var_log_base', "result",result_type=result_type, default=None)
         if baseLog:
             baseLog = baseLog.split('-')
-            if len(baseLog) is 2:
+            if len(baseLog) == 2:
                 thresh = float(baseLog[1])
             else:
                 thresh=1

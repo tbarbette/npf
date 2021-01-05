@@ -15,7 +15,7 @@ default_role_map={server:dut}
 
 %variables
 PKTGEN_BURST_OUT=32
-PKTGEN_REPLAY_COUNT=1
+PKTGEN_REPLAY_COUNT=10
 PKTGEN_REPLAY_TIME=0
 NIC=0
 RCV_NIC=0
@@ -163,25 +163,25 @@ $BROADCAST_IGNORE
     magic[0]
     -> tsdA :: $GEN_LAT_TSDIFF(gen0/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE )
     -> Unstrip(14)
-    -> avgA :: AverageCounterMP(IGNORE $ignore)
+    -> avgA :: AverageCounterMP(IGNORE $ignore, THRESHOLD 1000)
     -> Discard;
 
     magic[1]
     -> tsdB :: $GEN_LAT_TSDIFF(gen1/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE )
     -> Unstrip(14)
-    -> avgB :: AverageCounterMP(IGNORE $ignore)
+    -> avgB :: AverageCounterMP(IGNORE $ignore, THRESHOLD 1000)
     -> Discard;
 
     magic[2]
     -> tsdC :: $GEN_LAT_TSDIFF(gen2/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE )
     -> Unstrip(14)
-    -> avgC :: AverageCounterMP(IGNORE $ignore)
+    -> avgC :: AverageCounterMP(IGNORE $ignore, THRESHOLD 1000)
     -> Discard;
 
     magic[3]
     -> tsdD :: $GEN_LAT_TSDIFF(gen3/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE )
     -> Unstrip(14)
-    -> avgD :: AverageCounterMP(IGNORE $ignore)
+    -> avgD :: AverageCounterMP(IGNORE $ignore, THRESHOLD 1000)
     -> Discard;
 
     magic[4]
