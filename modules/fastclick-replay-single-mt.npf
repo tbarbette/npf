@@ -136,7 +136,7 @@ input
   -> output;
 }
 
-$(( "\n".join([ "rr -> gen%d :: Generator(\<56%x>) -> tdIN;StaticThreadSched(gen%d/replay $SOCKET/%d);" % (i,i+1,i,i) for i in range($GEN_THREADS) ]) ))
+$(( "\n".join([ "rr -> gen%d :: Generator(\<56%02x>) -> tdIN;StaticThreadSched(gen%d/replay $SOCKET/%d);" % (i,i+1,i,i) for i in range($GEN_THREADS) ]) ))
 
 receiveIN :: FromDPDKDevice($rxport, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, PAUSE $PAUSE, NDESC $GEN_DESC, NUMA true, MAXTHREADS $GEN_RX_THREADS)
 

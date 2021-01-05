@@ -1073,8 +1073,6 @@ class Grapher:
                 brokenaxesY = self.get_var_lim(key="result", result_type=result_type)
                 brokenaxesX = self.get_var_lim(key=key, result_type=None)
 
-                print(brokenaxesX, brokenaxesY)
-
                 isubplot = int(i_subplot * len(figure) + i_s_subplot)
 
                 if result_type in cross_reference:
