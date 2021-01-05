@@ -22,6 +22,7 @@ RCV_NIC=0
 SND_NIC=0
 TIMING=0
 LIMIT=500000
+SOCKET=0
 GEN_THREADS=4
 PROMISC=false
 promisc:PROMISC=true
@@ -29,15 +30,12 @@ IGNORE=0
 PAUSE?=none
 GEN_DESC=0
 GEN_CPU=0
-R0=0
-R1=2
-R2=4
-R3=6
 SAMPLE?=10
 udpgen:GEN_LENGTH=1500
 udpgen:GEN_DUMP=-1
 udpgen:GEN_FLOWS=128
 udpgen:GEN_BURST=32
+
 
 
 TCO=1
@@ -138,15 +136,7 @@ input
   -> output;
 }
 
-rr -> gen0 :: Generator(\<5601>) -> tdIN;
-rr -> gen1 :: Generator(\<5602>) -> tdIN;
-rr -> gen2 :: Generator(\<5603>) -> tdIN;
-rr -> gen3 :: Generator(\<5604>) -> tdIN;
-
-StaticThreadSched(gen0/replay $R0)
-StaticThreadSched(gen1/replay $R1)
-StaticThreadSched(gen2/replay $R2)
-StaticThreadSched(gen3/replay $R3)
+$(( "\n".join([ "rr -> gen%d :: Generator(\<56%x>) -> tdIN;StaticThreadSched(gen%d/replay $SOCKET/%d);" % (i,i+1,i,i) for i in range($GEN_THREADS) ]) ))
 
 receiveIN :: FromDPDKDevice($rxport, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, PAUSE $PAUSE, NDESC $GEN_DESC, NUMA true, MAXTHREADS $GEN_RX_THREADS)
 
