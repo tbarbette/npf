@@ -580,6 +580,8 @@ class SectionConfig(SectionVariable):
         self.__add_dict('graph_x_sort', {})
         self.__add("graph_scatter", False)
         self.__add("graph_show_values", False)
+
+        self.__add("graph_show_xlabel", True)
         self.__add("graph_subplot_type", "subplot")
         self.__add("graph_max_series", None)
         self.__add("graph_series_as_variables", False)

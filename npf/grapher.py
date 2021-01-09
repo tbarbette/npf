@@ -1249,6 +1249,9 @@ class Grapher:
                     else:
                         plt.ylabel(axis.yname)
 
+
+                    print_xlabel = self.config_bool_or_in('graph_show_xlabel', result_type)
+
                     if nbrokenX > 1:
                         if ibrokenX == 0:
                             # hide the spines between ax and ax2
@@ -1267,7 +1270,8 @@ class Grapher:
 #                            fig.text(0.05, 0.5, axis.yname, va='center', rotation='vertical')
 
                     else:
-                        plt.xlabel(xname)
+                        if print_xlabel:
+                            plt.xlabel(xname)
 
                     type_config = "" if not result_type else "-" + result_type
 
