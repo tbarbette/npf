@@ -106,16 +106,19 @@ class Testie:
         return self.scripts
 
     def __init__(self, testie_path, options, tags=None, role=None):
-        if os.path.exists(npf.find_local(testie_path)):
-            testie_path = npf.find_local(testie_path)
+        loc_path = npf.find_local(testie_path)
+        if os.path.exists(loc_path):
+            testie_path = loc_path
         else:
-            testie_path = npf.find_local(testie_path + '.npf')
-            if not os.path.exists(testie_path):
+            loc_path = npf.find_local(testie_path + '.npf')
+            if not os.path.exists(loc_path):
                 if os.path.exists(npf.find_local(testie_path + '.testie')):
                     printf("WARNING: .testie extension is deprecated, use .npf")
                     testie_path = npf.find_local(testie_path + '.testie')
                 else:
                     raise Exception("Could not find test script %s" % testie_path)
+            else:
+                testie_path = loc_path
 
         self.sections = []
         self.files = []

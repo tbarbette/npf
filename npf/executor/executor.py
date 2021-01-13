@@ -11,6 +11,7 @@ class Executor:
     def __init__(self):
         self.color = foreColors[Executor.index % len(foreColors)]
         Executor.index = Executor.index + 1
+        self.path = None
 
     def searchEvent(self, output, eb):
         results = re.finditer("EVENT ([a-zA-Z_-]+)", output)
