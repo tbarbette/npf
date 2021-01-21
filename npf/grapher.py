@@ -1313,9 +1313,9 @@ class Grapher:
                                 else:
                                     base = find_base(ax)
                                 if thresh > 0:
-                                    plt.xscale('symlog',basex=base,linthreshx=thresh )
+                                    plt.xscale('symlog',base=base,linthresh=thresh )
                                 else:
-                                    plt.xscale('log',basex=base)
+                                    plt.xscale('log',base=base)
                                 xticks = data[0][0]
                                 if not is_log(xticks) and xmin:
                                     i = xmin
@@ -1790,7 +1790,7 @@ class Grapher:
             else:
                 thresh=1
             baseLog = float(baseLog[0])
-            plt.yscale('symlog', basey=baseLog, linthreshy=thresh)
+            plt.yscale('symlog', base=baseLog, linthresh=thresh)
             isLog = True
         elif self.result_in_list('var_log', result_type):
             plt.yscale('symlog' if yformat else 'log')
