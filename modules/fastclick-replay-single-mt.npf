@@ -81,8 +81,10 @@ BROADCAST_IGNORE= -> c :: Classifier(-, 0/ffffffffffff)
 if [ $DODUMP -eq 1 ] ; then
     echo "Will dump latency to $LATENCYDUMP"
 fi
-//cat PKTGEN_CONFIG
-$GDB click --dpdk -l ${GEN_CPU}-\$(( $(nproc) -1 )) -- PKTGEN_CONFIG
+cpulist=$(lscpu | grep "NUMA node${SOCKET}" | rev | cut -d ' ' -f 1 | rev)
+//cpulist=0-15 //Bug to be fixed
+echo "Launching generator with $cpulist CPU cores..."
+$GDB click --dpdk -l $cpulist -- PKTGEN_CONFIG
 
 %file PKTGEN_CONFIG
 d :: DPDKInfo(NB_SOCKET_MBUF $NBBUF, NB_SOCKET_MBUF 8192)
@@ -138,9 +140,9 @@ input
   -> output;
 }
 
-$(( "\n".join([ "rr -> gen%d :: Generator(\<56%02x>) -> tdIN;StaticThreadSched(gen%d/replay $SOCKET/%d);" % (i,i+1,i,i) for i in range($GEN_THREADS) ]) ))
+$(( "\n".join([ "rr -> gen%d :: Generator(\<56%02x>) -> tdIN;StaticThreadSched(gen%d/replay %d);" % (i,i+1,i,i) for i in range($GEN_THREADS) ]) ))
 
-receiveIN :: FromDPDKDevice($rxport, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, PAUSE $PAUSE, NDESC $GEN_DESC, NUMA true, MAXTHREADS $GEN_RX_THREADS)
+receiveIN :: FromDPDKDevice($rxport, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, PAUSE $PAUSE, NDESC $GEN_DESC, MAXTHREADS $GEN_RX_THREADS, NUMA false)
 
 elementclass Receiver { $mac, $dir |
     input[0]
