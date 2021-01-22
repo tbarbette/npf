@@ -1,21 +1,21 @@
-# Writing a testie file
+# Writing a *.npf* test script
 
 ## Sections
 
-The testie file is made of multiple sections, starting with a % like
+The test script is made of multiple sections, starting with a % like
  "%file CONFIG" which means that a file named CONFIG should be
   created with the content following the section header.
 
 List of sections :
- * info : Information about what the testie does. Usually the first line is the title and will be by default used as the graph title
+ * info : Information about what the test script does. Usually the first line is the title and will be by default used as the graph title
  * config : Configuration options. See below.
  * variables : List of variables to define the matrix of parameters to try
  * script : Bash commands to execute, the heart of the test. Can be defined to run with a specific role, role are mapped to cluster nodes. See the cluster section below
  * init : Special script that run only once, before all other scripts (therefore, can be fought as an initialization script)
- * import : Import another testie and optionally under a given role. The repository comes with some "modules" testies intended for importation. They usually do specific tasks that we don't want to rewrite in all testie such as setting the cpu frequency, IP addresses for some NICs, ...
- * include : A testie to be included inline, not as a sub-testie like import
- * sendfile : Send a file that lies with the testie to the remote machine
- * require : A special script that tells if the testie can run. If any line produce a return code different than 0, the testie will not run
+ * import : Import another test script and optionally under a given role. The repository comes with some "modules" test scripts intended for importation. They usually do specific tasks that we don't want to rewrite in all test script such as setting the cpu frequency, IP addresses for some NICs, ...
+ * include : A test script to be included inline, not as a sub-test script like import
+ * sendfile : Send a file that lies with the test script to the remote machine
+ * require : A special script that tells if the test script can run. If any line produce a return code different than 0, the test script will not run
  * pyexit : A python script that will be executed after each tests (but only once after all runs), mainly to change or interpret the results
  
 ### Script
@@ -25,7 +25,7 @@ The script is the heart of NPF. A script section defines a simple list of bash c
 TOTAL=$(bc 5 + 3)
 echo "RESULT $TOTAL"
 ```
-This simple testie will execute locally those two commands, and "collect" the result that is 8. By default a script is re-executed 3 times to observe the variance.
+This simple test script will execute locally those two commands, and "collect" the result that is 8. By default a script is re-executed 3 times to observe the variance.
 
 There can be multiple RESULT:
 
@@ -105,7 +105,7 @@ Multiple constants can be used in the files and scripts sections:
  - NPF_ROOT : Path to NPF
  - NPF_BUILD_PATH: Path to the build folder of NPF
  - NPF_REPO: Path to the repository under test
- - NPF_TESTIE_PATH: Path to the location of the testie path
+ - NPF_test script_PATH: Path to the location of the test script path
  - NPF_RESULT_PATH: Path to the result folder (by default when the command is run, or as passed by the --result-path option)
  - NPF_OUTPUT_PATH: Path to the output folder (by default as result, unless given with --output-filename)
  - NPF_NODE_ID: Index of the node used for the same role, in general 1
@@ -113,7 +113,7 @@ Multiple constants can be used in the files and scripts sections:
  - NPF_MULTI_ID: Index of the script when running multiple times the same script on each node using the "multi" feature, in general 1
  - NPF_MULTI_MAX: Number of multi as given to the cluster config (default is 1)
 
-## Testies shipped with NPF
+## test scripts shipped with NPF
 
 ### Generic ###
 Generic tests are used to do black-box testing, they are L2/L3 generators,
