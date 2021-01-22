@@ -2,7 +2,7 @@ Network Performance Framework
 =============================
 
 Run performance tests on network software by running snippets of bash scripts on a cluster
-following a simple definition file. For instance, the following configuration to test iPerf3 performance (omitting design options):
+following a simple definition file. For instance, the following configuration to test iPerf3 performance (omitting graph styling options):
 ```
 %variables
 PARALLEL=[1-8]
@@ -19,10 +19,7 @@ Will automatically produce the following graph:
 
 ![sample picture](tests/tcp/01-iperf.png "Result for tests/tcp/01-iperf.png")
 
-The configuration files, called testies, are much like [Click Modular Router](https://github.com/kohler/click/)'s
-testies but with many extended functionalities to run any networking software.
-
-Testie files allow to define a matrix of parameters to try many combinations of
+Test files allow to define a matrix of parameters to try many combinations of
 variables for each test and report performance results and evolution for each
 line of the matrix.
 
@@ -30,9 +27,9 @@ Finally, a graph will be built and statistical results may be computed for each 
 showing the difference between variables, different softwares, or the evolution of
 performances through commits.
 
-Testie files are simple to write, and easy to share, as such we encourage
-users to share their testies with their code to allow other users to reproduce
-theur performance results, and graphs.
+Test files are simple to write, and easy to share, as such we encourage
+users to share their ".npf" scripts with their code to allow other users to reproduce
+their performance results, and graphs.
 
 NPF supports running the given test across a custer, allowing to try your tests
 in multiple different configuration very quickly and on serious hardware.
@@ -51,8 +48,7 @@ pip3 install --user npf
 Cluster-based tests use SSH to launch multiple software on different nodes, therefore SSH should be setup on each node for a password-less connection. Use public key authentication and be sure to add the ssh keys in your ssh agent using ssh-add before running NPF.
 
 #### Sudo ####
-Most DPDK-based but also other scripts use the "sudo=true" parameter in testies to ask for root access. You can either always connect as root to other servers (see the cluster section below) or set up password-less sudo on all nodes.
-
+Most DPDK-based but also other scripts use the "sudo=true" parameter in test scripts to gain root access. You can either always connect as root to other servers (see the cluster section below) or set up password-less sudo on all nodes.
 
 #### File-sharing (optional) ####
 Server are expected to share the NPF root. Use either a NFS shared mounted on all nodes or sshfs to mount the local NPF folder on all nodes. The path to the shared NPF root can be different on each node, see the cluster section below.
@@ -63,29 +59,29 @@ Three tools come with this performance framework :
   * npf-run for advance regression and statistics tests on one repository
   * npf-watch to watch one or multiple repositories for any new commit and e-mail regression results in case
 of change in performances due to the last commits
-  * npf-compare to compare one testie but across multiple repository, mainly to compare
+  * npf-compare to compare one test script but across multiple repository, mainly to compare
 how different branches/implementations behaves against each others
 
 ### NPF Run
 NPF-Run is the main NPF tool.
 
 It checkouts or updates a given repository (described in the repo
-folder), build the software, and launch the given testies
+folder), build the software, and launch the given test scripts
 
 Example :
 ```bash
-    npf-run click --testie tests/click/ #Produce a graph for each click-based tests with the result
+    npf-run click --test tests/click/ #Produce a graph for each click-based tests with the result
 ```
 
 #### Regression
 NPF-Run is able to check commit history, do regression test, and graph the performance history
-for all testies using the --regress flag.
+for all test script using the --regress flag.
 
 ```bash
     #click master is updated
-    npf-run click --testie tests/click/ --regress #The graph now compares HEAD and the last commit, if major performances changes are found, the return code will be different than 0
+    npf-run click --test tests/click/ --regress #The graph now compares HEAD and the last commit, if major performances changes are found, the return code will be different than 0
     #click master is updated again
-    npf-run click --testie tests/click/ --regress #The graph includes the older commit for reference, up to "--graph-num", default is 8
+    npf-run click --test tests/click/ --regress #The graph includes the older commit for reference, up to "--graph-num", default is 8
 ```
 
 Example of a generated graph for the Click Modular Router, just when IPFilter compilation process was re-worked :
@@ -93,7 +89,7 @@ Example of a generated graph for the Click Modular Router, just when IPFilter co
 
 Alternatively, you can force npf-run to re-build and compute the data for the old runs directly with the --allow-old-build option :
 ```bash
-    npf-run click --testie tests/click/ --allow-old-build [--graph-num=8] #Graph the performance of the current version and the last 8 previous ones
+    npf-run click --test tests/click/ --allow-old-build [--graph-num=8] #Graph the performance of the current version and the last 8 previous ones
 ```
 
 #### Statistics
@@ -101,7 +97,7 @@ NPF-Run can produce statistics about the results such as the best set of variabl
 a regression tree and the importance of each features.
 
 ```bash
-    npf-run click --testie tests/click/ --statistics
+    npf-run click --test tests/click/ --statistics
 ```
 
 See *npf-run --help* for more options
@@ -110,11 +106,11 @@ See *npf-run --help* for more options
 
 Watcher is a stripped down version of npf-run (without statistics support mostly), but allowing to
 loop through a given list of repositories watching for changes. When
-a new commit is seen, it will run all given testies and e-mail the results
+a new commit is seen, it will run all given test scripts and e-mail the results
 to a given list of addresses.
 
 ```bash
-npf-watch click fastclick --mail-to tom.barbette@ulg.ac.be --tags fastregression --history 1
+npf-watch click fastclick --mail-to barbette@kth.se --tags fastregression --history 1
 ```
 The arguments are :
  * click fastclick : List of repos to watch, as described in the repos folder
@@ -127,19 +123,19 @@ See *npf-watch --help* for more options
 ### NPF Compare
 
 NPF-Compare allows to do the contrary of npf-run : instead of
- testing multiple testies on one repository, it tests one testie across
+ testing multiple npf scripts on one repository, it tests one test script across
  multiple repositories.
  
 This example allows to compare Click against [FastClick](https://github.com/tbarbette/fastclick/) (a faster version of the Click Modular Router) for the infinitesource
   test case :
 
 ```bash
-npf-compare click fastclick --testie tests/pktgen/infinitesource-01.testie --variables LENGTH=64
+npf-compare click fastclick --test tests/pktgen/infinitesource-01.npf --variables LENGTH=64
 ```
  * click fastclick : List of repos to compare
- * --testie FILENAME : Testie to test. This argument is available in all tools.
+ * --test FILENAME : Test script to test. This argument is available in all tools.
  * --variables  VAR=VAL [...] : Fix the value of one variable.
- By default in this testie, the test is redone with packet length 64,256 and 1024. This
+ By default in this test script, the test is redone with packet length 64,256 and 1024. This
  allows to have one less "dynamic" variables so the grapher can
  use a lineplot instead of a barplot (see below).
  
@@ -155,21 +151,21 @@ See *npf-compare --help* for more options
 
 ### Which one to use
 Use npf-run for development, trying big matrices of configuration,
-get extended graph and customized tests for each testies.
+get extended graph and customized tests for each test scripts.
 
 Use npf-watch with the fastregression tags to send you an e-mail automatically
 when some new commits introduce performances problems.
 
 Use npf-compare to compare multiple repositories, multiples branches or multiple
-different softwares. The testies included in this repository support comparing throughput of Click and FastClick in diverse
+different softwares. The test scripts included in this repository support comparing throughput of Click and FastClick in diverse
 configurations, or NetPerf and Iperf as packet generators.
 
 ### Main common arguments
 All tools feature those common arguments :
 
- * --variables VAR=VAL [VAR2=VAL2 ...] allows to overwrite some testie variables configuration, mainly to reduce the set of parameters
+ * --variables VAR=VAL [VAR2=VAL2 ...] allows to overwrite some test script variables configuration, mainly to reduce the set of parameters
  * --config VAR=VAL [VAR2=VAL2 ...] allows to overwrite some configuration options such as n_runs used to define the number of time a test should be launched for each variable combination
- * --testie path : Path to a folder or a testie. By default "tests" is used.
+ * --test path : Path to a folder or a test script. By default "tests" is used.
 
 
 ## Dataset
@@ -195,7 +191,7 @@ You can customize the output of NFP by passing different arguments. Below, you c
 
 ## Tags
 All programs have the --tags argument, allowing to give a set of tags
-that trigger changes in the testies. The dpdk flags tells that a DPDK
+that trigger changes in the test scripts. The dpdk flags tells that a DPDK
 environment is setted up with at least two NICs, allowing DPDK-based
 tests to run. The fastregression tag allows to only try important
 variable combination and not search for performance points, while full
@@ -203,17 +199,17 @@ is the contrary and will run a very big set of variables combinations
 to get statistics out of results.
 
 
-## Writing testie files
-See [tests/README.md](tests/README.md) to read more about testies and learn about creating new ones. Testies describe the tests and parameters to re-run them in multiple configuration. Testie are the heart of NPF.
+## Writing test scripts
+See [tests/README.md](tests/README.md) to read more about test scripts and learn about creating new ones. Scripts describe the tests and parameters to re-run them in multiple configuration. Test scripts are the heart of NPF.
 
 ## Repository files
 See [repo/README.md](repo/README.md) to lear how to build repository definition files to let NPF know how to fetch and compile some software
 
 ## Cluster
-Testie files define multiple roles such as "client" or "server". Each role can be mapped
+Test scripts define multiple roles such as "client" or "server". Each role can be mapped
  to a given node to run a test across a cluster using the *--cluster ROLE=NODE [ROLE2=NODE2]* argument.
 
-NPF will run the testie scripts for each role on the mapped cluster. Giving the node address in the
+NPF will run the test scripts for each role on the mapped cluster. Giving the node address in the
  command line may be enough. However some tests require more information about each node
  that can be set using cluster files. More information about writing cluster files is given in [cluster/README.md](cluster/README.md)
 
@@ -223,7 +219,7 @@ combinations.
 
 To choose the type of graph, the number of dynamic variables is taken into account.
 
-Below, npf-run gave two series to the Grapher (current and last commit), while the testie
+Below, npf-run gave two series to the Grapher (current and last commit), while the test script
 generate a matrix of Burst and Lengths, that is 2 dynamic variables and only a barplot can render that correctly
 as lines would be uncomparable.
 
@@ -239,7 +235,7 @@ The Comparator uses the repositories as series.
 #### Graphing options
 The graph can be tweaked using many options, and the data can also be transformed using multiple tools to better display results. Data transformation will also affect the output CSV. In any case none of these options affect the values in the data cache, so you may try different tweaks without risks.
 
-All the following options can be added to the %config section of the testie, or after the --config parameter on the command line of any of the tools.
+All the following options can be added to the %config section of the test script, or after the --config parameter on the command line of any of the tools.
 
 This section is in rework.
  * var prefix generally affect variables. It generally takes a list of variables, or a dict of variables->parameters.
@@ -293,4 +289,7 @@ This section is in rework.
  * **graph_text**=string Add some texts under all graphs.
 
 ### Where to continue from here?
-Have you read [tests/README.md](tests/README.md)? Then, inspire yourself from the testie files in tests/click mostly, then write your own!
+Have you read [tests/README.md](tests/README.md)? Then, inspire yourself from the test script files in tests/click mostly, then write your own!
+
+### How to distribute your test scripts, modules and repo files?
+We welcome merge requests for generic stuffs! But you can keep your files in your "experimentation" folder. Indeed, NPF will always look for a file first in "./repo" for repo files, "./modules" for modules and "./cluster" for machines definition.
