@@ -123,7 +123,7 @@ class Regression:
             build.writeversion(testie, all_results, allow_overwrite = True)
         return tests_passed, tests_total
 
-    def regress_all_testies(self, testies: List['Testie'], options, history: int = 1, on_finish = None) -> Tuple[Build, List[Dataset]]:
+    def regress_all_testies(self, testies: List['Testie'], options, history: int = 1, on_finish = None, iserie=0, nseries=1) -> Tuple[Build, List[Dataset]]:
         """
         Execute all testies passed in argument for the last build of the regressor associated repository
         :param history: Start regression at last build + 1 - history
@@ -143,7 +143,7 @@ class Regression:
 
         nok = 0
 
-        for testie in testies:
+        for itestie,testie in enumerate(testies):
             print("[%s] Running testie %s on version %s..." % (repo.name, testie.filename, build.version))
             regression = self
             if repo.last_build:
@@ -163,7 +163,7 @@ class Regression:
                 else:
                     early_results = None
                 all_results,kind_results, init_done = testie.execute_all(build, prev_results=build.load_results(testie), prev_kind_results=build.load_results(testie, kind=True), options=options,
-                                                 do_test=options.do_test, on_finish=early_results)
+                                                 do_test=options.do_test, on_finish=early_results, iserie=iserie*len(testies) + itestie,nseries=len(testies)*nseries)
 
                 if all_results is None and kind_results is None:
                     return None, None, None

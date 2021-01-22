@@ -27,12 +27,12 @@ class Comparator():
          on_finish(self.graphs_series + [(testie,build,data_datasets[0])], self.kind_graphs_series + [(testie,build,kind_datasets[0])])
 
     def run(self, testie_name, options, tags, on_finish=None):
-        for repo in self.repo_list:
+        for irepo,repo in enumerate(self.repo_list):
             regressor = Regression(repo)
             testies = Testie.expand_folder(testie_name, options=options, tags=repo.tags + tags)
             testies = npf.override(options, testies)
-            for testie in testies:
-                build, data_dataset, kind_dataset  = regressor.regress_all_testies(testies=[testie], options=options, on_finish=lambda b,dd,td: self.build_list(on_finish,testie,b,dd,td) if on_finish else None)
+            for itestie,testie in enumerate(testies):
+                build, data_dataset, kind_dataset  = regressor.regress_all_testies(testies=[testie], options=options, on_finish=lambda b,dd,td: self.build_list(on_finish,testie,b,dd,td) if on_finish else None,iserie=irepo,nseries=len(self.repo_list) )
             if len(testies) > 0 and not build is None:
                 build._pretty_name = repo.name
                 self.graphs_series.append((testie, build, data_dataset[0]))

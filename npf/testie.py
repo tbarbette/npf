@@ -401,7 +401,7 @@ class Testie:
                 pass
 
     def update_constants(self, v_internals, build, full_test_folder, out_path):
-        v_internals.update({ 'NPF_REPO':get_valid_filename(build.repo.name),'NPF_ROOT': '../', 'NPF_BUILD': '../' + build.build_path(),
+        v_internals.update({ 'NPF_REPO':get_valid_filename(build.repo.name),'NPF_ROOT': '../', 'NPF_BUILD': ('../' + build.build_path()) if not os.path.isabs(build.build_path()) else build.build_path(),
                         'NPF_TESTIE_PATH':os.path.relpath(self.path if self.path else "./",full_test_folder),
                         'NPF_RESULT_PATH':os.path.relpath(build.result_folder(), full_test_folder)})
         if out_path:
@@ -866,7 +866,8 @@ class Testie:
                 if has_values:
                     break
 
-                for result_type in self.config.get_list('results_expect'):
+                if script.type == SectionScript.TYPE_SCRIPT:
+                  for result_type in self.config.get_list('results_expect'):
                     if result_type not in data_results and not result_type in all_kind_results:
                         print("Could not find expected result '%s' !" % result_type)
                         has_err = True
@@ -952,7 +953,7 @@ class Testie:
                 raise ScriptInitException()
 
     def execute_all(self, build, options, prev_results: Dataset = None, do_test=True, on_finish=None,
-                    allowed_types=SectionScript.ALL_TYPES_SET, prev_kind_results: Dict[str, Dataset] = None) -> Tuple[
+                    allowed_types=SectionScript.ALL_TYPES_SET, prev_kind_results: Dict[str, Dataset] = None, iserie=0,nseries=1) -> Tuple[
         Dataset, bool]:
         """Execute script for all variables combinations. All tools reliy on this function for execution of the testie
         :param allowed_types:Tyeps of scripts allowed to run. Set with either init, scripts or both
@@ -1140,7 +1141,7 @@ class Testie:
                             def print_header(i, i_try):
                                 n_try=int(self.config["n_retry"])
                                 print(run.format_variables(self.config["var_hide"]),
-                                  "[%srun %d/%d for test %d/%d]" % (  ("retrying %d/%d " % (i_try + 1,n_try)) if i_try > 0 else "", i+1, n_runs, n, len(self.variables)))
+                                  ("[%srun %d/%d for test %d/%d"+(" of serie %d/%d" %(iserie+1,nseries) if nseries > 1 else "")+"]") % (  ("retrying %d/%d " % (i_try + 1,n_try)) if i_try > 0 else "", i+1, n_runs, n, len(self.variables)))
                         else:
                             print("Executing single run...")
 
