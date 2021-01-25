@@ -303,6 +303,8 @@ display_th :: Script(TYPE PASSIVE,
                      
                      goto g)
 
+
+$(( (  "tsd :: HandlerAggregate( " + ",".join(["ELEMENT RIN/tsd%c" % (ord('A')+i) for i in range($GEN_THREADS) ]) + " );" ) if 1 else "" ))
 StaticThreadSched(display_th $R4)
 
 RINswitch[1]->Print(LATEIN) -> Discard;
@@ -356,12 +358,14 @@ DriverManager(  pause,
                  print "",
                  print "RESULT-THROUGHPUT $rx",
                  print "RESULT-TX $tx",
-                print "RESULT-LATENCY $(div $(add $(RIN/tsdA.average) $(RIN/tsdB.average) $(RIN/tsdC.average) $(RIN/tsdD.average)) 4)",
-/*              print "RESULT-LAT00 $(div $(add $(RIN/tsdA.min) $(RIN/tsdB.min) $(RIN/tsdC.min) $(RIN/tsdD.min)) 4)",
-                print "RESULT-LAT01 $(div $(add $(RIN/tsdA.perc01) $(RIN/tsdB.perc01) $(RIN/tsdC.perc01) $(RIN/tsdD.perc01)) 4)",
-                print "RESULT-LAT50 $(div $(add $(RIN/tsdA.median) $(RIN/tsdB.median) $(RIN/tsdC.median) $(RIN/tsdD.median)) 4)",
-                print "RESULT-LAT99 $(div $(add $(RIN/tsdA.perc99) $(RIN/tsdB.perc99) $(RIN/tsdC.perc99) $(RIN/tsdD.perc99)) 4)",
-                print "RESULT-LAT100 $(div $(add $(RIN/tsdA.max) $(RIN/tsdB.max) $(RIN/tsdC.max) $(RIN/tsdD.max)) 4)",*/
+                print "RESULT-LATENCY $(tsd.avg average)",
+                print "RESULT-LAT00 $(tsd.avg min)",
+                print "RESULT-LAT01 $(tsd.avg perc01)",
+                print "RESULT-LAT50 $(tsd.avg median)",
+                print "RESULT-LAT95 $(tsd.avg perc95)",
+                print "RESULT-LAT99 $(tsd.avg perc99)",
+                print "RESULT-LAT100 $(tsd.avg max)",
+
                /* set i 0,
                 set step 1,
                 label perc,

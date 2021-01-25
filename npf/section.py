@@ -510,6 +510,7 @@ class SectionConfig(SectionVariable):
         v = DictVariable(var, dict)
         v.is_default = True
         self.vlist[var.lower()] = v
+
     def __init__(self):
         super().__init__('config')
         self.content = ''
@@ -557,6 +558,7 @@ class SectionConfig(SectionVariable):
         self.__add("critical", False)
         self.__add_dict("env", {})  # Unimplemented yet
         self.__add("timeout", 30)
+        self.__add("hardkill", 5000)
         self.__add("time_precision", 1)
         self.__add("time_sync", True)
         self.__add_list("glob_sync", [])
