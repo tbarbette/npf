@@ -1313,9 +1313,9 @@ class Grapher:
                                 else:
                                     base = find_base(ax)
                                 if thresh > 0:
-                                    plt.xscale('symlog',basex=base,linthreshx=thresh )
+                                    plt.xscale('symlog',base=base,linthresh=thresh )
                                 else:
-                                    plt.xscale('log',basex=base)
+                                    plt.xscale('log',base=base)
                                 xticks = data[0][0]
                                 if not is_log(xticks) and xmin:
                                     i = xmin
@@ -1551,7 +1551,17 @@ class Grapher:
         rects = plt.bar(ticks, y, label=x, color=c, width=width, yerr=( y - mean + std, mean - y +  std))
 
         self.write_labels(rects, plt,c)
-        plt.xticks(ticks, x, rotation='vertical' if (ndata > 8) else 'horizontal')
+
+        if self.config('graph_force_diagonal_labels'):
+            direction='diagonal'
+        else:
+            direction = self.scriptconfig('var_label_dir', 'result', result_type=result_type, default=None)
+        
+        if direction == 'diagonal' or direction == 'oblique':
+            plt.xticks(ticks, x, rotation = 45, ha='right')
+        else:
+            plt.xticks(ticks, x, rotation = 'vertical' if (ndata > 8 or direction =='vertical') else 'horizontal')
+
         plt.gca().set_xlim(0, len(x))
         return True
 
@@ -1780,7 +1790,7 @@ class Grapher:
             else:
                 thresh=1
             baseLog = float(baseLog[0])
-            plt.yscale('symlog', basey=baseLog, linthreshy=thresh)
+            plt.yscale('symlog', base=baseLog, linthresh=thresh)
             isLog = True
         elif self.result_in_list('var_log', result_type):
             plt.yscale('symlog' if yformat else 'log')

@@ -258,7 +258,7 @@ This section is in rework.
 ###### Units and name of variables
  * **var_names**, {"result-LATENCY":"Latency (µs)","result-THROUGHPUT":"Throughput"})
  * **var_unit**, {"result": "bps","result-LATENCY":"us","latency":"us","throughput":"bps"})
-  
+
 ###### Plot types
  * **graph_scatter**=true/false Use a scatter plot instead of a lineplot, default false. You must arrange the data so it displays as a line plot (one dynamic variable only).
  * **graph_grid**=true/false Display a grid on the graph. Default false.
@@ -271,6 +271,8 @@ This section is in rework.
  * **graph_legend**=true/false Enable/disable legend. Default is true.
  * **title**=title Title of the graph
  * **var_hide**={A,B,...} List of variables to hide
+ * **var_label_dir**={A:vertical,B:horizontal} Force the direction of labels on the X axis for the given variables. By default, vertical when there are more than 8 values, horizontal otherwise. Accepted values: vertical, horizontal, diagonal
+ * **graph_force_diagonal_labels**=true/false Always use diagonal labels for the X axis, independently from the `var_label_dir` setting. False by default.
  
 
 ##### Data transformation
