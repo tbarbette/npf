@@ -1226,6 +1226,17 @@ class Grapher:
                     if not r:
                         continue
 
+                    if self.config('graph_force_diagonal_labels'):
+                        direction='diagonal'
+                    else:
+                        direction = self.scriptconfig('var_label_dir', 'result', result_type=result_type, default=None)
+
+                    if direction == 'diagonal' or direction == 'oblique':
+                        plt.xticks(rotation = 45, ha='right')
+                    else:
+                        plt.xticks(rotation = 'vertical' if (ndata > 8 or direction =='vertical') else 'horizontal')
+
+
                     plt.ylim(ymin=ymin, ymax=ymax)
                     plt.xlim(xmin=xmin, xmax=xmax)
 
@@ -1552,16 +1563,7 @@ class Grapher:
 
         self.write_labels(rects, plt,c)
 
-        if self.config('graph_force_diagonal_labels'):
-            direction='diagonal'
-        else:
-            direction = self.scriptconfig('var_label_dir', 'result', result_type=result_type, default=None)
-        
-        if direction == 'diagonal' or direction == 'oblique':
-            plt.xticks(ticks, x, rotation = 45, ha='right')
-        else:
-            plt.xticks(ticks, x, rotation = 'vertical' if (ndata > 8 or direction =='vertical') else 'horizontal')
-
+        plt.xticks(ticks, x)
         plt.gca().set_xlim(0, len(x))
         return True
 
