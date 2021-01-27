@@ -1134,10 +1134,11 @@ class Grapher:
                             else:
                                 shift = 0
 
-                    if not axis in axiseis:
+                    if not axis in axiseis and ibrokenX==0 and ibrokenY==0:
                         axiseis.append(axis)
                         subplot_handles.append((axis,result_type,[]))
                     subplot_handles[ihandle][2].append(result_type)
+
                     #Handling colors
                     gi = {} #Index per-color
                     for i, (x, y, e, build) in enumerate(data):
@@ -1206,17 +1207,17 @@ class Grapher:
                     try:
                         if graph_type == "simple_bar":
                             """No dynamic variables : do a barplot X=version"""
-                            r = self.do_simple_barplot(axis,result_type, data, shift, isubplot)
+                            r, ndata = self.do_simple_barplot(axis,result_type, data, shift, isubplot)
                             barplot = True
                         elif graph_type == "line":
                             """One dynamic variable used as X, series are version line plots"""
-                            r = self.do_line_plot(axis, key, result_type, data,shift, isubplot, xdata)
+                            r, ndata = self.do_line_plot(axis, key, result_type, data,shift, isubplot, xdata)
                         elif graph_type == "boxplot":
                             """One dynamic variable used as X, series are version line plots"""
-                            r = self.do_box_plot(axis, key, result_type, data, xdata, shift, isubplot)
+                            r, ndata = self.do_box_plot(axis, key, result_type, data, xdata, shift, isubplot)
                         else:
                             """Barplot. X is all seen variables combination, series are version"""
-                            self.do_barplot(axis,vars_all, dyns, result_type, data, shift)
+                            r, ndata= self.do_barplot(axis,vars_all, dyns, result_type, data, shift)
                             barplot = True
                     except Exception as e:
                         print("ERROR : could not graph %s" % result_type)
@@ -1241,25 +1242,31 @@ class Grapher:
                     plt.xlim(xmin=xmin, xmax=xmax)
 
                     if nbrokenY > 1:
-                        if ibrokenY == 0:
-                            # hide the spines between ax and ax2
+                        if ibrokenY < nbrokenY - 1:
                             axis.spines['bottom'].set_visible(False)
                             axis.xaxis.tick_top()
                             axis.tick_params(labeltop=False)  # don't put tick labels at the top
-                            if ibrokenX == 0:
+                        if ibrokenX == 0 and ibrokenY == 0:
                                axis.yaxis.label.set_transform(mtransforms.blended_transform_factory(
                                        mtransforms.IdentityTransform(), fig.transFigure # specify x, y transform
                                               )) # changed from default blend (IdentityTransform(), a[0].transAxes)
                                axis.yaxis.label.set_position((0, 0.5))
                                axis.set_ylabel(axis.yname)
-                        else:
+
+                        if ibrokenY > 0:
                             axis.spines['top'].set_visible(False)
                             axis.xaxis.tick_bottom()
+                        if ibrokenY > 0 and ibrokenY < nbrokenY - 1:
+                            axis.tick_params(
+                                        axis='x',          # changes apply to the x-axis
+                                            which='both',      # both major and minor ticks are affected
+                                                bottom=False,      # ticks along the bottom edge are off
+                                                    top=False,         # ticks along the top edge are off
+                                                        labelbottom=False) # labels along the bottom edge are off
 #                            fig.text(0.05, 0.5, axis.yname, va='center', rotation='vertical')
 
                     else:
                         plt.ylabel(axis.yname)
-
 
                     print_xlabel = self.config_bool_or_in('graph_show_xlabel', result_type)
 
@@ -1281,7 +1288,7 @@ class Grapher:
 #                            fig.text(0.05, 0.5, axis.yname, va='center', rotation='vertical')
 
                     else:
-                        if print_xlabel:
+                        if ibrokenY == nbrokenY - 1 and print_xlabel:
                             plt.xlabel(xname)
 
                     type_config = "" if not result_type else "-" + result_type
@@ -1425,8 +1432,7 @@ class Grapher:
 
             legend_params = guess_type(self.configdict("graph_legend_params",default={}))
             lgd = None
-            if ibrokenY == 0 and ibrokenX == 0:
-              for ilegend,(axis, result_type, plots) in enumerate(subplot_handles):
+            for ilegend,(axis, result_type, plots) in enumerate(subplot_handles):
                 handles, labels = axis.get_legend_handles_labels()
                 for i,label in enumerate(labels):
                     labels[i] = label.replace('_', ' ')
@@ -1532,6 +1538,7 @@ class Grapher:
                         ('%0.'+str(prec)+'f') % height, color=color, fontweight='bold',
                          ha='center', va='bottom')
             autolabel(rects, plt)
+
     def do_simple_barplot(self,axis, result_type, data,shift=0,isubplot=0):
         i = 0
         interbar = 0.1
@@ -1565,7 +1572,7 @@ class Grapher:
 
         plt.xticks(ticks, x)
         plt.gca().set_xlim(0, len(x))
-        return True
+        return True, ndata
 
     def do_box_plot(self, axis, key, result_type, data : XYEB, xdata : XYEB,shift=0,idx=0):
 
@@ -1635,7 +1642,7 @@ class Grapher:
             for ticklabel, (x,y,e,build) in zip(axis.get_xticklabels(), data):
                 ticklabel.set_color(build._color)
 
-        return True
+        return True, nseries
 
     def do_line_plot(self, axis, key, result_type, data : XYEB,shift=0,idx=0,xdata = None):
         xmin, xmax = (float('inf'), 0)
@@ -1731,9 +1738,9 @@ class Grapher:
             self.write_labels(rects, plt, build._color, idx)
 
         if xmin == float('inf'):
-            return False
+            return False, len(data)
 
-        return True
+        return True, len(data)
 
 
     def set_axis_formatter(self, axis, format, unit, isLog, compact=False):
