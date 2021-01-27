@@ -1060,6 +1060,7 @@ class Grapher:
             #Get global plotting variables
             cross_reference =  self.configdict('graph_cross_reference')
             tick_params = self.configdict("graph_tick_params",default={})
+
             gcolor = self.configlist('graph_color')
 
             #A figure may be composed of multiple subplots if user asked for subplots OR shared axis
@@ -1137,7 +1138,6 @@ class Grapher:
                         axiseis.append(axis)
                         subplot_handles.append((axis,result_type,[]))
                     subplot_handles[ihandle][2].append(result_type)
-
                     #Handling colors
                     gi = {} #Index per-color
                     for i, (x, y, e, build) in enumerate(data):
@@ -1571,7 +1571,8 @@ class Grapher:
         nseries = max([len(y) for y in [y for x,y,e,build in data]])
 
         labels=[]
-
+        alllabels=[]
+        allticks=[]
         if len(data) > 30:
             print("WARNING : Not drawing more than 30 boxplots")
             return
@@ -1600,6 +1601,8 @@ class Grapher:
                     else:
                         labels.append(x[yi])
             axis.plot([], c= build._color , label=label)
+            alllabels.append(label)
+            allticks.extend(pos)
 
 
 #                labels.append(build.pretty_name() + " "+ str(x[i]))
@@ -1619,14 +1622,17 @@ class Grapher:
 
         m = len(data)*nseries + 1
         axis.set_xlim(0,m)
-        axis.set_xticklabels(labels)
-        xticks = (np.asarray(range(nseries)) * len(data) ) + (len(data) / 2) + 0.5
 
+        if  nseries > 1:
+            axis.set_xticklabels(labels)
+            xticks = (np.asarray(range(nseries)) * len(data) ) + (len(data) / 2) + 0.5
+            axis.set_xticks(xticks)
+        else:
+            axis.set_xticks(allticks)
+            axis.set_xticklabels(alllabels)
+            for ticklabel, (x,y,e,build) in zip(axis.get_xticklabels(), data):
+                ticklabel.set_color(build._color)
 
-
-
-
-        axis.set_xticks(xticks)
         return True
 
     def do_line_plot(self, axis, key, result_type, data : XYEB,shift=0,idx=0,xdata = None):
