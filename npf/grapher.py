@@ -1391,7 +1391,7 @@ class Grapher:
                                     axis.plot([0], [0], transform=axis.transAxes, **kwargs)
                                 if ibrokenY > 0:
                                     axis.plot([0], [1], transform=axis.transAxes, **kwargs)
-                            if ibrokenX == 1:
+                            if ibrokenX == 1 or nbrokenX==1:
                                 if ibrokenY < nbrokenY -1:
                                     axis.plot([1], [0], transform=axis.transAxes, **kwargs)
                                 if ibrokenY > 0:
@@ -1410,7 +1410,7 @@ class Grapher:
 
                     if nbrokenY * nbrokenX > 1:
 
-                        plt.subplots_adjust(hspace=0.1 if nbrokenY > 1 else 0,wspace=0.1 if nbrokenX > 1 else 0)  # adjust space between axes
+                        plt.subplots_adjust(hspace=0.05 if nbrokenY > 1 else 0,wspace=0.05 if nbrokenX > 1 else 0)  # adjust space between axes
                     else:
 
                         plt.tight_layout()
