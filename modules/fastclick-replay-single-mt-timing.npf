@@ -106,7 +106,7 @@ fdIN
 elementclass Generator { $magic |
 input
     $ENSURE
-  //-> rwIN :: EtherRewrite($INsrcmac,$INdstmac)
+  -> rwIN :: EtherRewrite($INsrcmac,$INdstmac)
   -> Pad()
   -> Numberise($magic)
   $GEN_HOOK

@@ -42,7 +42,6 @@ END_AFTER=0
 GEN_RATE?=-1
 LATENCYDUMP=/tmp/latency.csv
 ITERATION_TIME?=0
-R4=15 //Monitoring thread
 GEN_MULTI_TRACE=0
 GEN_DUMP=0
 gen_dump:GEN_DUMP=1
@@ -71,7 +70,6 @@ dump:DODUMP=1
 DOLATVAL=0
 latval:DOLATVAL=1
 gdb:GEN_GDB=gdb -ex run -ex "signal 2" -ex "bt" -batch -args
-
 
 gen_nolat:DOLAT=0
 gen_nolat:GEN_TSDIFF=NoTimestampDiff
@@ -105,8 +103,8 @@ test $GEN_RATE -gt 1 || ( echo "GEN_RATE must be > 0" && exit 1)
 BROADCAST_IGNORE= -> c :: Classifier(-, 0/ffffffffffff)
 
 
-%script deps=fastclick sudo=true delay=2 name=fastclick-play
-$GEN_GDB click --dpdk -- PKTGEN_CONFIG
+%script deps=fastclick-light sudo=true delay=2 name=fastclick-play
+$GEN_GDB click --dpdk -l 0-15 -- PKTGEN_CONFIG
 echo "EVENT TX_FINISHED"
 echo "Generator stopped..."
 
@@ -130,7 +128,7 @@ define($rxverbose 99)
 elementclass MyNull { [0-$(( $GEN_NGEN - 1 ))]=>[0- $(($GEN_NGEN - 1)) ]; };
 
 //JiffieClock()
-$(( "\n".join( [ "fdIN%d :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH $GEN_LENGTH, SRCETH $INsrcmac, DSTETH $INdstmac, SRCIP ${client:0:ip}, DSTIP ${server:0:ip}, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST)" % t if $GEN_DUMP==-1 else (  "fdIN%d :: FromDump(%s, STOP true, TIMING $TIMING, TIMING_FNT \"$TIMING_FNT\", END_AFTER $END_AFTER, ACTIVE false, BURST 1);" if $GEN_DUMP == 0 else "fdIN%d :: FromIPSummaryDump(%s, TIMES $replay_count, TIMESTAMP $TIMING, ZERO false, BURST $GEN_BURST, STOP true);" if $GEN_DUMP==1 else "fdIN%d :: FromMinDump(%s, TIMES $replay_count,  BURST $GEN_BURST, STOP true, DPDK true);") % (t, ("${trace}-"+str(t+1) ) if $GEN_MULTI_TRACE else "$trace") for t in range( $GEN_NGEN )  ] ) ))
+$(( "\n".join( [ "fdIN%d :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH $GEN_LENGTH, SRCETH $INsrcmac, DSTETH $INdstmac, SRCIP ${client:0:ip}, DSTIP ${server:0:ip}, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST)" % t if $GEN_DUMP==-1 else (  "fdIN%d :: FromDump(%s, STOP true, TIMING $TIMING, TIMING_FNT \"$TIMING_FNT\", END_AFTER $END_AFTER, ACTIVE true, BURST 1);" if $GEN_DUMP == 0 else "fdIN%d :: FromIPSummaryDump(%s, TIMES $replay_count, TIMESTAMP $TIMING, ZERO false, BURST $GEN_BURST, STOP true);" if $GEN_DUMP==1 else "fdIN%d :: FromMinDump(%s, TIMES $replay_count,  BURST $GEN_BURST, STOP , DPDK true);") % (t, ("${trace}-"+str(t+1) ) if $GEN_MULTI_TRACE else "$trace") for t in range( $GEN_NGEN )  ] ) ))
 
 tdIN ::
  $(( " Pipeliner(CAPACITY 1024, ALWAYS_UP true) -> " if $GEN_TX_PIPELINE == 1 else "PathSpinlock -> " if $GEN_TX_PIPELINE == 2 else "" ))
@@ -192,7 +190,7 @@ $GEN_MAGIC
 $((  "\n".join([ "magic[%d] -> tsd%d :: $GEN_TSDIFF(gen%d/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE ) -> Unstrip(14) ->  avg%d :: AverageCounterMP(IGNORE $ignore) -> Discard;  tsd%d[1] -> Print('WARNING: Untimestamped packet on thread %d', 64) -> Discard;" % (t,t,t,t,t,t) for t in range($GEN_THREADS) ]) ))
 
 
-$(( (  "avg :: HandlerAggregate( " + ",".join(["ELEMENT avg%d" % (i) for i in range($GEN_THREADS) ]) + " );" ) if $DOLAT else "" ))
+$(( (  "avg :: HandlerAggregate( " + ",".join(["ELEMENT avg%d" % (i) for i in range($GEN_THREADS) ]) + " );" ) if 1 else "" ))
 
     magic[$GEN_THREADS]
     -> Unstrip(14)
@@ -214,6 +212,7 @@ ig :: Script(TYPE ACTIVE,
     set lastcount 0,
     set lastbytes 0,
     set lastsent 0,
+    set lastdrop 0,
     set last $s,
     set indexA 0,
     set indexB 0,
@@ -227,29 +226,29 @@ ig :: Script(TYPE ACTIVE,
     set last $n,
 
                 set count $(RIN/avg.add count),
+                set sent $(avgSIN.add count),
                 set bytes $(RIN/avg.add byte_count),
                 print "IG-$t-RESULT-IGCOUNT $(sub $count $lastcount)",
-//                print "IG-$t-RESULT-IGISENT $(sub $sent $lastsent)",
-//                print "IG-$t-RESULT-IGDROPPED $(sub $(sub $sent $count) $(sub $lastsent $lastcount))",
+                print "IG-$t-RESULT-IGSENT $(sub $sent $lastsent)",
+                set drop $(sub $sent $count),
+                print "IG-$t-RESULT-IGDROPPED $(sub $drop $lastdrop)",
+                set lastdrop $drop,
                 print "IG-$t-RESULT-IGTHROUGHPUT $(div $(mul $(add $(mul $(sub $count $lastcount) 24) $(sub $bytes $lastbytes)) 8) $elapsed)",
-//                print "IG-$t-RESULT-IGTX $(div $(mul $(add $(mul $(sub $sent $lastsent) 24) $(sub $bytessent $lastbytessent)) 8) $elapsed)",
                 goto next $(eq $DOLAT 0),
-                print "IG-$t-RESULT-ILATENCY $(div $(add $(RIN/tsdA.average $indexA) $(RIN/tsdB.average $indexB) $(RIN/tsdC.average $indexC) $(RIN/tsdD.average $indexD)) 4)",
-                print "IG-$t-RESULT-ILAT99 $(div $(add $(RIN/tsdA.perc99 $indexA) $(RIN/tsdB.perc99 $indexB) $(RIN/tsdC.perc99 $indexC) $(RIN/tsdD.perc99 $indexD)) 4)",
-                set indexA $(RIN/tsdA.index),
-                set indexB $(RIN/tsdB.index),
-                set indexC $(RIN/tsdC.index),
-                set indexD $(RIN/tsdD.index),
+//                print "IG-$t-RESULT-ILAT01 $(RIN/tsd0.perc01 $indexA)",
+//                print "IG-$t-RESULT-ILAT50 $(RIN/tsd0.median $indexA)",
+                print "IG-$t-RESULT-ILATENCY $(RIN/tsd0.average $indexA)",
+//                print "IG-$t-RESULT-ILAT99 $(RIN/tsd0.perc99 $indexA)",
+                set indexA $(RIN/tsd0.index),
                 label next,
                 set lastcount $count,
-//                set lastsent $sent,
+                set lastsent $sent,
                 set lastbytes $bytes,
-//               set lastbytessent $bytessent,
     goto loop,
     label end
 )
 
-StaticThreadSched(ig $R4);
+StaticThreadSched(ig 15);
 
 receiveIN -> RIN :: Receiver($RAW_INsrcmac,"IN");
 
@@ -257,10 +256,11 @@ $(( (  "tsd :: HandlerAggregate( " + ",".join(["ELEMENT RIN/tsd%d" % (i) for i i
 
 $(( "avgSIN :: HandlerAggregate( " + ",".join(["ELEMENT gen%d/avgSIN" % (i) for i in range($GEN_THREADS) ]) + " );" ))
 
-DriverManager(  print "Waiting 2 seconds before launching generation...",
+dm :: DriverManager(  print "Waiting 2 seconds before launching generation...",
                 wait 2s,
-                print "Starting gen...",
+
                 print "EVENT GEN_BEGIN",
+                print "Starting gen...",
 //                write fdIN.active true,
                 print "Starting timer wait...",
                 set starttime $(now),
@@ -280,15 +280,14 @@ DriverManager(  print "Waiting 2 seconds before launching generation...",
                 print >>$LATENCYDUMP $(RIN/tsdC.dump_list),
                 print >>$LATENCYDUMP $(RIN/tsdD.dump_list),*/
                 label adump,
-                print "RESULT-TESTTIME $(sub $stoptime $starttime)",
-                print "RESULT-RCVTIME $(RIN/avg.avg time)",
-                print "RESULT-LATENCY $(tsd.avg average)",
 
+                print "RESULT-LATENCY $(tsd.avg average)",
                 print "RESULT-LAT00 $(tsd.avg min)",
                 print "RESULT-LAT01 $(tsd.avg perc01)",
                 print "RESULT-LAT50 $(tsd.avg median)",
                 print "RESULT-LAT95 $(tsd.avg perc95)",
                 print "RESULT-LAT99 $(tsd.avg perc99)",
+                print "RESULT-LAT999 $(tsd.avg perc 99.9)",
                 print "RESULT-LAT100 $(tsd.avg max)",
                 goto alatval $(eq ${DOLATVAL} 0),
                 set i 0,
@@ -299,6 +298,8 @@ DriverManager(  print "Waiting 2 seconds before launching generation...",
                 set step $(if $(ge $i 99) 0.1 1),
                 goto perc $(le $i 100.0),
                 label alatval,
+                print "RESULT-TESTTIME $(sub $stoptime $starttime)",
+                print "RESULT-RCVTIME $(RIN/avg.avg time)",
                 print "RESULT-THROUGHPUT $(RIN/avg.add link_rate)",
                 set sent $(avgSIN.add count),
                 set count $(RIN/avg.add count),
@@ -307,6 +308,10 @@ DriverManager(  print "Waiting 2 seconds before launching generation...",
                 print "RESULT-BYTES $bytes",
                 print "RESULT-SENT $sent",
                 print "RESULT-DROPPED $(sub $sent $count)",
+                print "RESULT-DROPPEDPC $(div $(sub $sent $count) $sent)",
+//                print "RESULT-DROPPEDPS $(div $(sub $sent $count) $(RIN/avg.avg time))",
                 print "RESULT-TX $(avgSIN.add link_rate)",
                 print "RESULT-PPS $(RIN/avg.add rate)",
                 stop);
+
+StaticThreadSched(dm 15);
