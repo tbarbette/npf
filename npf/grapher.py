@@ -962,7 +962,7 @@ class Grapher:
 
         if self.options.no_graph:
             return
-        # Combine some results as subplots of a single plot
+        # Combine some results as subplots of a single plot. Expect a dictionary like THROUGHPUT+LATENCY:2 where the first list is the results to combine, and the second the number of columns to use for subplots, ignored for dual axis
         for i,(result_type_list, n_cols) in enumerate(self.configdict('graph_subplot_results', {}).items()):
             for result_type in re.split('[,]|[+]', result_type_list):
                 matched = False
@@ -1083,7 +1083,8 @@ class Grapher:
                     cross_key=key
                     xdata = None
 
-                if len(figure) > 1:
+                subplot_type=self.config("graph_subplot_type")
+                if len(figure) > 1 and subplot_type != "subplot":
                   for i, (x, y, e, build) in enumerate(data):
                     if self.config_bool("graph_subplot_unique_legend", False):
                         build._line=self.graphlines[i_subplot% len(self.graphlines)]
@@ -1113,9 +1114,9 @@ class Grapher:
                     else:
                         # Finding subplot indexes
                         if subplot_type=="subplot":
-                            if i_s_subplot > 0:
-                                plt.setp(axiseis[0].get_xticklabels(), visible=False)
-                                #axiseis[0].set_xlabel("")
+                            #if i_s_subplot > 0:
+                            #    plt.setp(axiseis[0].get_xticklabels(), visible=False)
+                            #axiseis[0].set_xlabel("")
                             axis = plt.subplot(n_lines * nbrokenY, n_cols * nbrokenX, isubplot + 1 + ibrokenY, sharex=axiseis[0] if ibrokenY > 0 and nbrokenY > 1 else None, sharey = axiseis[0] if ibrokenX > 0 and nbrokenX > 1 else None)
                             ihandle = 0
                             shift = 0
@@ -1134,7 +1135,7 @@ class Grapher:
                             else:
                                 shift = 0
 
-                    if not axis in axiseis and ibrokenX==0 and ibrokenY==0:
+                    if ibrokenX==0 and ibrokenY==0:
                         axiseis.append(axis)
                         subplot_handles.append((axis,result_type,[]))
                     subplot_handles[ihandle][2].append(result_type)
@@ -1217,7 +1218,7 @@ class Grapher:
                             r, ndata = self.do_box_plot(axis, key, result_type, data, xdata, shift, isubplot)
                         else:
                             """Barplot. X is all seen variables combination, series are version"""
-                            r, ndata= self.do_barplot(axis,vars_all, dyns, result_type, data, shift)
+                            r, ndata= self.do_barplot(axis,vars_all, dyns, result_type, data, shift, ibrokenY==0)
                             barplot = True
                     except Exception as e:
                         print("ERROR : could not graph %s" % result_type)
@@ -1294,12 +1295,13 @@ class Grapher:
                     type_config = "" if not result_type else "-" + result_type
 
                     lgd = None
-                    if len(figure) == 1:
+                    if len(figure) == 1 or subplot_type=="subplot":
                         sl = 0
                     elif gcolor:
                         sl = gcolor[(isubplot * len(data)) % len(gcolor)] % len(legendcolors)
                     else:
                         sl = shift % len(legendcolors)
+
                     if legendcolors[sl]:
                         axis.yaxis.label.set_color(legendcolors[sl])
                         axis.tick_params(axis='y',colors=legendcolors[sl])
@@ -1307,7 +1309,8 @@ class Grapher:
                     if ibrokenX == 0:
                         xunit = self.scriptconfig("var_unit", key, default="n,")
                         xformat = self.scriptconfig("var_format", key, default="")
-                        isLog = key in self.config('var_log', {})
+                        isLog = self.config_bool_or_in('var_log', key, default=False)
+                        base=2
                         baseLog = self.scriptconfig('var_log_base', key, default=None)
                         if baseLog:
                             isLog = True
@@ -1535,7 +1538,7 @@ class Grapher:
                     except:
                         continue
                     ax.text(x, m*height,
-                        ('%0.'+str(prec)+'f') % height, color=color, fontweight='bold',
+                        ('%0.'+str(prec - 1)+'f') % height, color=color, fontweight='bold',
                          ha='center', va='bottom')
             autolabel(rects, plt)
 
@@ -1711,7 +1714,7 @@ class Grapher:
                 marker = m[i % len(m)]
 
             if self.config_bool_or_in("graph_scatter", result_type):
-                rects = axis.scatter(ax[mask], y[mask], label=lab, color=c,  marker=marker, fillstyle=fillstyle)
+                rects = axis.scatter(ax[mask], y[mask], label=lab, color=c,  marker=marker, facecolors=fillstyle)
             else:
                 rects = axis.plot(ax[mask], y[mask], label=lab, color=c, linestyle=build._line, marker=marker,markevery=(1 if len(ax[mask]) < 20 else math.ceil(len(ax[mask]) / 20)),drawstyle=drawstyle, fillstyle=fillstyle)
             error_type = self.scriptconfig('graph_error', 'result', result_type=result_type, default = "bar").lower()
@@ -1722,7 +1725,7 @@ class Grapher:
                     else: #std dev
                         axis.errorbar(ax[mask], mean[mask], yerr=std[mask], marker=' ', label=None, linestyle=' ', color=c, capsize=3)
                 else: #error type is fill or fillminmax
-                    if not np.logical_or(np.zeros(len(y)) == e, np.isnan(y)).all():
+                    if not np.logical_or(np.zeros(len(y)) == mean, np.isnan(y)).all():
                         if error_type=="fillminmax":
                             axis.fill_between(ax[mask], ymin[mask], ymax[mask], color=c, alpha=.4, linewidth=0)
                         elif error_type=="fill50":
@@ -1821,7 +1824,7 @@ class Grapher:
             ticks = [variable.get_numeric(npf.parseUnit(y)) for y in yticks.split('+')]
             plt.yticks(ticks)
 
-    def do_barplot(self, axis,vars_all, dyns, result_type, data, shift):
+    def do_barplot(self, axis,vars_all, dyns, result_type, data, shift, show_vals):
         nseries = len(data)
 
         self.format_figure(axis,result_type,shift)
@@ -1840,7 +1843,7 @@ class Grapher:
         n_series = len(vars_all)
         bars_per_serie = 1 if stack else len(data)
         ind = np.arange(n_series)
-
+        patterns = ('-', '+', 'x', '\\', '*', 'o', 'O', '.')
         width = (1 - (2 * interbar)) / bars_per_serie
         if stack:
             last = 0
@@ -1860,8 +1863,9 @@ class Grapher:
                 std = np.asarray([std for mean,std,raw in e])
                 rects = axis.bar(interbar + ind + (i * width), y, width,
                     label=str(build.pretty_name()), color=build._color, yerr=std,
-                    edgecolor=edgecolor)
-                self.write_labels(rects, plt, build._color)
+                    edgecolor=edgecolor) # hatch=patterns[i]
+                if show_vals:
+                    self.write_labels(rects, plt, build._color)
 
         ss = self.combine_variables(vars_all, dyns)
 
@@ -1870,3 +1874,4 @@ class Grapher:
 
         plt.xticks(ind if stack else interbar + ind + (width * (len(data) - 1) / 2.0), ss,
                    rotation='vertical' if (sum([len(s) for s in ss]) > 80) else 'horizontal')
+        return True, len(data)

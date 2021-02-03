@@ -1,4 +1,3 @@
 parent=fastclick
 name=FastClick - DPacket and disabled all generally unused features
-branch=PRstripped
 configure+=--enable-dpdk-packet --disable-clone --disable-task-stats --disable-cpu-load --disable-dpdk-softqueue
