@@ -1,0 +1,11 @@
+%config
+graph_tick_params={direction:in,which:both,axis:both,grid_linestyle:dotted,bottom:true,top:true,right:true,left:true,grid_color:#444444}
+var_grid=true
+graph_fillstyle=none
+graph_legend_params={fancybox:0,edgecolor:black,framealpha:1.0}
+
+var_lim+={result:0-}
+
+var_names+={CPU:Number of CPU cores}
+var_names+={GEN_LENGTH:Packet length (Bytes)}
+var_names+={PPS:Packets per second}
