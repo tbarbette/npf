@@ -1,3 +1,4 @@
+import sys
 import argparse
 import os
 from argparse import ArgumentParser
@@ -10,6 +11,9 @@ from decimal import Decimal
 
 from npf.node import Node
 from .variable import VariableFactory
+
+
+options = None
 
 def get_valid_filename(s):
     s = str(s).strip().replace(' ', '_')
@@ -132,7 +136,7 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
                    help='Use data from previous version instead of running test if possible', dest='use_last',
                    nargs='?',
                    default=0)
-    t.add_argument('--result-path', metavar='path', type=str, nargs=1, help='Path to NPF\'s own database of results. By default it is a "result" folder.', default=["results"])
+    t.add_argument('--result-path', '--result-folder', metavar='path', type=str, nargs=1, help='Path to NPF\'s own database of results. By default it is a "result" folder.', default=["results"])
     t.add_argument('--tags', metavar='tag', type=str, nargs='+', help='list of tags', default=[], action=ExtendAction)
     t.add_argument('--variables', metavar='variable=value', type=str, nargs='+', action=ExtendAction,
                    help='list of variables values to override', default=[])
@@ -145,7 +149,9 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
     t.add_argument('--cluster', metavar='user@address:path', type=str, nargs='*', default=[],
                    help='role to node mapping for remote execution of tests')
 
-    t.add_argument('--build-folder', metavar='path', type=str, default=None, dest='build_folder')
+    t.add_argument('--build-folder', '--build-path', metavar='path', type=str, default=None, dest='build_folder', help='Set where dependencies would be built. Defaults to npf\'s folder itself, so dependencies are shared between test scripts.')
+
+    t.add_argument('--search-path', metavar='path', type=str, default=[], nargs='+', dest='search_path', help='Search for various files in this directories too (such as the parent of your own repo, cluster or modules folder)')
     t.add_argument('--no-mp', dest='allow_mp', action='store_false',
                    default=True, help='Run tests in the same thread. If there is multiple script, they will run '
                                       'one after the other, hence breaking most of the tests.')
@@ -211,7 +217,8 @@ def executor(role, default_role_map):
     return nodes_for_role(role, default_role_map)[0].executor
 
 
-def parse_nodes(options):
+def parse_nodes(args):
+    sys.modules[__name__].options = args
     if type(options.use_last) is not int:
         if options.use_last:
             options.use_last = 100
@@ -280,9 +287,19 @@ def from_root(path):
     else:
         return npf_root() + os.sep + path
 
-def find_local(path):
-    if not os.path.exists(path):
-        return npf_root() + '/' + path
+def find_local(path, critical: bool = False):
+    if os.path.exists(path):
+        return path
+
+    searched = [npf_root()] + sys.modules[__name__].options.search_path
+    for a in searched:
+        p = a + '/' + path
+        if os.path.exists(p):
+            return p
+    if critical:
+        raise FileNotFoundError("Could not find file %s, locations searched :\n%s" %
+                (path,
+                    "\n".join(searched)))
     return path
 
 def splitpath(hint):

@@ -45,7 +45,7 @@ TCO=1
 nolinktest=0
 dump:DODUMP=1
 DOLAT=1
-nolat:DOLAT=0
+gen_nolat|nolat:DOLAT=0
 
 trace_is_ip:GEN_TRACE_SUP=->MarkMACHeader->EnsureDPDKBuffer->Unstrip(14)->MarkMACHeader->StoreData(12,\<0800>)
 
@@ -64,10 +64,10 @@ GEN_DUMP?=0
 gdb:GDB=gdb -ex run -ex "signal 2" -ex bt -batch -args
 udpgen:GEN_TRACE_SUP+=->MarkMACHeader->EnsureDPDKBuffer->Pad
 
--nolat:GEN_LAT_NUMBERISE= -> Numberise($magic)
--nolat:GEN_LAT_RECORD=-> rt :: RecordTimestamp(N $limit, OFFSET 56)
--nolat:GEN_LAT_DISPATCH=EXPAND(-> magic :: Classifier( $(( ", ".join([ "40/56%02x" % (t+1) for t in range($GEN_THREADS)]) )), -) )
--nolat:GEN_LAT_TSDIFF= TimestampDiff
+-gen_nolat,-nolat:GEN_LAT_NUMBERISE= -> Numberise($magic)
+-gen_nolat,-nolat:GEN_LAT_RECORD=-> rt :: RecordTimestamp(N $limit, OFFSET 56)
+-gen_nolat,-nolat:GEN_LAT_DISPATCH=EXPAND(-> magic :: Classifier( $(( ", ".join([ "40/56%02x" % (t+1) for t in range($GEN_THREADS)]) )), -) )
+-gen_nolat,-nolat:GEN_LAT_TSDIFF= TimestampDiff
 GEN_LAT_NUMBERISE?= -> NoNumberise($magic)
 GEN_LAT_RECORD?=
 GEN_LAT_DISPATCH?=EXPAND( -> magic :: {[0] -> RoundRobinSwitch() => [0-$((${GEN_THREADS} -1))]; Idle->[$GEN_THREADS]})

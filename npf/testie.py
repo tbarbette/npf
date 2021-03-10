@@ -116,7 +116,7 @@ class Testie:
                     printf("WARNING: .testie extension is deprecated, use .npf")
                     testie_path = npf.find_local(testie_path + '.testie')
                 else:
-                    raise Exception("Could not find test script %s" % testie_path)
+                    raise FileNotFoundError("Could not find test script %s (tried also with .npf and .testie extensions, without success)" % testie_path)
             else:
                 testie_path = loc_path
 

@@ -194,7 +194,7 @@ class Repository:
         if self.reponame == 'None':
             self.url = None
         else:
-            repo_path = npf.find_local('repo/' + self.reponame + '.repo')
+            repo_path = npf.find_local('repo/' + self.reponame + '.repo', critical=True)
 
             f = open(repo_path, 'r')
             for line in f:
