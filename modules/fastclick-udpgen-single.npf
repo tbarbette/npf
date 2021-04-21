@@ -18,6 +18,9 @@ GEN_BURST=32
 GEN_FLOWS=128
 GEN_LENGTH=64
 GEN_WAIT=5
+DUTNIC=0
+RCVNIC=0
+SNDNIC=0
 
 %late_variables
 GEN_TOT=EXPAND( $(( $GEN_BURST * $GEN_FLOWS )) )
@@ -31,7 +34,7 @@ click --dpdk -c 0x3 -- PKTGEN_CONFIG
 elementclass Generator { $portOut, $portIn, $srcmac, $dstmac, $srcip, $dstip |
     tdOUT::ToDPDKDevice($portOut, BLOCKING true);
 
-    fudp :: FastUDPFlows(RATE 0, LIMIT $GEN_TOT, LENGTH $GEN_LENGTH, SRCETH $srcmac, DSTETH $dstmac, SRCIP $srcip, DSTIP $dstip, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST)
+    fudp :: FastUDPFlows(RATE 0, LIMIT $GEN_TOT, LENGTH $GEN_LENGTH, SRCETH $srcmac, DSTETH $dstmac, SRCIP $srcip, DSTIP $dstip, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST, STOP true)
     -> MarkMACHeader
     -> EnsureDPDKBuffer
     -> replay :: ReplayUnqueue(STOP -1, QUICK_CLONE true)
@@ -51,12 +54,12 @@ elementclass Generator { $portOut, $portIn, $srcmac, $dstmac, $srcip, $dstip |
     c0[1] -> Discard;
 }
 
-gen0 :: Generator(0, 1, ${client:0:mac}, ${dut:1:mac}, ${client:0:ip}, ${dut:1:ip})
+gen0 :: Generator($SNDNIC, $RCVNIC, ${client:0:mac}, ${dut:$DUTNIC:mac}, ${client:0:ip}, ${dut:$DUTNIC:ip})
 
 //Support a switch by advertising L2 packets
 
-tdIN::ToDPDKDevice(1, BLOCKING true);
-adv :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH 64, SRCETH ${client:1:mac}, DSTETH ${client:0:mac}, SRCIP ${client:1:ip}, DSTIP ${client:0:ip}, FLOWS 1, FLOWSIZE 1)
+tdIN::ToDPDKDevice($SNDNIC, BLOCKING true);
+adv :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH 64, SRCETH ${client:$DUTNIC:mac}, DSTETH ${client:0:mac}, SRCIP ${client:$DUTNIC:ip}, DSTIP ${client:0:ip}, FLOWS 1, FLOWSIZE 1)
     -> RatedUnqueue(1)
     -> tdIN;
 

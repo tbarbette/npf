@@ -311,6 +311,7 @@ dm :: DriverManager(  print "Waiting 2 seconds before launching generation...",
                 print "RESULT-DROPPEDPC $(div $(sub $sent $count) $sent)",
 //                print "RESULT-DROPPEDPS $(div $(sub $sent $count) $(RIN/avg.avg time))",
                 print "RESULT-TX $(avgSIN.add link_rate)",
+                print "RESULT-TXPPS $(avgSIN.add rate)",
                 print "RESULT-PPS $(RIN/avg.add rate)",
                 stop);
 

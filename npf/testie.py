@@ -1296,7 +1296,7 @@ class Testie:
             s = excludes.split('+')
             m = set()
             for role in s:
-                nodes = npf.node_for_roles(role)
+                nodes = npf.nodes_for_role(role)
                 for node in nodes:
                   if node in m:
                     return False
