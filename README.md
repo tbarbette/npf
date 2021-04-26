@@ -180,7 +180,7 @@ may also be something you want.
 
 You can customize the output of NFP by passing different arguments. Below, you can find some of the common outputs:
 
-* **pandas [PATH]** NFP produces a Pandas dataframe if you use this argument. Later, you can load the dataframe for post-processing. The following code shows one example for a sample dataframe (i.e., `test-pandas.csv`) with two variables (i.e., `X` and `Y`). Line `3` produces the median of multiple runs, while line `4` shows values of all runs in a list, which can be used for a boxplot.
+* **--pandas [PATH]** NFP produces a single Pandas dataframe if you use this argument. Later, you can load the dataframe for post-processing. The following code shows one example for a sample dataframe (i.e., `test-pandas.csv`) with two variables (i.e., `X` and `Y`). Line `3` produces the median of multiple runs, while line `4` shows values of all runs in a list, which can be used for a boxplot.
 
 ```python
 1 import pandas as pd
@@ -188,6 +188,22 @@ You can customize the output of NFP by passing different arguments. Below, you c
 3 df[['X','Y']].groupby('X').agg({'Y' : ['median']})
 4 df[['X','Y']].groupby('X').agg({'Y' : lambda x : list(x)})
 ```
+
+ * **--output** Outputs a standard CSV for each output variable. According to **--output-columns**, by default the X variable(s) and the average of Y value. For instance *--output-columns x perc1 perc25 median perc75 perc99 avg* would have 7 columns with the X value, then the 1st percentile of the results for the variable, etc.
+   For instance, if you have a variable PARALLEL=[1-8] and you collect THROUGHPUT, for which you did 3 runs, by default you'll get a csv file for THROUGHPUT, that gives you :
+   ```csv
+   1 2.2
+   2 3.4
+   3 4.2
+   ...
+   ```
+   Where the second column is the average of the 3 runs. Instead, with the columns "x all", you would get:
+   ```csv
+   1 2.0 2.2 2.4
+   2 3.1 3.4 3.7
+   3 4.0 4.2 4.4
+   ...
+   ```
 
 ## Tags
 All programs have the --tags argument, allowing to give a set of tags
@@ -284,7 +300,8 @@ This section is in rework.
  * **var_divider**, {'result':1}) Divide the variables or results by the given value.
  * **graph_map**, 
  * **graph_cross_reference**, {Y:VARIABLE}, change the graph where the Y axis is Y (the result name) to have the X variable being another variable
- 
+ * **var_aggregate**, {VARIABLE:method}, aggregates all values for a given variable. If "method" is "all", all results will be put in a single variable value like if they were all points for the same run. You can also use "median", "average", ... to combine results for all variables using those mathematical methods.
+  
 ##### Combining graphs (subplots)
  * **graph_subplot_results**={THROUGHPUT+LATENCY:2} combine two results in a single figure. If graph_subplot_type is subplot, then it will simply combine the graphs in a single file using the given number of columns. If the subplot_type is axis, it will use a dual-axis plot. Only the last variable will be on the second axis, so one may combine multiple variables on the same axis, like TX and RX throughput on the left axis, and the latency on the right axis?
  * **graph_display_statics**=true/false Will add a subplot to show the value of static variables. Useful to exchange graphs with colleages knowing what are the fixed parameters for all the graph you show. But the results is somehow horrible.
