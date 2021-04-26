@@ -94,6 +94,11 @@ def find_base(ax):
         base = 10
     return base
 
+def roundf(x, prec):
+    exp = pow(10, prec)
+    x = round(float(x) * exp)
+    x = x / exp
+    return x
 
 class Map(OrderedDict):
     def __init__(self, fname):
@@ -863,14 +868,15 @@ class Grapher:
         #round values of a variable to a given precision, if it creates a merge, the list is appended
         for var, prec in self.configdict("var_round",{}).items():
             transformed_series = []
-            prec = int(prec)
+            prec = float(prec)
             for i, (testie, build, all_results) in enumerate(series):
                 new_all_results = OrderedDict()
                 for run, run_results in all_results.items():
                     if var in run.variables:
-                        run.variables[var] = round(run.variables[var], prec)
+                        v = roundf(run.variables[var], prec)
+                        run.variables[var] = v
                         if run in new_all_results:
-                            np.append(new_all_results[run][result_type], run_results[result_type])
+                            np.append(new_all_results[run], run_results)
                         else:
                             new_all_results[run] = run_results
                 transformed_series.append((testie, build, new_all_results))
