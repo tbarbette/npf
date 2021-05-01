@@ -9,6 +9,8 @@ from npf.executor.localexecutor import LocalExecutor
 from npf.executor.sshexecutor import SSHExecutor
 from npf.variable import Variable,get_bool
 from npf.nic import NIC
+from npf import npf
+
 
 class Node:
     _nodes = {}
@@ -30,10 +32,9 @@ class Node:
         self._gen_random_nics()
 
         clusterFileName = 'cluster/' + name + '.node'
-        for path in ['./', os.path.dirname(sys.argv[0])]:
-          clusterFile = path + os.sep + clusterFileName
-          if (os.path.exists(clusterFile)):
-            f = open(clusterFile, 'r')
+        try:
+            clusterFilePath = npf.find_local(clusterFileName, critical=True)
+            f = open(clusterFilePath, 'r')
             for i, line in enumerate(f):
                 line = line.strip()
                 if not line or line.startswith("#") or line.startswith("//"):
@@ -53,8 +54,8 @@ class Node:
                     setattr(executor, match.group('var'), match.group('val'))
                     continue
                 raise Exception("%s:%d : Unknown node config line %s" % (clusterFile, i, line))
-            break
-        else:
+        except FileNotFoundError as e:
+            print(e)
             self._find_nics()
 
     def _find_nics(self):

@@ -188,7 +188,7 @@ def main():
     if not os.path.isabs(filename):
         filename = os.getcwd() + os.sep + filename
 
-    series, time_series = comparator.run(testie_name=args.testie, tags=args.tags, options=args, on_finish=lambda series,time_series:do_graph(filename,args,series,time_series,options=args) if args.iterative else None)
+    series, time_series = comparator.run(testie_name=args.test_files, tags=args.tags, options=args, on_finish=lambda series,time_series:do_graph(filename,args,series,time_series,options=args) if args.iterative else None)
 
     do_graph(filename,args,series, time_series, options=args)
 

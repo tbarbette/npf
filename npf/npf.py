@@ -143,7 +143,7 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
     t.add_argument('--config', metavar='config=value', type=str, nargs='+', action=ExtendAction,
                    help='list of config values to override', default=[])
 
-    t.add_argument('--testie', '--test', '--npf', metavar='path or testie', type=str, nargs='?', default='tests',
+    t.add_argument('--testie', '--test', '--npf', dest='test_files', metavar='path or testie', type=str, nargs='?', default='tests',
                    help='script or script folder. Default is tests')
 
     t.add_argument('--cluster', metavar='user@address:path', type=str, nargs='*', default=[],
@@ -225,6 +225,10 @@ def parse_nodes(args):
 
     roles['default'] = [Node.makeLocal(options)]
 
+    options.search_path = set(options.search_path)
+    for t in [options.test_files]:
+        options.search_path.add(os.path.dirname(t))
+
     for val in options.cluster:
         variables = val.split(',')
         if len(variables) == 0:
@@ -291,9 +295,9 @@ def find_local(path, critical: bool = False):
     if os.path.exists(path):
         return path
 
-    searched = [npf_root()] + sys.modules[__name__].options.search_path
+    searched = [npf_root(), '.'] + list(sys.modules[__name__].options.search_path)
     for a in searched:
-        p = a + '/' + path
+        p = a + os.sep + path
         if os.path.exists(p):
             return p
     if critical:
@@ -355,7 +359,7 @@ def build_filename(testie, build, hint, variables, def_ext, type_str='', show_se
 
 def build_output_filename(options, repo_list):
     if options.graph_filename is None:
-        filename = 'compare/' + os.path.splitext(os.path.basename(options.testie))[0] + '_' + '_'.join(
+        filename = 'compare/' + os.path.splitext(os.path.basename(options.test_files))[0] + '_' + '_'.join(
             ["%s" % repo.reponame for repo in repo_list]) + '.pdf'
     else:
         filename = options.graph_filename

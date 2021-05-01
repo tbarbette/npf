@@ -6,6 +6,7 @@ from orderedset._orderedset import OrderedSet
 import copy
 import traceback
 
+from asteval import Interpreter
 from collections import OrderedDict
 from typing import List
 import numpy as np
@@ -31,6 +32,8 @@ import itertools
 import math
 import os
 import webcolors
+
+from scipy.ndimage import gaussian_filter1d
 
 import pandas as pd
 
@@ -93,6 +96,26 @@ def find_base(ax):
     if base != 2:
         base = 10
     return base
+
+def smooth(y, box_pts):
+    if box_pts < 2:
+        return y
+    if box_pts % 2 == 0:
+        print("Graph_smooth must be odd, it will be incremented")
+        box_pts = box_pts + 1
+    box = np.ones(box_pts)/box_pts
+    h = int(math.floor(box_pts /2))
+    y_smooth = np.convolve(np.concatenate((np.repeat(float(y[0]),h),  y, np.repeat(float(y[-1]),h)), axis=0), box, mode='valid')
+    return y_smooth
+
+def smooth_range(x, y, r, newx):
+    new_y = tuple([] for _ in range(len(y)))
+    for x_v in newx:
+        mask = np.logical_and(x > (x_v - r), x <( x_v + r))
+        for i in range(len(y)):
+            l = np.mean(y[i][mask])
+            new_y[i].append(l)
+    return tuple([np.asarray(y) for y in new_y])
 
 def roundf(x, prec):
     exp = pow(10, prec)
@@ -882,9 +905,27 @@ class Grapher:
                 transformed_series.append((testie, build, new_all_results))
             series = transformed_series
 
+
+        for result_type, fil in self.configdict("graph_filter",{}).items():
+            transformed_series = []
+            aeval = Interpreter()
+            for i, (testie, build, all_results) in enumerate(series):
+                new_all_results = OrderedDict()
+                def lam(x):
+                    aeval.symtable['x'] = x
+                    return aeval(fil)
+                for run, run_results in all_results.items():
+                    if result_type in run_results:
+                        run_results[result_type] = list(filter(lam, run_results[result_type]))
+                    new_all_results[run] = run_results
+                transformed_series.append((testie, build, new_all_results))
+            series = transformed_series
+
+
         for key,method in self.configdict('var_aggregate').items():
             series = self.aggregate_variable(key=key,series=series,method=method)
             vars_values[key] = ['AGG']
+
 
         versions = []
         vars_all = OrderedSet()
@@ -1218,7 +1259,7 @@ class Grapher:
                             barplot = True
                         elif graph_type == "line":
                             """One dynamic variable used as X, series are version line plots"""
-                            r, ndata = self.do_line_plot(axis, key, result_type, data,shift, isubplot, xdata)
+                            r, ndata = self.do_line_plot(axis, key, result_type, data,shift, isubplot, xmin, xmax, xdata)
                         elif graph_type == "boxplot":
                             """One dynamic variable used as X, series are version line plots"""
                             r, ndata = self.do_box_plot(axis, key, result_type, data, xdata, shift, isubplot)
@@ -1653,8 +1694,9 @@ class Grapher:
 
         return True, nseries
 
-    def do_line_plot(self, axis, key, result_type, data : XYEB,shift=0,idx=0,xdata = None):
-        xmin, xmax = (float('inf'), 0)
+    def do_line_plot(self, axis, key, result_type, data : XYEB,shift,idx,xmin,xmax,xdata = None):
+        allmin = float('inf')
+        allmax = 0
         drawstyle = self.scriptconfig('var_drawstyle',result_type,default='default')
 
         minX = None
@@ -1682,30 +1724,37 @@ class Grapher:
                     ax = np.arange(len(x)) + 0.5 + i
             else:
                 ax = x
-
-            order = np.argsort(ax)
-
+            idx = np.arange(len(ax))[np.isfinite(y)]
+#            ax = np.asarray([float(x) for x in ax])
+#            idx = idx[ax[idx] < 100]
+            order = idx[np.argsort(np.asarray(ax)[idx])]
+            if len(order) == 0:
+                continue
             shift = float(self.scriptconfig("var_shift", key=key, result_type=result_type, default=0))
             if minX is not None:
                 ax = np.asarray([float(float(ax[i]) - shift - float(minX)) for i in order])
             else:
                 ax = np.asarray([float(ax[i]) - shift for i in order])
             y = np.array([y[i] for i in order])
-            mean = np.array([e[i][0] for i in order])
-            std = np.array([e[i][1] for i in order])
-            ymin = np.array([np.min(e[i][2]) for i in order])
-            ymax = np.array([np.max(e[i][2]) for i in order])
-
 
             if 'step' in drawstyle:
                 s = y[np.isfinite(y)]
                 if len(s) > 0 and len(y) > 0:
                     y[-1] = s[-1]
 
-            mask = np.isfinite(y)
-
-            if len(ax[mask]) == 0:
-                continue
+            ymin = np.array([np.min(e[i][2]) for i in order])
+            ymax = np.array([np.max(e[i][2]) for i in order])
+            mean = np.array([e[i][0] for i in order])
+            std = np.array([e[i][1] for i in order])
+#            y = gaussian_filter1d(y, sigma=5)
+            smcon = self.config("graph_smooth")
+            if smcon > 1:
+                smax = np.max(ax) if xmax is None else max(np.max(ax), xmax)
+                smin = np.min(ax) if xmin is None else min(np.min(ax), xmin)
+                diff = smax - smin
+                nx = np.arange(smin,smax + 1,step=diff/100)
+                y,ymin,ymax,mean,std = smooth_range(ax,(y,ymin,ymax,mean,std),smcon*diff/100,nx)
+                ax = nx
 
             lab = build.pretty_name()
             while lab.startswith('_'):
@@ -1720,29 +1769,29 @@ class Grapher:
                 marker = m[i % len(m)]
 
             if self.config_bool_or_in("graph_scatter", result_type):
-                rects = axis.scatter(ax[mask], y[mask], label=lab, color=c,  marker=marker, facecolors=fillstyle)
+                rects = axis.scatter(ax, y, label=lab, color=c,  marker=marker, facecolors=fillstyle)
             else:
-                rects = axis.plot(ax[mask], y[mask], label=lab, color=c, linestyle=build._line, marker=marker,markevery=(1 if len(ax[mask]) < 20 else math.ceil(len(ax[mask]) / 20)),drawstyle=drawstyle, fillstyle=fillstyle)
+                rects = axis.plot(ax, y, label=lab, color=c, linestyle=build._line, marker=marker,markevery=(1 if len(ax) < 20 else math.ceil(len(ax) / 20)),drawstyle=drawstyle, fillstyle=fillstyle)
             error_type = self.scriptconfig('graph_error', 'result', result_type=result_type, default = "bar").lower()
             if error_type != 'none':
                 if error_type == 'bar' or (error_type == None and not self.config('graph_error_fill')):
                     if error_type == 'barminmax':
-                        axis.errorbar(ax[mask], ymin[mask], yerr=(ymin[mask],ymax[mask]), marker=' ', label=None, linestyle=' ', color=c, capsize=3)
+                        axis.errorbar(ax, ymin, yerr=(ymin,ymax), marker=' ', label=None, linestyle=' ', color=c, capsize=3)
                     else: #std dev
-                        axis.errorbar(ax[mask], mean[mask], yerr=std[mask], marker=' ', label=None, linestyle=' ', color=c, capsize=3)
+                        axis.errorbar(ax, mean, yerr=std, marker=' ', label=None, linestyle=' ', color=c, capsize=3)
                 else: #error type is fill or fillminmax
                     if not np.logical_or(np.zeros(len(y)) == mean, np.isnan(y)).all():
                         if error_type=="fillminmax":
-                            axis.fill_between(ax[mask], ymin[mask], ymax[mask], color=c, alpha=.4, linewidth=0)
+                            axis.fill_between(ax, ymin, ymax, color=c, alpha=.4, linewidth=0)
                         elif error_type=="fill50":
-                            perc25 = np.array([np.percentile(e[i][2],25) for i in order])[mask]
-                            perc75 = np.array([np.percentile(e[i][2],75) for i in order])[mask]
-                            axis.fill_between(ax[mask], perc25, perc75, color=c, alpha=.4, linewidth=0)
+                            perc25 = smooth(np.array([np.percentile(e[i][2],25) for i in order]),sm)
+                            perc75 = smooth(np.array([np.percentile(e[i][2],75) for i in order]),sm)
+                            axis.fill_between(ax, perc25, perc75, color=c, alpha=.4, linewidth=0)
                         else:
-                            axis.fill_between(ax[mask], mean[mask] - std[mask], mean[mask] + std[mask], color=c, alpha=.4, linewidth=0)
+                            axis.fill_between(ax, mean - std, mean + std, color=c, alpha=.4, linewidth=0)
 
-            xmin = min(xmin, min(ax[mask]))
-            xmax = max(xmax, max(ax[mask]))
+            allmin = min(allmin, np.min(ax))
+            allmax = max(allmax, np.max(ax))
 
             self.write_labels(rects, plt, build._color, idx)
 

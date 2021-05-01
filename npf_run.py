@@ -76,8 +76,8 @@ def main():
     if args.repo:
         repo = Repository.get_instance(args.repo, args)
     else:
-        if os.path.exists(args.testie) and os.path.isfile(args.testie):
-            tmptestie = Testie(args.testie,options=args)
+        if os.path.exists(args.test_files) and os.path.isfile(args.test_files):
+            tmptestie = Testie(args.test_files,options=args)
             if "default_repo" in tmptestie.config and tmptestie.config["default_repo"] is not None:
                 repo = Repository.get_instance(tmptestie.config["default_repo"], args)
             else:
@@ -152,7 +152,7 @@ def main():
                 if len(graph_builds) > args.graph_num:
                     break
 
-    testies = Testie.expand_folder(testie_path=args.testie, options=args, tags=tags)
+    testies = Testie.expand_folder(testie_path=args.test_files, options=args, tags=tags)
     if not testies:
         sys.exit(errno.ENOENT)
 

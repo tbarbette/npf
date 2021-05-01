@@ -635,6 +635,7 @@ class SectionConfig(SectionVariable):
         self.__add_list("require_tags", [])
         self.__add_dict("var_label_dir", {})
         self.__add("graph_force_diagonal_labels", False)
+        self.__add("graph_smooth", 1)
 
     def var_name(self, key):
         key = key.lower()

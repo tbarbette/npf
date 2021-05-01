@@ -28,7 +28,7 @@ install_requires=[
 
 setuptools.setup(
     name="npf",
-    version="1.0.13",
+    version="1.0.14",
     author="Tom Barbette",
     author_email="t.barbette@gmail.com",
     install_requires=install_requires,
@@ -50,6 +50,9 @@ setuptools.setup(
                   'npf-run=npf_run:main',
                   'npf-compare=npf_compare:main',
                   'npf-watch=npf_watch:main',
+                  'npf-run.py=npf_run:main',
+                  'npf-compare.py=npf_compare:main',
+                  'npf-watch.py=npf_watch:main',
               ],
           },
 )

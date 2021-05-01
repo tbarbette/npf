@@ -184,7 +184,7 @@ def main():
             print("[%s] Last tested version is %s" % (repo.name, last_build.version))
         repo.last_build = last_build
 
-        testies = Testie.expand_folder(args.testie, tags=tags,options=args)
+        testies = Testie.expand_folder(args.test_files, tags=tags,options=args)
 
         if len(testies) == 0:
             print("[%s] No valid testies. Ignoring this repo." % (repo.name))
