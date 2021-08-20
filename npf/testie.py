@@ -52,14 +52,16 @@ class RemoteParameters:
 def _parallel_exec(param: RemoteParameters):
     nodes = npf.nodes_for_role(param.role)
     executor = nodes[param.role_id].executor
-    if param.waitfor:
+    for wf in param.waitfor if type(param.waitfor) is list else [param.waitfor]:
+        if wf is None:
+            continue
         n=1
-        #print("Waiting for %s" % param.waitfor)
-        if param.waitfor[0].isdigit():
-            n=int(param.waitfor[0])
-            param.waitfor=param.waitfor[1:]
+        #print("Waiting for %s" % wf)
+        if wf[0].isdigit():
+            n=int(wf[0])
+            wf=wf[1:]
         for i in range(n):
-            param.event.listen(param.waitfor)
+            param.event.listen(wf)
 
     param.event.wait_for_termination(param.delay)
     if param.event.is_terminated():
@@ -205,14 +207,23 @@ class Testie:
             if 'delay' in imp.params:
                 delay = imp.params.setdefault('delay', 0)
                 for script in imp.testie.scripts:
-                    if not 'delay' in script.params:
-                        script.params['delay'] = float(delay) + float(imp.params['delay'])
+                    if 'delay' in script.params:
+                        script.params['delay'] = float(delay) + float(script.params['delay'])
+                    else:
+                        script.params['delay'] = float(delay)
                 del imp.params['delay']
             if 'waitfor' in imp.params:
                 for script in imp.testie.scripts:
+                    wf = imp.params['waitfor']
+                    if type(wf) is not list:
+                        wf=[wf]
                     if script.type == SectionScript.TYPE_SCRIPT:
                         if not 'waitfor' in script.params:
-                            script.params['waitfor'] = imp.params['waitfor']
+                            script.params['waitfor'] = wf
+                        else:
+                            if type(script.params['waitfor']) is not list:
+                                script.params['waitfor'] = [script.params['waitfor']]
+                            script.params['waitfor'].expand(wf)
                 del imp.params['waitfor']
             if 'autokill' in imp.params:
                 for script in imp.testie.scripts:

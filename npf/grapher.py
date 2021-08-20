@@ -1378,6 +1378,8 @@ class Grapher:
                                             thresh=float(baseLog[1])
                                     else:
                                         base=baseLog
+                                        if min(ax) > 1:
+                                            thresh=0
                                 else:
                                     base = find_base(ax)
                                 if thresh > 0:
@@ -1894,7 +1896,9 @@ class Grapher:
             edgecolor = None
             interbar = 0.1
 
+        interbar = self.config('graph_bar_inter', default=interbar)
         stack = self.config_bool('graph_bar_stack')
+        do_hatch = self.config_bool('graph_bar_hatch', default=False)
         n_series = len(vars_all)
         bars_per_serie = 1 if stack else len(data)
         ind = np.arange(n_series)
@@ -1917,8 +1921,8 @@ class Grapher:
             for i, (x, y, e, build) in enumerate(data):
                 std = np.asarray([std for mean,std,raw in e])
                 rects = axis.bar(interbar + ind + (i * width), y, width,
-                    label=str(build.pretty_name()), color=build._color, yerr=std,
-                    edgecolor=edgecolor) # hatch=patterns[i]
+                    label=str(build.pretty_name()), color=lighter(build._color, 0.6, 255) if do_hatch else build._color, yerr=std,
+                    edgecolor=lighter(build._color, 0.6, 0) if do_hatch else edgecolor, hatch=patterns[i] if do_hatch else None)
                 if show_vals:
                     self.write_labels(rects, plt, build._color)
 
