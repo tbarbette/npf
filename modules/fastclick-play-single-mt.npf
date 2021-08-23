@@ -43,6 +43,7 @@ GEN_RATE?=-1
 LATENCYDUMP=/tmp/latency.csv
 ITERATION_TIME?=0
 GEN_MULTI_TRACE=0
+GEN_FORCE_ETHER=0
 GEN_DUMP=0
 gen_dump:GEN_DUMP=1
 gen_mindump:GEN_DUMP=2
@@ -158,7 +159,7 @@ input
  $(( " -> replay :: Pipeliner(BLOCKING "+("true" if $GEN_THREADS == 1 else "false")+", CAPACITY 1024, ALWAYS_UP true)" if $GEN_PIPELINE else ""))
   -> MarkMACHeader
 $(( "-> EnsureDPDKBuffer" if $GEN_DUMP < 2 else "" ))
-  $(( "  -> doethRewrite :: { input[0] -> active::Switch(OUTPUT $GEN_NOREWRITE_ETHER)[0] -> rwIN :: EtherRewrite($INsrcmac,$INdstmac) -> [0]output;   active[1] -> [0]output}" if  $GEN_DUMP <= 0 else "-> EtherEncap(0x0800, $INsrcmac, $INdstmac)" ))
+  $(( "  -> doethRewrite :: { input[0] -> active::Switch(OUTPUT $GEN_NOREWRITE_ETHER)[0] -> rwIN :: EtherRewrite($INsrcmac,$INdstmac) -> [0]output;   active[1] -> [0]output}" if  $GEN_DUMP <= 0 and $GEN_FORCE_ETHER == 0 else "-> EtherEncap(0x0800, $INsrcmac, $INdstmac)" ))
 
 $(( "-> Pad " if $GEN_DUMP < 2 else "" ))
   -> Numberise($magic)
