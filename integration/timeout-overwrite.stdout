@@ -1,6 +1,6 @@
-Executing testie timeout-overwrite.testie
+Executing testie timeout-overwrite.npf
 Timeout overwrite test
 Executing init scripts...
 Executing single run...
 [1.0]
-Graph of test written to results/click-2017/bbec36c/timeout-overwrite.pdf
+Graph of test written to results/click-2021/593d108/timeout-overwrite.pdf

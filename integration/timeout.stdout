@@ -1,4 +1,4 @@
-Executing testie timeout.testie
+Executing testie timeout.npf
 Timeout test
 Executing init scripts...
 Executing single run...
@@ -7,4 +7,4 @@ stdout:
 
 stderr:
 
-No valid data for Build(repo = click-2017, version = bbec36c)
+No valid data for Build(repo = click-2021, version = 593d108)

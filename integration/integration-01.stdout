@@ -1,4 +1,4 @@
-Executing testie integration-01.testie
+Executing testie integration-01.npf
 Integration Test
 Executing init scripts...
 BURST = 1, LENGTH = 1 [run 1/3 for test 1/121]
@@ -485,4 +485,4 @@ BURST = 1024, LENGTH = 1024 [run 1/3 for test 121/121]
 BURST = 1024, LENGTH = 1024 [run 2/3 for test 121/121]
 BURST = 1024, LENGTH = 1024 [run 3/3 for test 121/121]
 [1024.0, 1024.0, 1024.0]
-Graph of test written to results/click-2017/bbec36c/integration-01.pdf
+Graph of test written to results/click-2021/593d108/integration-01.pdf

@@ -3,12 +3,12 @@
 
 ret=0
 
-#Function that launch a testie on click-2017 and compare the expected output
+#Function that launch a npf test on click-2021 and compare the expected output
 compare() {
     test=$1
     python=$2
-    echo "Executing testie $test..."
-    $python npf-run.py click-2017 --force-test --no-graph-time --testie integration/$test.testie --quiet-build &> res$test
+    echo "Executing npf test $test..."
+    $python npf-run.py click-2021 --force-test --no-graph-time --test integration/$test.npf --quiet-build &> res$test
     if [ $? -ne 0 ] ; then
         echo "npf-run.py returned an error for test $test !"
         cat res$test
@@ -19,18 +19,18 @@ compare() {
         echo "$test passed !"
     else
         echo "Error for $test : expected output does not match !"
-        echo "Command : $python npf-run.py click-2017 --force-test --testie integration/$test.testie --quiet-build"
+        echo "Command : $python npf-run.py click-2021 --force-test --test integration/$test.npf --quiet-build"
         diff res$test integration/$test.stdout
         ret=1
     fi
 }
 
-#Function that launch watcher on a testie with click-2017 and compare the expected output
+#Function that launch watcher on a npf test with click-2021 and compare the expected output
 compare_watcher() {
     test=watcher
     python=$1
     echo "Executing watcher test..."
-    $python npf-watch.py click-2017 --no-graph-time --force-test --testie tests/click/pktgen/infinitesource-01.testie --onerun --history 2 --tags fast-regression &> int_res
+    $python npf-watch.py click-2021 --no-graph-time --force-test --test tests/click/pktgen/infinitesource-01.npf --onerun --history 2 --tags fast-regression &> int_res
     if [ $? -ne 0 ] ; then
         echo "npf-watch.py returned an error for test $test !"
         cat int_res
@@ -41,7 +41,7 @@ compare_watcher() {
         echo "$test passed !"
     else
         echo "Error for $test : expected output does not match !"
-        echo "Command : $python npf-run.py click-2017 --no-graph-time --force-test --testie integration/$test.testie --quiet-build"
+        echo "Command : $python npf-run.py click-2021 --no-graph-time --force-test --test integration/$test.npf --quiet-build"
         diff int_res integration/$test.stdout
         ret=1
     fi
@@ -52,7 +52,7 @@ try() {
     test=$1
     python=$2
     params=$3
-    $python npf-run.py --force-test --no-graph-time --testie $test --config n_runs=1 --tags fastregression $3
+    $python npf-run.py --force-test --no-graph-time --test $test --config n_runs=1 --tags fastregression $3
     if [ $? -ne 0 ] ; then
         echo "npf-run.py returned an error for test $test !"
         exit 1
@@ -72,7 +72,7 @@ compare timeout $python
 compare timeout-overwrite $python
 compare event $python
 compare math $python
-try tests/tcp/01-iperf.testie $python "--variables TIME=1"
+try tests/tcp/01-iperf.npf $python "--variables TIME=1"
 #compare_watcher $python
 
 exit $ret
