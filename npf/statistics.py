@@ -65,7 +65,7 @@ class Statistics:
             print('')
             print("Means and std/mean per variables :")
             for i, (k, vals) in enumerate(vars_values.items()):
-                if len(vals) is 1:
+                if len(vals) == 1:
                     continue
                 print("%s :" % k)
                 for v in sorted(vals):
