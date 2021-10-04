@@ -31,7 +31,7 @@ class Node:
         # Always fill 32 random nics address that will be overwriten by config eventually
         self._gen_random_nics()
 
-        clusterFileName = 'cluster/' + name + '.node'
+        clusterFileName = 'cluster/' + name + ('.node' if not name.endswith(".node") else "")
         try:
             clusterFilePath = npf.find_local(clusterFileName, critical=True)
             f = open(clusterFilePath, 'r')

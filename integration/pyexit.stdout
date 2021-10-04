@@ -1,5 +1,5 @@
-Executing testie pyexit.testie
-pyexit.testie
+Executing testie pyexit.npf
+pyexit.npf
 Executing init scripts...
 CPU = 1, R = 50, T = 100 [run 1/3 for test 1/8]
 CPU = 1, R = 50, T = 100 [run 2/3 for test 1/8]
@@ -33,6 +33,6 @@ CPU = 8, R = 50, T = 100 [run 1/3 for test 8/8]
 CPU = 8, R = 50, T = 100 [run 2/3 for test 8/8]
 CPU = 8, R = 50, T = 100 [run 3/3 for test 8/8]
 LOSS: [-50.0, -50.0, -50.0], RX: [50.0, 50.0, 50.0], TX: [100.0, 100.0, 100.0]
-Graph of test written to results/click-2017/bbec36c/pyexit-LOSS.pdf
-Graph of test written to results/click-2017/bbec36c/pyexit-RX.pdf
-Graph of test written to results/click-2017/bbec36c/pyexit-TX.pdf
+Graph of test written to results/click-2021/593d108/pyexit-LOSS.pdf
+Graph of test written to results/click-2021/593d108/pyexit-RX.pdf
+Graph of test written to results/click-2021/593d108/pyexit-TX.pdf

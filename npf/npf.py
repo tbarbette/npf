@@ -217,8 +217,11 @@ def executor(role, default_role_map):
     return nodes_for_role(role, default_role_map)[0].executor
 
 
-def parse_nodes(args):
+def set_args(args):
     sys.modules[__name__].options = args
+
+def parse_nodes(args):
+    set_args(args)
     if type(options.use_last) is not int:
         if options.use_last:
             options.use_last = 100

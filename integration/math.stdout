@@ -1,4 +1,4 @@
-Executing testie math.testie
+Executing testie math.npf
 f(x)
 Executing init scripts...
 N = 1 [run 1/3 for test 1/32]
@@ -129,6 +129,6 @@ N = 32 [run 1/3 for test 32/32]
 N = 32 [run 2/3 for test 32/32]
 N = 32 [run 3/3 for test 32/32]
 EXP: [4294967296.0, 4294967296.0, 4294967296.0], LOG: [3.47, 3.47, 3.47], N: [32.0, 32.0, 32.0]
-Graph of test written to results/click-2017/bbec36c/math-EXP.pdf
-Graph of test written to results/click-2017/bbec36c/math-LOG.pdf
-Graph of test written to results/click-2017/bbec36c/math-N.pdf
+Graph of test written to results/click-2021/593d108/math-EXP.pdf
+Graph of test written to results/click-2021/593d108/math-LOG.pdf
+Graph of test written to results/click-2021/593d108/math-N.pdf
