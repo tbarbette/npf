@@ -6,6 +6,7 @@ from abc import ABCMeta
 from pathlib import Path
 import re
 from urllib.error import URLError
+import urllib.request
 
 import shutil
 
@@ -134,7 +135,7 @@ class MethodGet(UnversionedMethod):
     def checkout(self, branch=None):
         if branch is None:
             branch = self.repo.version
-        url = npf.replace_path(self.repo.url,Build(self.repo,branch,self.options.result_path))
+        url = npf.replace_path(self.repo.url,Build(self.repo,branch,self.repo.options.result_path))
         if not Path(self.repo.get_build_path()).exists():
             os.makedirs(self.repo.get_build_path())
         try:
