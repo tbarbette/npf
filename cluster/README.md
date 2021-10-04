@@ -1,11 +1,17 @@
-Your own cluster can be defined using a simple node file describing different
- accessible computers intended to support a test script *role* such as *client* or *dut*.
-All communication is done through SSH. You should have passwordless connection set up.
+For simple test case `--cluster client=user@server` argument is enough to configure an experiment to run the *client* role on the machine *server* using the username *user*. However to define more parameters for the server, such as the NIC orders and interface names, one must use a `.node` file. Typically, you will create a file named `server.node` in a folder named `cluster` alongside your NPF tests files that contains a few configuration variables for the machine named `server`.
+
+Note : all communication is done through SSH. You should have passwordless connection set up using SSH keys.
 
 3 global parameters are supported :
   * `addr=full_address_of_node` //if unset, the node name is used 
   * `path=path/to/npf`
   * `user=user_for_ssh_connection`
+
+For instance, using `--cluster client=user01@server01.network.edu` is the same than using `--cluster client=server01` with the following `server01.node` file:
+```
+addr=server01.network.edu
+user=user01
+```
 
 Syncing NPF folder across your cluster improves performance as it avoids "rsyncing"
 dependencies and scripts for each tests. One suggested option
