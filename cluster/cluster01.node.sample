@@ -1,5 +1,7 @@
-#Address for connection
-addr=user@cluster01.example.com
+#Address or IP for connection
+addr=cluster01.example.com
+//Username
+user=user01
 
 #Private key file to connect with user
 #id_rsa=path/to/id_rsa //TODO:Unimplemented
