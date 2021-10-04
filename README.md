@@ -265,11 +265,11 @@ This section is in rework.
  * **graph_markers**={'o', '^', 's', 'D', '*', 'x', '.', '_', 'H', '>', '<', 'v', 'd'}, type of markers to be used, per-serie. Default if this. See matplotlib docs to find the type.
  * **graph_lines**={'-', '--', '-.', ':'} Type of lines, per-series.
 ###### Scaling and axis limits
- * **var_log**, []                                     
- * **var_log_base**, {}              
- * **var_lim**, {} 
+ * **var_log**, [THROUGHPUT,LATENCY] Define variables that should be shown in a log axis in base 2
+ * **var_log_base**, {THROUGHPUT:2} Define variables that should be shown in a log axis, with the specified base (default is 2 with var_log)
+ * **var_lim**, {THROUGHPUT:0-100} Define the range for some variables, useful to cap graphs
  * **var_format**={THROUGHPUT:%dGbps} Printf like formating of va And the prefix should be changed.riables. Eg this example will display all visualisation of the value of throughput (eg in the axis) as XGbps. Use in combination to var_divider.
- * **var_ticks**, {}                                     
+ * **var_ticks**, {THROUGHPUT:0+5+10+15+20} Define where the ticks should be set, in this example there will be ticks in 0,5,...20
 
 ###### Units and name of variables
  * **var_names**, {"result-LATENCY":"Latency (µs)","result-THROUGHPUT":"Throughput"})
