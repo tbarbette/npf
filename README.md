@@ -4,6 +4,9 @@ Network Performance Framework [![CI](https://github.com/tbarbette/npf/actions/wo
 Run performance tests on network software by running snippets of bash scripts on a cluster
 following a simple definition file. For instance, the following configuration to test iPerf3 performance (omitting graph styling options):
 ```
+%info
+IPerf3 Throughput Experiment
+
 %variables
 PARALLEL=[1-8]
 ZEROCOPY={:without,-Z:with}
@@ -17,7 +20,13 @@ echo "RESULT-THROUGHPUT $result"
 ```
 Will automatically produce the following graph:
 
-![sample picture](tests/tcp/01-iperf.png "Result for tests/tcp/01-iperf.png")
+![sample picture](tests/tcp/01-iperf-THROUGHPUT.png "Result for tests/tcp/01-iperf.npf")
+
+When launching npf:
+
+```bash
+npf-run iperf --test test.npf --graph-size 5.5 3.6 --graph-filename tests/tcp/01-iperf.png
+```
 
 Test files allow to define a matrix of parameters to try many combinations of
 variables for each test and report performance results and evolution for each
