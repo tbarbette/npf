@@ -1,4 +1,4 @@
-Network Performance Framework
+Network Performance Framework [![CI](https://github.com/tbarbette/npf/actions/workflows/ci.yml/badge.svg)](https://github.com/tbarbette/npf/actions/workflows/ci.yml) [![CodeQL](https://github.com/tbarbette/npf/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/tbarbette/npf/actions/workflows/codeql-analysis.yml)
 =============================
 
 Run performance tests on network software by running snippets of bash scripts on a cluster
@@ -29,7 +29,7 @@ performances through commits.
 
 Test files are simple to write, and easy to share, as such we encourage
 users to share their ".npf" scripts with their code to allow other users to reproduce
-their performance results, and graphs.
+their results, and graphs.
 
 NPF supports running the given test across a custer, allowing to try your tests
 in multiple different configuration very quickly and on serious hardware.
@@ -42,16 +42,21 @@ with pip using:
 pip3 install --user npf
 ```
 
+### Big picture ###
+Your *.npf* test file is composed of a serie of sections, as in the example given above. The sections describe the scripts to run, where to run them, what variables should be tested, what are their ranges, configuration parameters such as timeout or graph colors, etc. Each section is described in more details in [tests/README.md](tests/README.md). 
+When launching NPF, you will also give the name of one or more *repositories*, which are files located in the `repo` folder describing software to download, install and compile so everything is in place when your experiment is launched. They follow a format descrived in [repo/README.md](repo/README.md).
+Your test script will also define a few script *roles*, such as `client` or `server` as in the example above. When you actually launch your experiment, you must tell which machine (physical or virtual) will take the role. For simple cases, passing the address of a machine with the `--cluster role=machine` will be enough. When you'd like to define parameters such as IPs and MAC addresses, you can define a *cluster* file that will describe details about each machines. See [cluster/README.md](cluster/README.md) for more details.
+
 ### Run-time dependencies ###
 
 #### SSH ####
-Cluster-based tests use SSH to launch multiple software on different nodes, therefore SSH should be setup on each node for a password-less connection. Use public key authentication and be sure to add the ssh keys in your ssh agent using ssh-add before running NPF.
+Cluster-based tests use SSH to launch multiple software on different nodes, therefore SSH should be setup on each node for a password-less connection. Use public key authentication and be sure to add the ssh keys in your ssh agent using `ssh-add` before running NPF.
 
 #### Sudo ####
-Most DPDK-based but also other scripts use the "sudo=true" parameter in test scripts to gain root access. You can either always connect as root to other servers (see the cluster section below) or set up password-less sudo on all nodes.
+Most DPDK-based but also other scripts use the `sudo=true` parameter in test scripts to gain root access. You can either always connect as root to other servers (see the [cluster section](#user-content-cluster) below) or set up password-less sudo on all nodes.
 
 #### File-sharing (optional) ####
-Server are expected to share the NPF root. Use either a NFS shared mounted on all nodes or sshfs to mount the local NPF folder on all nodes. The path to the shared NPF root can be different on each node, see the cluster section below.
+Use either a NFS shared mounted on all nodes or sshfs to mount the local NPF folder on all nodes. The path to the shared NPF root can be different on each node, see the cluster section below.
 If this is not the case, the dependencies (software built by NPF) will be sent to all nodes that will use them in the corresponding scripts through SSH, but it is slower.
 
 ## Tools
