@@ -195,9 +195,8 @@ class Repository:
         if self.reponame == 'None':
             self.url = None
         else:
-          repo_path = npf.find_local('repo/' + self.reponame + '.repo', critical=False)
+            repo_path = npf.find_local('repo/' + self.reponame + '.repo', critical=True)
 
-          if repo_path != None:
             f = open(repo_path, 'r')
             for line in f:
                 line = line.strip()
@@ -271,7 +270,7 @@ class Repository:
                 else:
                     setattr(self, var, val)
 
-          self.method = self.method(self)  # Instanciate the method
+            self.method = self.method(self)  # Instanciate the method
 
         self.overriden_variables = {}
         if len(add_tags) > 1:
