@@ -1221,11 +1221,17 @@ class Grapher:
                     axis.tick_params(**tick_params)
 
                     graph_type = False
+                    default_doleg = True
                     if ndyn == 0:
-                        graph_type = "simple_bar"
+                        default_doleg = False
+                        if len(vars_all) == 1:
+                            graph_type = "boxplot"
+                        else:
+                            graph_type = "simple_bar"
                     elif ndyn == 1 and len(vars_all) > 2 and npf.all_num(vars_values[key]):
                         graph_type = "line"
                     graph_types = self.config("graph_type",[])
+
 
                     if len(graph_types) > 0 and (type(graph_types[0]) is tuple or type(graph_types) is tuple):
                         if type(graph_types) is tuple:
@@ -1495,7 +1501,7 @@ class Grapher:
                 if type(ncol) == list:
                     ncol = ncol[ilegend % len(ncol)]
                 doleg = self.config_bool_or_in('graph_legend', result_type)
-                if graph_type != "simple_bar" and doleg:
+                if default_doleg and doleg:
                     loc = self.config("legend_loc")
                     if type(loc) is dict or type(loc) is list:
                         loc = self.scriptconfig("legend_loc",key="result",result_type=result_type)
@@ -1852,7 +1858,7 @@ class Grapher:
         yticks = self.scriptconfig("var_ticks", "result", default=None, result_type=result_type)
         shift = int(shift)
         tick_params = self.configdict("graph_tick_params",default={})
-        if self.config_bool_or_in('var_grid',result_type):
+        if self.config_bool_or_in('var_grid',result_type) or self.config_bool_or_in('var_grid',"result"):
             axis.grid(True,color=gridcolors[shift], axis="y" if not self.config_bool_or_in('var_grid',key) else "both", **({"linestyle":self.config("graph_grid_linestyle")} if "grid_linestyle" not in tick_params else {}) )
             #linestyle=self.graphlines[( shift - 1 if shift > 0 else 0) % len(self.graphlines)]
             axis.set_axisbelow(True)

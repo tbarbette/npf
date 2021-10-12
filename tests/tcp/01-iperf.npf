@@ -3,7 +3,7 @@ IPerf 3 Throughput Experiment
 
 %config
 n_runs=5
-var_names={PARALLEL:Number of parallel connexions,ZEROCOPY:Zero-Copy}
+var_names+={PARALLEL:Number of parallel connexions,ZEROCOPY:Zero-Copy}
 timeout=25
 default_repo=iperf
 
