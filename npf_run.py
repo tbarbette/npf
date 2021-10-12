@@ -191,6 +191,9 @@ def main():
 
             regression = Regression(testie)
 
+            if testie.get_title() != testie.filename:
+                print(testie.get_title())
+
             old_all_results = None
             if last_build:
                 try:
