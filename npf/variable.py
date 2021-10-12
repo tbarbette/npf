@@ -292,6 +292,7 @@ class SimpleVariable(Variable):
     def __init__(self, name, value):
         super().__init__()
         self.value = get_numeric(value)
+        self.name = name
 
     def makeValues(self):
         return [self.value]

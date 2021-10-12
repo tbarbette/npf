@@ -118,5 +118,9 @@ class Node:
             pid, out, err, ret = sshex.exec(cmd="if ! type 'unbuffer' ; then ( sudo apt install -y expect || sudo yum install -y expect ) && sudo echo 'test' ; else sudo echo 'test' ; fi", raw=True)
             out = out.strip()
             if ret != 0 or out.split("\n")[-1] != "test":
-                raise Exception("Could not communicate with node %s, unbuffer (expect package) could not be installed, or passwordless sudo is not working, got %s" %  (sshex.addr, out))
+                #Something was wrong, try first with a more basic test to help the user pinpoint the problem
+                pid, outT, errT, retT = sshex.exec(cmd="echo 'test'", raw=True)
+                if retT != 0 or outT.split("\n")[-1] != "test":
+                    raise Exception("Could not communicate with%s node %s, got return code %d : %s" %  (" user "+ sshex.user if sshex.user else "", sshex.addr, retT, outT + errT))
+                raise Exception("Could not communicate with user %s on node %s, unbuffer (expect package) could not be installed, or passwordless sudo is not working, got return code %d : %s" %  (sshex.user, sshex.addr, ret, out + err))
         return node

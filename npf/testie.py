@@ -21,6 +21,7 @@ from npf.types.dataset import Run, Dataset
 from npf.eventbus import EventBus
 from .variable import get_bool
 from decimal import *
+from functools import reduce
 
 from subprocess import PIPE, Popen, TimeoutExpired
 
@@ -240,7 +241,12 @@ class Testie:
             imp.testie.variables.override_all(overriden_variables)
 
             if "require_tags" in imp.testie.config.vlist:
-                imp.testie.config.vlist["require_tags"] = imp.testie.config.vlist["require_tags"].pop("import")
+                tags = reduce(list.__add__,map(lambda x:x.split(','), imp.testie.config.vlist["require_tags"].makeValues()))
+
+                if "import" in tags:
+                    tags.remove("import")
+
+                imp.testie.config.vlist["require_tags"] = ListVariable(imp.testie.config.vlist["require_tags"].name, tags)
 
             imp.testie.config.override_all(self.config.vlist)
             self.config = imp.testie.config
@@ -333,7 +339,6 @@ class Testie:
 
     def test_tags(self):
         missings = []
-        # print("%s requires " % self.get_name(), self.config.get_list("require_tags"))
         for tag in self.config.get_list("require_tags"):
             if not tag in self.tags:
                 missings.append(tag)
