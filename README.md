@@ -25,7 +25,7 @@ Will automatically produce the following graph:
 When launching npf:
 
 ```bash
-npf-run iperf --test test.npf --graph-size 5.5 3.6 --graph-filename tests/tcp/01-iperf.png
+npf-run --test tests/tcp/01-iperf.npf
 ```
 
 Test files allow to define a matrix of parameters to try many combinations of
