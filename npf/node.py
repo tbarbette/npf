@@ -33,7 +33,8 @@ class Node:
 
         clusterFileName = 'cluster/' + name + ('.node' if not name.endswith(".node") else "")
         try:
-            clusterFilePath = npf.find_local(clusterFileName, critical=True)
+            clusterFilePath = npf.find_local(clusterFileName, critical=False)
+
             f = open(clusterFilePath, 'r')
             for i, line in enumerate(f):
                 line = line.strip()
@@ -55,7 +56,7 @@ class Node:
                     continue
                 raise Exception("%s:%d : Unknown node config line %s" % (clusterFile, i, line))
         except FileNotFoundError as e:
-            print(e)
+            print("%s could not be found, we will connect to %s with SSH using default parameters" % (clusterFilePath,name))
             self._find_nics()
 
     def _find_nics(self):
