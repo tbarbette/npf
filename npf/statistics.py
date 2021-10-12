@@ -25,8 +25,8 @@ class Statistics:
             clf = tree.DecisionTreeRegressor(max_depth=max_depth)
             clf = clf.fit(X, y)
 
-            if max_depth is None or max_depth > 8:
-                print("No tree graph when maxdepth is > 8")
+            if (max_depth is None and len(X) > 16) or (max_depth is not None and max_depth > 8):
+                print("No tree graph when maxdepth is > 8. Use --statistics-maxdepth 8 to fix it to 8.")
             else:
                 dot_data = tree.export_graphviz(clf, out_file=None, filled=True, rounded=True, special_characters=True,
                                                 feature_names=dtype['names'])
