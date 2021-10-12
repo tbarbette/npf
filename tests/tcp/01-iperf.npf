@@ -1,5 +1,5 @@
 %info
-IPerf 3 test
+IPerf 3 Throughput Experiment
 
 %config
 n_runs=5
@@ -19,4 +19,4 @@ iperf3 -s &> /dev/null
 
 %script@client delay=1
 result=$(iperf3 -f k -t $TIME -P $PARALLEL $ZEROCOPY -c ${server:0:ip} | tail -n 3 | grep -ioE "[0-9.]+ [kmg]bits")
-echo "RESULT $result"
+echo "RESULT-THROUGHPUT $result"

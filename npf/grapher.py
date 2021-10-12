@@ -1818,11 +1818,11 @@ class Grapher:
             return True, True
         elif (unit.lower() == "bps" or unit.lower() == "byteps"):
             if compact:
-                u= "b" if unit.lower() == "bps" else "B"
+                u = unit
             else:
                 u = "Bits" if unit.lower() == "bps" else "Bytes"
-            k = 1000 if unit.lower() == "bps" else 1024
-            axis.set_major_formatter(Grapher.ByteFormatter(unit,"/s", compact=compact, k=k, mult=mult))
+            k = 1000 if unit.lower() == "bps" or unit.lower().contains("bit") else 1024
+            axis.set_major_formatter(Grapher.ByteFormatter(u,"" if u.lower().endswith("ps") else "/s", compact=compact, k=k, mult=mult))
             return True, True
         elif (unit.lower() == "us" or unit.lower() == "µs"):
             formatter = FuncFormatter(self.us)
@@ -1870,7 +1870,7 @@ class Grapher:
         elif self.result_in_list('var_log', result_type):
             plt.yscale('symlog' if yformat else 'log')
             isLog = True
-        whatever, handled = self.set_axis_formatter(axis.yaxis,yformat,yunit,isLog)
+        whatever, handled = self.set_axis_formatter(axis.yaxis,yformat,yunit,isLog,True)
         yname = self.var_name("result", result_type=result_type)
         if yname != "result":
             if not handled and not '(' in yname and yunit and yunit.strip():

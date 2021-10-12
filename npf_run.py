@@ -191,8 +191,6 @@ def main():
 
             regression = Regression(testie)
 
-            print(testie.get_title())
-
             old_all_results = None
             if last_build:
                 try:

@@ -621,7 +621,7 @@ class SectionConfig(SectionVariable):
         self.__add_dict("graph_tick_params", {})
         self.__add_list("test_time_sync", [])
         self.__add("var_serie",None)
-        self.__add_dict("var_names", {"result-LATENCY":"Latency (µs)","result-THROUGHPUT":"Throughput","boxplot":""})
+        self.__add_dict("var_names", {"result-LATENCY":"Latency (µs)","result-THROUGHPUT":"Throughput","boxplot":"","^PARALLEL$":"Number of parallel connections","^ZEROCOPY$":"Zero-Copy"})
         self.__add_dict("var_unit", {"result": "","result-LATENCY":"us","latency":"us","throughput":"bps"})
         self.__add("graph_show_fliers", True)
         self.__add_dict("graph_cross_reference", {})
