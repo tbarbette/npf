@@ -15,7 +15,7 @@ TIME=2
 fastregression:PARALLEL={1,8}
 
 %script@server
-iperf3 -s &> /dev/null
+iperf3 -s
 
 %script@client delay=1
 result=$(iperf3 -f k -t $TIME -P $PARALLEL $ZEROCOPY -c ${server:0:ip} | tail -n 3 | grep -ioE "[0-9.]+ [kmg]bits")
