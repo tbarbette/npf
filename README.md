@@ -13,7 +13,7 @@ iperf3 -s &> /dev/null
 
 %script@client delay=1
 result=$(iperf3 -f k -t 2 -P $PARALLEL $ZEROCOPY -c ${server:0:ip} | tail -n 3 | grep -ioE "[0-9.]+ [kmg]bits")
-echo "RESULT $result"
+echo "RESULT-THROUGHPUT $result"
 ```
 Will automatically produce the following graph:
 
