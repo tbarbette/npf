@@ -1,1 +1,375 @@
-/home/tom/workspace/ordermatters/chain/modules/reframer.testie
+%info
+Generate HTTP requests from clients towards a server through a packet gateway and a mux
+
+The wiring should be:
+
+client <-> reframer <-> server
+
+This command line will run the most advanced mode (SFMaker, SMMaker, coalescing of acks), and tune all possible parameters (try every possible combinations)
+
+
+%variables
+PROTO_COMPRESS=1
+TAKEALL=0
+//SFDELAY=200
+SFDELAY=0
+//SFDHARD=400
+SFDHARD=0
+//SFDLAST=50
+SFDLAST=0
+//SMDELAY=200
+SMDELAY=0
+//SMDHARD=400
+SMDHARD=0
+//SMDLAST=50
+SMDLAST=0
+
+
+
+PKTGEN_OUT_BURST=1
+BYPASS_AFTER_FAIL=0
+REORDER=1
+ALWAYS=1
+SFMAX=128
+SFVERBOSE=1
+PRINT=0
+SFTHREADS=1
+SMTHREADS=1
+CLIMINQUEUES=4
+DCMINQUEUES=4
+PAUSE=full
+TXDESC=1024
+TXBLOCKING=true
+REF_CPU=15
+PRIO=DELAY
+MODEL=SECOND
+PGW_IP=10.220.0.1
+MUX_IP=10.221.0.1
+REF_LRO=0
+REF_MTU=1520
+NB_MBUF=1000000
+MBUF_SIZE=2176
+NDESC=4096
+SF_TX_MAX=32
+sflb:REFLB=-> FlowIPLoadBalancer(VIP 10.220.0.1, DST 10.221.0.5)
+REFLB?=
+DUT_IP?=10.221.0.5
+
+
+PAUSE0=, PAUSE full
+PAUSE1=, PAUSE full
+bf:PAUSE1=
+bf:TXDESC=512
+
+// These are just failsafe in case they are not defined
+REF_IF1?=${self:1:pci}
+REF_MAC1?=${self:1:mac}
+DUT_IFRET?=${dut:0:pci}
+DUT_MAC_RET?=${dut:0:mac}
+
+%late_variables
+SF_MAX_CAP?=-1
+
+//----------------------------------------------------
+//------------------ Reframer-------------------------
+//----------------------------------------------------
+
+%-bf:script sudo=true name=reframer critical=true deps=fastclick
+cat dut_common.click sfmaker.click smmaker.click dut.click >  C_DUT
+$GDB click --dpdk -w ${self:0:pci},dv_flow_en=1 -w ${self:1:pci},dv_flow_en=1 -l 0-$REF_CPU --file-prefix=reframer -- C_DUT
+
+%bf:script sudo=true name=reframer critical=true deps=fastclick
+cat dut_common.click sfmaker.click smmaker.click dut.click >  C_DUT
+$GDB ${CLICK_DIR}click --dpdk -w ${self:0:pci},dv_flow_en=1,representor=[0,65535] -w ${self:3:pci},dv_flow_en=1,representor=[0,65535] -l 0-$REF_CPU --file-prefix=reframer -- C_DUT
+
+//Packet gateway (dut role)
+%-sf,-sflb:file sfmaker.click
+elementclass SF {
+    [0] 
+    -> fcl:: Classifier(12/0800,-)
+    -> Strip(14)
+    -> ftrans::IPClassifier(tcp or udp,-)
+    -> Unstrip(14)
+    -> [0];
+
+    fcl[1] -> Print(NONIP) -> Discard;
+    ftrans[1] -> Unstrip(14) -> Discard;
+
+
+    sf :: HandlerAggregate();
+}
+
+%-sm:file smmaker.click
+elementclass SM {
+    [0] -> [0];
+
+    sf :: HandlerAggregate();
+}
+
+%-sf,sflb:file sfmaker.click
+elementclass SF {
+    [0]
+        -> fc :: FlowDPDKCacheManager(DEVICE fd0, BUILDER 0, AGGCACHE true, CLEAN_TIMER 0)
+        ~> IPIn
+        -> FlowStrip(14)
+        -> ftrans :: FlowDispatcher(9/06 0, 9/11 0, - 1)
+        -> fd :: FlowDispatcher(12/0/ffffffff 16/0/ffffffff 20/0/ffffffff:HASH-8, -)
+        -> fu ::  FlowUnstrip(14) 
+$REFLB        
+    -> [0];
+
+//    ftrans[1] -> Print(NONUDPTCP) -> FlowUnstrip(14) -> [0];
+    ftrans[1] -> FlowUnstrip(14) -> [0];
+    sf :: HandlerAggregate();
+}
+
+
+
+%sf:file sfmaker.click
+elementclass SF {
+
+        $(( "\n".join(["sc%d :: Counter -> sf%d :: { [0] -> sf :: SFMaker(DELAY $SFDELAY, DELAY_LAST $SFDLAST, DELAY_HARD $SFDHARD, TAKE_ALL $TAKEALL, PROTO_COMPRESS $PROTO_COMPRESS, REORDER $REORDER, PRIO $PRIO, ALWAYSUP $ALWAYS, MODEL $MODEL, MAX_BURST $SFMAX, MAX_TX_BURST $SF_TX_MAX, VERBOSE $SFVERBOSE, BYPASS_AFTER_FAIL $BYPASS_AFTER_FAIL, MAX_CAP $SF_MAX_CAP) %s -> output;}" % (i+1,i+1, (("-> StoreData(19,\<%02d>)"%i) if ($SF and $SFTHREADS>1 and not $HTTP ) else "") ) for i in range($SFTHREADS)]) ))
+
+    input[0]
+        -> fcl:: Classifier(12/0800,-)
+	
+        -> Strip(14)
+	-> ftrans::IPClassifier(tcp or udp,-)
+
+        $REFLB
+$(("        -> cbp:: Classifier(5/00%0f,-); cbp[0] " if $HH else ""))
+        -> fc :: FlowIPManagerIMP(CAPACITY $CAPACITY)
+        -> frr :: ExactCPUSwitch();
+	
+        $(( "\n".join(["frr[%d] -> sc%d;" % (i,i+1) for i in range($SFTHREADS)]) ))
+	
+        fu ::  Unstrip(14);
+
+$(("    cbp[1] -> bp::Counter -> fu;" if $HH else ""))
+
+        out :: Null //IPPrint("SFOUT", ACTIVE $PRINT)
+        -> [0];
+
+        $(( "\n".join(["sf%d -> fu;" % (i+1) for i in range($SFTHREADS)]) ))
+
+        fu->out;
+
+        sf :: HandlerAggregate($(( ",".join(["ELEMENT sf%d/sf" % (i+1) for i in range($SFTHREADS)]) )) )
+
+        fcl[1] -> Print(NONIP) -> Discard;
+        ftrans[1] -> Unstrip(14) -> Discard;
+
+}
+
+%sm:file smmaker.click
+elementclass SM {
+
+        $(( "\n".join(["sc%d :: Counter -> sm%d :: { [0] -> sf :: SFMaker(DELAY $SMDELAY, DELAY_LAST $SMDLAST, DELAY_HARD $SMDHARD, TAKE_ALL $TAKEALL, PROTO_COMPRESS $PROTO_COMPRESS, REORDER $REORDER, PRIO $PRIO, ALWAYSUP $ALWAYS, MODEL $MODEL, MAX_BURST $SFMAX, MAX_TX_BURST $SF_TX_MAX, VERBOSE $SFVERBOSE, BYPASS_AFTER_FAIL $BYPASS_AFTER_FAIL) %s -> output;}" % (i+1,i+1, (("-> StoreData(19,\<%02d>)"%i) if ($SF and $SFTHREADS>1 and not $HTTP ) else "") ) for i in range($SMTHREADS)]) ))
+
+    input[0]
+        -> fcl:: Classifier(12/0800,-)
+
+        -> Strip(14)
+	-> ftrans::IPClassifier(tcp or udp,-)
+
+        $REFLB
+$(("        -> cbp:: Classifier(5/00%0f,-); cbp[1] " if $HH else ""))
+        -> fc :: FlowIPManagerIMP(CAPACITY $CAPACITY)
+        -> frr :: ExactCPUSwitch();
+
+        $(( "\n".join(["frr[%d] -> sc%d;" % (i,i+1) for i in range($SMTHREADS)]) ))
+
+        fu ::  Unstrip(14);
+
+$(("    cbp[0] -> bp::Counter -> fu;" if $HH else ""))
+
+        out :: Null //IPPrint("SFOUT", ACTIVE $PRINT)
+        -> [0];
+
+        $(( "\n".join(["sm%d -> fu;" % (i+1) for i in range($SMTHREADS)]) ))
+
+        fu->out;
+
+        sm :: HandlerAggregate($(( ",".join(["ELEMENT sm%d/sf" % (i+1) for i in range($SMTHREADS)]) )) )
+        fcl[1] -> Print(NONIP) -> Discard;
+        ftrans[1] -> Unstrip(14) -> Discard;
+
+
+}
+
+
+
+%file dut_common.click
+//t :: TSCClock(NOWAIT true)
+//j :: JiffieClock()
+h :: HTTPServer(PORT 8080)
+
+StaticThreadSched(t 15, j 15, h 15);
+
+elementclass MUXProcesser {
+    input
+        -> MarkMACHeader
+        -> CheckIPHeader(OFFSET 14, CHECKSUM false)
+//        -> SetTimestamp(PER_BATCH false)
+        -> output;
+};
+
+
+elementclass PGWProcesser {
+    input
+        -> MarkMACHeader
+        -> checkIp :: CheckIPHeader(OFFSET 14, DETAILS true, CHECKSUM false)
+//        -> SetTimestamp(PER_BATCH false)
+        -> output;
+};
+
+%file dut.click
+
+DPDKInfo(NB_MBUF $NB_MBUF, MBUF_SIZE $MBUF_SIZE)
+
+//From Clients
+//DDIOTune(N_WAYS $DDIO, DEV ${self:0:pci})
+fromClientsCtr, fromClientsIpCtr :: Counter
+
+
+fd0 :: FromDPDKDevice(0, PROMISC true, MINQUEUES $CLIMINQUEUES, MAXTHREADS $SFTHREADS, RSS_AGGREGATE 1, VERBOSE 3, NDESC $NDESC, TIMESTAMP false $PAUSE0)
+    -> fromClientsCtr
+    -> sf_avg :: AverageCounterIMP(IGNORE $IGNORE, MAX $(( ${GEN_TIME} - $IGNORE if ${GEN_TIME} else 0 )), THRESHOLD 10000 )
+    -> cf0 :: Classifier(
+         12/0806 20/0001,
+         12/0806 20/0002,
+        12/0800
+//		-
+    );
+
+    cf0[0] -> arpresp0 :: ARPResponder(${PGW_IP} ${self:0:mac}, ${DUT_IP} ${dut:0:mac});
+    cf0[2] -> fromClientsIpCtr
+    -> pgwp:: PGWProcesser()
+
+    -> bub :: BurstStats
+    -> bsb :: BatchStats
+    -> sf :: SF()
+    -> bsa :: BatchStats
+    -> bua :: BurstStats
+
+//    -> L2LoadBalancer($(( ', '.join(["DST ${SRV_MAC_32}:%02x:%02x" % (srv+1,multi+1) for srv,multi in productrange($NSERVER,$SRV_NS)  ]) )), LB_MODE hash_agg, NSERVER $MAXSRV)
+//    -> StoreEtherAddress(${self:1:mac}, OFFSET src)
+
+//    -> avgP :: AverageCounterIMP()
+    -> EtherRewrite(SRC ${REF_MAC1}, DST ${DUT_MAC_RET})
+    -> td1 :: ToDPDKDevice(1, VERBOSE 2, N_QUEUES 1, NDESC $TXDESC, TCO true, BLOCKING $TXBLOCKING);
+//    -> tdIN :: ToDump(/mnt/traces/mixed.pcap, SNAPLEN 128, FORCE_TS false, NANO true);
+
+//   td1 :: ToDPDKDevice(1, VERBOSE 2, N_QUEUES 1, NDESC $TXDESC, TCO true, BLOCKING $TXBLOCKING);
+//From MUX
+fd1 :: FromDPDKDevice(${REF_IF1}, PROMISC true, MINQUEUES $DCMINQUEUES, MAXTHREADS $SMTHREADS, RSS_AGGREGATE 1, VERBOSE 3, NDESC $NDESC, TIMESTAMP false $PAUSE1)
+
+    -> sm_avg :: AverageCounterIMP(IGNORE $IGNORE, MAX $(( ${GEN_TIME} - $IGNORE if ${GEN_TIME} else 0 )), THRESHOLD 10000 )
+    -> cf1 :: Classifier(
+        12/0806 20/0001,
+        12/0806 20/0002,
+        12/0800
+//		-
+    );
+	cf1[0] -> arpresp1 :: ARPResponder(${MUX_IP} ${self:1:mac});
+
+
+    cf1[2]
+    -> bA :: BurstStats
+    -> MUXProcesser()
+    -> sm :: SM()
+    -> bB :: BurstStats
+//    -> avgM :: AverageCounterIMP()
+//    -> arpq :: ARPQuerier(IP ${PGW_IP}, ETH ${self:0:mac}, CACHE true)
+    -> EtherRewrite(SRC ${self:0:mac}, DST ${client:0:mac})
+    -> td0 :: ToDPDKDevice(0, VERBOSE 2, NDESC $TXDESC, TCO true, BLOCKING $TXBLOCKING);
+
+arpresp0[0] -> td0;
+arpresp1[0] -> td1;
+
+
+arpresp0[0] -> td0;
+
+cf0[1] -> Discard; //[1]arpq;
+cf1[1] -> Discard;
+
+Script( TYPE ACTIVE,
+        set tl 0,
+        wait 5s,
+//        write avg.reset,
+        set s $(now),
+        wait $(sub $(ceil $s) $s)s,
+        label loop,
+        set t $(now),
+
+        print "KPGW-$t-RESULT-TQUEUED $(sf/sf.add queued)",
+
+//        print "KMUX-$t-RESULT-TBWP $(avgP.link_rate)",
+//        print "KMUX-$t-RESULT-TBWM $(avgM.link_rate)",
+        set l $(add $(load)),
+        set tl $(add $l $tl),
+        print "KREF-$t-RESULT-TALOAD $l",
+        print "KREF-$t-RESULT-TMLOAD $(max $(load))",
+//        print "KMUX-$t-RESULT-TQUEUED $(sm/sm.add queued)",
+        print $(load),
+//        write avg.reset,
+//        write avgM.reset,
+//        write avgP.reset,
+        wait 1s,
+        goto loop
+);
+
+
+DriverManager(
+        pause,
+        set rx $(add $(fd0.hw_count) $(fd1.hw_count)),
+        set tx $(add $(td0.count) $(td1.count)),
+        set dropped $(sf/sf.add dropped),
+        print "RESULT-FROM-CLIENTS-COUNT $(fromClientsCtr.count)",
+        print "RESULT-IP-FROM-CLIENTS-COUNT $(fromClientsIpCtr.count)",
+
+        print "RESULT-PGW_AVGTHROUGHPUT $(sf_avg.link_rate)",
+
+        print "RESULT-MUX_AVGTHROUGHPUT $(sm_avg.link_rate)",
+        print "RESULT-PGW_SF $(sf/sf.add superframes)",
+        print "RESULT-PGW_SF_FLOWS $(sf/sf.avg superframe_flows_avg)",
+        print "RESULT-PGW_SF_SIZE $(sf/sf.avg superframe_size_avg)",
+        print "RESULT-PGW_REORDERED $(sf/sf.add reordered)",
+        print "RESULT-PGW_COMPRESS $(sf/sf.avg compress_avg)",
+        print "RESULT-PGW_BURSTS $(sf/sf.avg bursts_avg)",
+        print "RESULT-PGW_PACKETS $(sf/sf.avg packets_avg)",
+        $(( "\n".join(["print \"RESULT-PGW_COUNT_%d $(sf/sc%d.count)\"," % (i+1,i+1) for i in range($SFTHREADS)]) ))
+        $(( "\n".join(["print \"RESULT-PGW_BYPASS_%d $(sf/bp.count)\"," % (i+1) for i in range($SFTHREADS)]) ))
+        print "RESULT-PGW_USELESSWAIT $(sf/sf.avg useless_wait_avg)",
+        print "RESULT-PGW_DUMP $(pgwp/checkIp.drop_details)",
+        print "RESULT-PGW_BSB $(bsb.average)",
+        print "RESULT-PGW_BSA $(bsa.average)",
+        print "RESULT-PGW_BUB $(bub.average)",
+	print "RESULT-BUB_MDN $(bub.median)",
+	    print "RESULT-BUB-DMP $(bub.dump)",
+        print "RESULT-PGW_BUA $(bua.average)",
+
+        print "RESULT-MUX_BUB $(bA.average)",
+        print "RESULT-MUX_BUA $(bB.average)",
+        print "RESULT-REF_RCV $rx",
+        print "RESULT-REF_TRA $tx",
+        print "RESULT-PGW_KILLED $dropped",
+//        print "RESULT-PGW_DROPPED $(max 0 $(sub $rx $tx $dropped))",
+        print "RESULT-REF_TXDROPPED $(add $(td0.dropped) $(td1.dropped))",
+        print "RESULT-REF_HWDROPPED $(add $(fd0.hw_dropped) $(fd1.hw_dropped))",
+        print "RESULT-PGW_MIDSIZE $(div $(fd0.hw_bytes) $(fd0.hw_count))",
+        print "RESULT-MUX_MIDSIZE $(div $(fd1.hw_bytes) $(fd1.hw_count))",
+        print "RESULT-REF-USEFUL-CYCLES "$(add $(useful_kcycles)),
+        print "RESULT-REF-USEFUL-CYCLES-PP "$(div $(add $(useful_kcycles)) $(div $rx 1000)),
+//        write agg.write_text_file -,
+//        read b.dump,
+        read fd0.xstats,
+        read fd1.xstats,
+	
+	print "COUNTER-2-RESULT-COUNT $(fd0.count)",
+	print "COUNTER-3-RESULT-COUNT $(td1.count)",
+	print "COUNTER-6-RESULT-COUNT $(fd1.count)",
+	print "COUNTER-7-RESULT-COUNT $(td0.count)",
+	print "RESULT-NOMBUFS-DUT0 $(fd0.nombufs)",
+	print "RESULT-NOMBUFS-DUT1 $(fd1.nombufs)"
+        )
