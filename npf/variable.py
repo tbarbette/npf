@@ -218,9 +218,10 @@ class VariableFactory:
 # raise Exception("Unkown variable type : " + valuedata)
 
 class Variable:
-    def __init__(self):
+    def __init__(self, name):
         self.assign = '='
         self.is_default = False
+        self.name = name
 
     NAME_REGEX = r'[a-zA-Z0-9._-]+'
     TAGS_REGEX = r'[a-zA-Z0-9._,|!-]+'
@@ -236,6 +237,7 @@ class Variable:
 # For each value N of nums, generate a variable with the first N element of values
 class HeadVariable(Variable):
     def __init__(self, name, nums, values, join = None):
+        super().__init__(name)
         self.values = values
         if not is_numeric(nums):
             raise Exception("%s is not a number!" % nums)
@@ -266,6 +268,7 @@ class ExpandVariable(Variable):
     """ Create a list wihich expands a string with all possible value for the variable
         it contains like it would be in a script or file section"""
     def __init__(self, name, value, vsection):
+        super().__init__(name)
         self.values = vsection.replace_all(value)
 
     def makeValues(self):
@@ -290,9 +293,8 @@ class ExpandVariable(Variable):
 
 class SimpleVariable(Variable):
     def __init__(self, name, value):
-        super().__init__()
+        super().__init__(name)
         self.value = get_numeric(value)
-        self.name = name
 
     def makeValues(self):
         return [self.value]
@@ -319,7 +321,7 @@ class SimpleVariable(Variable):
 
 class ListVariable(Variable):
     def __init__(self, name, l):
-        super().__init__()
+        super().__init__(name)
         all_num = True
         for x in l:
             if not is_numeric(x):
@@ -367,7 +369,7 @@ class ListVariable(Variable):
 
 class DictVariable(Variable):
     def __init__(self, name, data):
-        super().__init__()
+        super().__init__(name)
         if type(data) is dict:
             self.vdict = data
         else:
@@ -401,7 +403,8 @@ class DictVariable(Variable):
 
 class RangeVariable(Variable):
     def __init__(self, name, valuestart, valueend, log, step = None):
-        super().__init__()
+        super().__init__(name)
+
         if is_integer(valuestart) and is_integer(valueend):
             valuestart=int(valuestart)
             valueend=int(valueend)
@@ -460,6 +463,7 @@ class RangeVariable(Variable):
 
 class IfVariable(Variable):
     def __init__(self, name, cond, a, b):
+        super().__init__(name)
         self.cond = cond
         self.a = a
         self.b = b
@@ -482,6 +486,7 @@ class IfVariable(Variable):
 
 class RandomVariable(Variable):
     def __init__(self, name, a, b):
+        super().__init__(name)
         self.a = int(a.strip())
         self.b = int(b.strip())
 

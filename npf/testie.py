@@ -241,7 +241,9 @@ class Testie:
             imp.testie.variables.override_all(overriden_variables)
 
             if "require_tags" in imp.testie.config.vlist:
-                tags = reduce(list.__add__,map(lambda x:x.split(','), imp.testie.config.vlist["require_tags"].makeValues()))
+                tags = imp.testie.config.vlist["require_tags"].makeValues()
+                if tags:
+                    tags = reduce(list.__add__,map(lambda x:x.split(','), tags))
 
                 if "import" in tags:
                     tags.remove("import")
