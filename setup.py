@@ -23,7 +23,8 @@ install_requires=[
     'natsort',
     'webcolors',
     'colorama',
-    'pygtrie'
+    'pygtrie',
+    'importlib_metadata'
         ]
 
 setuptools.setup(
