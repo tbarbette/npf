@@ -1277,7 +1277,7 @@ class Testie:
     def expand_folder(testie_path, options, tags=None) -> List['Testie']:
         testies = []
         if not os.path.exists(testie_path):
-            print("The testie path %s does not exist" % testie_path)
+            print("The npf script path %s does not exist" % testie_path)
             return testies
         if os.path.isfile(testie_path):
             testie = Testie(testie_path, options=options, tags=tags)

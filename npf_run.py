@@ -81,7 +81,7 @@ def main():
             if "default_repo" in tmptestie.config and tmptestie.config["default_repo"] is not None:
                 repo = Repository.get_instance(tmptestie.config["default_repo"], args)
             else:
-                print("This testie has no default repository")
+                print("This npf script has no default repository")
                 sys.exit(1)
         else:
             print("Please specify a repository to use to the command line or only a single testie with a default_repo")
