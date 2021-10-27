@@ -199,7 +199,7 @@ class Testie:
         # Create imports testies
         for imp in self.imports:
             from npf.module import Module
-            imp.testie = Module(imp.module, options, self, imp, tags, imp.get_role())
+            imp.testie = Module(imp.module, options, self, imp, self.tags, imp.get_role())
             if len(imp.testie.variables.dynamics()) > 0:
                 raise Exception("Imports cannot have dynamic variables. Their parents decides what's dynamic.")
             if 'as_init' in imp.params:
