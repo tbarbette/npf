@@ -4,5 +4,5 @@ url=https://github.com/tbarbette/wrk2.git
 method=git
 bin_folder=
 bin_name=wrk
-configure=
+configure=./autogen.sh && ./configure
 make=make
