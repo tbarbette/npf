@@ -8,6 +8,7 @@ NGINX_NWORKER=16
 NGINX_PORT=8188
 NGINX_GZIP=off
 NGINX_ROOT=./nginx/
+NGINX_USER=www-data
 KEEPALIVE=30
 ssl:NGINX_SSL=1
 NGINX_CPU_STEP=1
@@ -50,7 +51,7 @@ exit $r
 //%clean
 
 %file nginx.conf
-user www-data;
+user $NGINX_USER;
 worker_processes $NGINX_NWORKER;
 worker_rlimit_nofile 70000;
 pid nginx.pid;
@@ -126,10 +127,10 @@ open_file_cache_errors on;
 
 server {
 	listen $NGINX_PORT $NGINX_SRVTYPE reuseport;
-
+	listen [::]:$NGINX_PORT $NGINX_SRVTYPE reuseport;
     ${NGINX_SERVER_CONFIG}
 
-	root $NGINX_ROOT;
+	root ./;
 
 	# Add index.php to the list if you are using PHP
 	index index.html index.htm index.nginx-debian.html;
