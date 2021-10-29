@@ -8,10 +8,8 @@ import regex
 import re
 from decimal import Decimal
 
-
 from npf.node import Node
 from .variable import VariableFactory
-
 
 options = None
 

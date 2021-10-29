@@ -401,7 +401,12 @@ class Grapher:
                     #                    if (graph_variables and not run in graph_variables):
                     #                        continue
                 newrun = run.copy()
+                for k in key.split("+"):
+                    if k in newrun.variables:
+                        del newrun.variables[k]
+
                 newrun.variables[key] = 'AGG'
+
                 aggregates.setdefault(newrun,[]).append(run_results)
 
             new_all_results = OrderedDict()
@@ -419,7 +424,7 @@ class Grapher:
                     for result_type in all_result_types:
                         if method == 'all':
                             new_run_results[result_type] = list(itertools.chain.from_iterable([ag for i,ag in agg[result_type].items()]))
-                            print (run, result_type, new_run_results[result_type])
+                            #print (run, result_type, new_run_results[result_type])
                         else:
                             new_run_results[result_type] = [group_val(np.asarray(ag),method) for i,ag in agg[result_type].items()]
                     new_all_results[run] = new_run_results
@@ -924,7 +929,8 @@ class Grapher:
 
         for key,method in self.configdict('var_aggregate').items():
             series = self.aggregate_variable(key=key,series=series,method=method)
-            vars_values[key] = ['AGG']
+            for k in key.split('+'):
+                vars_values[k] = ['AGG']
 
 
         versions = []

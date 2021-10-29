@@ -1,0 +1,14 @@
+%variables
+{
+    ENORMOUS=[0-10000#]
+    HUGE=[0-1000#]
+    BIG=[0-100#]
+    SMALL=[0-10#]
+}
+X={0,1}
+
+%config
+var_aggregate={ENORMOUS+HUGE+BIG+SMALL:all}
+
+%script
+echo "RESULT $(( ($X + 1) * ($ENORMOUS + $HUGE + $BIG + $SMALL) ))"

@@ -116,7 +116,7 @@ class Testie:
             loc_path = npf.find_local(testie_path + '.npf')
             if not os.path.exists(loc_path):
                 if os.path.exists(npf.find_local(testie_path + '.testie')):
-                    printf("WARNING: .testie extension is deprecated, use .npf")
+                    print("WARNING: .testie extension is deprecated, use .npf")
                     testie_path = npf.find_local(testie_path + '.testie')
                 else:
                     raise FileNotFoundError("Could not find test script %s (tried also with .npf and .testie extensions, without success)" % testie_path)
@@ -1305,7 +1305,7 @@ class Testie:
                 else:
                     raise Exception(
                         "Roles %s cannot be on the same node ! Please use --cluster argument to set them accross nodes" % ' and '.join(
-                            s))
+                           testie.config.get_list("role_exclude")))
 
         return filtered_testies
 

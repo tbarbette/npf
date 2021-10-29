@@ -7,6 +7,7 @@ from npf import npf
 from npf.nic import NIC
 from asteval import Interpreter
 import itertools
+import numpy as np
 
 import random
 
@@ -146,9 +147,8 @@ def replace_variables(v: dict, content: str, self_role=None, self_node=None, def
             else:
                 return str(v)
         else:
-            return str(nodes[nodeidx].get_nic(
-            int(nic_match.group('nic_idx') if nic_match.group('nic_idx') else v[nic_match.group('nic_var')]))[
-                       nic_match.group('type')])
+            nic = nodes[nodeidx].get_nic(int(nic_match.group('nic_idx')))
+            return str(nic[nic_match.group('type')])
 
     content = re.sub(
         Variable.VARIABLE_NICREF_REGEX,
@@ -174,10 +174,11 @@ def replace_variables(v: dict, content: str, self_role=None, self_node=None, def
     return content
 
 
+
 class VariableFactory:
     @staticmethod
     def build(name, valuedata, vsection=None):
-        result = re.match("\[(-?[0-9.]+)([+-]|[*]|[,])(-?[0-9.]+)([#][0-9.]+)?\]", valuedata)
+        result = re.match("\[(-?[0-9.]+)([+-]|[*]|[,])(-?[0-9.]+)([#][0-9.]*)?\]", valuedata)
         if result:
             return RangeVariable(name, result.group(1), result.group(3), result.group(2) == "*", (get_numeric(result.group(4)[1:]) if result.group(4) else None))
 
@@ -191,6 +192,8 @@ class VariableFactory:
 
         result = regex.match("EXPAND\((.*)\)", valuedata)
         if result:
+            if vsection is None:
+                raise Exception("RANDOM variable without vsection",vsection)
             return ExpandVariable(name, result.group(1), vsection)
 
         result = regex.match("RANDOM[ ]*\([ ]*([^,]+)[ ]*,[ ]*([^,]+)[ ]*\)", valuedata)
@@ -233,6 +236,80 @@ class Variable:
     ALLOWED_NODE_VARS = 'path|user|addr|tags|nfs|arch|port'
     NICREF_REGEX = r'(?P<role>[a-z0-9]+)[:](:?(?P<nic_idx>[0-9]+)[:](?P<type>' + NIC.TYPES + '+)|(?P<node>'+ALLOWED_NODE_VARS+'|ip|multi|mode|node))'
     VARIABLE_NICREF_REGEX = r'(?<!\\)[$][{]' + NICREF_REGEX + '[}]'
+
+class ExperimentalDesign:
+    matrix = None
+    varmap = OrderedDict()
+
+    @classmethod
+    def getVals(cls, v:Variable):
+        if cls.matrix is None:
+            cls.load()
+        if v.name not in cls.varmap:
+            cls.varmap[v.name] = len(cls.varmap)
+        return cls.matrix[cls.varmap[v.name]]
+
+    @classmethod
+    def load(cls):
+        path = npf.find_local("matrix.csv")
+
+        # Open the file
+        f = open(path)
+        lines = f.readlines()
+        f.close()
+
+        # The interesting line is the third one
+        line = lines[0]
+        split_line = line.split(",")
+        nums = []
+
+        for x in split_line:
+            nums.append(float(x))
+
+        nrows = 20
+        ncols = 95
+
+        if len(nums) != nrows*ncols:
+            raise Exception("wrong number of elements in wsp matrix: %d instead of %d(with %d rows)" % (len(nums), nrows*ncols, nrows))
+
+        # The matrix is encoded as an array of nrowsxncols
+        matrix = []
+        for i in range(nrows):
+            row = []
+            for j in range(ncols):
+                try:
+                    row.append(nums[i * ncols + j])
+                except:
+                    print((i * ncols + j))
+                    raise
+
+            matrix.append(row)
+
+        ExperimentalDesign.matrix = np.array(matrix)
+
+class CoVariable(Variable):
+    def __init__(self, name = "covariable"):
+        super().__init__(name)
+        self.vlist = OrderedDict()
+
+    def makeValues(self):
+        vs = [OrderedDict() for i in range(self.count())]
+        vals = []
+        for i,(var,val) in enumerate(self.vlist.items()):
+            vals.append(val.makeValues())
+        for i in range(self.count()):
+            for j,var in enumerate(self.vlist.keys()):
+                vs[i][var] = vals[j][i]
+        return vs
+
+    def count(self):
+        return min([v.count() for k,v in self.vlist.items()])
+
+    def format(self):
+        return str
+
+    def is_numeric(self):
+        return False
 
 # For each value N of nums, generate a variable with the first N element of values
 class HeadVariable(Variable):
@@ -428,31 +505,38 @@ class RangeVariable(Variable):
 
     def count(self):
         """todo: think"""
-        if self.log:
-            return len(self.makeValues())
+        if self.step == "":
+            return len(ExperimentalDesign.getVals(self))
         else:
-            return int(((self.b-self.a) / self.step) + 1)
+            if self.log:
+                return len(self.makeValues())
+            else:
+                return int(((self.b-self.a) / self.step) + 1)
 
 
     def makeValues(self):
-            vs = []
-            i = self.a
-            while i <= self.b:
-                vs.append(i)
-                if i == self.b:
-                    break
-                if i == 0 and self.log:
-                    if self.b > 0:
-                        i = 1
+            #Experimental design
+            if self.step == "":
+                vs =  self.a + (self.b-self.a) * ExperimentalDesign.getVals(self)
+            else:
+                vs = []
+                i = self.a
+                while i <= self.b:
+                    vs.append(i)
+                    if i == self.b:
+                        break
+                    if i == 0 and self.log:
+                        if self.b > 0:
+                            i = 1
+                        else:
+                            i = -1
                     else:
-                        i = -1
-                else:
-                    if self.log:
-                        i *= self.step
-                    else:
-                        i += self.step
-            if i > self.b:
-                vs.append(self.b)
+                        if self.log:
+                            i *= self.step
+                        else:
+                            i += self.step
+                if i > self.b:
+                    vs.append(self.b)
             return vs
 
     def format(self):

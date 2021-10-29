@@ -293,11 +293,14 @@ class BruteVariableExpander:
         self.expanded = [OrderedDict()]
         for k, v in vlist.items():
             newList = []
-            for nvalue in v.makeValues():
+            l = v.makeValues()
+
+            for nvalue in l:
                 for ovalue in self.expanded:
                     z = ovalue.copy()
-                    z.update({k: nvalue})
+                    z.update(nvalue if type(nvalue) is OrderedDict else {k: nvalue})
                     newList.append(z)
+
             self.expanded = newList
         self.it = self.expanded.__iter__()
 
@@ -342,7 +345,7 @@ class SectionVariable(Section):
             return BruteVariableExpander(self.vlist)
 
     def __iter__(self):
-        return BruteVariableExpander(self.vlist)
+        return self.expand()
 
     def __len__(self):
         if len(self.vlist) == 0:
@@ -435,28 +438,38 @@ class SectionVariable(Section):
             else:
                 return None, None, False
 
-    def build(self, content, testie, check_exists=False, fail=True):
+    def build(self, content:str, testie, check_exists:bool=False, fail:bool=True):
+        sections_stack = [self]
         for line in content.split("\n"):
-            var, val, assign = self.parse_variable(line, testie.tags, vsection=self, fail=fail)
-            if not var is None and not val is None:
-                if check_exists and not var in self.vlist:
-
-                    if var.endswith('s') and var[:-1] in self.vlist:
-                        var = var[:-1]
-                    elif var + 's' in self.vlist:
-                        var = var + 's'
-                    else:
-                        if var in self.aliases:
-                            var = self.aliases[var]
+            if line.strip() == "{":
+                c = CoVariable()
+                sections_stack.append(c)
+                self.vlist[c.name] = c
+            elif line.strip() == "}":
+                sections_stack.pop()
+            else:
+                line = line.lstrip()
+                sect = sections_stack[-1]
+                var, val, assign = self.parse_variable(line, testie.tags, vsection=sect, fail=fail)
+                if not var is None and not val is None:
+                    # If check_exists, we verify that we overwrite a variable. This is used by config section to ensure we write known parameters
+                    if check_exists and not var in sect.vlist:
+                        if var.endswith('s') and var[:-1] in sect.vlist:
+                            var = var[:-1]
+                        elif var + 's' in sect.vlist:
+                            var = var + 's'
                         else:
-                            raise Exception("Unknown variable %s" % var)
-                if assign == '+=' and var in self.vlist:
-                    self.vlist[var] += val
-                elif assign == '?=':
-                    if not var in self.vlist:
-                        self.vlist[var] = val
-                else:
-                    self.vlist[var] = val
+                            if var in self.aliases:
+                                var = self.aliases[var]
+                            else:
+                                raise Exception("Unknown variable %s" % var)
+                    if assign == '+=' and var in sect.vlist:
+                        sect.vlist[var] += val
+                    elif assign == '?=':
+                        if not var in sect.vlist:
+                            sect.vlist[var] = val
+                    else:
+                        sect.vlist[var] = val
         return OrderedDict(sorted(self.vlist.items()))
 
     def finish(self, testie):

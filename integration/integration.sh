@@ -65,6 +65,7 @@ else
     python=python
 fi
 
+compare experimental $python
 compare pyexit $python
 compare integration-01 $python
 compare integration-02 $python
