@@ -29,11 +29,10 @@ npf-run --test tests/tcp/01-iperf.npf
 ```
 
 Test files allow to define a matrix of parameters to try many combinations of
-variables for each test and report performance results and evolution for each
-line of the matrix.
+variables (see [here](tests/README.npf#variables) for a description of the possible definitions such as values, ranges, ...) for each test and report performance results and evolution for each combination of variables.
 
 Finally, a graph will be built and statistical results may be computed for each test 
-showing the difference between variables, different softwares, or the evolution of
+showing the difference between variables values, different softwares, or the evolution of
 performances through commits.
 
 Test files are simple to write, and easy to share, as such we encourage
@@ -187,7 +186,7 @@ All results of tests are saved per-commit and per-repo to avoid re-computing the
 you launch either of the tools. However the set of variables must be exactly the
 same.
 
-To force re-computing the tests, use the --force-test option. The --force-rebuild
+To force re-computing the tests, use the --force-retest option. The --force-rebuild
 may also be something you want.
 
 ### Output

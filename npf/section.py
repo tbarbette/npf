@@ -518,6 +518,8 @@ class SectionConfig(SectionVariable):
 
         self.aliases = {
             'graph_variable_as_series': 'graph_variables_as_series',
+            'graph_variable_as_serie': 'graph_variables_as_series',
+            'graph_variables_as_serie': 'graph_variables_as_series',
             'graph_grid': 'var_grid',
             'graph_serie': 'var_serie',
             'graph_types':'graph_type',
