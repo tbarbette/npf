@@ -1290,10 +1290,11 @@ class Grapher:
                     if self.config('graph_force_diagonal_labels'):
                         direction='diagonal'
                     else:
-                        direction = self.scriptconfig('var_label_dir', 'result', result_type=result_type, default=None)
+                        direction = self.scriptconfig('graph_label_dir', 'result', result_type=result_type, default=None)
 
                     if direction == 'diagonal' or direction == 'oblique':
                         plt.xticks(rotation = 45, ha='right')
+
                     else:
                         plt.xticks(rotation = 'vertical' if (ndata > 8 or direction =='vertical') else 'horizontal')
 

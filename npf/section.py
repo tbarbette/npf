@@ -544,7 +544,8 @@ class SectionConfig(SectionVariable):
             'y_group': 'graph_y_group',
             'graph_serie_sort':'graph_series_sort',
             'series_prop': 'graph_series_prop',
-            'graph_legend_ncol': 'legend_ncol'
+            'graph_legend_ncol': 'legend_ncol',
+            'var_label_dir' : 'graph_label_dir'
         }
 
         # Environment
@@ -648,7 +649,7 @@ class SectionConfig(SectionVariable):
         self.__add_list("graph_type", [])
         self.__add("title", None)
         self.__add_list("require_tags", [])
-        self.__add_dict("var_label_dir", {})
+        self.__add_dict("graph_label_dir", {})
         self.__add("graph_force_diagonal_labels", False)
         self.__add("graph_smooth", 1)
 
