@@ -11,7 +11,7 @@ PERF_OPT=
 PERF_TIME?=4
 PERF_EVENT=cycles
 PERF_MIN=1
-PERF_CLASS_MAP=../libs/perf/kernel.map
+PERF_CLASS_MAP=EXPAND($NPF_ROOT_PATH/libs/perf/kernel.map)
 PERF_STACK_MAX=8
 PERF_FREQ=1000
 PERF_CLASS_OPT?=
@@ -29,8 +29,8 @@ perf record -r 80 -F $PERF_FREQ -a --call-graph dwarf $PERF_OPT -o perf.data -e 
 perf script > perf.script
 
 %exit
-ls
-python3 ${NPF_ROOT}/build/perf-class/perf-class.py perf.script --map ${PERF_CLASS_MAP} --min ${PERF_MIN} --stack-max ${PERF_STACK_MAX} --show-failed ${PERF_CLASS_OPT} > perf.list
+env
+python3 ${NPF_BUILD_ROOT}/perf-class/perf_class/perf_class.py perf.script --map ${PERF_CLASS_MAP} --min ${PERF_MIN} --stack-max ${PERF_STACK_MAX} --show-failed ${PERF_CLASS_OPT} > perf.list
 echo "Script finished"
 cat perf.list | while read line; do
     sym=$(echo $line | cut -d';' -f1 | xargs)

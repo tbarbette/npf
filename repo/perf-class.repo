@@ -1,7 +1,7 @@
 name=perf-map
 url=https://github.com/tbarbette/perf-class.git
-bin_name=perf-class.py
-bin_folder=
+bin_name=perf_class.py
+bin_folder=perf_class/
 configure=
-make=chmod +x perf-class.py
+make=
 clean=
