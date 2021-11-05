@@ -6,6 +6,7 @@ from typing import List
 import paramiko
 from .executor import Executor
 from ..eventbus import EventBus
+from .. import npf
 from paramiko.buffered_pipe import PipeTimeout
 import socket
 
@@ -46,6 +47,8 @@ class SSHExecutor(Executor):
 
         if self.path:
             env['NPF_ROOT'] = self.path
+            env['NPF_CWD_PATH'] = self.path
+            env['NPF_ROOT_PATH'] = '../' + os.path.relpath(npf.npf_root(), self.path)
 
         for k,v in env.items():
             if v is not None:

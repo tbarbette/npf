@@ -419,11 +419,15 @@ class Testie:
                 pass
 
     def update_constants(self, v_internals, build, full_test_folder, out_path):
-        v_internals.update({ 'NPF_REPO':get_valid_filename(build.repo.name),'NPF_ROOT': '../', 'NPF_BUILD': ('../' + build.build_path()) if not os.path.isabs(build.build_path()) else build.build_path(),
-                        'NPF_TESTIE_PATH':os.path.relpath(self.path if self.path else "./",full_test_folder),
-                        'NPF_RESULT_PATH':os.path.relpath(build.result_folder(), full_test_folder)})
+        bp = ('../' + build.build_path()) if not os.path.isabs(build.build_path()) else build.build_path() 
+        v_internals.update({ 
+                        'NPF_REPO':get_valid_filename(build.repo.name),
+                        'NPF_ROOT': '../', 'NPF_BUILD': bp, 'NPF_BUILD_PATH': bp, 
+                        'NPF_BUILD_ROOT' : '../' + npf.get_build_path(),
+                        'NPF_TESTIE_PATH': os.path.relpath(self.path if self.path else "./",full_test_folder),
+                        'NPF_RESULT_PATH': os.path.relpath(build.result_folder(), full_test_folder)})
         if out_path:
-            v_internals.update({'NPF_OUTPUT_PATH':os.path.relpath(out_path, full_test_folder)})
+            v_internals.update({'NPF_OUTPUT_PATH': os.path.relpath(out_path, full_test_folder)})
 
     def parse_results(self, regex_list: str, output: str, new_kind_results: dict, new_data_results: dict) -> Tuple[
         bool, bool]:

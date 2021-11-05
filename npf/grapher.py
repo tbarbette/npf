@@ -1647,10 +1647,14 @@ class Grapher:
         labels=[]
         alllabels=[]
         allticks=[]
+        allcolors=[]
         if len(data) > 30:
             print("WARNING : Not drawing more than 30 boxplots")
             return
+        ipos=1
         for i, (x, ys, e, build) in enumerate(data):
+            if nseries == 1 and np.isnan(ys).all():
+                    continue
             if xdata:
                 x = []
                 for yi in range(len(xdata[i][2])):
@@ -1661,7 +1665,11 @@ class Grapher:
             pos = []
             for yi in range(nseries):
                 y=e[yi][2]
-                pos.append(yi*len(data) + i + 1)
+                if nseries > 1:
+                    pos.append(yi*len(data) + i + 1)
+                else:
+                    pos.append(ipos)
+                ipos+=1
                 y = np.asarray(y)
                 boxdata.append(y[~np.isnan(y)])
 
@@ -1674,9 +1682,12 @@ class Grapher:
                             labels.append(v)
                     else:
                         labels.append(x[yi])
-            axis.plot([], c= build._color , label=label)
-            alllabels.append(label)
             allticks.extend(pos)
+            
+            if not all(map(lambda x: np.isnan(x).all(), boxdata)):
+                axis.plot([], c= build._color , label=label)
+                alllabels.append(label)
+                allcolors.append(build._color)
 
 
 #                labels.append(build.pretty_name() + " "+ str(x[i]))
@@ -1694,18 +1705,21 @@ class Grapher:
             plt.setp(rects['fliers'], color = build._color)
             plt.setp(rects['medians'], color = lighter(build._color,0.50,0))
 
-        m = len(data)*nseries + 1
+        if nseries > 1: 
+            m = len(data)*nseries + 1
+        else:
+            m = ipos
         axis.set_xlim(0,m)
 
         if  nseries > 1:
-            axis.set_xticklabels(labels)
             xticks = (np.asarray(range(nseries)) * len(data) ) + (len(data) / 2) + 0.5
             axis.set_xticks(xticks)
+            axis.set_xticklabels(labels)
         else:
             axis.set_xticks(allticks)
             axis.set_xticklabels(alllabels)
-            for ticklabel, (x,y,e,build) in zip(axis.get_xticklabels(), data):
-                ticklabel.set_color(build._color)
+            for i,(ticklabel, (x,y,e,build)) in enumerate(zip(axis.get_xticklabels(), data)):
+                ticklabel.set_color(allcolors[i])
 
         return True, nseries
 

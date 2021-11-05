@@ -63,6 +63,8 @@ class MethodGit(Method):
         i_commit = next(self.gitrepo().iter_commits(version)).parents[0]
         while len(versions) < limit:
             versions.append(i_commit.hexsha[:7])
+            if len(i_commit.parents) == 0:
+                break
             i_commit = i_commit.parents[0]
 
         return versions
@@ -292,8 +294,7 @@ class Repository:
             self.name = overwrite_name[1]
 
 
-        self._build_path = os.path.dirname(
-            (options.build_folder if not options.build_folder is None else npf.npf_root()+'/build/') + self.reponame + '/')
+        self._build_path = os.path.dirname(npf.get_build_path() + self.reponame + '/')
 
     def get_identifier(self):
         return self._id
