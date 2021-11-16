@@ -287,7 +287,7 @@ def npf_root():
 
 def get_build_path():
     options = sys.modules[__name__].options
-    return (options.build_folder if not options.build_folder is None else npf.npf_root()+'/build/') 
+    return (options.build_folder if not options.build_folder is None else npf_root()+'/build/')
 
 def from_root(path):
     # Returns the path under NPF root if it is not absolute
