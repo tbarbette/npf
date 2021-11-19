@@ -846,8 +846,8 @@ class Grapher:
             try:
                 values = natsort.natsorted(vars_values[to_get_out])
             except KeyError as e:
-                print("ERROR : Unknown variable %s to export as serie" % to_get_out)
-                print("Known variables : ",vars_values.keys())
+                print("WARNING : Unknown variable %s to export as serie" % to_get_out)
+                print("Known variables : ",", ".join(vars_values.keys()))
                 continue
             if len(values) == 1:
                 statics[to_get_out] = list(values)[0]

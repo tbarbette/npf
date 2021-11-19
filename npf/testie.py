@@ -239,7 +239,6 @@ class Testie:
             for k, v in imp.params.items():
                 overriden_variables[k] = VariableFactory.build(k, v)
             imp.testie.variables.override_all(overriden_variables)
-
             if "require_tags" in imp.testie.config.vlist:
                 tags = imp.testie.config.vlist["require_tags"].makeValues()
                 if tags:
@@ -547,9 +546,12 @@ class Testie:
             imp.imp_v = {}
             for k, val in imp.testie.variables.statics().items():
                 imp.imp_v[k] = val.makeValues()[0]
+
             imp.imp_v.update(v)
+
             for late_variables in imp.testie.get_late_variables():
                 imp.imp_v.update(late_variables.execute(imp.imp_v, imp.testie))
+            
             if SectionScript.TYPE_INIT in allowed_types:
                 file_list.extend(imp.testie.build_file_list(imp.imp_v, imp.get_role(), files=imp.testie.init_files))
             else:
@@ -1027,25 +1029,25 @@ class Testie:
                   if imp.is_include:
                     for k,v in imp.testie.variables.statics().items():
                         variables[k] = v.makeValues()[0]
-                  else:
-                    for k,v in imp.testie.variables.statics().items():
-                        shadow_variables[k] = v.makeValues()[0]
-
+                
                 run = Run(variables)
                 variables.update(root_variables)
                 run.variables.update(build.repo.overriden_variables)
                 variables = run.variables.copy()
+
                 if shadow_variables:
                     shadow_variables.update(root_variables)
                     shadow_variables.update(build.repo.overriden_variables)
                     variables.update(shadow_variables)
-
+                
                 for late_variables in self.get_late_variables():
                     variables.update(late_variables.execute({**variables, **v_internals}, testie=self))
-
+                
                 for imp in self.get_imports():
+                  if imp.is_include:
                     for late_variables in imp.testie.get_late_variables():
                         variables.update(late_variables.execute({**variables, **v_internals}, imp.testie))
+
                 r_status, r_out, r_err = self.test_require(variables, build)
                 if not r_status:
                     if not self.options.quiet:
