@@ -40,7 +40,7 @@ class Node:
                 line = line.strip()
                 if not line or line.startswith("#") or line.startswith("//"):
                     continue
-                match = re.match(r'((?P<tag>[a-zA-Z]+[a-zA-Z0-9]*):)?(?P<nic_idx>[0-9]+):(?P<type>' + NIC.TYPES + ')=(?P<val>[a-z0-9:_.]+)', line,
+                match = re.match(r'((?P<tag>[a-zA-Z]+[a-zA-Z0-9]*):)?(?P<nic_idx>[0-9]+):(?P<type>' + NIC.TYPES + ')=(?P<val>[a-z0-9:_.]*)', line,
                                  re.IGNORECASE)
                 if match:
                     if match.group('tag') and not match.group('tag') in tags:
@@ -54,7 +54,7 @@ class Node:
                         self.nfs = get_bool(match.group('val'))
                     setattr(executor, match.group('var'), match.group('val'))
                     continue
-                raise Exception("%s:%d : Unknown node config line %s" % (clusterFile, i, line))
+                raise Exception("%s:%d : Unknown node config line %s" % (clusterFilePath, i, line))
             self.parsed = True
         except FileNotFoundError as e:
             print("%s could not be found, we will connect to %s with SSH using default parameters" % (clusterFilePath,name))
@@ -91,7 +91,7 @@ class Node:
         if self.parsed:
             return
         print("Looking for NICs on %s, to avoid this message write down the configuration in cluster/%s.node" % (self.name,self.name))
-        pid, out, err, ret = self.executor.exec(cmd="sudo lshw -class network -businfo")
+        pid, out, err, ret = self.executor.exec(cmd="sudo lshw -class network -businfo -quiet", title="Listing network devices")
         if ret != 0:
             print("WARNING: %s has no configuration file and the NICs could not be found automatically. Please refer to the cluster documentation in NPF to define NIC order and addresses." % self.name)
             print(out)
@@ -106,7 +106,7 @@ class Node:
             if len(words) < 4:
                 continue
 
-            pid, out, err, ret = self.executor.exec(cmd="( sudo ethtool %s | grep Speed | grep -oE '[0-9]+' ) || echo '0'\ncat /sys/class/net/%s/address\n( /sbin/ifconfig %s | grep 'inet addr:' | cut -d: -f2| cut -d' ' -f1 ) || echo ''" % (words[1], words[1], words[1]))
+            pid, out, err, ret = self.executor.exec(cmd="( sudo ethtool %s | grep Speed | grep -oE '[0-9]+' ) || echo '0'\ncat /sys/class/net/%s/address\n( /sbin/ifconfig %s | grep 'inet addr:' | cut -d: -f2| cut -d' ' -f1 ) || echo ''" % (words[1], words[1], words[1]), title="Getting device %s info" % words[1])
             res = out.split("\n")
             try:
                 ip = res[-1].strip()
@@ -165,11 +165,11 @@ class Node:
         if options.do_test and options.do_conntest:
             print("Testing connection to %s..." % node.executor.addr)
             time.sleep(0.01)
-            pid, out, err, ret = sshex.exec(cmd="if ! type 'unbuffer' ; then ( ( sudo apt-get update && sudo apt-get install -y expect ) || sudo yum install -y expect ) && sudo echo 'test' ; else sudo echo 'test' ; fi", raw=True)
+            pid, out, err, ret = sshex.exec(cmd="if ! type 'unbuffer' ; then ( ( sudo apt-get update && sudo apt-get install -y expect ) || sudo yum install -y expect ) && sudo echo 'test' ; else sudo echo 'test' ; fi", raw=True, title="SSH dependencies installation")
             out = out.strip()
             if ret != 0 or out.split("\n")[-1] != "test":
                 #Something was wrong, try first with a more basic test to help the user pinpoint the problem
-                pid, outT, errT, retT = sshex.exec(cmd="echo -n 'test'", raw=True)
+                pid, outT, errT, retT = sshex.exec(cmd="echo -n 'test'", raw=True, title="SSH echo test")
                 if retT != 0 or outT.split("\n")[-1] != "test":
                     raise Exception("Could not communicate with%s node %s, got return code %d : %s" %  (" user "+ sshex.user if sshex.user else "", sshex.addr, retT, outT + errT))
                 raise Exception("Could not communicate with user %s on node %s, unbuffer (expect package) could not be installed, or passwordless sudo is not working, got return code %d : %s" %  (sshex.user, sshex.addr, ret, out + err))

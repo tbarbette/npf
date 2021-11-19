@@ -37,6 +37,8 @@ class SSHExecutor(Executor):
     def exec(self, cmd, bin_paths : List[str] = None, queue: Queue = None, options = None, stdin = None, timeout=None, sudo=False, testdir=None, event=None, title=None, env={}, virt = "", raw = False):
         if not title:
             title = self.addr
+        else:
+            title = self.addr + ' - ' + title
         if not event:
             event = EventBus()
         path_list = [p if os.path.isabs(p) else self.path+'/'+p for p in (bin_paths if bin_paths is not None else [])]
