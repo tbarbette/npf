@@ -32,7 +32,6 @@ perf record -r 80 -F $PERF_FREQ -a --call-graph dwarf $PERF_OPT -o perf${PERF_PR
 perf script -i perf${PERF_PREFIX}.data > perf${PERF_PREFIX}.script
 
 %exit
-env
 python3 ${NPF_BUILD_ROOT}/perf-class/perf_class/perf_class.py perf${PERF_PREFIX}.script --map ${PERF_CLASS_MAP} --min ${PERF_MIN} --stack-max ${PERF_STACK_MAX} --show-failed ${PERF_CLASS_OPT} > perf${PERF_PREFIX}.list
 echo "Script finished"
 cat perf${PERF_PREFIX}.list | while read line; do
