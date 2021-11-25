@@ -132,7 +132,7 @@ class Testie:
         self.requirements = []
         self.sendfile = {}
         self.filename = os.path.basename(testie_path)
-        self.path = os.path.dirname(testie_path)
+        self.path = os.path.dirname(os.path.abspath(testie_path))
         self.options = options
         self.tags = tags if tags else []
         self.role = role
@@ -418,12 +418,14 @@ class Testie:
                 pass
 
     def update_constants(self, v_internals, build, full_test_folder, out_path):
-        bp = ('../' + build.build_path()) if not os.path.isabs(build.build_path()) else build.build_path() 
-        v_internals.update({ 
+        bp = ('../' + build.build_path()) if not os.path.isabs(build.build_path()) else build.build_path()
+        tp = os.path.relpath(self.path, full_test_folder)
+        v_internals.update({
                         'NPF_REPO':get_valid_filename(build.repo.name),
-                        'NPF_ROOT': '../', 'NPF_BUILD': bp, 'NPF_BUILD_PATH': bp, 
-                        'NPF_BUILD_ROOT' : '../' + npf.get_build_path(),
-                        'NPF_TESTIE_PATH': os.path.relpath(self.path if self.path else "./",full_test_folder),
+                        'NPF_ROOT': '../',
+                        'NPF_BUILD': bp, 'NPF_BUILD_PATH': bp,
+                        'NPF_BUILD_ROOT' : '../' + npf.get_build_path(), #Deprecated
+                        'NPF_TESTIE_PATH': tp,
                         'NPF_RESULT_PATH': os.path.relpath(build.result_folder(), full_test_folder)})
         if out_path:
             v_internals.update({'NPF_OUTPUT_PATH': os.path.relpath(out_path, full_test_folder)})
@@ -518,15 +520,17 @@ class Testie:
             if repo.version is not None:
                 v_internals[repo.reponame.upper() + '_VERSION'] = repo.version
         v.update(v_internals)
+
         if test_folder is None:
             test_folder = self.make_test_folder()
             f_mine = True
         else:
             f_mine = False
-        if not os.path.exists(npf.npf_root() + '/' + test_folder):
-            os.mkdir(npf.npf_root() + '/' + test_folder)
+
+        if not os.path.exists(npf.experiment_path() + '/' + test_folder):
+            os.mkdir(npf.experiment_path() + '/' + test_folder)
         save_path = os.getcwd()
-        os.chdir(npf.npf_root() + '/' + test_folder)
+        os.chdir(npf.experiment_path() + '/' + test_folder)
 
         # Build file list
         file_list = []
@@ -551,7 +555,7 @@ class Testie:
 
             for late_variables in imp.testie.get_late_variables():
                 imp.imp_v.update(late_variables.execute(imp.imp_v, imp.testie))
-            
+
             if SectionScript.TYPE_INIT in allowed_types:
                 file_list.extend(imp.testie.build_file_list(imp.imp_v, imp.get_role(), files=imp.testie.init_files))
             else:
@@ -613,7 +617,7 @@ class Testie:
                         param = RemoteParameters()
                         param.sudo = script.params.get("sudo", False)
 
-                        full_test_folder = (node.executor.path if node.executor.path else '..') + os.sep + test_folder + os.sep
+                        full_test_folder = node.experiment_path() + os.sep + test_folder + os.sep
                         self.update_constants(v, build, full_test_folder, out_path=None)
                         v["NPF_MULTI"] = i_multi
                         v["NPF_MULTI_ID"] = i_multi
@@ -993,8 +997,8 @@ class Testie:
         init_done = False
         test_folder = self.make_test_folder()
 
-        #All the following paths must be relative to the NPF test folder (that is something like NPF's folder/testie1234567/)
-        full_test_folder = npf.from_root(test_folder) + os.sep
+        #All the following paths must be relative to the NPF experiment root folder (that is something like NPF's folder/testie1234567/)
+        full_test_folder = npf.from_experiment_path(test_folder) + os.sep
 
         dirname, basename, ext = npf.splitpath(options.output if options.output != 'graph' else options.graph_filename)
         out_path = dirname + os.sep
@@ -1029,7 +1033,7 @@ class Testie:
                   if imp.is_include:
                     for k,v in imp.testie.variables.statics().items():
                         variables[k] = v.makeValues()[0]
-                
+
                 run = Run(variables)
                 variables.update(root_variables)
                 run.variables.update(build.repo.overriden_variables)
@@ -1039,10 +1043,10 @@ class Testie:
                     shadow_variables.update(root_variables)
                     shadow_variables.update(build.repo.overriden_variables)
                     variables.update(shadow_variables)
-                
+
                 for late_variables in self.get_late_variables():
                     variables.update(late_variables.execute({**variables, **v_internals}, testie=self))
-                
+
                 for imp in self.get_imports():
                   if imp.is_include:
                     for late_variables in imp.testie.get_late_variables():
@@ -1255,7 +1259,7 @@ class Testie:
 
         if not self.options.preserve_temp:
             try:
-                shutil.rmtree(npf.npf_root() + os.sep + test_folder)
+                shutil.rmtree(npf.experiment_path() + os.sep + test_folder)
             except PermissionError:
                 pass
         else:
@@ -1347,5 +1351,5 @@ class Testie:
 
     def make_test_folder(self):
         test_folder = "testie%s-%05d" % (datetime.datetime.now().strftime("%y%m%d%H%M"), random.randint(1, 2 << 16))
-        os.mkdir( npf.npf_root() + os.sep + test_folder)
+        os.mkdir(npf.experiment_path() + os.sep + test_folder)
         return test_folder

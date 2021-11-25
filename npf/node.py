@@ -70,6 +70,9 @@ class Node:
     def get_name(self):
         return self.name
 
+    def experiment_path(self):
+        return (self.executor.path + os.sep) if self.executor.path else npf.experiment_path()
+
     @staticmethod
     def _addr_gen():
         mac = [0xAE, 0xAA, 0xAA,
@@ -96,17 +99,21 @@ class Node:
             print("WARNING: %s has no configuration file and the NICs could not be found automatically. Please refer to the cluster documentation in NPF to define NIC order and addresses." % self.name)
             print(out)
             return
+
+        header=out[:out.find('====')].splitlines()[-1]
+        descpos = header.find('Description') - 1
         lines=out[out.find('===='):].splitlines()[1:]
         speeds = {}
         for line in lines:
-            line = line.strip()
+            line = line[:descpos].strip()
             if not line:
                 continue
             words = re.findall(r'\S+', line)
-            if len(words) < 4:
+            if len(words) < 3:
                 continue
 
             pid, out, err, ret = self.executor.exec(cmd="( sudo ethtool %s | grep Speed | grep -oE '[0-9]+' ) || echo '0'\ncat /sys/class/net/%s/address\n( /sbin/ifconfig %s | grep 'inet addr:' | cut -d: -f2| cut -d' ' -f1 ) || echo ''" % (words[1], words[1], words[1]), title="Getting device %s info" % words[1])
+
             res = out.split("\n")
             try:
                 ip = res[-1].strip()
@@ -138,19 +145,22 @@ class Node:
 
 
     @classmethod
-    def makeLocal(cls, options):
+    def makeLocal(cls, options, test_access = True):
         node = cls._nodes.get('localhost', None)
         if node is None:
             node = Node('localhost', LocalExecutor(), options.tags)
             cls._nodes['localhost'] = node
         node.ip = '127.0.0.1'
-        #node._find_nics()
+        if test_access:
+            pid, out, err, ret = node.executor.exec(cmd="pwd && test -e "+node.experiment_path() + ".access_test")
+            if ret != 0:
+                raise Exception("The local executor could not find the file created at %s. Check your --experiment-path argument! Current folder : %s" % ( node.experiment_path() + ".access_test", out+err) )
         return node
 
     @classmethod
     def makeSSH(cls, user, addr, path, options, port=22):
         if path is None:
-            path = os.getcwd()
+            path = os.path.abspath(npf.experiment_path())
         node = cls._nodes.get(addr, None)
         if node is not None:
             return node
@@ -165,14 +175,19 @@ class Node:
         if options.do_test and options.do_conntest:
             print("Testing connection to %s..." % node.executor.addr)
             time.sleep(0.01)
-            pid, out, err, ret = sshex.exec(cmd="if ! type 'unbuffer' ; then ( ( sudo apt-get update && sudo apt-get install -y expect ) || sudo yum install -y expect ) && sudo echo 'test' ; else sudo echo 'test' ; fi", raw=True, title="SSH dependencies installation")
+            if not node.nfs:
+                node.send_folder(".access_test")
+            pid, out, err, ret = sshex.exec(cmd="test -e " + ".access_test" + " && echo 'access_ok' && if ! type 'unbuffer' ; then ( ( sudo apt-get update && sudo apt-get install -y expect ) || sudo yum install -y expect ) && sudo echo 'test' ; else sudo echo 'test' ; fi", raw=True, title="SSH dependencies installation")
             out = out.strip()
-            if ret != 0 or out.split("\n")[-1] != "test":
+            if ret != 0:
                 #Something was wrong, try first with a more basic test to help the user pinpoint the problem
-                pid, outT, errT, retT = sshex.exec(cmd="echo -n 'test'", raw=True, title="SSH echo test")
+                pidT, outT, errT, retT = sshex.exec(cmd="echo -n 'test'", raw=True, title="SSH echo test")
                 if retT != 0 or outT.split("\n")[-1] != "test":
                     raise Exception("Could not communicate with%s node %s, got return code %d : %s" %  (" user "+ sshex.user if sshex.user else "", sshex.addr, retT, outT + errT))
-                raise Exception("Could not communicate with user %s on node %s, unbuffer (expect package) could not be installed, or passwordless sudo is not working, got return code %d : %s" %  (sshex.user, sshex.addr, ret, out + err))
+                if not "access_ok" in out:
+                    raise Exception("Could not find the access test file. Verify the path= paramater in the cluster file, it must match --root-path. If the path is not shared accross clusters, ensure you set nfs=0 in the cluster file.")
+                if out.split("\n")[-1] != "test":
+                    raise Exception("Could not communicate with user %s on node %s, unbuffer (expect package) could not be installed, or passwordless sudo is not working, got return code %d : %s" %  (sshex.user, sshex.addr, ret, out + err))
         if options.do_test:
             node._find_nics()
         return node

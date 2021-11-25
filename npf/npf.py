@@ -12,6 +12,7 @@ from npf.node import Node
 from .variable import VariableFactory
 
 options = None
+cwd = None
 
 def get_valid_filename(s):
     s = str(s).strip().replace(' ', '_')
@@ -149,6 +150,8 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
 
     t.add_argument('--build-folder', '--build-path', metavar='path', type=str, default=None, dest='build_folder', help='Set where dependencies would be built. Defaults to npf\'s folder itself, so dependencies are shared between test scripts.')
 
+    t.add_argument('--experiment-folder', '--experiment-path', metavar='path', type=str, default="./", dest='experiment_folder', help='Where to create temporary files and execute tests from. Default to local directory. Tests will always be executed from a temporary-made folder inside that path. Beware if you do not have a similar NFS/SSHFS based directory identical on all nodes, the "path" argument of the cluster file must match this repository, same as the build path relative to that directory.')
+
     t.add_argument('--search-path', metavar='path', type=str, default=[], nargs='+', dest='search_path', help='Search for various files in this directories too (such as the parent of your own repo, cluster or modules folder)')
     t.add_argument('--no-mp', dest='allow_mp', action='store_false',
                    default=True, help='Run tests in the same thread. If there is multiple script, they will run '
@@ -217,6 +220,7 @@ def executor(role, default_role_map):
 
 def set_args(args):
     sys.modules[__name__].options = args
+    sys.modules[__name__].cwd = os.getcwd()
 
 def parse_nodes(args):
     set_args(args)
@@ -224,7 +228,13 @@ def parse_nodes(args):
         if options.use_last:
             options.use_last = 100
 
-    roles['default'] = [Node.makeLocal(options)]
+    if not os.path.exists(experiment_path()):
+        raise Exception("The experiment root '%s' is not accessible ! Please explicitely define it with --experiment-path, and ensure that directory is writable !" % experiment_path())
+
+    os.close(os.open(experiment_path() + ".access_test" , os.O_CREAT))
+
+    local = Node.makeLocal(options)
+    roles['default'] = [local]
 
     options.search_path = set(options.search_path)
     for t in [options.test_files]:
@@ -239,7 +249,7 @@ def parse_nodes(args):
         if not match:
             raise Exception("Bad definition of node : %s" % mapping)
         if match.group('addr') == 'localhost':
-            node = roles['default'][0]
+            node = local
         else:
             node = Node.makeSSH(user=match.group('user'), addr=match.group('addr'), path=match.group('path'),
                             options=options)
@@ -262,6 +272,9 @@ def parse_nodes(args):
                 raise Exception("Unknown cluster variable : %s" % var)
 
 
+    os.unlink(experiment_path() + ".access_test")
+
+
 def parse_variables(args_variables, tags, sec) -> Dict:
     variables = {}
     for variable in args_variables:
@@ -281,26 +294,35 @@ def override(args, testies):
     return testies
 
 
-def npf_root():
+def npf_root_path():
     # Return the path to NPF root
     return os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
+def experiment_path():
+    # Return the path to NPF experiment folder
+    options = sys.modules[__name__].options
+    return options.experiment_folder + os.sep
+
+def cwd_path():
+    # Return the path to where NPF was first executed
+    return sys.modules[__name__].cwd
+
 def get_build_path():
     options = sys.modules[__name__].options
-    return (options.build_folder if not options.build_folder is None else npf_root()+'/build/')
+    return (options.build_folder if not options.build_folder is None else npf_root_path()+'/build/')
 
-def from_root(path):
+def from_experiment_path(path):
     # Returns the path under NPF root if it is not absolute
     if (os.path.isabs(path)):
         return path
     else:
-        return npf_root() + os.sep + path
+        return experiment_path() + os.sep + path
 
 def find_local(path, critical: bool = False):
     if os.path.exists(path):
         return path
 
-    searched = [npf_root(), '.'] + list(sys.modules[__name__].options.search_path)
+    searched = [npf_root_path(), '.', experiment_path()] + list(sys.modules[__name__].options.search_path)
     for a in searched:
         p = a + os.sep + path
         if os.path.exists(p):

@@ -18,8 +18,8 @@ def test_args():
 
 def test_node():
     args = test_args()
-    n1 = Node("cluster01.sample.node", Node.makeLocal(args), args.tags)
-    n2 = Node("cluster01.sample", Node.makeLocal(args), args.tags)
+    n1 = Node("cluster01.sample.node", Node.makeLocal(args, test_access=False), args.tags)
+    n2 = Node("cluster01.sample", Node.makeLocal(args, test_access=False), args.tags)
     assert n1.executor.addr == "cluster01.example.com" == n2.executor.addr
     assert n1.executor.user == "user01" == n2.executor.user
 
