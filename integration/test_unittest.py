@@ -4,6 +4,8 @@ import types
 import argparse
 
 from npf.repository import Repository
+from npf.testie import Testie
+from npf.build import Build
 
 def test_args():
     parser = argparse.ArgumentParser(description='NPF Tester')
@@ -16,14 +18,48 @@ def test_args():
     npf.set_args(args)
     return args
 
-def test_node():
-    args = test_args()
-    n1 = Node("cluster01.sample.node", Node.makeLocal(args, test_access=False), args.tags)
-    n2 = Node("cluster01.sample", Node.makeLocal(args, test_access=False), args.tags)
-    assert n1.executor.addr == "cluster01.example.com" == n2.executor.addr
-    assert n1.executor.user == "user01" == n2.executor.user
-
 def test_repo():
     args = test_args()
     r = Repository('click-2021', args)
     assert r.branch == '2021'
+    return r
+
+def test_node():
+    args = test_args()
+    args.do_test = False
+    n1 = Node.makeSSH(addr="cluster01.sample.node", user=None, path=None, options=args)
+    n2 = Node.makeSSH(addr="cluster01.sample", user=None, path=None, options=args)
+
+    assert n1.executor.addr == "cluster01.example.com" == n2.executor.addr
+    assert n1.executor.user == "user01" == n2.executor.user
+
+def test_paths():
+
+    args = test_args()
+    args.do_test = False
+    args.do_conntest = False
+    args.experiment_folder = "test_root"
+
+
+    local = Node.makeLocal(args,test_access=False)
+    ssh = Node.makeSSH(addr="cluster01.sample", user=None, path=None, options=args)
+    ssh2 = Node.makeSSH(addr="cluster01.sample", user=None, path=None, options=args)
+    ssh.executor.path = "/different/path/to/root/"
+    ssh2.executor.path = npf.experiment_path() + os.sep
+
+    #Test the constants are correct
+
+    testie = Testie("tests/examples/math.npf", options=args, tags=args.tags)
+    repo = test_repo()
+    build = Build(repo, "version")
+    v={}
+    testie.update_constants(v, build, ssh.experiment_path() + "/testie-1/", out_path=None)
+    v2={}
+    testie.update_constants(v2, build, ssh2.experiment_path() + "/testie-1/", out_path=None)
+    vl={}
+    testie.update_constants(vl, build, local.experiment_path() + "/testie-1/", out_path=None)
+    for d in [vl,v,v2]:
+        assert v['NPF_REPO'] == 'Click_2021'
+        assert v['NPF_ROOT_PATH'] == '../..'
+        assert v['NPF_SCRIPT_PATH'] == '../../tests/examples'
+        assert v['NPF_RESULT_PATH'] == '../../results/click-2021'

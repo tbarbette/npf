@@ -1326,8 +1326,12 @@ class Grapher:
                             """One dynamic variable used as X, series are version line plots"""
                             r, ndata = self.do_line_plot(axis, key, result_type, data,shift, isubplot, xmin, xmax, xdata)
                         elif graph_type == "boxplot":
-                            """One dynamic variable used as X, series are version line plots"""
+                            """A box plot, with multiple X values and series in color"""
                             r, ndata = self.do_box_plot(axis, key, result_type, data, xdata, shift, isubplot)
+                        elif graph_type == "cdf":
+                            """CDF"""
+                            r, ndata = self.do_cdf(axis, key, result_type, data, xdata, shift, isubplot)
+                            default_doleg = True
                         else:
                             """Barplot. X is all seen variables combination, series are version"""
                             r, ndata= self.do_barplot(axis,vars_all, dyns, result_type, data, shift, ibrokenY==0)
@@ -1555,6 +1559,7 @@ class Grapher:
                 if type(ncol) == list:
                     ncol = ncol[ilegend % len(ncol)]
                 doleg = self.config_bool_or_in('graph_legend', result_type)
+
                 if default_doleg and doleg:
                     loc = self.config("legend_loc")
                     if type(loc) is dict or type(loc) is list:
@@ -1587,7 +1592,6 @@ class Grapher:
                         legend_title = subplot_legend_titles[ilegend % len(subplot_legend_titles)]
                         if len(labels) == 1:
                             legend_title = None
-
 
                         if legend_title:
                             t = self.var_name(legend_title)
@@ -1767,6 +1771,22 @@ class Grapher:
             axis.set_xticklabels(alllabels)
             for i,(ticklabel, (x,y,e,build)) in enumerate(zip(axis.get_xticklabels(), data)):
                 ticklabel.set_color(allcolors[i])
+
+        return True, nseries
+
+    def do_cdf(self, axis, key, result_type, data : XYEB, xdata : XYEB,shift=0,idx=0):
+
+        self.format_figure(axis, result_type, shift, key=key)
+        nseries = max([len(y) for y in [y for x,y,e,build in data]])
+
+        for i, (x, ys, e, build) in enumerate(data):
+
+            for yi in range(nseries):
+                y = e[yi][2]
+                x2 = np.sort(y)
+                N=len(y)
+                y2 = np.arange(N) / float(N)
+                axis.plot(x2, y2,  color = build._color, label = x[yi])
 
         return True, nseries
 

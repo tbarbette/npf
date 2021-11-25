@@ -106,10 +106,10 @@ Any python code will be accepted, so one may compute variance among multiple res
 ## Constants
 
 Multiple constants can be used in the files and scripts sections:
- - NPF_ROOT : Path to NPF
+ - NPF_ROOT_PATH : Path to NPF
  - NPF_BUILD_PATH: Path to the build folder of NPF
  - NPF_REPO: Path to the repository under test
- - NPF_test script_PATH: Path to the location of the test script path
+ - NPF_SCRIPT_PATH: Path to the location of the test script path
  - NPF_RESULT_PATH: Path to the result folder (by default when the command is run, or as passed by the --result-path option)
  - NPF_OUTPUT_PATH: Path to the output folder (by default as result, unless given with --output-filename)
  - NPF_NODE_ID: Index of the node used for the same role, in general 1

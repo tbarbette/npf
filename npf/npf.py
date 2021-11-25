@@ -316,7 +316,7 @@ def from_experiment_path(path):
     if (os.path.isabs(path)):
         return path
     else:
-        return experiment_path() + os.sep + path
+        return (experiment_path() if os.path.isabs(experiment_path()) else os.path.abspath(experiment_path())) + os.sep + path
 
 def find_local(path, critical: bool = False):
     if os.path.exists(path):

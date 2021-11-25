@@ -10,4 +10,4 @@ configure=make T=$RTE_TARGET RTE_OUTPUT=$RTE_TARGET config
 make=cd $RTE_TARGET && (make T=$RTE_TARGET ; cd ..)
 clean=cd $RTE_TARGET && (make T=$RTE_TARGET clean; cd ..)
 tags=dpdk
-env={RTE_SDK:$NPF_ROOT/$NPF_BUILD_PATH/,RTE_TARGET:x86_64-native-linuxapp-gcc}
+env={RTE_SDK:$NPF_BUILD_PATH/,RTE_TARGET:x86_64-native-linuxapp-gcc}

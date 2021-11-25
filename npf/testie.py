@@ -102,6 +102,8 @@ class ScriptInitException(Exception):
 
 
 class Testie:
+    __test__ = False
+
     def get_name(self):
         return self.filename
 
@@ -419,16 +421,19 @@ class Testie:
 
     def update_constants(self, v_internals, build, full_test_folder, out_path):
         bp = ('../' + build.build_path()) if not os.path.isabs(build.build_path()) else build.build_path()
-        tp = os.path.relpath(self.path, full_test_folder)
+        abs_test_folder = full_test_folder if os.path.isabs(full_test_folder) else npf.cwd_path() + os.sep + full_test_folder
+
+        tp = os.path.relpath(self.path,abs_test_folder)
         v_internals.update({
                         'NPF_REPO':get_valid_filename(build.repo.name),
-                        'NPF_ROOT': '../',
-                        'NPF_BUILD': bp, 'NPF_BUILD_PATH': bp,
-                        'NPF_BUILD_ROOT' : '../' + npf.get_build_path(), #Deprecated
-                        'NPF_TESTIE_PATH': tp,
-                        'NPF_RESULT_PATH': os.path.relpath(build.result_folder(), full_test_folder)})
+                        'NPF_ROOT': '../', #Deprecated
+                        'NPF_ROOT_PATH': os.path.relpath(npf.npf_root_path(), abs_test_folder),
+                        'NPF_BUILD_PATH': bp,
+                        'NPF_SCRIPT_PATH': tp,
+                        'NPF_TESTIE_PATH': tp, #Deprecatefd
+                        'NPF_RESULT_PATH': os.path.relpath(build.result_folder(), abs_test_folder)})
         if out_path:
-            v_internals.update({'NPF_OUTPUT_PATH': os.path.relpath(out_path, full_test_folder)})
+            v_internals.update({'NPF_OUTPUT_PATH': os.path.relpath(out_path, abs_test_folder)})
 
     def parse_results(self, regex_list: str, output: str, new_kind_results: dict, new_data_results: dict) -> Tuple[
         bool, bool]:
@@ -617,8 +622,8 @@ class Testie:
                         param = RemoteParameters()
                         param.sudo = script.params.get("sudo", False)
 
-                        full_test_folder = node.experiment_path() + os.sep + test_folder + os.sep
-                        self.update_constants(v, build, full_test_folder, out_path=None)
+                        remote_test_folder = node.experiment_path() + os.sep + test_folder + os.sep
+                        self.update_constants(v, build, remote_test_folder, out_path=None)
                         v["NPF_MULTI"] = i_multi
                         v["NPF_MULTI_ID"] = i_multi
                         v["NPF_MULTI_MAX"] = node.multi if node.multi is not None else 1

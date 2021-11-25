@@ -71,7 +71,7 @@ class Node:
         return self.name
 
     def experiment_path(self):
-        return (self.executor.path + os.sep) if self.executor.path else npf.experiment_path()
+        return (self.executor.path) if self.executor.path else npf.experiment_path()
 
     @staticmethod
     def _addr_gen():
@@ -167,12 +167,13 @@ class Node:
         sshex = SSHExecutor(user, addr, path, port)
         node = Node(addr, sshex, options.tags)
         cls._nodes[addr] = node
-        try:
-            node.ip = socket.gethostbyname(node.executor.addr)
-        except Exception as e:
-            print("Could not resolve hostname '%s'" % node.executor.addr)
-            raise(e)
+
         if options.do_test and options.do_conntest:
+            try:
+                node.ip = socket.gethostbyname(node.executor.addr)
+            except Exception as e:
+                print("Could not resolve hostname '%s'" % node.executor.addr)
+                raise(e)
             print("Testing connection to %s..." % node.executor.addr)
             time.sleep(0.01)
             if not node.nfs:
