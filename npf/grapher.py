@@ -1195,8 +1195,8 @@ class Grapher:
                 if nbrokenY * nbrokenX > 1:
                     fig = plt.figure(constrained_layout=False)
 
-                    heights = [ broken_axes_ratio(values) for values in reversed(brokenaxesY)]
-                    widths = [ broken_axes_ratio(values) for values in reversed(brokenaxesX)]
+                    heights = [ broken_axes_ratio(values) for values in brokenaxesY]
+                    widths = [ broken_axes_ratio(values) for values in brokenaxesX]
                     spec = fig.add_gridspec(ncols=nbrokenX, nrows = nbrokenY, height_ratios = heights, width_ratios = widths)
                     spec.update(left=0.15, bottom=0.2)
 

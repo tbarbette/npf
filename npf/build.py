@@ -32,7 +32,7 @@ class Build:
         self.n_tests = 0
         self.n_passed = 0
         self.repo = repo
-        self.version = version
+        self.version = str(version)
         self._pretty_name = None
         self._marker = '.'
         self._line = '-'

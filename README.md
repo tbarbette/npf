@@ -280,7 +280,7 @@ This section is in rework.
 ###### Scaling and axis limits
  * **var_log**, [THROUGHPUT,LATENCY] Define variables that should be shown in a log axis in base 2
  * **var_log_base**, {THROUGHPUT:2} Define variables that should be shown in a log axis, with the specified base (default is 2 with var_log)
- * **var_lim**, {THROUGHPUT:0-100} Define the range for some variables, useful to cap graphs. One can produce "broken axis" graphes by giving multiple ranges separated by a + sign. For instance {THROUGHPUT:0-10+50-100}.
+ * **var_lim**, {THROUGHPUT:0-100} Define the range for some variables, useful to cap graphs. One can produce "broken axis" graphes by giving multiple ranges separated by a + sign. For instance {THROUGHPUT:0-10+50-100}. One can also control the ratio between one part and the other by setting a third number after the range: {THROUGHPUT:0-10-20+0-30-100-80} will create a plot where the first range is 20% and the second 80% of the total axis.
  * **var_format**={THROUGHPUT:%dGbps} Printf like formating of va And the prefix should be changed.riables. Eg this example will display all visualisation of the value of throughput (eg in the axis) as XGbps. Use in combination to var_divider.
   * You can also pass `eng` to have an engineering formatting (e.g. 1 k, 2 M, ...).
     Optionally, `eng.2` will print engineering format with 2 decimal places, while `eng.2.Hz` will print e.g. `2.44 kHz`.
