@@ -1882,9 +1882,22 @@ class Grapher:
             mult = 1024 if unit[0] == "B" else 1000
         axis.set_minor_locator(NullLocator())
         if format:
-            formatter = FormatStrFormatter(format)
-            axis.set_major_formatter(formatter)
-            return True, False
+            # Engineering format as eng+digits+unit
+            if (format.lower().startswith("eng")):
+                digits=None
+                unit = unit
+                f_split= format.split('-')
+                if len(f_split) > 1:
+                    digits=int(f_split[1])
+                    if len(f_split) > 2:
+                        unit = f_split[2]
+                formatter = EngFormatter(places=digits, unit=unit, sep="\N{THIN SPACE}")
+                axis.set_major_formatter(formatter)
+                return True, True
+            else:
+                formatter = FormatStrFormatter(format)
+                axis.set_major_formatter(formatter)
+                return True, False
         elif unit.lower() == "byte":
             axis.set_major_formatter(Grapher.ByteFormatter(unit="B",compact=compact,k=1024,mult=mult))
             return True, True
