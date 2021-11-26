@@ -1102,7 +1102,9 @@ class Grapher:
                 if result is None:
                     continue
                 result_type, lgd, a = result
-                extra_artists += [lgd] + a
+                if lgd is not None:
+                    extra_artists += [lgd]
+                extra_artists += a
 
                 i_subplot += len(figure)
 
