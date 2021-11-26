@@ -25,7 +25,7 @@ matplotlib.rcParams['ps.fonttype'] = 42
 import matplotlib.pyplot as plt
 from matplotlib.ticker import LinearLocator, ScalarFormatter, Formatter, MultipleLocator, NullLocator
 from matplotlib.lines import Line2D
-from matplotlib.ticker import FuncFormatter, FormatStrFormatter
+from matplotlib.ticker import FuncFormatter, FormatStrFormatter, EngFormatter
 import matplotlib.transforms as mtransforms
 
 import itertools
@@ -148,6 +148,18 @@ def guess_type(d):
         if is_numeric(v):
             d[k]=get_numeric(v)
     return d
+
+
+def broken_axes_ratio (values):
+    if len(values) == 3:
+        _, _, ratio = values
+        if ratio is not None:
+            return ratio
+    elif len(values) == 2:
+        vmin, vmax = values
+        if vmin is not None and vmax is not None:
+            return vmax-vmin
+    return 1
 
 
 class Graph:
@@ -300,15 +312,19 @@ class Grapher:
           for var_lim in var_lim.split('+'):
             ymin = None
             ymax = None
+            ratio = None
 
             if var_lim.startswith('-'):
-                n = var_lim[1:].split('-',1)
+                n = var_lim[1:].split('-',2)
                 n[0] = "-"+n[0]
             else:
-                n = var_lim.split('-',1)
+                n = var_lim.split('-',2)
             try:
-              if len(n) == 2 and n[1] != "":
-                ymin, ymax = (npf.parseUnit(x) for x in n)
+              # Try to read the ratio, if given
+              if len(n) == 3 and n[1] != "" and  n[2] != "":
+                ymin, ymax, ratio = (npf.parseUnit(x) for x in n)
+              if len(n) >= 2 and n[1] != "":
+                ymin, ymax = (npf.parseUnit(x) for x in n[:2])
               else:
                 f=float(n[0])
                 if f==0:
@@ -317,7 +333,11 @@ class Grapher:
                     ylim=f
             except Exception as e:
                 print(e)
-            axes.append([ymin,ymax])
+                traceback.print_exc()
+            if ratio:
+                axes.append([ymin,ymax,ratio])
+            else:
+                axes.append([ymin,ymax])
         else:
             ymin = None
             ymax = None
@@ -618,6 +638,10 @@ class Grapher:
 
             # Save the pandas dataframe into a csv
             pandas_df_name=options.pandas_filename.split(".")[0] +"-pandas" + ".csv"
+            # Create the destination folder if it doesn't exist
+            if not os.path.exists(os.path.dirname(pandas_df_name)):
+                os.makedirs(os.path.dirname(pandas_df_name))
+
             all_results_df.to_csv(pandas_df_name, index=True, index_label="index", sep=",", header=True)
             print("Pandas dataframe written to %s" % pandas_df_name)
 
@@ -1065,13 +1089,20 @@ class Grapher:
 
             i_subplot = 0
             lgd = None
+            extra_artists = []
             for graph in graphs:
                 data_types = graph.dataset(kind=fileprefix)
 
-                result = self.generate_plot_for_graph(result_type, i_subplot, figure, n_cols, n_lines, graph.vars_values, data_types, graph.dyns(), graph.vars_all, graph.key, graph.subtitle if graph.subtitle else graph.title, ret, subplot_legend_titles)
+                result = self.generate_plot_for_graph(
+                    result_type, i_subplot, figure, n_cols, n_lines, graph.vars_values,
+                    data_types, graph.dyns(), graph.vars_all, graph.key,
+                    graph.subtitle if graph.subtitle else graph.title,
+                    ret, subplot_legend_titles)
+
                 if result is None:
                     continue
-                result_type, lgd = result
+                result_type, lgd, a = result
+                extra_artists += [lgd] + a
 
                 i_subplot += len(figure)
 
@@ -1088,20 +1119,26 @@ class Grapher:
                     result_type = fig_name
             if not filename:
                 buf = io.BytesIO()
-                plt.savefig(buf, format='png', bbox_extra_artists=(lgd,) if lgd else [], bbox_inches='tight')
+                plt.savefig(buf, format='png', bbox_extra_artists=(extra_artists,) if len(extra_artists) > 0 else [], bbox_inches='tight')
                 buf.seek(0)
                 ret[result_type] = buf.read()
             else:
                 type_filename = npf.build_filename(one_testie, one_build, filename if not filename is True else None, graph.statics(), 'pdf', type_str=(fileprefix +'-' if fileprefix else "") +result_type, show_serie=False)
                 try:
-                    plt.savefig(type_filename, bbox_extra_artists=(lgd,) if lgd else [], bbox_inches='tight', dpi=self.options.graph_dpi, transparent=True)
+                    plt.savefig(type_filename, bbox_extra_artists=extra_artists if len(extra_artists) > 0 else [],
+                            bbox_inches='tight',
+                            dpi=self.options.graph_dpi, transparent=True)
                     print("Graph of test written to %s" % type_filename)
                 except Exception as e:
                     print("ERROR : Could not draw the graph!")
                     print(e)
+                    traceback.print_exc()
                 ret[result_type] = None
             plt.clf()
         return ret
+
+
+
 
     def generate_plot_for_graph(self, i, i_subplot, figure, n_cols, n_lines, vars_values, data_types, dyns, vars_all, key, title, ret, subplot_legend_titles):
             ndyn=len(dyns)
@@ -1109,6 +1146,7 @@ class Grapher:
             subplot_handles=[]
             axiseis = []
             savekey=key
+            extra_artists = []
 
             #Get global plotting variables
             cross_reference =  self.configdict('graph_cross_reference')
@@ -1126,6 +1164,10 @@ class Grapher:
                 #Number of broken axis
                 brokenaxesY = self.get_var_lim(key="result", result_type=result_type)
                 brokenaxesX = self.get_var_lim(key=key, result_type=None)
+
+                # Add a dummy ratio if not given
+                brokenaxesY = [ b if len(b) == 3 else b + [None] for b in brokenaxesY ]
+                brokenaxesX = [ b if len(b) == 3 else b + [None] for b in brokenaxesX ]
 
                 isubplot = int(i_subplot * len(figure) + i_s_subplot)
 
@@ -1152,15 +1194,21 @@ class Grapher:
 
                 if nbrokenY * nbrokenX > 1:
                     fig = plt.figure(constrained_layout=False)
-                    spec = fig.add_gridspec(ncols=nbrokenX, nrows = nbrokenY, height_ratios=[ymax-ymin if( ymax is not None and ymin is not None) else 1 for ymin,ymax in reversed(brokenaxesY)],width_ratios=[xmax-xmin if (xmax is not None and xmin is not None) else 1 for xmin,xmax in reversed(brokenaxesX)])
+
+                    heights = [ broken_axes_ratio(values) for values in reversed(brokenaxesY)]
+                    widths = [ broken_axes_ratio(values) for values in reversed(brokenaxesX)]
+                    spec = fig.add_gridspec(ncols=nbrokenX, nrows = nbrokenY, height_ratios = heights, width_ratios = widths)
+                    spec.update(left=0.15, bottom=0.2)
 
                 xname=self.var_name(cross_key)
+
                 #For every broken axis
-                for ibrokenY,(ymin,ymax) in enumerate(reversed(brokenaxesY)):
-                  for ibrokenX,(xmin, xmax) in enumerate(brokenaxesX):
-                    if nbrokenY > 1:
+                for ibrokenY,(ymin,ymax, yratio) in enumerate(reversed(brokenaxesY)):
+                  for ibrokenX,(xmin, xmax, xratio) in enumerate(brokenaxesX):
+                    if nbrokenY > 1 or nbrokenX > 1:
                         if len(figure) > 1:
                             print("Broken axis with subplots is not supported!")
+                            raise Exception("Not yet supported.")
                         axis = fig.add_subplot(spec[ibrokenY, ibrokenX])
                         shift = 0
                         ihandle = 0
@@ -1170,7 +1218,10 @@ class Grapher:
                             #if i_s_subplot > 0:
                             #    plt.setp(axiseis[0].get_xticklabels(), visible=False)
                             #axiseis[0].set_xlabel("")
-                            axis = plt.subplot(n_lines * nbrokenY, n_cols * nbrokenX, isubplot + 1 + ibrokenY, sharex=axiseis[0] if ibrokenY > 0 and nbrokenY > 1 else None, sharey = axiseis[0] if ibrokenX > 0 and nbrokenX > 1 else None)
+                            axis = plt.subplot(n_lines * nbrokenY, n_cols * nbrokenX, 
+                                    isubplot + 1 + ibrokenY,
+                                    sharex = axiseis[0] if ibrokenY > 0 and nbrokenY > 1 else None,
+                                    sharey = axiseis[0] if ibrokenX > 0 and nbrokenX > 1 else None)
                             ihandle = 0
                             shift = 0
                         else: #subplot_type=="axis" for dual axis
@@ -1302,55 +1353,22 @@ class Grapher:
                     plt.ylim(ymin=ymin, ymax=ymax)
                     plt.xlim(xmin=xmin, xmax=xmax)
 
-                    if nbrokenY > 1:
-                        if ibrokenY < nbrokenY - 1:
-                            axis.spines['bottom'].set_visible(False)
-                            axis.xaxis.tick_top()
-                            axis.tick_params(labeltop=False)  # don't put tick labels at the top
-                        if ibrokenX == 0 and ibrokenY == 0:
-                               axis.yaxis.label.set_transform(mtransforms.blended_transform_factory(
-                                       mtransforms.IdentityTransform(), fig.transFigure # specify x, y transform
-                                              )) # changed from default blend (IdentityTransform(), a[0].transAxes)
-                               axis.yaxis.label.set_position((0, 0.5))
-                               axis.set_ylabel(axis.yname)
+                    axis.tick_params(
+                                       axis='both',          # changes apply to the x-axis
+                                       which='both',      # both major and minor ticks are affected
+                                       bottom = ibrokenY == nbrokenY-1,
+                                       top = ibrokenY == 0,
+                                       left = ibrokenX == 0,
+                                       right = ibrokenX == nbrokenX-1,
+                                       labelbottom = ibrokenY == nbrokenY-1,
+                                       labelleft = ibrokenX == 0,
+                                       direction = "in"
+                                       )
 
-                        if ibrokenY > 0:
-                            axis.spines['top'].set_visible(False)
-                            axis.xaxis.tick_bottom()
-                        if ibrokenY > 0 and ibrokenY < nbrokenY - 1:
-                            axis.tick_params(
-                                        axis='x',          # changes apply to the x-axis
-                                            which='both',      # both major and minor ticks are affected
-                                                bottom=False,      # ticks along the bottom edge are off
-                                                    top=False,         # ticks along the top edge are off
-                                                        labelbottom=False) # labels along the bottom edge are off
-#                            fig.text(0.05, 0.5, axis.yname, va='center', rotation='vertical')
-
-                    else:
-                        plt.ylabel(axis.yname)
-
-                    print_xlabel = self.config_bool_or_in('graph_show_xlabel', result_type)
-
-                    if nbrokenX > 1:
-                        if ibrokenX == 0:
-                            # hide the spines between ax and ax2
-                            axis.spines['right'].set_visible(False)
-                            axis.yaxis.tick_left()
-                            axis.tick_params(labelleft=False)  # don't put tick labels at the top
-#                            axis.xaxis.label.set_transform(mtransforms.blended_transform_factory(
-#                                       mtransforms.IdentityTransform(), fig.transFigure # specify x, y transform
-#                                              )) # changed from default blend (IdentityTransform(), a[0].transAxes)
-#                            axis.xaxis.label.set_position((0, 0.5))
-                            if ibrokenY == nbrokenY - 1:
-                                axis.set_xlabel(xname)
-                        else:
-                            axis.spines['left'].set_visible(False)
-                            axis.yaxis.tick_right()
-#                            fig.text(0.05, 0.5, axis.yname, va='center', rotation='vertical')
-
-                    else:
-                        if ibrokenY == nbrokenY - 1 and print_xlabel:
-                            plt.xlabel(xname)
+                    axis.spines['bottom'].set_visible(ibrokenY == nbrokenY-1)
+                    axis.spines['top'].set_visible(ibrokenY == 0)
+                    axis.spines['right'].set_visible(ibrokenX == nbrokenX-1)
+                    axis.spines['left'].set_visible(ibrokenX == 0)
 
                     type_config = "" if not result_type else "-" + result_type
 
@@ -1437,7 +1455,6 @@ class Grapher:
                             plt.gca().xaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
                         plt.xticks([variable.get_numeric(x) for x in xticks.split('+')])
 
-
                     #background
                     graph_bg = self.configdict("graph_background",{})
                     if result_type in graph_bg:
@@ -1463,13 +1480,43 @@ class Grapher:
                                     axis.plot([0], [0], transform=axis.transAxes, **kwargs)
                                 if ibrokenY > 0:
                                     axis.plot([0], [1], transform=axis.transAxes, **kwargs)
-                            if ibrokenX == 1 or nbrokenX==1:
+                            if ibrokenX == nbrokenX - 1:
                                 if ibrokenY < nbrokenY -1:
                                     axis.plot([1], [0], transform=axis.transAxes, **kwargs)
                                 if ibrokenY > 0:
                                     axis.plot([1], [1], transform=axis.transAxes, **kwargs)
+                        if nbrokenX > 1:
+                            d = .5  # proportion of vertical to horizontal extent of the slanted line
+                            kwargs = dict(marker=[(-d, -1), (d, 1)], markersize=12,
+                                                  linestyle="none", color='k', mec='k', mew=1, clip_on=False)
+                            if ibrokenY == 0:
+                                if ibrokenX < nbrokenX - 1:
+                                    axis.plot([1], [1], transform=axis.transAxes, **kwargs)
+                                if ibrokenX > 0:
+                                    axis.plot([0], [1], transform=axis.transAxes, **kwargs)
+                            if ibrokenY == nbrokenY - 1:
+                                if ibrokenX < nbrokenX -1:
+                                    axis.plot([1], [0], transform=axis.transAxes, **kwargs)
+                                if ibrokenX > 0:
+                                    axis.plot([0], [0], transform=axis.transAxes, **kwargs)
 
+                    print_xlabel = self.config_bool_or_in('graph_show_xlabel', result_type)
 
+                    if nbrokenY * nbrokenX > 1:
+                        if ibrokenX == 0 and ibrokenY==0:
+                            # Just one time, set the axis labels
+
+                            # FIXME: are these ratios ok for different font sizes and DPI?
+                            # Likely they need to be scalated
+                            if print_xlabel:
+                                extra_artists.append(fig.text(0.5,0.03, xname,  transform=fig.transFigure))
+                            axis.set_ylabel(axis.yname)
+                            # We have 10% white bottom now
+                            axis.yaxis.label.set_position((0,0.5 + 0.1))
+                            axis.yaxis.label.set_transform(mtransforms.blended_transform_factory(mtransforms.IdentityTransform(), fig.transFigure))
+                    else:
+                        if print_xlabel:
+                            axis.set_xlabel(xname)
 
                 if self.options.graph_size:
                     fig = plt.gcf()
@@ -1481,10 +1528,8 @@ class Grapher:
                 try:
 
                     if nbrokenY * nbrokenX > 1:
-
                         plt.subplots_adjust(hspace=0.05 if nbrokenY > 1 else 0,wspace=0.05 if nbrokenX > 1 else 0)  # adjust space between axes
                     else:
-
                         plt.tight_layout()
 
                 except Exception as e:
@@ -1569,7 +1614,7 @@ class Grapher:
                         lgd = axis.legend(handles=handles, labels=labels, loc=loc,bbox_to_anchor=(legend_bbox if legend_bbox and len(legend_bbox) > 1 else None), mode=self.config("legend_mode"), borderaxespad=0.,ncol=ncol, title=legend_title,bbox_transform=plt.gcf().transFigure,frameon=self.config_bool("legend_frameon"), **legend_params)
                     else:
                         lgd = axis.legend(handles=handles, labels=labels, loc=loc,ncol=ncol, title=legend_title, frameon=self.config_bool("legend_frameon"), **legend_params )
-            return result_type, lgd
+            return result_type, lgd, extra_artists
 
 
     def reject_outliers(self, result, testie):
