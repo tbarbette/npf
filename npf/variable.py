@@ -303,6 +303,8 @@ class CoVariable(Variable):
         return vs
 
     def count(self):
+        if len(self.vlist) == 0:
+            return 1
         return min([v.count() for k,v in self.vlist.items()])
 
     def format(self):
