@@ -297,7 +297,7 @@ class Testie:
             for node in nodes:
               if not node.nfs:
                 for repo in repo_under_test:
-                    if repo.get_reponame() != 'local' and not no_build:
+                    if repo.get_build_path() and not no_build:
                         toSend.add((repo.reponame,role,node, repo.get_build_path()))
                 for dep in script.get_deps():
                     deprepo = Repository.get_instance(dep, self.options)
@@ -305,7 +305,7 @@ class Testie:
                     toSend.add((deprepo.reponame,role,node,deprepo.get_build_path()))
         for repo,role,node,bp in toSend.difference(done):
             print("Sending software %s to %s... " % (repo, role), end ='')
-            t = node.executor.sendFolder(os.path.relpath(bp,npf.npf_root()),local=npf.npf_root())
+            t = node.executor.sendFolder(os.path.relpath(bp,npf.npf_root_path()),local=npf.npf_root_path())
             if (t > 0):
                 print("%d bytes sent." % t)
             else:
@@ -419,11 +419,14 @@ class Testie:
             except OSError:
                 pass
 
-    def update_constants(self, v_internals, build, full_test_folder, out_path):
+    def update_constants(self, v_internals : dict, build : Build, full_test_folder : str, out_path : str = None, node = None):
         bp = ('../' + build.build_path()) if not os.path.isabs(build.build_path()) else build.build_path()
         abs_test_folder = full_test_folder if os.path.isabs(full_test_folder) else npf.cwd_path() + os.sep + full_test_folder
 
         tp = os.path.relpath(self.path,abs_test_folder)
+
+        if node and node.executor.path:
+            bp = os.path.relpath(bp, npf.experiment_path())
         v_internals.update({
                         'NPF_REPO':get_valid_filename(build.repo.name),
                         'NPF_ROOT': '../', #Deprecated
@@ -623,7 +626,7 @@ class Testie:
                         param.sudo = script.params.get("sudo", False)
 
                         remote_test_folder = node.experiment_path() + os.sep + test_folder + os.sep
-                        self.update_constants(v, build, remote_test_folder, out_path=None)
+                        self.update_constants(v, build, remote_test_folder, out_path=None, node=node)
                         v["NPF_MULTI"] = i_multi
                         v["NPF_MULTI_ID"] = i_multi
                         v["NPF_MULTI_MAX"] = node.multi if node.multi is not None else 1

@@ -1,0 +1,9 @@
+%config
+n_runs=1
+
+%script@dut
+if [ -e ${NPF_BUILD_PATH}/perf/kernel.map ] ; then
+    echo "RESULT 1"
+else
+    echo "RESULT 0"
+fi

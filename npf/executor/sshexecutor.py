@@ -9,6 +9,7 @@ from ..eventbus import EventBus
 from .. import npf
 from paramiko.buffered_pipe import PipeTimeout
 import socket
+import stat
 
 class SSHExecutor(Executor):
 
@@ -199,26 +200,29 @@ class SSHExecutor(Executor):
                 ignored = ['.git', '.vimhistory']
                 def _send(path):
                     total = 0
-                    rlist = sftp.listdir(self.path + path)
-                    lpath = lpath if not local else local + os.sep + path
-                    for entry in os.scandir(lpath):
-                        if entry.is_file():
-                            remote = self.path + path + '/' + entry.name
-                            if not entry.name in rlist or entry.stat().st_size != sftp.stat(remote).st_size:
-                                try:
-                                    es = entry.stat()
-                                    sftp.put(lpath + '/' + entry.name, remote)
-                                    sftp.chmod(remote, es.st_mode)
-                                    total += es.st_size
-                                except FileNotFoundError:
-                                    raise(Exception("Could not send %s to %s"  % (path + '/' + entry.name, remote)))
-                        else:
-                            if entry.name in ignored:
-                                continue
-                            if entry.name not in rlist:
-                                sftp.mkdir(self.path + path + '/' + entry.name, mode=0o777 )
-                                total += _send(path +'/'+entry.name + '/')
-                    return total
+                    try:
+                        rlist = sftp.listdir(self.path + path)
+                        lpath = lpath if not local else local + os.sep + path
+                        for entry in os.scandir(lpath):
+                            if entry.is_file():
+                                remote = self.path + path + '/' + entry.name
+                                if not entry.name in rlist or entry.stat().st_size != sftp.stat(remote).st_size:
+                                    try:
+                                        es = entry.stat()
+                                        sftp.put(lpath + '/' + entry.name, remote)
+                                        sftp.chmod(remote, es.st_mode)
+                                        total += es.st_size
+                                    except FileNotFoundError:
+                                        raise(Exception("Could not send %s to %s"  % (path + '/' + entry.name, remote)))
+                            else:
+                                if entry.name in ignored:
+                                    continue
+                                if entry.name not in rlist:
+                                    sftp.mkdir(self.path + path + '/' + entry.name, mode=0o777 )
+                                    total += _send(path +'/'+entry.name + '/')
+                        return total
+                    except FileNotFoundError:
+                        raise FileNotFoundError("No such file : %s" % (self.path + os.sep + path))
                 curpath = ''
                 total = 0
                 for d in path.split('/'):
@@ -256,6 +260,36 @@ class SSHExecutor(Executor):
 
                 sftp.close()
                 return total
+
+        except paramiko.ssh_exception.SSHException as e:
+            print("Error while connecting to %s" % self.addr)
+            raise e
+
+
+    def deleteFolder(self, path):
+        try:
+            with paramiko.SSHClient() as ssh:
+                ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                ssh.load_system_host_keys()
+                try:
+                    ssh = self.get_connection()
+                except Exception as e:
+                    print("Cannot connect to %s with username %s" % (self.addr,self.user))
+                    raise e
+
+                transport = ssh.get_transport()
+
+                sftp = paramiko.SFTPClient.from_transport(transport)
+
+                fileattr = sftp.lstat(self.path + path)
+                try:
+                    if stat.S_ISDIR(fileattr.st_mode):
+                        sftp.rmdir(self.path + path)
+                    else:
+                        sftp.remove(self.path + path)
+                except FileNotFoundError:
+                    raise FileNotFoundError("Could not find %s, unable to delete it..." % (self.path + path))
+                sftp.close()
 
         except paramiko.ssh_exception.SSHException as e:
             print("Error while connecting to %s" % self.addr)

@@ -9,13 +9,14 @@ from npf.executor.localexecutor import LocalExecutor
 from npf.executor.sshexecutor import SSHExecutor
 from npf.variable import Variable,get_bool
 from npf.nic import NIC
+from npf.executor.executor import Executor
 from npf import npf
 
 
 class Node:
     _nodes = {}
 
-    def __init__(self, name, executor, tags):
+    def __init__(self, name, executor : Executor, tags):
         self.executor = executor
         self.name = name
         self._nics = []
@@ -158,7 +159,7 @@ class Node:
         return node
 
     @classmethod
-    def makeSSH(cls, user, addr, path, options, port=22):
+    def makeSSH(cls, user, addr, path, options, port=22, nfs=None):
         if path is None:
             path = os.path.abspath(npf.experiment_path())
         node = cls._nodes.get(addr, None)
@@ -166,6 +167,8 @@ class Node:
             return node
         sshex = SSHExecutor(user, addr, path, port)
         node = Node(addr, sshex, options.tags)
+        if nfs is not None:
+            node.nfs = nfs
         cls._nodes[addr] = node
 
         if options.do_test and options.do_conntest:
@@ -177,16 +180,21 @@ class Node:
             print("Testing connection to %s..." % node.executor.addr)
             time.sleep(0.01)
             if not node.nfs:
-                node.send_folder(".access_test")
-            pid, out, err, ret = sshex.exec(cmd="test -e " + ".access_test" + " && echo 'access_ok' && if ! type 'unbuffer' ; then ( ( sudo apt-get update && sudo apt-get install -y expect ) || sudo yum install -y expect ) && sudo echo 'test' ; else sudo echo 'test' ; fi", raw=True, title="SSH dependencies installation")
+                print("Remote is not shared through nfs... Sending .access_test")
+                assert(isinstance(node.executor, SSHExecutor))
+                node.executor.sendFolder(".access_test")
+            pid, out, err, ret = sshex.exec(cmd="pwd;ls -al;test -e " + ".access_test" + " && echo 'access_ok' && if ! type 'unbuffer' ; then ( ( sudo apt-get update && sudo apt-get install -y expect ) || sudo yum install -y expect ) && sudo echo 'test' ; else sudo echo 'test' ; fi", raw=True, title="SSH dependencies installation")
             out = out.strip()
+
+            if not node.nfs:
+                node.executor.deleteFolder(".access_test")
             if ret != 0:
                 #Something was wrong, try first with a more basic test to help the user pinpoint the problem
                 pidT, outT, errT, retT = sshex.exec(cmd="echo -n 'test'", raw=True, title="SSH echo test")
                 if retT != 0 or outT.split("\n")[-1] != "test":
                     raise Exception("Could not communicate with%s node %s, got return code %d : %s" %  (" user "+ sshex.user if sshex.user else "", sshex.addr, retT, outT + errT))
                 if not "access_ok" in out:
-                    raise Exception("Could not find the access test file. Verify the path= paramater in the cluster file, it must match --root-path. If the path is not shared accross clusters, ensure you set nfs=0 in the cluster file.")
+                    raise Exception("Could not find the access test file at %s. Verify the path= paramater in the cluster file and that this directory alread exists. It must match --root-path on the remote equivalent when nfs is active. If the path is not shared accross clusters, ensure you set nfs=0 in the cluster file." % sshex.path)
                 if out.split("\n")[-1] != "test":
                     raise Exception("Could not communicate with user %s on node %s, unbuffer (expect package) could not be installed, or passwordless sudo is not working, got return code %d : %s" %  (sshex.user, sshex.addr, ret, out + err))
         if options.do_test:

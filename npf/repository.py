@@ -124,7 +124,7 @@ class UnversionedMethod(Method, metaclass=ABCMeta):
     def __init__(self, repo):
         super().__init__(repo)
         if not repo.version:
-            raise Exception("This method require a version")
+            repo.version = "unknown"
 
     def get_last_versions(self, limit=None, branch=None, force_fetch=False):
         return [self.repo.version]
@@ -151,6 +151,15 @@ class MethodGet(UnversionedMethod):
         os.unlink(filename)
         return True
 
+class MethodLocal(UnversionedMethod):
+    def checkout(self, branch=None):
+        if branch is None:
+            branch = self.repo.version
+        if not Path(self.repo.get_build_path()).exists():
+            print("WARNING: %s does not exist" % self.repo.get_build_path())
+            return False
+        return True
+
 
 class MethodPackage(UnversionedMethod):
     def checkout(self, branch=None):
@@ -159,7 +168,7 @@ class MethodPackage(UnversionedMethod):
         return True
 
 
-repo_methods = {'git': MethodGit, 'get': MethodGet, 'package': MethodPackage}
+repo_methods = {'git': MethodGit, 'get': MethodGet, 'package': MethodPackage, 'local': MethodLocal}
 
 
 class Repository:
@@ -179,7 +188,7 @@ class Repository:
             self.version=None
         overwrite_name = version[0].split(':')
         add_tags = overwrite_name[0].split('+')
-        overwrite_branch = add_tags[0].split('/')
+        overwrite_branch = add_tags[0].split('/',1)
 
         self.reponame = overwrite_branch[0]
         self.tags = []
@@ -293,8 +302,17 @@ class Repository:
         if len(overwrite_name) > 1:
             self.name = overwrite_name[1]
 
-
-        self._build_path = os.path.dirname(npf.get_build_path() + self.reponame + '/')
+        if type(self.method) == MethodLocal:
+            path = overwrite_branch[1] if len(overwrite_branch) > 1 else self.url
+            if path:
+                try:
+                    self._build_path = path if os.path.isabs(path) else npf.find_local(path, critical=True, suppl = [os.path.dirname(repo_path)] if repo_path else [])
+                except FileNotFoundError:
+                    raise Exception("The URL of the local repository '%s' is invalid. Maybe try an absolute path?" % path)
+            else:
+                self._build_path = path
+        else:
+            self._build_path = os.path.dirname(npf.get_build_path() + self.reponame + '/')
 
     def get_identifier(self):
         return self._id

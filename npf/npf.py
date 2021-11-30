@@ -28,7 +28,7 @@ class ExtendAction(argparse.Action):
 
 def add_verbosity_options(parser: ArgumentParser):
     v = parser.add_argument_group('Verbosity options')
-    v.add_argument('--show-full', help='Show full execution results',
+    v.add_argument('--show-full', '--show-all', help='Show full execution results',
                    dest='show_full', action='store_true',
                    default=False)
     v.add_argument('--show-files', help='Show content of created files',
@@ -189,7 +189,7 @@ def add_building_options(parser):
     return b
 
 nodePattern = regex.compile(
-    "(?P<role>[a-zA-Z0-9]+)=(:?(?P<user>[a-zA-Z0-9]+)@)?(?P<addr>[a-zA-Z0-9.-]+)(:?[:](?P<path>path))?")
+    "(?P<role>[a-zA-Z0-9]+)=(:?(?P<user>[a-zA-Z0-9]+)@)?(?P<addr>[a-zA-Z0-9.-]+)(:?[:](?P<path>[a-zA-Z0-9_./~-]+))?")
 roles = {}
 
 
@@ -241,25 +241,43 @@ def parse_nodes(args):
         options.search_path.add(os.path.dirname(t))
 
     for val in options.cluster:
-        variables = val.split(',')
+        variables : list[str] = val.split(',')
         if len(variables) == 0:
             raise Exception("Bad definition of cluster parameter : %s" % variables)
-        mapping=variables[0].strip()
+        mapping: str =variables[0].strip()
         match = nodePattern.match(mapping)
         if not match:
             raise Exception("Bad definition of node : %s" % mapping)
+
+        path = match.group('path')
+
+        del variables[0]
+
+        nfs = None
+        assert isinstance(variables, list)
+        for opts in variables:
+            assert isinstance(opts, str)
+            var,val = opts.split('=')
+            if var == "nfs":
+                nfs = int(val)
+            elif var == "path":
+                path = val
+            else:
+                continue
+            variables.remove(opts)
+
         if match.group('addr') == 'localhost':
             node = local
         else:
-            node = Node.makeSSH(user=match.group('user'), addr=match.group('addr'), path=match.group('path'),
-                            options=options)
+            node = Node.makeSSH(user=match.group('user'), addr=match.group('addr'), path=path,
+                            options=options, nfs=nfs)
         role = match.group('role')
         if role in roles:
             roles[role].append(node)
             print("Role %s has multiple nodes. The role will be executed by multiple machines. If this is not intended, fix your --cluster option." % role)
         else:
             roles[role] = [node]
-        del variables[0]
+
         for opts in variables:
             var,val = opts.split('=')
             if var == 'nic':
@@ -267,9 +285,11 @@ def parse_nodes(args):
             elif var == "multi":
                 node.multi = int(val)
             elif var == "mode":
-                node.mode = val
+                mode = val
             else:
                 raise Exception("Unknown cluster variable : %s" % var)
+
+
 
 
     os.unlink(experiment_path() + ".access_test")
@@ -318,11 +338,11 @@ def from_experiment_path(path):
     else:
         return (experiment_path() if os.path.isabs(experiment_path()) else os.path.abspath(experiment_path())) + os.sep + path
 
-def find_local(path, critical: bool = False):
+def find_local(path, critical: bool = False, suppl: List = None):
     if os.path.exists(path):
         return path
 
-    searched = [npf_root_path(), '.', experiment_path()] + list(sys.modules[__name__].options.search_path)
+    searched = [npf_root_path(), '.', experiment_path()] + list(sys.modules[__name__].options.search_path) + (suppl if suppl else [])
     for a in searched:
         p = a + os.sep + path
         if os.path.exists(p):
