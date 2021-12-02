@@ -1758,7 +1758,7 @@ class Grapher:
             plt.setp(rects['fliers'], color = build._color)
             plt.setp(rects['medians'], color = lighter(build._color,0.50,0))
 
-        if nseries > 1: 
+        if nseries > 1:
             m = len(data)*nseries + 1
         else:
             m = ipos
