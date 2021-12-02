@@ -1220,7 +1220,7 @@ class Grapher:
                             #if i_s_subplot > 0:
                             #    plt.setp(axiseis[0].get_xticklabels(), visible=False)
                             #axiseis[0].set_xlabel("")
-                            axis = plt.subplot(n_lines * nbrokenY, n_cols * nbrokenX, 
+                            axis = plt.subplot(n_lines * nbrokenY, n_cols * nbrokenX,
                                     isubplot + 1 + ibrokenY,
                                     sharex = axiseis[0] if ibrokenY > 0 and nbrokenY > 1 else None,
                                     sharey = axiseis[0] if ibrokenX > 0 and nbrokenX > 1 else None)
@@ -1523,6 +1523,8 @@ class Grapher:
                     else:
                         if print_xlabel:
                             axis.set_xlabel(xname)
+
+                        axis.set_ylabel(axis.yname)
 
                 if self.options.graph_size:
                     fig = plt.gcf()
