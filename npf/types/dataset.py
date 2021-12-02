@@ -105,7 +105,14 @@ class Run:
 Dataset = Dict[Run, Dict[str, List]]
 ResultType = str
 
+# A tuple of X,Y,E and B, each a list of :
+#  * X variables
+#  * the mean of their Y values
+#  *  the original results are available in the third tuple, refered to E
+#  * and the build into the fourth, refered to as B
 XYEB = Tuple
+
+# A dictionnary of XYEB for all results
 AllXYEB = Dict[ResultType, List[XYEB]]
 
 def var_divider(testie: 'Testie', key: str, result_type = None):
@@ -202,6 +209,7 @@ def write_output(datasets, statics, options, run_list, kind=None):
                 print("Output written to %s" % csvs[result_type][0])
                 csvs[result_type][1].close()
 
+# Converts a dataset (a most of series) to a more mathematical format, XYEB (see above)
 def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list, key, do_x_sort, statics, options, max_series = None, series_sort=None, y_group={}, color=[], kind = None) -> AllXYEB:
     write_output(datasets, statics, options, run_list, kind)
     data_types = OrderedDict()

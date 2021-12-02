@@ -13,7 +13,7 @@ import numpy as np
 from pygtrie import Trie
 
 from npf.types import dataset
-from npf.types.dataset import Run, XYEB, group_val
+from npf.types.dataset import Run, XYEB, AllXYEB, group_val
 from npf.variable import is_log, is_numeric, get_numeric, numericable, get_bool, is_bool
 from npf.section import SectionVariable
 from npf import npf, variable
@@ -163,6 +163,9 @@ def broken_axes_ratio (values):
 
 
 class Graph:
+    """
+    This is a structure holder for data to build a graph
+    """
     def __init__(self, grapher:'Grapher'):
         self.grapher = grapher
         self.subtitle = None
@@ -174,6 +177,7 @@ class Graph:
     def dyns(self):
         return [var for var,values in self.vars_values.items() if len(values) > 1]
 
+    #Convert the series into te XYEB format (see types.dataset)
     def dataset(self,kind=None):
         if not self.data_types:
 
@@ -799,22 +803,6 @@ class Grapher:
                             tot = 0
                             for result_type, results in new_run_results_exp.items():
                                 tot += np.mean(results)
-#                            if tot <= 99:
-#                                new_run_results_exp['Other'] = [100-tot]
-
-#                        if var_name in run.variables:
-#                            results = new_run_results_exp[run.variables[var_name]]
-#                            nr = new_run_results.copy()
-                            #If unit is percent, we multiply the value per the result
-#                            if mult:
-#                                m = np.mean(results)
-#                                tot += m
-#                                for result_type in nr:
-#                                    nr[result_type] = nr[result_type].copy() * m / 100
- #                           nr.update({result_name: results})
-#
-#                            new_results[run] = nr
-#                        else:
                         if True:
                             for extracted_val, results in new_run_results_exp.items(): #result-type
                                 variables = run.variables.copy()
@@ -839,9 +827,6 @@ class Grapher:
 
                 if untouched_results:
                     untouched_series.append((testie, build, untouched_results))
-#                if vvalues:
-                    #if not npf.all_num(vvalues):
-                    #    raise Exception("Cannot transform series %s as the following are not all numerical : %s " % (result_types, vvalues))
 
             exploded_vars_values[var_name] = vvalues
 
@@ -1016,8 +1001,8 @@ class Grapher:
 
     def plot_graphs(self, graphs, filename, fileprefix):
         """
-        Each graph is a dataset that contains multiple result types, there may be multiple graphs if there are multiple series.
-        There may be multiple graphs in the case of regression tests for instance
+        This function will sort out the layout of the grid, according to the number of sublot, dual axis, etc...
+        It will then properly call generate_plot_for_graph() for each of those subplots, and finaly save_fix.
         """
         assert(len(graphs) > 0)
         matched_set = set()
@@ -1028,17 +1013,19 @@ class Grapher:
 
         ret = {}
 
+        #List of positions of plots on the sheet (also handle dual-axis plots)
         plots = OrderedDict()
 
         # For all graphs, find the various sub-plots
         graph = graphs[0]
         if len(graph.series) == 0:
             return
-        data_types = graph.dataset(kind=fileprefix)
+        data_types : AllXYEB = graph.dataset(kind=fileprefix)
         one_testie,one_build,whatever = graph.series[0]
 
         if self.options.no_graph:
             return
+
         # Combine some results as subplots of a single plot. Expect a dictionary like THROUGHPUT+LATENCY:2 where the first list is the results to combine, and the second the number of columns to use for subplots, ignored for dual axis
         for i,(result_type_list, n_cols) in enumerate(self.configdict('graph_subplot_results', {}).items()):
             for result_type in re.split('[,]|[+]', result_type_list):
@@ -1142,6 +1129,7 @@ class Grapher:
 
 
 
+    #Generate the plot of data_types at the given i/i_subplot position over n_cols/n_lines
     def generate_plot_for_graph(self, i, i_subplot, figure, n_cols, n_lines, vars_values, data_types, dyns, vars_all, key, title, ret, subplot_legend_titles):
             ndyn=len(dyns)
             subplot_type=self.config("graph_subplot_type")
@@ -1320,7 +1308,7 @@ class Grapher:
                     try:
                         if graph_type == "simple_bar":
                             """No dynamic variables : do a barplot X=version"""
-                            r, ndata = self.do_simple_barplot(axis,result_type, data, shift, isubplot)
+                            r, ndata = self.do_simple_barplot(axis, result_type, data, shift, isubplot)
                             barplot = True
                         elif graph_type == "line":
                             """One dynamic variable used as X, series are version line plots"""

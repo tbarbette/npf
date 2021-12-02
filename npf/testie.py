@@ -110,7 +110,7 @@ class Testie:
     def get_scripts(self) -> List[SectionScript]:
         return self.scripts
 
-    def __init__(self, testie_path, options, tags=None, role=None):
+    def __init__(self, testie_path, options, tags=None, role=None, inline=None):
         loc_path = npf.find_local(testie_path)
         if os.path.exists(loc_path):
             testie_path = loc_path
