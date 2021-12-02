@@ -16,6 +16,7 @@ from npf.types import dataset
 from npf.types.dataset import Run, XYEB, AllXYEB, group_val
 from npf.variable import is_log, is_numeric, get_numeric, numericable, get_bool, is_bool
 from npf.section import SectionVariable
+from npf.build import Build
 from npf import npf, variable
 
 import matplotlib
@@ -970,7 +971,6 @@ class Grapher:
 
         if sv:
             for script, build, all_results  in series:
-
                 graph = self.extract_variable_to_series(sv, vars_values.copy(), all_results, dyns.copy(), build, script)
                 if prop:
                     graph.series_prop(prop,  self.configdict('graph_cross_reference').values())
@@ -1304,7 +1304,6 @@ class Grapher:
                         graph_type = "simple_bar"
                     barplot = False
 
-
                     try:
                         if graph_type == "simple_bar":
                             """No dynamic variables : do a barplot X=version"""
@@ -1320,6 +1319,12 @@ class Grapher:
                             """CDF"""
                             r, ndata = self.do_cdf(axis, key, result_type, data, xdata, shift, isubplot)
                             default_doleg = True
+                            ymin = 0
+                            ymax = 100
+                        elif graph_type == "heatmap":
+                            """Heatmap"""
+                            r, ndata = self.do_heatmap(axis, key, result_type, data, xdata, shift, isubplot)
+                            default_doleg = False
                         else:
                             """Barplot. X is all seen variables combination, series are version"""
                             r, ndata= self.do_barplot(axis,vars_all, dyns, result_type, data, shift, ibrokenY==0)
@@ -1766,18 +1771,41 @@ class Grapher:
 
     def do_cdf(self, axis, key, result_type, data : XYEB, xdata : XYEB,shift=0,idx=0):
 
-        self.format_figure(axis, result_type, shift, key=key)
+        self.format_figure(axis, result_type, shift, key=key, default_format="%d")
         nseries = max([len(y) for y in [y for x,y,e,build in data]])
 
         for i, (x, ys, e, build) in enumerate(data):
-
             for yi in range(nseries):
                 y = e[yi][2]
                 x2 = np.sort(y)
                 N=len(y)
                 y2 = np.arange(N) / float(N)
-                axis.plot(x2, y2,  color = build._color, label = x[yi])
 
+                axis.plot(x2, y2 * 100,  color = build._color, label = x[yi])
+        axis.yname = "Cumulative distribution of "+axis.yname+" (%)"
+
+
+        if nseries*len(data) > 4:
+            print("Remember: CDF show the CDF of results for each point. Maybe you want to use graph_variable_as_result?")
+        return True, nseries
+
+    def do_heatmap(self, axis, key, result_type, data : XYEB, xdata : XYEB, shift=0, idx=0):
+        self.format_figure(axis, result_type, shift, key=key)
+        nseries = max([len(y) for y in [y for x,y,e,build in data]])
+
+        matrix = np.empty(tuple((len(data),nseries)))
+
+        if len(data) <= 1 or nseries <= 1:
+            print("WARNING: Heatmap needs two dynamic variables. The map will have a weir ratio")
+
+        for i, (x, ys, e, build) in enumerate(data):
+            assert(isinstance(build,Build))
+            for yi in range(nseries):
+                matrix[i,yi] = ys[yi]
+
+        axis.yname = self.glob_legend_title
+
+        axis.imshow(matrix)
         return True, nseries
 
     def do_line_plot(self, axis, key, result_type, data : XYEB,shift,idx,xmin,xmax,xdata = None):
@@ -1943,9 +1971,9 @@ class Grapher:
                 return True,False
         return False, False
 
-    def format_figure(self, axis, result_type, shift, key = None):
+    def format_figure(self, axis, result_type, shift, key = None, default_format = None):
         yunit = self.scriptconfig("var_unit", "result", default="", result_type=result_type)
-        yformat = self.scriptconfig("var_format", "result", default=None, result_type=result_type)
+        yformat = self.scriptconfig("var_format", "result", default=default_format, result_type=result_type)
         yticks = self.scriptconfig("var_ticks", "result", default=None, result_type=result_type)
         shift = int(shift)
         tick_params = self.configdict("graph_tick_params",default={})

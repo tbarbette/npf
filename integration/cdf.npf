@@ -1,0 +1,15 @@
+%info
+f(x) = (rand() % 100) * x, for x in [1-5], 20 runs
+
+A non-networking testie to show a CDF
+
+%config
+default_repo=local //No program under test
+n_runs=20
+graph_type=cdf
+
+%variables
+X=[1-5]
+
+%script
+echo "RESULT-N  $(( $X * random.rand() % 100 )) "

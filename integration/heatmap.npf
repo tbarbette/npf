@@ -1,0 +1,18 @@
+%info
+f(a,b) = a * b with a in 1..10, b in 10..100
+
+A non-networking testie to show a heatmap
+
+%config
+default_repo=local //No program under test
+var_unit={RESULT: }
+var_format={RESULT:%d}
+graph_type=heatmap
+n_runs=1
+
+%variables
+A=[1-10]
+B=[10-100#10]
+
+%script
+echo "RESULT-N $(( $A * $B ))"
