@@ -854,7 +854,7 @@ class Grapher:
         # what variable to use as a serie when there is only one serie
         for to_get_out in self.configlist('graph_variables_as_series', []):
             try:
-                values = natsort.natsorted(vars_values[to_get_out])
+                values = natsort.natsorted(vars_values[to_get_out], lambda x: x[1] if type(x) is tuple else x)
             except KeyError as e:
                 print("WARNING : Unknown variable %s to export as serie" % to_get_out)
                 print("Known variables : ",", ".join(vars_values.keys()))

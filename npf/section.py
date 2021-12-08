@@ -744,9 +744,12 @@ class SectionConfig(SectionVariable):
         self.__add(key.lower(), val)
 
     def match(self, key, val):
-        for match in self.get_list(key):
-            if re.match(match, val):
-                return True
+        try:
+            for match in self.get_list(key):
+                if re.match(match, val):
+                    return True
+        except sre_constants.error:
+            print("ERROR : Regex %s does not work" % key)
         return False
 
     def finish(self, testie):

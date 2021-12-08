@@ -12,6 +12,7 @@ NGINX_USER=www-data
 KEEPALIVE=30
 ssl:NGINX_SSL=1
 NGINX_CPU_STEP=1
+NGINX_DAEMON=on
 
 %late_variables
 NGINX_SRVTYPE=default_server
@@ -40,7 +41,7 @@ service irqbalance stop
 echo "Setting NGINX number of queues"
 ethtool -L ${self:0:ifname} combined $NGINX_NWORKER
 echo "Setting IRQ affinity"
-set_irq_affinity.sh ${self:0:ifname}
+set_irq_affinity.sh ${self:0:ifname} &
 echo "Launching NGINX..."
 nginx -c $(pwd)/nginx.conf -p $NGINX_ROOT
 r=$?
@@ -55,7 +56,7 @@ user $NGINX_USER;
 worker_processes $NGINX_NWORKER;
 worker_rlimit_nofile 70000;
 pid nginx.pid;
-daemon on;
+daemon $NGINX_DAEMON;
 worker_cpu_affinity $(( " ".join(["1" + '0' * i for i in range(0, $NGINX_NWORKER*$NGINX_CPU_STEP, $NGINX_CPU_STEP) ]) ));
 
 events {
