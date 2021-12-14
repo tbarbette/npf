@@ -131,18 +131,17 @@ class Node:
             speeds.setdefault(speed, [])
             nic = NIC(words[0][4:], mac, ip, words[1])
             nic.speed = speed
-            nic.model = words[3]
             speeds[speed].append(nic)
         i = 0
         for speed in reversed(sorted(speeds.keys())):
             for n in speeds[speed]:
                 self._nics[i] = n
-                i = i + 1
                 print("%d:pci=%s" % (i, n.pci))
                 print("%d:ifname=%s" % (i, n.ifname))
                 #print("%d:speed=%s" % (i, n.speed))
                 print("%d:mac=%s" % (i, n.mac))
                 print("%d:ip=%s" % (i, n.ip))
+                i = i + 1
 
 
     @classmethod
