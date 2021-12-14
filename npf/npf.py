@@ -11,6 +11,8 @@ from decimal import Decimal
 from npf.node import Node
 from .variable import VariableFactory
 
+import numpy as np
+
 options = None
 cwd = None
 
@@ -450,6 +452,6 @@ def parseUnit(u):
 
 def all_num(l):
     for x in l:
-        if type(x) is not int and type(x) is not float and type(x) is not Decimal:
+        if type(x) is not int and type(x) is not Decimal and not isinstance(x, (np.floating, float)):
             return False
     return True

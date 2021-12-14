@@ -17,13 +17,21 @@ class Statistics:
     @staticmethod
     def run(build: Build, all_results: Dataset, testie: Testie, max_depth=3, filename=None):
         print("Building dataset...")
+
+        #Transform the dataset into a standard table of X/Features and Y observations
         dataset = Statistics.buildDataset(all_results, testie)
+
+        #There's one per serie, so for each of those
         for result_type, X, y, dtype in dataset:
             if len(dataset) > 1:
                 print("Statistics for %s" % result_type)
             print("Learning dataset built with %d samples and %d features..." % (X.shape[0], X.shape[1]))
             clf = tree.DecisionTreeRegressor(max_depth=max_depth)
-            clf = clf.fit(X, y)
+            try:
+                clf = clf.fit(X, y)
+            except Exception as e:
+                print(e)
+                continue
 
             if (max_depth is None and len(X) > 16) or (max_depth is not None and max_depth > 8):
                 print("No tree graph when maxdepth is > 8. Use --statistics-maxdepth 8 to fix it to 8.")
@@ -58,7 +66,6 @@ class Statistics:
             best = X[y.argmax()]
             print("  ", end='')
             for i, name in enumerate(dtype['names']):
-
                 print("%s = %s, " % (name, best[i] if (dtype['values'][i] is None) else best[i] if type(best[i]) is np.str_ else dtype['values'][i][int(best[i])]), end='')
             print(' : %.02f' % y.max())
 

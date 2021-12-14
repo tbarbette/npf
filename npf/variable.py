@@ -178,9 +178,9 @@ def replace_variables(v: dict, content: str, self_role=None, self_node=None, def
 class VariableFactory:
     @staticmethod
     def build(name, valuedata, vsection=None):
-        result = re.match("\[(-?[0-9.]+)([+-]|[*]|[,])(-?[0-9.]+)([#][0-9.]*)?\]", valuedata)
+        result = re.match("(?P<doubleopen>\[?)\[(?P<a>-?[0-9.]+)(?P<log>[+-]|[*]|[,])(?P<b>-?[0-9.]+)(?P<step>[#][0-9.]*)?\](?P<doubleclose>\]?)", valuedata)
         if result:
-            return RangeVariable(name, result.group(1), result.group(3), result.group(2) == "*", (get_numeric(result.group(4)[1:]) if result.group(4) else None))
+            return RangeVariable(name, result.group('a'), result.group('b'), result.group('log') == "*", step= (get_numeric(result.group('step')[1:]) if result.group('step') else None), force_int=result.group('doubleopen')=='[')
 
         result = regex.match("\{([^:]*:[^,:]+)(?:(?:,)([^,:]*:[^,:]+))*\}", valuedata)
         if result:
@@ -189,6 +189,8 @@ class VariableFactory:
         result = regex.match("\{([^,]+)(?:(?:,)([^,]*))*}", valuedata)
         if result:
             return ListVariable(name, result.captures(1) + result.captures(2))
+        if valuedata.strip() == "{}":
+            return DictVariable(name, {})
 
         result = regex.match("EXPAND\((.*)\)", valuedata)
         if result:
@@ -308,7 +310,13 @@ class CoVariable(Variable):
         return min([v.count() for k,v in self.vlist.items()])
 
     def format(self):
-        return str
+        k = []
+        v = []
+        for var,val in self.vlist.items():
+            K,V = val.format()
+            k.append(K)
+            v.append(V)
+        return k,v
 
     def is_numeric(self):
         return False
@@ -338,7 +346,7 @@ class HeadVariable(Variable):
         return sum(self.nums) if len(self.nums) > 0 else 1
 
     def format(self):
-        return str
+        return self.name, str
 
     def is_numeric(self):
         return False
@@ -357,7 +365,7 @@ class ExpandVariable(Variable):
         return len(self.values)
 
     def format(self):
-        return str
+        return self.name, str
 
     def is_numeric(self):
         return False
@@ -382,7 +390,7 @@ class SimpleVariable(Variable):
         return 1
 
     def format(self):
-        return dtype(self.value)
+        return self.name, dtype(self.value)
 
     def is_numeric(self):
         return self.format() != str
@@ -435,7 +443,7 @@ class ListVariable(Variable):
                 return bool
             elif len(unique) == 1 and (unique[0] == 'true' or unique[0] == 'false'):
                 return bool
-        return t
+        return self.name, t
 
     def is_numeric(self):
         return self.all_num
@@ -465,7 +473,7 @@ class DictVariable(Variable):
 
     def format(self):
         k, v = next(self.vdict.items().__iter__())
-        return dtype(v)
+        return self.name, dtype(v)
 
     def is_numeric(self):
         k, v = next(self.vdict.items().__iter__())
@@ -481,7 +489,7 @@ class DictVariable(Variable):
         return self
 
 class RangeVariable(Variable):
-    def __init__(self, name, valuestart, valueend, log, step = None):
+    def __init__(self, name, valuestart, valueend, log, step = None, force_int = False):
         super().__init__(name)
 
         if is_integer(valuestart) and is_integer(valueend):
@@ -504,6 +512,7 @@ class RangeVariable(Variable):
                 self.step = 1
         else:
             self.step = step
+        self.force_int = force_int
 
     def count(self):
         """todo: think"""
@@ -539,10 +548,10 @@ class RangeVariable(Variable):
                             i += self.step
                 if i > self.b:
                     vs.append(self.b)
-            return vs
+            return [int(v) for v in vs] if self.force_int else vs
 
     def format(self):
-        return int
+        return self.name, int
 
     def is_numeric(self):
         return True
@@ -584,7 +593,7 @@ class RandomVariable(Variable):
         return 1
 
     def format(self):
-        return int
+        return self.name, int
 
     def is_numeric(self):
         return True

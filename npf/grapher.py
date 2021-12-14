@@ -526,7 +526,7 @@ class Grapher:
                 key = self.config("var_serie")
             else:
                 key = None
-                # First pass : use the non-numerical variable with the most points
+                # First pass : use the non-numerical variable with the most points, but limited to 10
                 n_val = 0
                 nonums = []
                 for i in range(ndyn):
@@ -535,7 +535,7 @@ class Grapher:
                         continue
                     if not npf.all_num(vars_values[k]):
                         nonums.append(k)
-                        if len(vars_values[k]) > n_val:
+                        if len(vars_values[k]) > n_val and len(vars_values[k]) < 10:
                             key = k
                             n_val = len(vars_values[k])
                 if key is None:
@@ -1321,6 +1321,7 @@ class Grapher:
                             default_doleg = True
                             ymin = 0
                             ymax = 100
+                            xname=self.var_name(result_type)
                         elif graph_type == "heatmap":
                             """Heatmap"""
                             r, ndata = self.do_heatmap(axis, key, result_type, data, xdata, shift, isubplot)
@@ -1786,7 +1787,7 @@ class Grapher:
 
 
         if nseries*len(data) > 4:
-            print("Remember: CDF show the CDF of results for each point. Maybe you want to use graph_variable_as_result?")
+            print("Remember: CDF show the CDF of results for each point. Maybe you want to use var_aggregate={VAR1+VAR2+...+VARN:all}?")
         return True, nseries
 
     def do_heatmap(self, axis, key, result_type, data : XYEB, xdata : XYEB, shift=0, idx=0):

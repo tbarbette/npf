@@ -379,20 +379,53 @@ class SectionVariable(Section):
         for k, v in d.items():
             self.override(k, v)
 
+    @staticmethod
+    def _assign(vlist, assign, var, val):
+                    cov = None
+                    for k,v in vlist.items():
+                        if isinstance(v,CoVariable):
+                            if var in v.vlist:
+                                cov = v.vlist
+                                break
+
+                    if assign == '+=':
+                        #If in covariable, remove that one
+                        if cov:
+                            print("NOTE: %s is overwriting a covariable, the covariable will be ignored" % var)
+                            del cov[var]
+                        if var in vlist:
+                            vlist[var] += val
+                        else:
+                            vlist[var] = val
+                    elif assign == '?=':
+                        #If in covariable or already in vlist, do nothing
+                        if not cov and not var in vlist:
+                            vlist[var] = val
+                    else:
+                        #If in covariable, remove it as we overwrite the value
+                        if cov:
+                            del cov[var]
+                        vlist[var] = val
     def override(self, var, val):
-        if not var in self.vlist:
+        found = False
+        for k,v in self.vlist.items():
+            if isinstance(v, CoVariable):
+                if var in v.vlist:
+                    found = True
+                    break
+            if k == var:
+                found = True
+                break
+        if not found:
             print("WARNING : %s does not override anything" % var)
-        if isinstance(val, Variable):
+
+        if not isinstance(val, Variable):
+            val = SimpleVariable(var, val)
+        else:
             if val.is_default:
                 return
-            if val.assign == '+=':
-                self.vlist[var] += val
-            elif val.assign == '?=' and not var in self.vlist:
-                self.vlist[var] = val
-            else:
-                self.vlist[var] = val
-        else:
-            self.vlist[var] = SimpleVariable(var, val)
+
+        self._assign(self.vlist, val.assign, var, val)
 
     @staticmethod
     def match_tags(text, tags):
@@ -447,6 +480,9 @@ class SectionVariable(Section):
                 self.vlist[c.name] = c
             elif line.strip() == "}":
                 sections_stack.pop()
+                for k in c.vlist.keys():
+                    if k in self.vlist:
+                        del self.vlist[k]
             else:
                 line = line.lstrip()
                 sect = sections_stack[-1]
@@ -463,13 +499,7 @@ class SectionVariable(Section):
                                 var = self.aliases[var]
                             else:
                                 raise Exception("Unknown variable %s" % var)
-                    if assign == '+=' and var in sect.vlist:
-                        sect.vlist[var] += val
-                    elif assign == '?=':
-                        if not var in sect.vlist:
-                            sect.vlist[var] = val
-                    else:
-                        sect.vlist[var] = val
+                    self._assign(sect.vlist, assign, var, val)
         return OrderedDict(sorted(self.vlist.items()))
 
     def finish(self, testie):
@@ -479,9 +509,13 @@ class SectionVariable(Section):
         formats = []
         names = []
         for k, v in self.vlist.items():
-            f = v.format()
-            formats.append(f)
-            names.append(k)
+            k, f = v.format()
+            if type(f) is list:
+                formats.extend(f)
+                names.extend(k)
+            else:
+                formats.append(f)
+                names.append(k)
         return dict(names=names, formats=formats)
 
 
@@ -552,7 +586,7 @@ class SectionConfig(SectionVariable):
         self.__add("default_repo", None)
 
         # Regression related
-        self.__add_list("accept_zero", ["time"])
+        self.__add_list("accept_zero", ["time","DROP", "DROPPED"])
         self.__add("n_supplementary_runs", 3)
         self.__add("acceptable", 0.01)
         self.__add("accept_outliers_mult", 1)
