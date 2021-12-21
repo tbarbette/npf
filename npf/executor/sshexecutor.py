@@ -22,6 +22,10 @@ class SSHExecutor(Executor):
         self.ssh = False
         #Executor should not make any connection in init as parameters can be overwritten afterward
 
+    def __del__(self):
+        if self.ssh:
+            self.ssh.close()
+
     def get_connection(self, cache=True):
         import paramiko
         if cache and self.ssh:
@@ -117,6 +121,7 @@ class SSHExecutor(Executor):
                         timeout -= step
                 except KeyboardInterrupt:
                     event.terminate()
+                    ssh.close()
                     return -1, out, err
                 if timeout is not None:
                     if timeout < 0:
@@ -133,8 +138,11 @@ class SSHExecutor(Executor):
 
                 ret = 0 #Ignore return code because we kill it before completion.
                 ssh.close()
+                ssh=None
             else:
                 ret = ssh_stdout.channel.recv_exit_status()
+                ssh.close()
+                ssh=None
 
             for ichannel,channel in enumerate(channels):
                 for line in channel.readlines():
@@ -147,10 +155,14 @@ class SSHExecutor(Executor):
         except socket.gaierror as e:
             print("Error while connecting to %s" % self.addr)
             print(e)
+            if ssh:
+                ssh.close()
             return 0,'','',-1
         except paramiko.ssh_exception.SSHException as e:
             print("Error while connecting to %s" % self.addr)
             print(e)
+            if ssh:
+                    ssh.close()
             return 0,'','',-1
 
     def writeFile(self,filename,path_to_root,content):
@@ -183,6 +195,7 @@ class SSHExecutor(Executor):
             raise e
 
     def sendFolder(self, path, local=None):
+        sftp = None
         try:
             with paramiko.SSHClient() as ssh:
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -213,6 +226,7 @@ class SSHExecutor(Executor):
                                         sftp.chmod(remote, es.st_mode)
                                         total += es.st_size
                                     except FileNotFoundError:
+                                        sftp.close()
                                         raise(Exception("Could not send %s to %s"  % (path + '/' + entry.name, remote)))
                             else:
                                 if entry.name in ignored:
@@ -222,6 +236,7 @@ class SSHExecutor(Executor):
                                     total += _send(path +'/'+entry.name + '/')
                         return total
                     except FileNotFoundError:
+                        sftp.close()
                         raise FileNotFoundError("No such file : %s" % (self.path + os.sep + path))
                 curpath = ''
                 total = 0
@@ -249,9 +264,11 @@ class SSHExecutor(Executor):
                         try:
                             sftp.mkdir(f,mode=0o777)
                         except IOError as e:
+                            sftp.close()
                             print("Could not make folder %s" % f)
                             raise e
                     except PermissionError as e:
+                        sftp.close()
                         print("Could not make folder %s" % f)
                         raise e
 
@@ -263,6 +280,8 @@ class SSHExecutor(Executor):
 
         except paramiko.ssh_exception.SSHException as e:
             print("Error while connecting to %s" % self.addr)
+            if sftp:
+                sftp.close()
             raise e
 
 

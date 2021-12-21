@@ -331,7 +331,7 @@ class Testie:
 #                        fpath = './npf/' + fpath
                     fpath = os.path.relpath(fpath)
                     print("Sending files %s to %s... " % (fpath, role), end = '')
-                    t = node.executor.sendFolder(os.path.relpath(fpath,npf.npf_root()))
+                    t = node.executor.sendFolder(fpath)
                     if (t > 0):
                         print("%d bytes sent." % t)
                     else:
@@ -908,11 +908,10 @@ class Testie:
                         print("Could not find expected result '%s' !" % result_type)
                         has_err = True
 
-                if len(data_results) + sum([len(r) for k, r in all_kind_results.items()]) == 0:
-                    print("Could not find results !")
+                  if len(data_results) + sum([len(r) for k, r in all_kind_results.items()]) == 0:
+                    print("Could not find any results ! Something probably went wrong, check the output :")
 
                     has_err = True
-                    continue
 
                 if has_err:
                     if not self.options.show_full:

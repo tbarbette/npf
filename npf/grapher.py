@@ -1730,7 +1730,7 @@ class Grapher:
                     else:
                         labels.append(x[yi])
             allticks.extend(pos)
-            
+
             if not all(map(lambda x: np.isnan(x).all(), boxdata)):
                 axis.plot([], c= build._color , label=label)
                 alllabels.append(label)
