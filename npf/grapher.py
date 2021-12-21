@@ -235,9 +235,10 @@ class Graph:
                             base = base[:len(results)]
                         elif len(results) > len(base):
                             results = results[:len(base)]
+                        base = np.array(base)
+                        results = np.array(results)
                         if result_type not in exclusions:
-                            results = results / base * abs(prop) + prop if prop < 0 else 0
-
+                            results = results / base * float(abs(prop)) + (prop if prop < 0 else 0)
                         run_results[result_type] = results
                     new_results[run] = run_results
                 newseries.append((script, build, new_results))
