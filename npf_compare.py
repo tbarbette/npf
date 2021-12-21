@@ -82,8 +82,8 @@ def do_graph(filename,args,series,kind_series,options):
     all_variables = []
     for testie, build, dataset in series:
         v_list = set()
-        for name, variable in testie.variables.vlist.items():
-            v_list.add(name)
+        for run, results in dataset.items():
+            v_list.update(run.variables.keys())
         all_variables.append(v_list)
 
         if args.statistics:
