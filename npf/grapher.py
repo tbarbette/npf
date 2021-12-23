@@ -208,8 +208,8 @@ class Graph:
         return sg
 
     # Divide all series by the first one, making a percentage of difference
-    def series_prop(self, prop, exclusions = []):
-            series = self.series
+    @staticmethod
+    def series_prop(series, prop, exclusions = []):
             if len(series) == 1:
                 raise Exception("Cannot make proportional series with only one serie !")
             newseries = []
@@ -238,11 +238,13 @@ class Graph:
                         base = np.array(base)
                         results = np.array(results)
                         if result_type not in exclusions:
-                            results = results / base * float(abs(prop)) + (prop if prop < 0 else 0)
+                            f = np.nonzero(base)
+                            results = (results[f] / base[f] * float(abs(prop)) + (prop if prop < 0 else 0))
                         run_results[result_type] = results
                     new_results[run] = run_results
+                build._pretty_name = series[0][1]._pretty_name + " / " + build._pretty_name
                 newseries.append((script, build, new_results))
-            self.series = newseries
+            return newseries
 
 
 class Grapher:
@@ -965,7 +967,10 @@ class Grapher:
 
         #Divide a serie by another
         prop = self.config('graph_series_prop')
+        if prop:
+            series = Graph.series_prop(series, prop, self.configdict('graph_cross_reference').values())
 
+        #Eventually overwrite label of series
         graph_series_label = self.config("graph_series_label")
         sv = self.config('graph_subplot_variable', None)
         graphs = []
@@ -973,8 +978,7 @@ class Grapher:
         if sv:
             for script, build, all_results  in series:
                 graph = self.extract_variable_to_series(sv, vars_values.copy(), all_results, dyns.copy(), build, script)
-                if prop:
-                    graph.series_prop(prop,  self.configdict('graph_cross_reference').values())
+
                 if graph_series_label:
                     for i, (testie, build, all_results) in enumerate(series):
                         v = {}
@@ -991,8 +995,6 @@ class Grapher:
             del vars_values
         else:
             graph = self.series_to_graph(series, dyns, vars_values, vars_all)
-            if prop:
-                graph.series_prop(prop, self.configdict('graph_cross_reference').values())
             graph.title = title
             graphs.append(graph)
 
@@ -1034,7 +1036,7 @@ class Grapher:
                 for k in data_types.keys():
                     if re.match(result_type, k):
                         if variable.is_numeric(n_cols):
-                            n_cols = variable.get_numeric(n_cols)
+                            n_cols = get_numeric(n_cols)
                             subplot_legend_titles = [self.var_name("result",result_type=result_type)]
                         else:
                             subplot_legend_titles = re.split("[+]", n_cols)
@@ -1325,7 +1327,11 @@ class Grapher:
                             xname=self.var_name(result_type)
                         elif graph_type == "heatmap":
                             """Heatmap"""
-                            r, ndata = self.do_heatmap(axis, key, result_type, data, xdata, shift, isubplot)
+                            r, ndata = self.do_heatmap(axis, key, result_type, data, xdata, vars_values, shift, isubplot, scarce = False)
+                            default_doleg = False
+                        elif graph_type == "scarce_heatmap":
+                            """Scarce Heatmap"""
+                            r, ndata = self.do_heatmap(axis, key, result_type, data, xdata, vars_values, shift, isubplot, scarce = True)
                             default_doleg = False
                         else:
                             """Barplot. X is all seen variables combination, series are version"""
@@ -1454,7 +1460,7 @@ class Grapher:
                     if xticks:
                         if isLog:
                             plt.gca().xaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
-                        plt.xticks([variable.get_numeric(x) for x in xticks.split('+')])
+                        plt.xticks([get_numeric(x) for x in xticks.split('+')])
 
                     #background
                     graph_bg = self.configdict("graph_background",{})
@@ -1791,23 +1797,63 @@ class Grapher:
             print("Remember: CDF show the CDF of results for each point. Maybe you want to use var_aggregate={VAR1+VAR2+...+VARN:all}?")
         return True, nseries
 
-    def do_heatmap(self, axis, key, result_type, data : XYEB, xdata : XYEB, shift=0, idx=0):
+    def do_heatmap(self, axis, key, result_type, data : XYEB, xdata : XYEB, vars_values: dict, shift=0, idx=0, scarce=False):
         self.format_figure(axis, result_type, shift, key=key)
-        nseries = max([len(y) for y in [y for x,y,e,build in data]])
+        nseries = 0
+        yvals = []
+        for x,y,e,build in data:
+            nseries = max(len(y),nseries)
+            y = get_numeric(build._pretty_name)
+            yvals.append(y)
+        xvals = list(vars_values[key])
+        if scarce:
+            xmin=min(xvals)
+            xmax=max(xvals)
+            ymin=min(yvals)
+            ymax=max(yvals)
+        else:
+            xmin=0
+            xmax=len(xvals) - 1
+            ymin=0
+            ymax=len(yvals) - 1
 
-        matrix = np.empty(tuple((len(data),nseries)))
+
+        matrix = np.empty(tuple((ymax-ymin + 1,xmax-xmin + 1)))
+        matrix[:] = np.NaN
 
         if len(data) <= 1 or nseries <= 1:
-            print("WARNING: Heatmap needs two dynamic variables. The map will have a weir ratio")
-
+            print("WARNING: Heatmap needs two dynamic variables. The map will have a weird ratio")
         for i, (x, ys, e, build) in enumerate(data):
             assert(isinstance(build,Build))
             for yi in range(nseries):
-                matrix[i,yi] = ys[yi]
+                if scarce:
+                    matrix[ymax - yvals[i],xvals[yi] - xmin] = ys[yi]
+                else:
+                    matrix[ymax - i,yi] = ys[yi]
 
         axis.yname = self.glob_legend_title
 
         axis.imshow(matrix)
+
+        if scarce:
+            prop = xmax-xmin / ymax-ymin
+            if prop < 0:
+                ny = min(len(yvals),9)
+                nx = max(2,int(ny*prop))
+            else:
+                nx = min(len(xvals),9)
+                ny = max(2,int(nx/prop))
+
+            axis.set_yticks(np.linspace(0,ymax-ymin,num=ny))
+            axis.set_yticklabels(["%d" % f for f in reversed(np.linspace(ymin,ymax,num=ny))])
+            axis.set_xticks(np.linspace(0,xmax-xmin,num=nx))
+            axis.set_xticklabels(["%d" % f for f in np.linspace(xmin,xmax,num=nx)])
+        else:
+            axis.set_xticks(range(xmax+1))
+            axis.set_xticklabels(xvals)
+            axis.set_yticks(range(ymax+1))
+            axis.set_yticklabels(reversed(yvals))
+
         return True, nseries
 
     def do_line_plot(self, axis, key, result_type, data : XYEB,shift,idx,xmin,xmax,xdata = None):

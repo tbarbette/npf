@@ -108,7 +108,7 @@ ResultType = str
 # A tuple of X,Y,E and B, each a list of :
 #  * X variables, if you have one dynamic variable, X is that variable. If you have multiple series, and/or multiple variables X is the crossproduct
 #  * the "average" of the values for the related run for X. y default the mean, but that can be changed with graph_y_group to be the median, the std, etc
-#  * E is a tuple of the mean, the std, and the list of original valuesof Y for X (not grouped)
+#  * E is a tuple of the mean, the std, and the list of original values of Y for X (not grouped)
 #  * and the build into the fourth, refered to as B
 XYEB = Tuple
 
