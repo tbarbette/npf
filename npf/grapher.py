@@ -1327,11 +1327,11 @@ class Grapher:
                             xname=self.var_name(result_type)
                         elif graph_type == "heatmap":
                             """Heatmap"""
-                            r, ndata = self.do_heatmap(axis, key, result_type, data, xdata, vars_values, shift, isubplot, scarce = False)
+                            r, ndata = self.do_heatmap(axis, key, result_type, data, xdata, vars_values, shift, isubplot, sparse = False)
                             default_doleg = False
-                        elif graph_type == "scarce_heatmap":
-                            """Scarce Heatmap"""
-                            r, ndata = self.do_heatmap(axis, key, result_type, data, xdata, vars_values, shift, isubplot, scarce = True)
+                        elif graph_type == "sparse_heatmap":
+                            """sparse Heatmap"""
+                            r, ndata = self.do_heatmap(axis, key, result_type, data, xdata, vars_values, shift, isubplot, sparse = True)
                             default_doleg = False
                         else:
                             """Barplot. X is all seen variables combination, series are version"""
@@ -1797,7 +1797,7 @@ class Grapher:
             print("Remember: CDF show the CDF of results for each point. Maybe you want to use var_aggregate={VAR1+VAR2+...+VARN:all}?")
         return True, nseries
 
-    def do_heatmap(self, axis, key, result_type, data : XYEB, xdata : XYEB, vars_values: dict, shift=0, idx=0, scarce=False):
+    def do_heatmap(self, axis, key, result_type, data : XYEB, xdata : XYEB, vars_values: dict, shift=0, idx=0, sparse=False):
         self.format_figure(axis, result_type, shift, key=key)
         nseries = 0
         yvals = []
@@ -1806,7 +1806,7 @@ class Grapher:
             y = get_numeric(build._pretty_name)
             yvals.append(y)
         xvals = list(vars_values[key])
-        if scarce:
+        if sparse:
             xmin=min(xvals)
             xmax=max(xvals)
             ymin=min(yvals)
@@ -1826,7 +1826,7 @@ class Grapher:
         for i, (x, ys, e, build) in enumerate(data):
             assert(isinstance(build,Build))
             for yi in range(nseries):
-                if scarce:
+                if sparse:
                     matrix[ymax - yvals[i],xvals[yi] - xmin] = ys[yi]
                 else:
                     matrix[ymax - i,yi] = ys[yi]
@@ -1835,7 +1835,7 @@ class Grapher:
 
         axis.imshow(matrix)
 
-        if scarce:
+        if sparse:
             prop = xmax-xmin / ymax-ymin
             if prop < 0:
                 ny = min(len(yvals),9)
