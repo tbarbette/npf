@@ -460,6 +460,7 @@ class Grapher:
             nseries.append((testie,build,new_all_results))
         return nseries
 
+    # Extract the variable key so it becomes a serie
     def extract_variable_to_series(self, key, vars_values, all_results, dyns, build, script) -> Graph:
         if not key in dyns:
             raise ValueError("Cannot extract %s because it is not a dynamic variable (%s are)" % (key, ', '.join(dyns)))
@@ -935,6 +936,7 @@ class Grapher:
             series = transformed_series
 
 
+        # Apply a mathematical formula to results
         for result_type, fil in self.configdict("graph_filter",{}).items():
             transformed_series = []
             aeval = Interpreter()
@@ -992,10 +994,13 @@ class Grapher:
             v.update(statics)
             title=SectionVariable.replace_variables(v, title)
 
-        if sv:
-            for script, build, all_results  in series:
+        if sv: #Only one supported for now
+            graphs = [ None for v in vars_values[sv] ]
+            for j,(script, build, all_results) in enumerate(series):
                 graph = self.extract_variable_to_series(sv, vars_values.copy(), all_results, dyns.copy(), build, script)
-
+                
+                self.glob_legend_title = title #This variable has been extracted, the legend should not be the variable name in this case
+                
                 if graph_series_label:
                     for i, (testie, build, all_results) in enumerate(series):
                         v = {}
@@ -1003,17 +1008,31 @@ class Grapher:
                         v.update(build.statics)
                         build._pretty_name=SectionVariable.replace_variables(v, graph_series_label)
 
-                graph.title = title if title else self.var_name(sv)
-                if len(series) > 0:
-                    graph.title = build._pretty_name + " - " + graph.title
+#                graph.title = title if title else self.var_name(sv)
+#                if len(series) > 1:
+#                    graph.title = build._pretty_name + " - " + graph.title
+                s = graph.series.copy()
+                for i,stuple in enumerate(s):
+                    if graphs[i] is None:
+                        graphs[i] = copy.copy(graph)
+                        graphs[i].title = self.var_name(sv) + " = " + stuple[1]._pretty_name
+                        graphs[i].series = list()
+                    
+                    graphs[i].series.append(stuple)
+                    graphs[i].series[j][1]._pretty_name = build._pretty_name
                 assert(not sv in graph.vars_values)
-                graphs += graph.split_for_series()
+
+            
             del dyns
             del vars_values
         else:
             graph = self.series_to_graph(series, dyns, vars_values, vars_all)
             graph.title = title
             graphs.append(graph)
+
+        if prop:
+            for graph in graphs:
+                graph.series_prop(prop, self.configdict('graph_cross_reference').values())
 
         if len(graphs) > 0:
             self.plot_graphs(graphs, filename, fileprefix)
@@ -1023,6 +1042,7 @@ class Grapher:
         """
         This function will sort out the layout of the grid, according to the number of sublot, dual axis, etc...
         It will then properly call generate_plot_for_graph() for each of those subplots, and finaly save_fix.
+        @graphs is a list of graph objects
         """
         assert(len(graphs) > 0)
         matched_set = set()

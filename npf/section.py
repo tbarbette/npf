@@ -579,7 +579,9 @@ class SectionConfig(SectionVariable):
             'graph_serie_sort':'graph_series_sort',
             'series_prop': 'graph_series_prop',
             'graph_legend_ncol': 'legend_ncol',
-            'var_label_dir' : 'graph_label_dir'
+            'var_label_dir' : 'graph_label_dir',
+            'graph_max_col' : 'graph_max_col',
+
         }
 
         # Environment
@@ -637,6 +639,7 @@ class SectionConfig(SectionVariable):
         self.__add("graph_show_xlabel", True)
         self.__add("graph_subplot_type", "subplot")
         self.__add("graph_max_series", None)
+        self.__add("graph_max_cols", 2)
         self.__add("graph_series_as_variables", False)
         self.__add("graph_series_prop", False)
         self.__add("graph_series_sort", None)
