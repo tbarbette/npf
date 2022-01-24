@@ -153,6 +153,10 @@ class Testie:
                     continue
 
                 if line.startswith("%"):
+                    #Allow to start a line with a % using %% to indicate it's not a section
+                    if line[1] == '%':
+                        section.content += line[1:]
+                        continue
                     result = line[1:]
                     section = SectionFactory.build(self, result.strip())
 
@@ -420,15 +424,19 @@ class Testie:
                 pass
 
     def update_constants(self, v_internals : dict, build : Build, full_test_folder : str, out_path : str = None, node = None):
-        bp = ('../' + build.build_path()) if not os.path.isabs(build.build_path()) else build.build_path()
+
+        bp = ('../' + npf.get_build_path()) if not os.path.isabs(npf.get_build_path()) else npf.get_build_path()
+        rp = ('../' + build.build_path()) if not os.path.isabs(build.build_path()) else build.build_path()
         abs_test_folder = full_test_folder if os.path.isabs(full_test_folder) else npf.cwd_path() + os.sep + full_test_folder
 
         tp = os.path.relpath(self.path,abs_test_folder)
 
         if node and node.executor.path:
             bp = os.path.relpath(bp, npf.experiment_path())
+            rp = os.path.relpath(rp, npf.experiment_path())
         v_internals.update({
                         'NPF_REPO':get_valid_filename(build.repo.name),
+                        'NPF_REPO_PATH': rp,
                         'NPF_ROOT': '../', #Deprecated
                         'NPF_ROOT_PATH': os.path.relpath(npf.npf_root_path(), abs_test_folder),
                         'NPF_BUILD_PATH': bp,

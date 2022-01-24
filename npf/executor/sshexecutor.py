@@ -79,6 +79,7 @@ class SSHExecutor(Executor):
             cmd = virt +" "+unbuffer+" bash -c '"+path_cmd + cmd.replace("'", "'\"'\"'") + "'";
             #pre = path_cmd + pre
 
+        ssh = None
         try:
             ssh = self.get_connection(cache=False)
 
