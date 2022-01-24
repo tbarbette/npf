@@ -1314,7 +1314,7 @@ class Grapher:
                             barplot = True
                         elif graph_type == "line":
                             """One dynamic variable used as X, series are version line plots"""
-                            r, ndata = self.do_line_plot(axis, key, result_type, data,shift, isubplot, xmin, xmax, xdata)
+                            r, ndata = self.do_line_plot(axis, key, result_type, data, data_types, shift, isubplot, xmin, xmax, xdata)
                         elif graph_type == "boxplot":
                             """A box plot, with multiple X values and series in color"""
                             r, ndata = self.do_box_plot(axis, key, result_type, data, xdata, shift, isubplot)
@@ -1856,12 +1856,15 @@ class Grapher:
 
         return True, nseries
 
-    def do_line_plot(self, axis, key, result_type, data : XYEB,shift,idx,xmin,xmax,xdata = None):
+    def do_line_plot(self, axis, key, result_type, data : XYEB, data_types, shift,idx,xmin,xmax,xdata = None):
         allmin = float('inf')
         allmax = 0
         drawstyle = self.scriptconfig('var_drawstyle',result_type,default='default')
 
         minX = None
+
+        #Filters allow to use a different linestyle for points where a value of another variable is higher than zero. Only works for lines (no scatter)
+        filters = self.configdict("graph_filter_by", default={})
 
         #Sync a variable, make all start at 0
         if self.config_bool_or_in("var_sync", key):
@@ -1871,6 +1874,7 @@ class Grapher:
                 else:
                     minX = min(minX,min(x))
 
+        #For each series...
         for i, (x, y, e, build) in enumerate(data):
             self.format_figure(axis, result_type, shift, key=key)
             c = build._color
@@ -1933,7 +1937,19 @@ class Grapher:
             if self.config_bool_or_in("graph_scatter", result_type):
                 rects = axis.scatter(ax, y, label=lab, color=c,  marker=marker, facecolors=fillstyle)
             else:
-                rects = axis.plot(ax, y, label=lab, color=c, linestyle=build._line, marker=marker,markevery=(1 if len(ax) < 20 else math.ceil(len(ax) / 20)),drawstyle=drawstyle, fillstyle=fillstyle)
+                if result_type in filters:
+                    #The result type to filter on
+                    fl = filters[result_type]
+                    if not fl in data_types:
+                        print("ERROR: graph_filter_by's %s not found" % fl)
+                        return
+                    fl_data = data_types[fl]
+                    fl_y = np.array(fl_data[i][1])
+                    mask = fl_y > 0
+                    rects = axis.plot(ax[~mask], y[~mask], label=lab, color=c, linestyle=build._line, marker=marker,markevery=(1 if len(ax) < 20 else math.ceil(len(ax) / 20)),drawstyle=drawstyle, fillstyle=fillstyle)
+                    axis.plot(ax[mask], y[mask], label=None, color=lighter(c,0.6,255), linestyle=':', marker=marker,markevery=(1 if len(ax) < 20 else math.ceil(len(ax) / 20)),drawstyle=drawstyle, fillstyle=fillstyle)
+                else:
+                    rects = axis.plot(ax, y, label=lab, color=c, linestyle=build._line, marker=marker,markevery=(1 if len(ax) < 20 else math.ceil(len(ax) / 20)),drawstyle=drawstyle, fillstyle=fillstyle)
             error_type = self.scriptconfig('graph_error', 'result', result_type=result_type, default = "bar").lower()
             if error_type != 'none':
                 if error_type == 'bar' or (error_type == None and not self.config('graph_error_fill')):
