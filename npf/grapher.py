@@ -1423,7 +1423,7 @@ class Grapher:
                                 if thresh > 0:
                                     plt.xscale('symlog',base=base,linthresh=thresh )
                                 else:
-                                    plt.xscale('log',base=base)
+                                    plt.xscale('log',basex=base)
                                 xticks = data[0][0]
                                 if not is_log(xticks) and xmin:
                                     i = xmin
@@ -1833,7 +1833,8 @@ class Grapher:
 
         axis.yname = self.glob_legend_title
 
-        axis.imshow(matrix)
+        pos = axis.imshow(matrix)
+        axis.figure.colorbar(pos, ax=axis)
 
         if sparse:
             prop = xmax-xmin / ymax-ymin
