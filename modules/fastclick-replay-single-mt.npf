@@ -61,6 +61,7 @@ SND_NIC?=EXPAND($CLIENT_NIC)
 RCV_NIC?=EXPAND($CLIENT_NIC)
 DODUMP?=0
 GEN_DUMP?=0
+GEN_SEQUENTIAL?=0
 gdb:GDB=gdb -ex run -ex "signal 2" -ex bt -batch -args
 udpgen:GEN_TRACE_SUP+=->MarkMACHeader->EnsureDPDKBuffer->Pad
 
@@ -314,6 +315,7 @@ DriverManager(
                 print "RESULT-SENT $sent",
                 print "RESULT-DROPPED $(sub $sent $count)",
                 print "RESULT-TX $(avgSIN.add link_rate)",
+                print "RESULT-TXPPS $(avgSIN.add rate)",
                 print "RESULT-PPS $(RIN/avg.add rate)",
                 label end,
                 print "EVENT GEN_DONE",
