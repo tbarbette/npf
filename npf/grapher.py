@@ -985,6 +985,12 @@ class Grapher:
         sv = self.config('graph_subplot_variable', None)
         graphs = []
 
+        #Interpret title
+        if title:
+            v = {}
+            v.update(statics)
+            title=SectionVariable.replace_variables(v, title)
+
         if sv:
             for script, build, all_results  in series:
                 graph = self.extract_variable_to_series(sv, vars_values.copy(), all_results, dyns.copy(), build, script)
