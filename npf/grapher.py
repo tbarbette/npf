@@ -627,9 +627,19 @@ class Grapher:
                 for run, results in serie[2].items():
                     graph_variables.add(run)
 
-        # Get all scripts
+        # Get all scripts, and execute pypost
         for i, (testie, build, all_results) in enumerate(series):
             self.scripts.add(testie)
+
+            if hasattr(testie, 'pypost'):
+                vs = {'ALL_RESULTS': all_results}
+                try:
+                    exec(testie.pypost.content, vs)
+                except Exception as e:
+                    print("ERROR WHILE EXECUTING PYPOST SCRIPT:")
+                    print(e)
+
+
 
         # Add series to a pandas dataframe
         if options.pandas_filename is not None:
