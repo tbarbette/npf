@@ -6,6 +6,7 @@ import argparse
 from npf.repository import Repository
 from npf.testie import Testie
 from npf.build import Build
+from npf.variable import dtype
 
 def test_args():
     parser = argparse.ArgumentParser(description='NPF Tester')
@@ -63,3 +64,9 @@ def test_paths():
         assert v['NPF_ROOT_PATH'] == '../..'
         assert v['NPF_SCRIPT_PATH'] == '../../tests/examples'
         assert v['NPF_RESULT_PATH'] == '../../results/click-2021'
+
+def test_type():
+    assert dtype('0') == int
+    assert dtype('') == str
+    assert dtype('1') == int
+    assert dtype(' ') == str
