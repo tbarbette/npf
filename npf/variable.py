@@ -440,9 +440,9 @@ class ListVariable(Variable):
         if t is int and is_bool(self.lvalues[0]):
             unique = list(set(self.lvalues))
             if len(unique) == 2 and all([int(u) in (0, 1) for u in unique]):
-                return bool
+                return self.name, bool
             elif len(unique) == 1 and (unique[0] == 'true' or unique[0] == 'false'):
-                return bool
+                return self.name, bool
         return self.name, t
 
     def is_numeric(self):

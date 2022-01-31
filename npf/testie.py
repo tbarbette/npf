@@ -823,6 +823,10 @@ class Testie:
                     vs.update(v)
                     try:
                         exec(self.pyexit.content, vs)
+                    except SystemExit as e:
+                        if e.code != 0:
+                            print("ERROR WHILE EXECUTING PYEXIT SCRIPT: returned code %d" % e.code)
+                        pass
                     except Exception as e:
                         print("ERROR WHILE EXECUTING PYEXIT SCRIPT:")
                         print(e)

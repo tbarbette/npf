@@ -6,6 +6,7 @@ from orderedset._orderedset import OrderedSet
 import copy
 import traceback
 
+from scipy import ndimage
 from asteval import Interpreter
 from collections import OrderedDict
 from typing import List
@@ -1283,8 +1284,10 @@ class Grapher:
                             build._color=cserie[f % len(cserie)]
 
 
-
                     axis.tick_params(**tick_params)
+
+
+                    #This is the heart of the logic to find which kind of graph to use for the data
 
                     graph_type = False
                     default_doleg = True
@@ -1328,7 +1331,7 @@ class Grapher:
                             """No dynamic variables : do a barplot X=version"""
                             r, ndata = self.do_simple_barplot(axis, result_type, data, shift, isubplot)
                             barplot = True
-                        elif graph_type == "line":
+                        elif graph_type == "line" or graph_type == "lines":
                             """One dynamic variable used as X, series are version line plots"""
                             r, ndata = self.do_line_plot(axis, key, result_type, data, data_types, shift, isubplot, xmin, xmax, xdata)
                         elif graph_type == "boxplot":
@@ -1525,6 +1528,7 @@ class Grapher:
 
                     print_xlabel = self.config_bool_or_in('graph_show_xlabel', result_type)
 
+                    print_ylabel = self.config_bool_or_in('graph_show_ylabel', result_type)
                     if nbrokenY * nbrokenX > 1:
                         if ibrokenX == 0 and ibrokenY==0:
                             # Just one time, set the axis labels
@@ -1533,7 +1537,8 @@ class Grapher:
                             # Likely they need to be scalated
                             if print_xlabel:
                                 extra_artists.append(fig.text(0.5,0.03, xname,  transform=fig.transFigure))
-                            axis.set_ylabel(axis.yname)
+                            if print_ylabel:
+                                axis.set_ylabel(axis.yname)
                             # We have 10% white bottom now
                             axis.yaxis.label.set_position((0,0.5 + 0.1))
                             axis.yaxis.label.set_transform(mtransforms.blended_transform_factory(mtransforms.IdentityTransform(), fig.transFigure))
@@ -1541,7 +1546,8 @@ class Grapher:
                         if print_xlabel:
                             axis.set_xlabel(xname)
 
-                        axis.set_ylabel(axis.yname)
+                        if print_ylabel:
+                            axis.set_ylabel(axis.yname)
 
                 if self.options.graph_size:
                     fig = plt.gcf()
@@ -1614,7 +1620,8 @@ class Grapher:
 
                         if legend_title:
                             t = self.var_name(legend_title)
-                            axis.set_ylabel(t)
+                            if print_ylabel:
+                                axis.set_ylabel(t)
 
                         if len(plots) == len(labels):
                             labels = []
@@ -1645,7 +1652,7 @@ class Grapher:
     def reject_outliers(self, result, testie):
         return testie.reject_outliers(result)
 
-    def write_labels(self, rects, plt, color, idx = 0):
+    def write_labels(self, rects, plt, color, idx = 0, each=False):
         if self.config('graph_show_values',False):
             prec =  self.config('graph_show_values',False)
             if is_numeric(prec):
@@ -1657,21 +1664,28 @@ class Grapher:
             def autolabel(rects, ax):
                 for rect in rects:
                     if hasattr(rect, 'get_ydata'):
-                        height = rect.get_ydata()
-                        x = rect.get_xdata()
+                        heights = rect.get_ydata()
+                        xs = rect.get_xdata()
                         m=1.1
                     else:
-                        height = rect.get_height()
-                        x = rect.get_x() + rect.get_width()/2.
+                        heights = rect.get_height()
+                        xs = rect.get_x() + rect.get_width()/2.
                         m=1.05
-                    try:
-                        if np.isnan(height):
+
+                    if not each:
+                        xs = [np.mean(xs)]
+                        heights = [np.mean(heights)]
+                    for x,height in zip(xs,heights):
+                        try:
+
+                            if np.isnan(height):
+                                continue
+                        except Exception as e:
+                            print("exception", e)
                             continue
-                    except:
-                        continue
-                    ax.text(x, m*height,
-                        ('%0.'+str(prec - 1)+'f') % height, color=color, fontweight='bold',
-                         ha='center', va='bottom')
+                        ax.text(x, m*height,
+                            ('%0.'+str(prec - 1)+'f') % height, color=color, fontweight='bold',
+                             ha='center', va='bottom')
             autolabel(rects, plt)
 
     def do_simple_barplot(self,axis, result_type, data,shift=0,isubplot=0):
@@ -1774,6 +1788,8 @@ class Grapher:
             plt.setp(rects['caps'], color = build._color)
             plt.setp(rects['fliers'], color = build._color)
             plt.setp(rects['medians'], color = lighter(build._color,0.50,0))
+
+            self.write_labels(rects['boxes'], plt, build._color)
 
         if nseries > 1:
             m = len(data)*nseries + 1
@@ -1878,6 +1894,7 @@ class Grapher:
         allmax = 0
         drawstyle = self.scriptconfig('var_drawstyle',result_type,default='default')
 
+        line_params = guess_type(self.configdict("graph_line_params",default={}))
         minX = None
 
         #Filters allow to use a different linestyle for points where a value of another variable is higher than zero. Only works for lines (no scatter)
@@ -1961,12 +1978,23 @@ class Grapher:
                         print("ERROR: graph_filter_by's %s not found" % fl)
                         return
                     fl_data = data_types[fl]
-                    fl_y = np.array(fl_data[i][1])
-                    mask = fl_y > 0
-                    rects = axis.plot(ax[~mask], y[~mask], label=lab, color=c, linestyle=build._line, marker=marker,markevery=(1 if len(ax) < 20 else math.ceil(len(ax) / 20)),drawstyle=drawstyle, fillstyle=fillstyle)
-                    axis.plot(ax[mask], y[mask], label=None, color=lighter(c,0.6,255), linestyle=':', marker=marker,markevery=(1 if len(ax) < 20 else math.ceil(len(ax) / 20)),drawstyle=drawstyle, fillstyle=fillstyle)
+                    fl_y = None
+                    for fl_xyeb in fl_data:
+                        if fl_xyeb[3] ==  build:
+                            fl_y = np.array(fl_xyeb[1])
+                            break
+                    mask = fl_y > 1
+
+                    if len(mask) != len(ax) or len(mask) != len(y):
+                        print("ERROR: graph_filter_by cannot be applied, because length of X is %d, length of Y is %d but length of mask is %d" % (len(ax), len(y), len(mask)))
+                        continue
+
+                    rects = axis.plot(ax[~mask], y[~mask], label=lab, color=c, linestyle=build._line, marker=marker,markevery=(1 if len(ax) < 20 else math.ceil(len(ax) / 20)),drawstyle=drawstyle, fillstyle=fillstyle, **line_params)
+                    mask = ndimage.binary_dilation(mask)
+                    filter_linestyle = self.config('graph_filter_linestyle', default='--')
+                    axis.plot(ax[mask], y[mask], label=None, color=lighter(c,0.9,255), linestyle=filter_linestyle, marker=marker,markevery=(1 if len(ax) < 20 else math.ceil(len(ax) / 20)),drawstyle=drawstyle, fillstyle=fillstyle, **line_params)
                 else:
-                    rects = axis.plot(ax, y, label=lab, color=c, linestyle=build._line, marker=marker,markevery=(1 if len(ax) < 20 else math.ceil(len(ax) / 20)),drawstyle=drawstyle, fillstyle=fillstyle)
+                    rects = axis.plot(ax, y, label=lab, color=c, linestyle=build._line, marker=marker,markevery=(1 if len(ax) < 20 else math.ceil(len(ax) / 20)),drawstyle=drawstyle, fillstyle=fillstyle,  **line_params)
             error_type = self.scriptconfig('graph_error', 'result', result_type=result_type, default = "bar").lower()
             if error_type != 'none':
                 if error_type == 'bar' or (error_type == None and not self.config('graph_error_fill')):
@@ -1988,7 +2016,7 @@ class Grapher:
             allmin = min(allmin, np.min(ax))
             allmax = max(allmax, np.max(ax))
 
-            self.write_labels(rects, plt, build._color, idx)
+            self.write_labels(rects, plt, build._color, idx, True)
 
         if xmin == float('inf'):
             return False, len(data)

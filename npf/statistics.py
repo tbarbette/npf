@@ -30,6 +30,7 @@ class Statistics:
             try:
                 clf = clf.fit(X, y)
             except Exception as e:
+                print("Error while trying to fit the clf:")
                 print(e)
                 continue
 
@@ -91,18 +92,21 @@ class Statistics:
 
     @classmethod
     def buildDataset(cls, all_results: Dataset, testie: Testie) -> List[tuple]:
+        #map of every <variable name, format>
         dtype = testie.variables.dtype()
+
         y = OrderedDict()
         dataset = []
         for i, (run, results_types) in enumerate(all_results.items()):
-            vars = list(run.variables.values())
+            vars = list(run.variables[k] for k in dtype['names'])
             if not results_types is None and len(results_types) > 0:
-                dataset.append(vars)
+
+                dataset.append([v for v in vars])
                 for result_type, results in results_types.items():
                     r = np.mean(results)
                     y.setdefault(result_type, []).append(r)
-
         dtype['values'] = [None] * len(dtype['formats'])
+
         for i, f in enumerate(dtype['formats']):
             if f is str:
                 dtype['formats'][i] = int

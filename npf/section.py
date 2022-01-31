@@ -500,7 +500,7 @@ class SectionVariable(Section):
                             else:
                                 raise Exception("Unknown variable %s" % var)
                     self._assign(sect.vlist, assign, var, val)
-        return OrderedDict(sorted(self.vlist.items()))
+        return OrderedDict(self.vlist.items())
 
     def finish(self, testie):
         self.vlist = self.build(self.content, testie)
@@ -516,7 +516,7 @@ class SectionVariable(Section):
             else:
                 formats.append(f)
                 names.append(k)
-        return dict(names=names, formats=formats)
+        return OrderedDict(names=names, formats=formats)
 
 
 class SectionLateVariable(SectionVariable):
@@ -632,7 +632,7 @@ class SectionConfig(SectionVariable):
         self.__add_dict('graph_x_sort', {})
         self.__add("graph_scatter", False)
         self.__add("graph_show_values", False)
-
+        self.__add("graph_show_ylabel", True)
         self.__add("graph_show_xlabel", True)
         self.__add("graph_subplot_type", "subplot")
         self.__add("graph_max_series", None)
