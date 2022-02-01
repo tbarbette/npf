@@ -59,7 +59,25 @@ class Run:
         return self
 
     def __eq__(self, o):
-        return self.inside(o) and o.inside(self)
+        if len(self.variables) != len(o.variables):
+            return False
+        for k, v in self.variables.items():
+            if not k in o.variables:
+                return False
+            ov = o.variables[k]
+            if v == ov:
+                return True
+            if type(v) is tuple:
+                v = v[1]
+            if type(ov) is tuple:
+                ov = ov[1]
+            if is_numeric(v) and is_numeric(ov):
+                if not get_numeric(v) == get_numeric(ov):
+                    return False
+            else:
+                if not v == ov:
+                    return False
+        return True
 
     def __hash__(self):
         n = 0
