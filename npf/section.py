@@ -626,6 +626,7 @@ class SectionConfig(SectionVariable):
         self.__add("graph_subplot_unique_legend", False)
         self.__add_list("graph_display_statics", [])
         self.__add_list("graph_variables_as_series", [])
+        self.__add("graph_variables_explicit", False)
         self.__add_list("graph_hide_variables", [])
         self.__add_dict('graph_result_as_variable', {})
         self.__add_dict('graph_map', {})

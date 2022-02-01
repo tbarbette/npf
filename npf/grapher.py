@@ -893,7 +893,7 @@ class Grapher:
                 for i, (value, data) in enumerate(new_series.items()):
                     nbuild = build.copy()
                     nbuild.statics = build.statics.copy()
-                    nbuild._pretty_name = ' - '.join(([nbuild.pretty_name()] if len(series) > 1 or self.options.show_serie else []) + [ str(value[1]) if type(value) is tuple else ("%s = %s" % (self.var_name(to_get_out), str(value)))  ])
+                    nbuild._pretty_name = ' - '.join(([nbuild.pretty_name()] if len(series) > 1 or self.options.show_serie else []) + [ str(value[1]) if type(value) is tuple and self.config_bool("graph_variables_explicit") is False else ("%s = %s" % (self.var_name(to_get_out), str(value)))  ])
                     if len(self.graphmarkers) > 0:
                         nbuild._marker = self.graphmarkers[i % len(self.graphmarkers)]
                     if len(series) == 1: #If there is one serie, expand the line types
