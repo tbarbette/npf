@@ -2,8 +2,8 @@
 CPU=[1-8]
 
 //Just random values
-T=100
 R=50
+T=100
 
 %script
 bash -c 'echo "RESULT-RX $R\nRESULT-TX $T"'
