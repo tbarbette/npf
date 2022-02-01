@@ -3,7 +3,7 @@ from typing import Dict, List, Tuple
 from collections import OrderedDict
 
 from orderedset._orderedset import OrderedSet
-from npf.variable import is_numeric, get_numeric
+from npf.variable import is_numeric, get_numeric, numeric_dict
 from npf import npf
 import natsort
 import csv
@@ -118,6 +118,22 @@ class Run:
 
     def __len__(self):
         return len(self.variables)
+
+class ImmutableRun:
+    def __init__(self, variables):
+        self._run = Run(numeric_dict(variables))
+        self._hash = self._run.__hash__()
+
+    def __hash__(self):
+        return self._hash
+
+    def __eq__(self, o):
+        if type(o) is Run:
+            return self._run.__eq__(o)
+        else:
+            return self._run.__eq__(o._run)
+
+
 
 
 Dataset = Dict[Run, Dict[str, List]]

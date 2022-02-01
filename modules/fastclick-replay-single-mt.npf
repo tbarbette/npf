@@ -37,6 +37,8 @@ udpgen:GEN_LENGTH=1500
 udpgen:GEN_DUMP=-1
 udpgen:GEN_FLOWS=128
 udpgen:GEN_BURST=32
+GEN_RX=1
+gen_norx:GEN_RX=0
 
 
 
@@ -107,7 +109,8 @@ define($txverbose 99)
 define($rxverbose 99)
 define($limit $LIMIT)
 
-$(( "fdIN :: FromDump($trace, STOP false, TIMING false)" if $GEN_DUMP == 0 else "fdIN :: FromIPSummaryDump($trace, TIMING false, TIMESTAMP false, ZERO false, TIMES -1, STOP true);" if $GEN_DUMP==1 else "fdIN :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH $GEN_LENGTH, SRCETH $INsrcmac, DSTETH $INdstmac, SRCIP ${client:0:ip}, DSTIP ${server:0:ip}, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST)" ))
+$(( "fdIN :: FromDump($trace, STOP false, TIMING false)" if $GEN_DUMP == 0 else "fdIN :: FromIPSummaryDump($trace, TIMING false, TIMESTAMP false, ZERO false, TIMES -1, STOP true);" if $GEN_DUMP==1 else "fdIN :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH $GEN_LENGTH, SRCETH $INsrcmac, DSTETH $INdstmac, SRCIP ${client:0:ip}, DSTIP ${server:0:ip}, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST, SEQUENTIAL $GEN_SEQUENTIAL)" ))
+
 tdIN :: ToDPDKDevice($txport, BLOCKING true, BURST $bout, VERBOSE $txverbose, IQUEUE $bout, NDESC $GEN_DESC, TCO $TCO)
 
 elementclass NoTimestampDiff { $a, $b, $c, $d |
@@ -143,7 +146,7 @@ input
 
 $(( "\n".join([ "rr -> gen%d :: Generator(\<56%02x>) -> tdIN;StaticThreadSched(gen%d/replay %d);" % (i,i+1,i,i) for i in range($GEN_THREADS) ]) ))
 
-receiveIN :: FromDPDKDevice($rxport, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, PAUSE $PAUSE, NDESC $GEN_DESC, MAXTHREADS $GEN_RX_THREADS, NUMA false)
+receiveIN :: FromDPDKDevice($rxport, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, PAUSE $PAUSE, NDESC $GEN_DESC, MAXTHREADS $GEN_RX_THREADS, NUMA false, ACTIVE $GEN_RX)
 
 elementclass Receiver { $mac, $dir |
     input[0]

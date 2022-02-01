@@ -7,8 +7,8 @@ from collections import OrderedDict
 from npf.repository import Repository
 from npf.testie import Testie
 from npf.build import Build
-from npf.variable import dtype
-from npf.types.dataset import Run
+from npf.variable import dtype, numeric_dict
+from npf.types.dataset import Run, ImmutableRun
 
 def test_args():
     parser = argparse.ArgumentParser(description='NPF Tester')
@@ -77,12 +77,15 @@ def test_runequality():
     ra = OrderedDict()
     ra["A"] = 1
     ra["B"] = "2"
+    assert type(numeric_dict(ra)["B"] is int)
     a = Run(ra)
     rb = OrderedDict()
     rb["B"] = 2
     rb["A"] = 1
     b = Run(rb)
     assert a == b
+    assert ImmutableRun(ra) == ImmutableRun(rb)
+    assert ImmutableRun(ra) == b
     assert a.inside(b)
     assert b.inside(a)
     assert a.__hash__() == b.__hash__()

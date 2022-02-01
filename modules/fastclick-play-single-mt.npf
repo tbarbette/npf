@@ -42,6 +42,7 @@ END_AFTER=0
 GEN_RATE?=-1
 LATENCYDUMP=/tmp/latency.csv
 ITERATION_TIME?=0
+iterative:ITERATION_TIME=1
 GEN_MULTI_TRACE=0
 GEN_FORCE_ETHER=0
 trace_is_ip:GEN_FORCE_ETHER=1
@@ -52,6 +53,8 @@ udpgen:GEN_DUMP=-1
 GEN_SEQUENTIAL=0
 GEN_RX=1
 gen_norx:GEN_RX=0
+timing:TIMING=1
+timing:TIMING_FNT=100
 
 %late_variables
 GEN_TX_DESC?=EXPAND($GEN_DESC)
@@ -215,6 +218,7 @@ ig :: Script(TYPE ACTIVE,
     set s $(now),
     set lastcount 0,
     set lastbytes 0,
+    set lastbytessent 0,
     set lastsent 0,
     set lastdrop 0,
     set last $s,
@@ -231,9 +235,11 @@ ig :: Script(TYPE ACTIVE,
 
                 set count $(RIN/avg.add count),
                 set sent $(avgSIN.add count),
+                set bytessent $(avgSIN.add byte_count),
                 set bytes $(RIN/avg.add byte_count),
                 print "IG-$t-RESULT-IGCOUNT $(sub $count $lastcount)",
                 print "IG-$t-RESULT-IGSENT $(sub $sent $lastsent)",
+                print "IG-$t-RESULT-IGBYTESSENT $(sub $bytessent $lastbytessent)",
                 set drop $(sub $sent $count),
                 print "IG-$t-RESULT-IGDROPPED $(sub $drop $lastdrop)",
                 set lastdrop $drop,
@@ -248,6 +254,7 @@ ig :: Script(TYPE ACTIVE,
                 set lastcount $count,
                 set lastsent $sent,
                 set lastbytes $bytes,
+                set lastbytessent $bytessent,
     goto loop,
     label end
 )

@@ -99,6 +99,16 @@ def is_log(l):
     return n
 
 
+def numeric_dict(d):
+        for k, v in d.items():
+            if type(v) is tuple:
+                if is_numeric(v[1]):
+                    d[k] = tuple(v[0],get_numeric(v[1]))
+            else:
+                if is_numeric(v):
+                    d[k] = get_numeric(v)
+        return d
+
 def ae_product_range(a,b):
     return itertools.product(range(a),range(b))
 
