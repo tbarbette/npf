@@ -76,6 +76,9 @@ http {
     tcp_nodelay on;
     types_hash_max_size 2048;
     # server_tokens off;
+    client_body_timeout 12;
+    client_header_timeout 5;
+    send_timeout 10;
 
     # server_names_hash_bucket_size 64;
     # server_name_in_redirect off;
@@ -94,7 +97,7 @@ http {
     # Logging Settings
     ##
 
-    access_log /dev/null;
+    access_log off;
     error_log /dev/stdout;
 
     ##

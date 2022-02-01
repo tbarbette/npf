@@ -49,9 +49,9 @@ GEN_DUMP=0
 gen_dump:GEN_DUMP=1
 gen_mindump:GEN_DUMP=2
 udpgen:GEN_DUMP=-1
-GEN_ACTIVE=1
-gen_norx:GEN_ACTIVE=0
 GEN_SEQUENTIAL=0
+GEN_RX=1
+gen_norx:GEN_RX=0
 
 %late_variables
 GEN_TX_DESC?=EXPAND($GEN_DESC)
@@ -178,7 +178,7 @@ $(( " StaticThreadSched(fdIN0 0/0, unqueue0 0/0);" if $GEN_PIPELINE else "" ))
 
 $(( " StaticThreadSched(tdIN 0/%d);" % ($GEN_THREADS + 1) if $GEN_TX_PIPELINE else "" ))
 
-receiveIN :: FromDPDKDevice($port, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, PAUSE $PAUSE, NDESC $GEN_DESC, MAXTHREADS 4,NUMA false, ACTIVE $GEN_ACTIVE)
+receiveIN :: FromDPDKDevice($port, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, PAUSE $PAUSE, NDESC $GEN_DESC, MAXTHREADS 4, NUMA false, ACTIVE $GEN_RX)
 
 elementclass Receiver { $mac, $dir |
     input[0]

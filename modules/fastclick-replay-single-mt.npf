@@ -107,7 +107,7 @@ define($txverbose 99)
 define($rxverbose 99)
 define($limit $LIMIT)
 
-$(( "fdIN :: FromDump($trace, STOP false, TIMING false)" if $GEN_DUMP == 0 else "fdIN :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH $GEN_LENGTH, SRCETH $INsrcmac, DSTETH $INdstmac, SRCIP ${client:0:ip}, DSTIP ${server:0:ip}, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST)" ))
+$(( "fdIN :: FromDump($trace, STOP false, TIMING false)" if $GEN_DUMP == 0 else "fdIN :: FromIPSummaryDump($trace, TIMING false, TIMESTAMP false, ZERO false, TIMES -1, STOP true);" if $GEN_DUMP==1 else "fdIN :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH $GEN_LENGTH, SRCETH $INsrcmac, DSTETH $INdstmac, SRCIP ${client:0:ip}, DSTIP ${server:0:ip}, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST)" ))
 tdIN :: ToDPDKDevice($txport, BLOCKING true, BURST $bout, VERBOSE $txverbose, IQUEUE $bout, NDESC $GEN_DESC, TCO $TCO)
 
 elementclass NoTimestampDiff { $a, $b, $c, $d |
@@ -134,7 +134,7 @@ input
   -> Pad()
   $GEN_LAT_NUMBERISE
 //  -> Print(TIMESTAMP true)
-  -> replay :: ReplayUnqueue(STOP 0, STOP_TIME $PKTGEN_REPLAY_TIME, QUICK_CLONE $quick, VERBOSE true, ACTIVE true, LIMIT $LIMIT, TIMING $TIMING)
+  -> replay :: ReplayUnqueue(STOP 0, STOP_TIME $PKTGEN_REPLAY_TIME, QUICK_CLONE $quick, VERBOSE false, ACTIVE true, LIMIT $LIMIT, TIMING $TIMING)
   $GEN_LAT_RECORD
   -> avgSIN :: AverageCounter(IGNORE $ignore)
     $(( " -> { input[0] -> MarkIPHeader(OFFSET 14) -> ipc :: IPClassifier(tcp or udp, -) ->  ResetIPChecksum(L4 true) -> [0]output; ipc[1] -> [0]output; }" if $TCO else "" ))

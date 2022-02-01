@@ -1,4 +1,4 @@
-%script deps=wrk-tbarbette
+%script deps=wrk2-tbarbette
 
 echo "Launching WRK on $NPF_NODE"
 if [ $SRV_NS -eq 1 ] ; then
