@@ -58,7 +58,7 @@ At run-time, NPF uses SSH and can benefit from usage of sudo and NFS, see the [r
 ### Big picture ###
 Your *.npf* test file is composed of a serie of sections, as in the example given above. The sections describe the scripts to run, where to run them, what variables should be tested, what are their ranges, configuration parameters such as timeout or graph colors, etc. Each section is described in more details in [tests/README.md](tests/README.md). 
 When launching NPF, you will also give the name of one or more *repositories*, which are files located in the `repo` folder describing software to download, install and compile so everything is in place when your experiment is launched. They follow a format descrived in [repo/README.md](repo/README.md).
-Your test script will also define a few script *roles*, such as `client` or `server` as in the example above. When you actually launch your experiment, you must tell which machine (physical or virtual) will take the role. For simple cases, passing the address of a machine with the `--cluster role=machine` will be enough. When you'd like to define parameters such as IPs and MAC addresses, you can define a *cluster* file that will describe details about each machines. See [cluster/README.md](cluster/README.md) for more details.
+Your test script will also define a few script *roles*, such as `client` or `server` as in the example above. When you actually launch your experiment, you must tell which machine (physical or virtual) will take the role. For simple cases, passing the address of a machine with the `--cluster role=machine` will be enough. When you'd like to define parameters such as IPs and MAC addresses, you can define a *cluster* file that will describe details about each machines. See the [cluster documentation](https://npf.readthedocs.io/en/latest/cluster.html) for more details.
 
 ## Tools
 Three tools come with this performance framework :
@@ -232,13 +232,13 @@ Test scripts define multiple roles such as "client" or "server". Each role can b
 
 NPF will run the test scripts for each role on the mapped cluster. Giving the node address in the
  command line may be enough. However some tests require more information about each node
- that can be set using cluster files. More information about writing cluster files is given in [cluster/README.md](cluster/README.md)
+ that can be set using cluster files. More information about writing cluster files is given on [the cluster documentation](https://npf.readthedocs.io/en/latest/cluster.html)
 
 ### Graph
 Graph are automatically generated for all tested variables combinations. See [the graphing documentation](https://npf.readthedocs.io/en/latest/graph.html) to manipulate graphs in numerous ways.
 
 ### Where to continue from here?
-Have you read [tests/README.md](tests/README.md)? Then, inspire yourself from the test script files in tests/click mostly, then write your own!
+Have you read [writing tests documentation](https://npf.readthedocs.io/en/latest/tests.html)? Then, inspire yourself from the test script files in `tests/`, and write your own!
 
 ### How to distribute your test scripts, modules and repo files?
 We welcome merge requests for generic stuffs! But you can keep your files in your "experimentation" folder. Indeed, NPF will always look for a file first in "./repo" for repo files, "./modules" for modules and "./cluster" for machines definition.
