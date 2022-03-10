@@ -221,7 +221,7 @@ is the contrary and will run a very big set of variables combinations
 to get statistics out of results.
 
 ## Writing test scripts
-See [tests/README.md](tests/README.md) to read more about test scripts and learn about creating new ones. Scripts describe the tests and parameters to re-run them in multiple configuration. Test scripts are the heart of NPF.
+See [the writing tests documentation](https://npf.readthedocs.io/en/latest/tests.html) to read more about test scripts and learn about creating new ones. Scripts describe the tests and parameters to re-run them in multiple configuration. Test scripts are the heart of NPF.
 
 ## Repository files
 See [repo/README.md](repo/README.md) to lear how to build repository definition files to let NPF know how to fetch and compile some software
@@ -238,7 +238,7 @@ NPF will run the test scripts for each role on the mapped cluster. Giving the no
 Graph are automatically generated for all tested variables combinations. See [the graphing documentation](https://npf.readthedocs.io/en/latest/graph.html) to manipulate graphs in numerous ways.
 
 ### Where to continue from here?
-Have you read [writing tests documentation](https://npf.readthedocs.io/en/latest/tests.html)? Then, inspire yourself from the test script files in `tests/`, and write your own!
+Have you read the [writing tests documentation](https://npf.readthedocs.io/en/latest/tests.html)? Then, inspire yourself from the test script files in `tests/`, and write your own!
 
 ### How to distribute your test scripts, modules and repo files?
 We welcome merge requests for generic stuffs! But you can keep your files in your "experimentation" folder. Indeed, NPF will always look for a file first in "./repo" for repo files, "./modules" for modules and "./cluster" for machines definition.
