@@ -160,6 +160,7 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
                                       'one after the other, hence breaking most of the tests.')
     t.add_argument('--expand', type=str, default=None, dest="expand")
     t.add_argument('--rand-env', type=int, default=65536, dest="rand_env")
+    t.add_argument('--experimental-design', type=str, default="matrix.csv", help="The path towards the experimental design point selection file")
     return t
 
 

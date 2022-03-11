@@ -8,6 +8,8 @@ from npf.nic import NIC
 from asteval import Interpreter
 import itertools
 import numpy as np
+import csv
+import sys
 
 import random
 
@@ -263,41 +265,16 @@ class ExperimentalDesign:
 
     @classmethod
     def load(cls):
-        path = npf.find_local("matrix.csv")
+        path = npf.find_local(sys.modules["npf.npf"].options.experimental_design)
+        assert path is not None
 
-        # Open the file
-        f = open(path)
-        lines = f.readlines()
-        f.close()
+        with open(path) as fd:
+            csvreader = csv.reader(fd)
+            data = [i for i in csvreader]
+        
+        ExperimentalDesign.matrix = np.array([[float(j) for j in i] for i in data])
 
-        # The interesting line is the third one
-        line = lines[0]
-        split_line = line.split(",")
-        nums = []
-
-        for x in split_line:
-            nums.append(float(x))
-
-        nrows = 20
-        ncols = 95
-
-        if len(nums) != nrows*ncols:
-            raise Exception("wrong number of elements in wsp matrix: %d instead of %d(with %d rows)" % (len(nums), nrows*ncols, nrows))
-
-        # The matrix is encoded as an array of nrowsxncols
-        matrix = []
-        for i in range(nrows):
-            row = []
-            for j in range(ncols):
-                try:
-                    row.append(nums[i * ncols + j])
-                except:
-                    print((i * ncols + j))
-                    raise
-
-            matrix.append(row)
-
-        ExperimentalDesign.matrix = np.array(matrix)
+        # TODO: assert that the number of rows of the matrix is sufficient for all the values of the experimental design variables
 
 class CoVariable(Variable):
     def __init__(self, name = "covariable"):
