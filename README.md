@@ -20,7 +20,7 @@ echo "RESULT-THROUGHPUT $result"
 ```
 Will automatically produce the following graph:
 
-![sample picture](tests/tcp/01-iperf-THROUGHPUT.png "Result for tests/tcp/01-iperf.npf")
+![sample picture](https://github.com/tbarbette/npf/raw/master/tests/tcp/01-iperf-THROUGHPUT.png "Result for tests/tcp/01-iperf.npf")
 
 When launching npf:
 
