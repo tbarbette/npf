@@ -1,11 +1,12 @@
 
 class NIC:
-    TYPES = "driver|ip|mac|raw_mac|ifname|pci|mask"
+    TYPES = "driver|ip|ip6|mac|raw_mac|ifname|pci|mask"
 
-    def __init__(self, pci, mac, ip, ifname, mask='255.255.255.0'):
+    def __init__(self, pci, mac, ip, ip6, ifname, mask='255.255.255.0'):
         self.pci = pci
         self.mac = mac
         self.ip = ip
+        self.ip6 = ip6
         self.ifname = ifname
         self.mask = mask
 
@@ -19,6 +20,8 @@ class NIC:
             return self.mac.replace(':', '')
         elif item == 'ip':
             return self.ip
+        elif item == 'ip6':
+            return self.ip6
         elif item == 'ifname':
             return self.ifname
         elif item == 'mask':
@@ -34,6 +37,8 @@ class NIC:
             self.mac = val
         elif item == 'ip':
             self.ip = val
+        elif item == 'ip6':
+            self.ip6 = val
         elif item == 'ifname':
             self.ifname = val
         elif item == 'mask':

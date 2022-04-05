@@ -82,13 +82,16 @@ class Node:
                random.randint(0x01, 0xfe)]
         macaddr = ':'.join(map(lambda x: "%02x" % x, mac))
         ip = [10, mac[3], mac[4], mac[5]]
+        mac6 = mac[0:3] + [0xff] + [0xfe] + mac[3:6]
+        ip6 = [0x2001] + [0x0db8] + [0x0000]* 2 + [i * 0x100 + j for i,j in zip(mac6[::2], mac6[1::2])]
         ipaddr = '.'.join(map(lambda x: "%d" % x, ip))
-        return macaddr, ipaddr
+        ip6addr = ':'.join((map(lambda x: "%x" % x, ip6)))
+        return macaddr, ipaddr, ip6addr
 
     def _gen_random_nics(self):
         for i in range(32):
-            mac, ip = self._addr_gen()
-            nic = NIC(i, mac, ip, "eth%d" % i)
+            mac, ip, ip6 = self._addr_gen()
+            nic = NIC(i, mac, ip, ip6, "eth%d" % i)
             self._nics.append(nic)
 
     def _find_nics(self):

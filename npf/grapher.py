@@ -194,6 +194,7 @@ class Graph:
                 statics=self.statics(),
                 y_group=self.grapher.configdict('graph_y_group'),
                 color=[get_numeric(v) for v in self.grapher.configlist('graph_color')],
+                kind=kind
                 )
 
         return self.data_types
