@@ -585,7 +585,7 @@ class SectionConfig(SectionVariable):
         }
 
         # Environment
-        self.__add("default_repo", None)
+        self.__add("default_repo", "local")
 
         # Regression related
         self.__add_list("accept_zero", ["time","DROP", "DROPPED"])

@@ -999,9 +999,9 @@ class Grapher:
             graphs = [ None for v in vars_values[sv] ]
             for j,(script, build, all_results) in enumerate(series):
                 graph = self.extract_variable_to_series(sv, vars_values.copy(), all_results, dyns.copy(), build, script)
-                
+
                 self.glob_legend_title = title #This variable has been extracted, the legend should not be the variable name in this case
-                
+
                 if graph_series_label:
                     for i, (testie, build, all_results) in enumerate(series):
                         v = {}
@@ -1018,12 +1018,12 @@ class Grapher:
                         graphs[i] = copy.copy(graph)
                         graphs[i].title = self.var_name(sv) + " = " + stuple[1]._pretty_name
                         graphs[i].series = list()
-                    
+
                     graphs[i].series.append(stuple)
                     graphs[i].series[j][1]._pretty_name = build._pretty_name
                 assert(not sv in graph.vars_values)
 
-            
+
             del dyns
             del vars_values
         else:
