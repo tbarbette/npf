@@ -29,7 +29,7 @@ npf-run --test tests/tcp/01-iperf.npf
 ```
 
 Test files allow to define a matrix of parameters to try many combinations of
-variables (see [here](tests/README.npf#variables) for a description of the possible definitions such as values, ranges, ...) for each test and report performance results and evolution for each combination of variables.
+variables (see [here](https://npf.readthedocs.io/en/latest/variables.html) for a description of the possible definitions such as values, ranges, ...) for each test and report performance results and evolution for each combination of variables.
 
 Finally, a graph will be built and statistical results may be computed for each test 
 showing the difference between variables values, different softwares, or the evolution of
@@ -56,17 +56,17 @@ pip3 install --user npf
 At run-time, NPF uses SSH and can benefit from usage of sudo and NFS, see the [run-time dependencies](https://npf.readthedocs.io/en/latest/usage.html#run-time-dependencies) in the documentation for more information.
 
 ### Big picture ###
-Your *.npf* test file is composed of a serie of sections, as in the example given above. The sections describe the scripts to run, where to run them, what variables should be tested, what are their ranges, configuration parameters such as timeout or graph colors, etc. Each section is described in more details in [tests/README.md](tests/README.md). 
-When launching NPF, you will also give the name of one or more *repositories*, which are files located in the `repo` folder describing software to download, install and compile so everything is in place when your experiment is launched. They follow a format descrived in [repo/README.md](repo/README.md).
+Your *.npf* test file is composed of a serie of sections, as in the example given above. The sections describe the scripts to run, where to run them, what variables should be tested, what are their ranges, configuration parameters such as timeout or graph colors, etc. Each section is described in more details in [the "writing test script" documentation](https://npf.readthedocs.io/en/latest/tests.html).
+When launching NPF, you will also give the name of one or more *repositories*, which are files located in the `repo` folder describing software to download, install and compile so everything is in place when your experiment is launched. They follow a format descrived in [repo/README.md](repo/README.md). It can also be ignored using the `local` fake repository.
 Your test script will also define a few script *roles*, such as `client` or `server` as in the example above. When you actually launch your experiment, you must tell which machine (physical or virtual) will take the role. For simple cases, passing the address of a machine with the `--cluster role=machine` will be enough. When you'd like to define parameters such as IPs and MAC addresses, you can define a *cluster* file that will describe details about each machines. See the [cluster documentation](https://npf.readthedocs.io/en/latest/cluster.html) for more details.
 
 ## Tools
-Three tools come with this performance framework :
+Three tools come with NPF :
   * npf-run for advance regression and statistics tests on one repository
-  * npf-watch to watch one or multiple repositories for any new commit and e-mail regression results in case
 of change in performances due to the last commits
   * npf-compare to compare one test script but across multiple repository, mainly to compare
 how different branches/implementations behaves against each others
+  * npf-watch is a CI-like program to watch one or multiple repositories for any new commit and e-mail in case of regression in performance measures
 
 ### NPF Run
 NPF-Run is the main NPF tool.
