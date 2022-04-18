@@ -40,6 +40,8 @@ IGNORE?=0
 PAUSE=none
 GEN_DESC=0
 END_AFTER=0
+GEN_PROGRESSIVE=0
+progressive:GEN_PROGRESSIVE=1
 GEN_RATE?=-1
 LATENCYDUMP=/tmp/latency.csv
 ITERATION_TIME?=0
@@ -53,6 +55,7 @@ gen_mindump:GEN_DUMP=2
 udpgen:GEN_DUMP=-1
 GEN_SEQUENTIAL=0
 GEN_RX=1
+NUMBEROFFSET=40
 gen_norx:GEN_RX=0
 timing:TIMING=1
 timing:TIMING_FNT=100
@@ -64,7 +67,7 @@ GEN_NGEN=EXPAND( $((1 if $GEN_PIPELINE else $GEN_THREADS)) )
 UNQUEUE=
 udpgen:UNQUEUE=Unqueue()
 rate:UNQUEUE=EXPAND( BandwidthRatedUnqueue( $(( int($GEN_RATE / $GEN_NGEN) )), EXTRA_LENGTH true, LINK_RATE true, BURST_DURATION 1, BURST 1) )
-prate:UNQUEUE=EXPAND( RatedUnqueue($(( int($GEN_RATE / $GEN_NGEN)  )), BURST 1) )
+prate:UNQUEUE=EXPAND( RatedUnqueue($(( int($GEN_RATE / $GEN_NGEN)  )), BURST 1, ACTIVE $(( "false" if $GEN_PROGRESSIVE else "true" )) ) )
 HAVE_UNQUEUE?=0
 udpgen|prate|rate|replay:HAVE_UNQUEUE=1
 NRECORD=EXPAND( $(( ($LIMIT + 1024) * 2 )) )
@@ -86,9 +89,9 @@ gen_nolat:GEN_NUMBER= -> check :: MarkIPHeader
 gen_nolat:GEN_RECORD=
 gen_nolat:GEN_MAGIC=EXPAND(-> magic :: {[0]-> RoundRobinSwitch(SPLITBATCH false)[0-$(( $GEN_THREADS - 1 ))] => [0-$(( $GEN_THREADS - 1 ))]output;Idle->[$GEN_THREADS]output;})
 GEN_TSDIFF?=TimestampDiff
--gen_preped:GEN_NUMBER?= -> check :: MarkIPHeader  -> nPacket :: NumberPacket(42) -> StoreData(40, $magic)
-GEN_RECORD?=EXPAND(-> rt :: RecordTimestamp(N $NRECORD, OFFSET 56))
-GEN_MAGIC?=EXPAND(    -> magic :: Classifier( $(( ", ".join([ "40/57%02x" % t for t in range($GEN_THREADS) ]) )),  -);)
+-gen_preped:GEN_NUMBER?=EXPAND( -> check :: MarkIPHeader  -> nPacket :: NumberPacket( $(( ${NUMBEROFFSET} + 2 )) ) -> StoreData(${NUMBEROFFSET}, $magic) )
+GEN_RECORD?=EXPAND(-> rt :: RecordTimestamp(N $NRECORD, OFFSET $(( ${NUMBEROFFSET} + 14 + 2 )) ))
+GEN_MAGIC?=EXPAND(    -> magic :: Classifier( $(( ", ".join([ "${NUMBEROFFSET}/57%02x" % t for t in range($GEN_THREADS) ]) )),  -);)
 DOLAT?=1
 FDDISPATCH=EXPAND( $((" rr :: RoundRobinSwitch(SPLITBATCH false);" if $GEN_THREADS > 1 and $GEN_PIPELINE else "rr :: MyNull;")) )
 NBBUF?=200000
@@ -183,20 +186,20 @@ $(( " StaticThreadSched(fdIN0 0/0, unqueue0 0/0);" if $GEN_PIPELINE else "" ))
 
 $(( " StaticThreadSched(tdIN 0/%d);" % ($GEN_THREADS + 1) if $GEN_TX_PIPELINE else "" ))
 
-receiveIN :: FromDPDKDevice($port, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, PAUSE $PAUSE, NDESC $GEN_DESC, MAXTHREADS 4, NUMA false, ACTIVE $GEN_RX)
+receiveIN :: FromDPDKDevice($port, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, PAUSE $PAUSE, NDESC $GEN_DESC, MAXTHREADS $GEN_THREADS, NUMA false, ACTIVE $GEN_RX)
 
 elementclass Receiver { $mac, $dir |
     input[0]
 $BROADCAST_IGNORE
     -> Strip(14)
-    -> $(( "CheckIP6Header()" if $GEN_IPV6 else "CheckIPHeader(CHECKSUM false)" ))
+//    -> $(( "CheckIP6Header()" if $GEN_IPV6 else "CheckIPHeader(CHECKSUM false)" ))
 
 $GEN_MAGIC
 
     c[1] //Not for this computer or broadcasts
     -> Discard;
 
-$((  "\n".join([ "magic[%d] -> tsd%d :: $GEN_TSDIFF(gen%d/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE ) -> Unstrip(14) ->  avg%d :: AverageCounterMP(IGNORE $ignore) -> Discard;  tsd%d[1] -> Print('WARNING: Untimestamped packet on thread %d', 64) -> Discard;" % (t,t,t,t,t,t) for t in range($GEN_THREADS) ]) ))
+$((  "\n".join([ "magic[%d] -> tsd%d :: $GEN_TSDIFF(gen%d/rt, OFFSET %d, N $NRECORD, SAMPLE $SAMPLE ) -> Unstrip(14) ->  avg%d :: AverageCounterMP(IGNORE $ignore) -> Discard;  tsd%d[1] -> Print('WARNING: Untimestamped packet on thread %d', 64) -> Discard;" % (t,t,t,${NUMBEROFFSET} + 2,t,t,t) for t in range($GEN_THREADS) ]) ))
 
 
 $(( (  "avg :: HandlerAggregate( " + ",".join(["ELEMENT avg%d" % (i) for i in range($GEN_THREADS) ]) + " );" ) if 1 else "" ))
@@ -269,12 +272,17 @@ $(( (  "tsd :: HandlerAggregate( " + ",".join(["ELEMENT RIN/tsd%d" % (i) for i i
 
 $(( "avgSIN :: HandlerAggregate( " + ",".join(["ELEMENT gen%d/avgSIN" % (i) for i in range($GEN_THREADS) ]) + " );" ))
 
+
+starter :: Script(TYPE PASSIVE,
+			$(( "\n".join([ "print 'Thread %d started', write unqueue%d.active true, wait 100ms," % (i,i) for i in range($GEN_THREADS) ])  )) 
+);
 dm :: DriverManager(  print "Waiting 2 seconds before launching generation...",
                 wait 2s,
 
                 print "EVENT GEN_BEGIN",
                 print "Starting gen...",
 //                write fdIN.active true,
+		$(( "write starter.run," if $GEN_PROGRESSIVE else "" ))
                 print "Starting timer wait...",
                 set starttime $(now),
                 wait $LIMIT_TIME,
