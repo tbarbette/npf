@@ -1042,7 +1042,10 @@ class Testie:
 
         for runs_this_pass in total_runs:  # Number of results to ensure for this run
             n = 0
-            for root_variables in self.variables.expand(method=options.expand):
+            overriden = set(build.repo.overriden_variables.keys())
+            all_variables = list(self.variables.expand(method=options.expand, overriden=overriden))
+            n_tests = len(all_variables)
+            for root_variables in all_variables:
                 n += 1
 
                 variables = {}
@@ -1184,11 +1187,11 @@ class Testie:
                         if len(run_results) > 0:
                             if not dall:
                                 print("Results %s are missing some points..." % ", ".join(l))
-                        if len(self.variables) > 0:
+                        if n_tests > 0:
                             def print_header(i, i_try):
                                 n_try=int(self.config["n_retry"])
                                 print(run.format_variables(self.config["var_hide"]),
-                                  ("[%srun %d/%d for test %d/%d"+(" of serie %d/%d" %(iserie+1,nseries) if nseries > 1 else "")+"]") % (  ("retrying %d/%d " % (i_try + 1,n_try)) if i_try > 0 else "", i+1, n_runs, n, len(self.variables)))
+                                  ("[%srun %d/%d for test %d/%d"+(" of serie %d/%d" %(iserie+1,nseries) if nseries > 1 else "")+"]") % (  ("retrying %d/%d " % (i_try + 1,n_try)) if i_try > 0 else "", i+1, n_runs, n, n_tests))
                         else:
                             print("Executing single run...")
 

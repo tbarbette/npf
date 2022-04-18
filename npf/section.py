@@ -289,9 +289,11 @@ class BruteVariableExpander:
     """Expand all variables building the full
     matrix first."""
 
-    def __init__(self, vlist):
+    def __init__(self, vlist, overriden):
         self.expanded = [OrderedDict()]
         for k, v in vlist.items():
+            if k in overriden:
+                continue
             newList = []
             l = v.makeValues()
 
@@ -338,11 +340,11 @@ class SectionVariable(Section):
             values.append(SectionVariable.replace_variables(v, value))
         return values
 
-    def expand(self, method=None):
+    def expand(self, method=None, overriden=set()):
         if method == "shuffle" or method == "rand" or method == "random":
             return RandomVariableExpander(self.vlist)
         else:
-            return BruteVariableExpander(self.vlist)
+            return BruteVariableExpander(self.vlist, overriden)
 
     def __iter__(self):
         return self.expand()
