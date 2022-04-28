@@ -40,7 +40,8 @@ for sect in known_sections:
 class SectionFactory:
     varPattern = "([a-zA-Z0-9_:-]+)[=](" + Variable.VALUE_REGEX + ")?"
     namePattern = re.compile(
-        "^(?P<tags>" + Variable.TAGS_REGEX + "[:])?(?P<name>info|config|variables|exit|pypost|pyexit|late_variables|include (?P<includeName>[a-zA-Z0-9_./-]+)||(init-)?file(:?[@](?P<fileRole>[a-zA-Z0-9]+))? (?P<fileName>[a-zA-Z0-9_.-]+)(:? (?P<fileNoparse>noparse))?|require|"
+        "^(?P<tags>" + Variable.TAGS_REGEX + "[:])?(?P<name>info|config|variables|exit|pypost|pyexit|late_variables|include (?P<includeName>[a-zA-Z0-9_./-]+)(?P<includeParams>([ \t]+" +
+        varPattern + ")+)?|(init-)?file(:?[@](?P<fileRole>[a-zA-Z0-9]+))? (?P<fileName>[a-zA-Z0-9_.-]+)(:? (?P<fileNoparse>noparse))?|require|"
                                              "import(:?[@](?P<importRole>[a-zA-Z0-9]+)(:?[-](?P<importMulti>[*0-9]+))?)?[ \t]+(?P<importModule>" + Variable.VALUE_REGEX + ")(?P<importParams>([ \t]+" +
         varPattern + ")+)?|" +
                      "sendfile(:?[@](?P<sendfileRole>[a-zA-Z0-9]+))?[ \t]+(?P<sendfilePath>.*)|" +
@@ -105,7 +106,9 @@ class SectionFactory:
                                 noparse=matcher.group('fileNoparse'))
             return s
         elif sectionName.startswith('include'):
-            s = SectionImport(None, matcher.group('includeName').strip(), {}, is_include=True)
+            params = matcher.group('includeParams')
+            params = dict(re.findall(SectionFactory.varPattern, params)) if params else {}
+            s = SectionImport(None, matcher.group('includeName').strip(), params, is_include=True)
             return s
         elif sectionName == 'require':
             s = SectionRequire()
