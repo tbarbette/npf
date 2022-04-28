@@ -141,6 +141,10 @@ class MethodGet(UnversionedMethod):
         if not Path(self.repo.get_build_path()).exists():
             os.makedirs(self.repo.get_build_path())
         try:
+            proxy = urllib.request.ProxyHandler({})
+            opener = urllib.request.build_opener(proxy)
+            opener.addheaders = [('User-Agent', 'NPF')]
+            urllib.request.install_opener(opener)
             filename, headers = urllib.request.urlretrieve(url, self.repo.get_build_path() + os.path.basename(url))
         except URLError:
             print("ERROR : Could not download %s : bad URL?" % url)
