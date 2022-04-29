@@ -234,9 +234,12 @@ def parse_nodes(args):
     if not os.path.exists(experiment_path()):
         raise Exception("The experiment root '%s' is not accessible ! Please explicitely define it with --experiment-path, and ensure that directory is writable !" % experiment_path())
 
+    # Create the test file
     os.close(os.open(experiment_path() + ".access_test" , os.O_CREAT))
-
     local = Node.makeLocal(options)
+    #Delete the test file
+    os.unlink(experiment_path() + ".access_test")
+   
     roles['default'] = [local]
 
     options.search_path = set(options.search_path)
@@ -244,6 +247,10 @@ def parse_nodes(args):
         options.search_path.add(os.path.dirname(t))
 
     for val in options.cluster:
+
+        # Create the test file
+        os.close(os.open(experiment_path() + ".access_test" , os.O_CREAT))
+
         variables : list[str] = val.split(',')
         if len(variables) == 0:
             raise Exception("Bad definition of cluster parameter : %s" % variables)
@@ -292,10 +299,9 @@ def parse_nodes(args):
             else:
                 raise Exception("Unknown cluster variable : %s" % var)
 
-
-
-
-    os.unlink(experiment_path() + ".access_test")
+        #Delete the test file if it still exists (if the remote is the local machine, it won't)
+        if os.path.exists(experiment_path() + ".access_test"):
+            os.unlink(experiment_path() + ".access_test")
 
 
 def parse_variables(args_variables, tags, sec) -> Dict:
