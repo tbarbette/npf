@@ -227,12 +227,16 @@ def set_args(args):
 
 def parse_nodes(args):
     set_args(args)
+
     if type(options.use_last) is not int:
         if options.use_last:
             options.use_last = 100
 
     if not os.path.exists(experiment_path()):
         raise Exception("The experiment root '%s' is not accessible ! Please explicitely define it with --experiment-path, and ensure that directory is writable !" % experiment_path())
+
+    if not os.path.isabs(options.experiment_folder):
+        options.experiment_folder = os.path.abspath(options.experiment_folder)
 
     # Create the test file
     os.close(os.open(experiment_path() + ".access_test" , os.O_CREAT))

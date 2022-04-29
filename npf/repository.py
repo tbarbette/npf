@@ -327,6 +327,7 @@ class Repository:
     def pretty_name(self):
         return self.name
 
+    #Get the path 
     def get_build_path(self):
         return self._build_path
 
@@ -337,6 +338,7 @@ class Repository:
             bin_folder = self.bin_folder
         else:
             bin_folder = self.bin_folder.replace('$version', version)
+
         # The folder where all the builds are made
         bp = self.get_build_path()
         return os.path.join(bp,'') + ( os.path.join(bin_folder, '') if bin_folder else '')

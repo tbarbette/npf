@@ -184,7 +184,12 @@ class Node:
             if not node.nfs:
                 print("Remote is not shared through nfs... Sending .access_test")
                 assert(isinstance(node.executor, SSHExecutor))
-                node.executor.sendFolder(".access_test")
+                try:
+
+                    node.executor.sendFolder(".access_test", local=npf.experiment_path())
+                except FileNotFoundError as e:
+                    print("While checking if file .access_test can be sent from local path %s to remote %s" % (npf.experiment_folder(),node.executor.addr))
+                    raise e
 
             pid, out, err, ret = sshex.exec(cmd="pwd;ls -al;test -e " + ".access_test" + " && echo 'access_ok' && if ! type 'unbuffer' ; then ( ( sudo apt-get update && sudo apt-get install -y expect ) || sudo yum install -y expect ) && sudo echo 'test' ; else sudo echo 'test' ; fi", raw=True, title="SSH dependencies installation")
             out = out.strip()

@@ -220,7 +220,7 @@ class SSHExecutor(Executor):
                     skipped = 0
                     try:
                         rlist = sftp.listdir(self.path + path)
-                        lpath = lpath if not local else local + os.sep + path
+                        lpath = path if not local else local + os.sep + path
                         for entry in os.scandir(lpath):
                             if entry.is_file():
                                 remote = self.path + path + '/' + entry.name
@@ -272,7 +272,7 @@ class SSHExecutor(Executor):
                                 total += es.st_size
                         finally:
                             sftp.close()
-                        return total
+                        return total, skipped
                     try:
                         f = self.path + '/' + curpath
                         sftp.stat(f)
@@ -281,7 +281,7 @@ class SSHExecutor(Executor):
                             sftp.mkdir(f,mode=0o777)
                         except IOError as e:
                             sftp.close()
-                            print("Could not make folder %s" % f)
+                            print("Could not make remote folder %s" % f)
                             raise e
                     except PermissionError as e:
                         sftp.close()
