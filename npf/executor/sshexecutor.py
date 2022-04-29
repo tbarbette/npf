@@ -217,6 +217,7 @@ class SSHExecutor(Executor):
                 ignored = ['.git', '.vimhistory']
                 def _send(path):
                     total = 0
+                    skipped = 0
                     try:
                         rlist = sftp.listdir(self.path + path)
                         lpath = lpath if not local else local + os.sep + path
@@ -232,25 +233,31 @@ class SSHExecutor(Executor):
                                     except FileNotFoundError:
                                         sftp.close()
                                         raise(Exception("Could not send %s to %s"  % (path + '/' + entry.name, remote)))
+                                else:
+                                    skipped += entry.stat().st_size
                             else:
                                 if entry.name in ignored:
                                     continue
                                 if entry.name not in rlist:
                                     sftp.mkdir(self.path + path + '/' + entry.name, mode=0o777 )
-                                    total += _send(path +'/'+entry.name + '/')
-                        return total
+                                t, s = _send(path +'/'+entry.name + '/')
+                                total += t
+                                skipped += s
+                        return total, skipped
                     except FileNotFoundError:
                         sftp.close()
                         raise FileNotFoundError("No such file : %s" % (self.path + os.sep + path))
                 curpath = ''
                 total = 0
+                skipped = 0
                 for d in path.split('/'):
                     curpath = curpath + d + '/'
                     lcurpath = curpath if not local else local + os.sep + curpath
                     if not os.path.isdir(lcurpath):
                         remote = self.path + path
                         try:
-                            sftp.stat(remote)
+                            s = sftp.stat(remote)
+                            skipped += s.st_size
                         except IOError as e:
                             if e.errno is errno.ENOENT:
                                 lpath = path if not local else local + os.sep + path
@@ -281,11 +288,12 @@ class SSHExecutor(Executor):
                         print("Could not make folder %s" % f)
                         raise e
 
-
-                total += _send(path)
+                t, s = _send(path)
+                total += t
+                skipped += s
 
                 sftp.close()
-                return total
+                return total, skipped
 
         except paramiko.ssh_exception.SSHException as e:
             print("Error while connecting to %s" % self.addr)

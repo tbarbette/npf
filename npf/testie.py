@@ -309,11 +309,13 @@ class Testie:
                     toSend.add((deprepo.reponame,role,node,deprepo.get_build_path()))
         for repo,role,node,bp in toSend.difference(done):
             print("Sending software %s to %s... " % (repo, role), end ='')
-            t = node.executor.sendFolder(os.path.relpath(bp,npf.npf_root_path()),local=npf.npf_root_path())
-            if (t > 0):
-                print("%d bytes sent." % t)
+            t,s = node.executor.sendFolder(os.path.relpath(bp,npf.npf_root_path()),local=npf.npf_root_path())
+            if t > 0 and s > 0:
+                print("%d bytes sent / %d bytes already up to date." % (t,s))
+            elif t > 0 and s == 0:
+                print("%d bytes sent." % (t))
             else:
-                print("Already up to date !")
+                print("Already up to date (%d bytes) !" % s)
 
         done.update(toSend)
 
