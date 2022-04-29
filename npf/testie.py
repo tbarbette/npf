@@ -302,14 +302,25 @@ class Testie:
               if not node.nfs:
                 for repo in repo_under_test:
                     if repo.get_build_path() and not no_build:
-                        toSend.add((repo.reponame,role,node, repo.get_build_path()))
+                        toSend.add((repo.reponame,role,node, repo.get_build_path(), repo.get_remote_build_path(node)))
                 for dep in script.get_deps():
                     deprepo = Repository.get_instance(dep, self.options)
 
-                    toSend.add((deprepo.reponame,role,node,deprepo.get_build_path()))
-        for repo,role,node,bp in toSend.difference(done):
+                    toSend.add((deprepo.reponame,role,node,deprepo.get_build_path(), deprepo.get_remote_build_path(node)))
+        for repo,role,node,bp,rbp in toSend.difference(done):
             print("Sending software %s to %s... " % (repo, role), end ='')
-            t,s = node.executor.sendFolder(os.path.relpath(bp,npf.npf_root_path()),local=npf.npf_root_path())
+            try:
+
+                #We have to find the local path from which the remote start, so we can advance in the folder at the same point
+                local = os.path.normpath(bp)
+                r = os.path.normpath(rbp)
+                while os.path.basename(local) == os.path.basename(r):
+                    local = os.path.dirname(os.path.normpath(local))
+                    r = os.path.dirname(os.path.normpath(r))
+                t,s = node.executor.sendFolder(rbp,local)
+            except Exception as e:
+                print ("While sending %s (to be found in folder %s) on node %s= " %  (remote, local,node.addr))
+                raise e
             if t > 0 and s > 0:
                 print("%d bytes sent / %d bytes already up to date." % (t,s))
             elif t > 0 and s == 0:
@@ -391,7 +402,7 @@ class Testie:
             p = SectionVariable.replace_variables(v, require.content, require.role(),
                                                   self.config.get_dict("default_role_map"))
             pid, output, err, returncode = npf.executor(require.role(), self.config.get_dict("default_role_map")).exec(
-                cmd=p, bin_paths=[build.get_bin_folder()], options=self.options, event=None, testdir=None)
+                cmd=p, bin_paths=[build.get_local_bin_folder()], options=self.options, event=None, testdir=None)
             if returncode != 0:
                 return False, output, err
             continue
@@ -669,9 +680,10 @@ class Testie:
                         param.role_id = i_node
                         param.default_role_map = self.config.get_dict("default_role_map")
                         param.delay = script.delay()
-                        deps_bin_path = [repo.get_bin_folder() for repo in script.get_deps_repos(self.options) if
+
+                        deps_bin_path = [repo.get_remote_bin_folder(node) for repo in script.get_deps_repos(self.options) if
                                          not repo.reponame in self.options.ignore_deps]
-                        param.bin_paths = deps_bin_path + [build.get_bin_folder()]
+                        param.bin_paths = deps_bin_path + [build.get_remote_bin_folder(node)]
                         param.testdir = test_folder
                         param.event = event
                         param.script = script

@@ -316,7 +316,9 @@ class Repository:
             else:
                 self._build_path = path
         else:
-            self._build_path = os.path.dirname(npf.get_build_path() + self.reponame + '/')
+            self._build_path = npf.get_build_path() + self.reponame
+        #Ensure trailing /
+        self._build_path = os.path.join(self._build_path,'')
 
     def get_identifier(self):
         return self._id
@@ -331,7 +333,28 @@ class Repository:
     def get_build_path(self):
         return self._build_path
 
-    def get_bin_folder(self, version=None):
+    #Get the path to the binary folder of this build on a remote node
+    def get_remote_build_path(self, node):
+        bp = self.get_build_path()
+        if node.nfs:
+            return bp
+        #If the path is in the NPF build path, the remote 
+        if os.path.abspath(bp).startswith(npf.get_build_path()): 
+            return os.path.relpath(bp, os.path.dirname(os.path.normpath(npf.get_build_path())))
+        if os.path.abspath(bp).startswith(npf.experiment_path()):
+            return os.path.relpath(bp, npf.experiment_path())
+        if os.path.abspath(bp).startswith(npf.npf_root_path()):
+            return os.path.relpath(bp, npf.npf_root_path())
+        return os.path.basename(bp)
+
+
+    def get_local_bin_folder(self, version=None):
+        return self._get_bin_folder(version=version)
+
+    def get_remote_bin_folder(self, remote, version=None):
+        return self._get_bin_folder(version=version, remote=remote)
+
+    def _get_bin_folder(self, version=None, remote = None):
         if version is None:
             version = self.current_version()
         if version is None:
@@ -340,17 +363,20 @@ class Repository:
             bin_folder = self.bin_folder.replace('$version', version)
 
         # The folder where all the builds are made
-        bp = self.get_build_path()
+        if remote:
+            bp = self.get_remote_build_path(node=remote)
+        else:
+            bp = self.get_build_path()
         return os.path.join(bp,'') + ( os.path.join(bin_folder, '') if bin_folder else '')
 
-    def get_bin_path(self, version):
+    def get_local_bin_path(self, version):
         if version is None:
             version = self.current_version()
         if version is None:
             bin_name = self.bin_name
         else:
             bin_name = self.bin_name.replace('$version', version)
-        return self.get_bin_folder(version) + bin_name
+        return self.get_local_bin_folder(version=version) + bin_name
 
     def get_last_build(self, history: int = 1, stop_at: Build = None, with_results=False, force_fetch=False) -> Build:
         if self.version:

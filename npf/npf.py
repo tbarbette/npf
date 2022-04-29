@@ -334,7 +334,7 @@ def npf_root_path():
 def experiment_path():
     # Return the path to NPF experiment folder
     options = sys.modules[__name__].options
-    return options.experiment_folder + os.sep
+    return os.path.join(options.experiment_folder,'')
 
 def cwd_path():
     # Return the path to where NPF was first executed

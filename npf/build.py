@@ -223,7 +223,7 @@ class Build:
 
 
     def is_compile_needed(self):
-        bin_path=npf.replace_path(self.repo.get_bin_path(self.version),build=self)
+        bin_path=npf.replace_path(self.repo.get_local_bin_path(self.version),build=self)
         if not os.path.exists(bin_path):
             return "could not find %s" % bin_path
         elif not Build.get_current_version(self.repo) == self.version:
@@ -296,8 +296,11 @@ class Build:
         self.repo._current_build = self
         return True
 
-    def get_bin_folder(self):
-        return self.repo.get_bin_folder(self.version)
+    def get_local_bin_folder(self):
+        return self.repo.get_local_bin_folder(version=self.version)
+
+    def get_remote_bin_folder(self, node):
+        return self.repo.get_remote_bin_folder(version=self.version, remote=node)
 
     def __str__(self):
         return "Build(repo = %s, version = %s)" % (self.repo,self.version)
