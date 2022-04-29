@@ -196,7 +196,7 @@ class Node:
                 if retT != 0 or outT.split("\n")[-1] != "test":
                     raise Exception("Could not communicate with%s node %s, got return code %d : %s" %  (" user "+ sshex.user if sshex.user else "", sshex.addr, retT, outT + errT))
                 if not "access_ok" in out:
-                    raise Exception("Could not find the access test file at %s. Verify the path= paramater in the cluster file and that this directory alread exists. It must match --root-path on the remote equivalent when nfs is active. If the path is not shared accross clusters, ensure you set nfs=0 in the cluster file." % sshex.path)
+                    raise Exception("Could not find the access test file at %s. Verify the path= paramater in the cluster file and that this directory alread exists. It must match --experiment-folder on the remote equivalent when nfs is active. If the path is not shared accross clusters, ensure you set nfs=0 in the cluster file." % sshex.path)
                 if out.split("\n")[-1] != "test":
                     raise Exception("Could not communicate with user %s on node %s, unbuffer (expect package) could not be installed, or passwordless sudo is not working, got return code %d : %s" %  (sshex.user, sshex.addr, ret, out + err))
         if options.do_test:

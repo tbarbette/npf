@@ -252,7 +252,12 @@ class SSHExecutor(Executor):
                             if e.errno is errno.ENOENT:
                                 lpath = path if not local else local + os.sep + path
                                 es = os.stat(lpath)
-                                sftp.put(lpath, remote)
+                                if not es:
+                                    raise FileNotFoundError("[Errno 2] No such local file %s in %s" % (lpath, os.getcwd()))
+                                try:
+                                    sftp.put(lpath, remote)
+                                except FileNotFoundError as e:
+                                    raise FileNotFoundError("[Errno 2] No such remote folder on %s: %s, please create it" % (self.addr,os.path.dirname(remote))) from None
                                 sftp.chmod(remote, es.st_mode)
                                 total += es.st_size
                         finally:
