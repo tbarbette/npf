@@ -49,7 +49,7 @@ class SSHExecutor(Executor):
             title = self.addr + ' - ' + title
         if not event:
             event = EventBus()
-        path_list = [p if os.path.isabs(p) else self.path+'/'+p for p in (bin_paths if bin_paths is not None else [])]
+        path_list = [p if os.path.isabs(p) else os.path.join(self.path, p) for p in (bin_paths if bin_paths is not None else [])]
         if options and options.show_cmd:
             print("Executing on %s%s (PATH+=%s) :\n%s" % (self.addr,(' with sudo' if sudo and self.user != "root" else ''),':'.join(path_list) + (("NS:"  + virt) if virt else ""), cmd.strip()))
 
