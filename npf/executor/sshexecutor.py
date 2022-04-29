@@ -17,7 +17,10 @@ class SSHExecutor(Executor):
         super().__init__()
         self.user = user
         self.addr = addr
-        self.path = path
+        if path[-1] == '/':
+            self.path = path
+        else:
+            self.path = path + '/'
         self.port = port
         self.ssh = False
         #Executor should not make any connection in init as parameters can be overwritten afterward
