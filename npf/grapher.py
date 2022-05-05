@@ -1197,6 +1197,8 @@ class Grapher:
             for i_s_subplot, result_type in enumerate(figure):
                 #Variable that depends on the figure
                 key=savekey
+                if not result_type in data_types:
+                    continue
                 data = data_types[result_type]
 
                 #Number of broken axis
