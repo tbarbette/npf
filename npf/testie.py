@@ -1204,11 +1204,11 @@ class Testie:
                         if n_tests > 0:
                             def print_header(i, i_try):
                                 n_try=int(self.config["n_retry"])
-                                print(run.format_variables(self.config["var_hide"]),
+                                desc = run.format_variables(self.config["var_hide"])
+                                if desc:
+                                    print(desc, end=' ')
+                                print(
                                   ("[%srun %d/%d for test %d/%d"+(" of serie %d/%d" %(iserie+1,nseries) if nseries > 1 else "")+"]") % (  ("retrying %d/%d " % (i_try + 1,n_try)) if i_try > 0 else "", i+1, n_runs, n, n_tests))
-                        else:
-                            print("Executing single run...")
-
 
                     new_data_results, new_all_kind_results, output, err, n_exec, n_err = self.execute(build, run, variables,
                                                                                                   n_runs,
