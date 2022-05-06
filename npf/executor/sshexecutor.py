@@ -268,6 +268,8 @@ class SSHExecutor(Executor):
                                     raise FileNotFoundError("[Errno 2] No such local file %s in %s" % (lpath, os.getcwd()))
                                 try:
                                     sftp.put(lpath, remote)
+                                except PermissionError as e:
+                                    raise PermissionError("[Errno 13] Permission denied when trying to send .access_test to the remote folder '%s' on %s. Do you have the rights?" % (os.path.dirname(remote), self.addr)) from None
                                 except FileNotFoundError as e:
                                     raise FileNotFoundError("[Errno 2] No such remote folder on %s: %s, please create it" % (self.addr,os.path.dirname(remote))) from None
                                 sftp.chmod(remote, es.st_mode)
