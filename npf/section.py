@@ -585,6 +585,7 @@ class SectionConfig(SectionVariable):
             'graph_serie_sort':'graph_series_sort',
             'series_prop': 'graph_series_prop',
             'graph_legend_ncol': 'legend_ncol',
+            'graph_legend_loc': 'legend_loc',
             'var_label_dir' : 'graph_label_dir',
             'graph_max_col' : 'graph_max_col',
 
