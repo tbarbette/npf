@@ -1,5 +1,6 @@
 import ast
 
+import sre_constants
 from typing import List, Set
 from collections.abc import Mapping
 
@@ -34,7 +35,13 @@ hu.add_words(known_sections)
 class SectionFactory:
     varPattern = "([a-zA-Z0-9_:-]+)[=](" + Variable.VALUE_REGEX + ")?"
     namePattern = re.compile(
-        "^(?P<tags>" + Variable.TAGS_REGEX + "[:])?(?P<name>info|config|variables|exit|pypost|pyexit|late_variables|"
+        "^(?P<tags>" + Variable.TAGS_REGEX + "[:])?(?P<name>info|"
+        "config|"
+        "variables|"
+        "exit|"
+        "pypost|"
+        "pyexit(:?\\s+(?P<PyExitName>.*))?|"
+        "late_variables|"
         "include\\s+(?P<includeName>[a-zA-Z0-9_./-]+)(?P<includeParams>([ \t]+" + varPattern + ")+)?|"
         "(init-)?file(:?[@](?P<fileRole>[a-zA-Z0-9]+))?\\s+(?P<fileName>[a-zA-Z0-9_.${}-]+)(:? (?P<fileNoparse>noparse))?(:? (?P<fileJinja>jinja))?|"
         "require(:?\\s+(?P<requireJinja>jinja))?|"
@@ -94,6 +101,11 @@ class SectionFactory:
 
             return s
 
+        if sectionName.startswith('pyexit'):
+            name = matcher.group("PyExitName").strip()
+            s = SectionPyExit(name)
+            return s
+
         if matcher.group('scriptParams') is not None:
             raise Exception("Only script sections takes arguments (" + sectionName + " has argument " +
                             matcher.groups("params") + ")")
@@ -122,8 +134,6 @@ class SectionFactory:
 
         if sectionName == 'variables':
             s = SectionVariable()
-        elif sectionName == 'pyexit':
-            s = Section('pyexit')
         elif sectionName == 'pypost':
             s = Section('pypost')
         elif sectionName == 'exit':
@@ -225,6 +235,24 @@ class SectionScript(Section):
         for dep in self.params["deps"].split(","):
             deps.add(dep)
         return deps
+
+class SectionPyExit(Section):
+    num = 0
+
+    def __init__(self, name = ""):
+        super().__init__('pyexit')
+        self.index = ++self.num
+        self.name = name
+
+    def finish(self, testie):
+        testie.pyexits.append(self)
+
+    def get_name(self, full=False):
+        if self.name != "":
+            return "pyexit_"+str(self.index)
+        else:
+            return "pyexit_"+self.name
+
 
 
 class SectionImport(Section):
