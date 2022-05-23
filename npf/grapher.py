@@ -364,6 +364,10 @@ class Grapher:
         def __init__(self,unit,ps="",compact=False,k=1000,mult=1):
             self.unit = unit
             self.ps = ps
+            if unit == "Bps":
+                self.unit = "B"
+                self.ps = "/s"
+
             self.compact = compact
             self.k = k
             self.mult = mult
@@ -382,7 +386,10 @@ class Grapher:
             else:
                 pres="%.2f"
             if x >= (k*k*k):
-                return (pres + "G%s"+ps) % (x / (k*k*k), unit)
+                v = x / (k*k*k)
+                if v < 10 and compact:
+                    pres = "%.1f"
+                return (pres + "G%s"+ps) % (v, unit)
             elif x >= (k*k):
                 return (pres + "M%s"+ps) % (x / (k*k), unit)
             elif x >= k:
@@ -2098,7 +2105,7 @@ class Grapher:
                 u = unit
             else:
                 u = "Bits" if unit.lower() == "bps" else "Bytes"
-            k = 1000 if unit.lower() == "bps" or unit.lower().contains("bit") else 1024
+            k = 1000 if unit.lower() == "bps" or "bit" in unit.lower() else 1024
             axis.set_major_formatter(Grapher.ByteFormatter(u,"" if u.lower().endswith("ps") else "/s", compact=compact, k=k, mult=mult))
             return True, True
         elif (unit.lower() == "us" or unit.lower() == "µs"):

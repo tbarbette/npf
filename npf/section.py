@@ -574,6 +574,7 @@ class SectionConfig(SectionVariable):
             'graph_variables_as_serie': 'graph_variables_as_series',
             'graph_subplot_variables' : 'graph_subplot_variable',
             'graph_grid': 'var_grid',
+            'graph_ticks' : 'var_ticks',
             'graph_serie': 'var_serie',
             'graph_types':'graph_type',
             'graph_linestyle': 'graph_lines',
