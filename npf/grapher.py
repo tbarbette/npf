@@ -1529,14 +1529,24 @@ class Grapher:
 
                     xticks = self.scriptconfig("var_ticks", key, default=None)
                     if xticks:
+                        print("got xt")
                         if isLog:
                             plt.gca().xaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
                         plt.xticks([get_numeric(x) for x in xticks.split('+')])
 
                     #background
-                    graph_bg = self.configdict("graph_background",{})
-                    if result_type in graph_bg:
-                        idx = int(graph_bg[result_type])
+                    bg = self.config("graph_background")
+                    idx=None
+                    if is_numeric(bg):
+                        idx=get_numeric(bg)
+                    elif is_bool(bg):
+                        idx=15
+                    else:
+                        graph_bg = self.configdict("graph_background",{})
+                        if result_type in graph_bg:
+                            idx = int(graph_bg[result_type])
+
+                    if idx is not None:
                         bgcolor = lighter(graphcolor[idx],0.12,255)
                         bgcolor2 = lighter(graphcolor[idx],0.03,255)
                         yl = axis.get_ylim()
