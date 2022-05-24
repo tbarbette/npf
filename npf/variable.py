@@ -45,6 +45,8 @@ def get_bool(val):
 
 def is_bool(s):
     try:
+        if type(s) is list:
+            return False
         get_bool(s)
         return True
     except ValueError:

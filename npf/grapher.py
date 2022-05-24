@@ -1387,6 +1387,7 @@ class Grapher:
                         elif graph_type == "boxplot":
                             """A box plot, with multiple X values and series in color"""
                             r, ndata = self.do_box_plot(axis, key, result_type, data, xdata, shift, isubplot)
+                            barplot = True #It's like a barplot, no formatting
                         elif graph_type == "cdf":
                             """CDF"""
                             r, ndata = self.do_cdf(axis, key, result_type, data, xdata, shift, isubplot)
@@ -1493,6 +1494,7 @@ class Grapher:
                                     plt.xscale('symlog',base=base,linthresh=thresh )
                                 else:
                                     plt.xscale('log',basex=base)
+
                                 xticks = data[0][0]
                                 if not is_log(xticks) and xmin:
                                     i = xmin
@@ -1752,7 +1754,7 @@ class Grapher:
         mask = np.isfinite(y)
 
         if len(x[mask]) == 0:
-            return False
+            return False, 0
 
         nseries = 1
         width = (1 - (2 * interbar)) / nseries
@@ -1784,7 +1786,7 @@ class Grapher:
         allcolors=[]
         if len(data) > 30:
             print("WARNING : Not drawing more than 30 boxplots")
-            return
+            return False, 0
         ipos=1
         for i, (x, ys, e, build) in enumerate(data):
             if nseries == 1 and np.isnan(ys).all():
