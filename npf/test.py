@@ -138,6 +138,7 @@ class Test:
         return self.scripts
 
     def get_pyexits(self) -> List[SectionPyExit]:
+        self.pyexits.sort(key=lambda p: f"{p.name}_{p.index}")
         return self.pyexits
 
     def __init__(self, test_path, options, tags=None, role=None, inline=None):
@@ -929,7 +930,7 @@ class Test:
                 all_pyexits = []
                 all_pyexits_v = []
                 for s,vlist in [(t.testie,t.imp_v) for t in self.imports] + [(self, v)]:
-                    for p in sorted(s.get_pyexits()):
+                    for p in s.get_pyexits():
                         all_pyexits.append(p)
                         all_pyexits_v.append(vlist)
 
