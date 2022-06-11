@@ -132,7 +132,7 @@ class Node:
                 speed=0
 
             speeds.setdefault(speed, [])
-            nic = NIC(words[0][4:], mac, ip, words[1])
+            nic = NIC(pci=words[0][4:], mac=mac, ip=ip, ip6="", ifname=words[1])
             nic.speed = speed
             speeds[speed].append(nic)
         i = 0
