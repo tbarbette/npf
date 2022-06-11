@@ -338,6 +338,8 @@ class Repository:
         bp = self.get_build_path()
         if node.nfs:
             return bp
+        if not bp:
+            return ""
         #If the path is in the NPF build path, the remote 
         if os.path.abspath(bp).startswith(npf.get_build_path()): 
             return os.path.relpath(bp, os.path.dirname(os.path.normpath(npf.get_build_path())))
