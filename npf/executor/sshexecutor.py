@@ -171,7 +171,7 @@ class SSHExecutor(Executor):
                     ssh.close()
             return 0,'','',-1
 
-    def writeFile(self,filename,path_to_root,content):
+    def writeFile(self,filename,path_to_root,content,sudo=False):
         f = open(filename, "w")
         f.write(content)
         f.close()
@@ -188,11 +188,12 @@ class SSHExecutor(Executor):
 
                 transport = ssh.get_transport()
                 with transport.open_channel(kind='session') as channel:
-                    channel.exec_command('mkdir -p %s/%s' % (self.path, path_to_root))
+                    channel.exec_command(('sudo ' if sudo else '') + 'mkdir -p %s/%s' % (self.path, path_to_root))
                     if channel.recv_exit_status() != 0:
+                        print("Could not create folder %s/%s!" % (self.path, path_to_root))
                         return False
                 with transport.open_channel(kind='session') as channel:
-                    channel.exec_command('cat > %s/%s/%s' % (self.path,path_to_root,filename))
+                    channel.exec_command('cat - | ' + ('sudo ' if sudo else '') + 'tee %s/%s/%s &> /dev/null' % (self.path,path_to_root,filename))
                     channel.sendall(content)
                     channel.shutdown_write()
                     return channel.recv_exit_status() == 0
