@@ -319,7 +319,7 @@ class Testie:
                     r = os.path.dirname(os.path.normpath(r))
                 t,s = node.executor.sendFolder(rbp,local)
             except Exception as e:
-                print ("While sending %s (to be found in folder %s) on node %s= " %  (remote, local,node.addr))
+                print ("While sending %s (to folder %s) on node %s= " %  (bp, rbp, node.addr))
                 raise e
             if t > 0 and s > 0:
                 print("%d bytes sent / %d bytes already up to date." % (t,s))
@@ -395,7 +395,9 @@ class Testie:
                 print(p.strip())
             for node in npf.nodes_for_role(role):
                 if not node.executor.writeFile(filename, path_to_root, p):
-                    raise Exception("Could not create file %s on %s" % (filename, node.name))
+                    print("Re-trying with sudo...")
+                    if not node.executor.writeFile(filename, path_to_root, p, sudo=True):
+                        raise Exception("Could not create file %s on %s" % (filename, node.name))
 
     def test_require(self, v, build):
         for require in self.requirements + list(itertools.chain.from_iterable([imp.testie.requirements for imp in self.imports])):

@@ -331,6 +331,11 @@ def npf_root_path():
     # Return the path to NPF root
     return os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
+def npf_writeable_root_path():
+    path = npf_root_path()
+    if not os.access(path, os.W_OK):
+        return experiment_path()
+
 def experiment_path():
     # Return the path to NPF experiment folder
     options = sys.modules[__name__].options
@@ -342,7 +347,12 @@ def cwd_path():
 
 def get_build_path():
     options = sys.modules[__name__].options
-    return (options.build_folder if not options.build_folder is None else npf_root_path()+'/build/')
+    if not options.build_folder is None:
+        if not os.access(options.build_folder, os.W_OK):
+            raise Exception("The provided build path is not writeable or does not exists : %s!" % options.build_folder)
+        return options.build_folder
+    else:
+        return npf_writeable_root_path()+'/build/'
 
 def from_experiment_path(path):
     # Returns the path under NPF root if it is not absolute
