@@ -658,6 +658,22 @@ class Testie:
                         v["NPF_MULTI_MAX"] = node.multi if node.multi is not None else 1
                         v["NPF_ARRAY_ID"] = (i_node * v["NPF_MULTI_MAX"]) + i_multi
                         v["NPF_ARRAY_MAX"] = len(nodes) * v["NPF_MULTI_MAX"]
+
+                        #Checking if the script has a filter
+                        c = True # Should we continue?
+                        for ik, iv in script.params.items():
+                            if ik.startswith('ifeq-'):
+                                ik=ik[5:]
+                                print(ik,iv)
+                                if ik not in v:
+                                    print("WARNING: Filtering for %s for script %s but it is not in the variables" % (ik, param.title))
+                                if v[ik] != iv:
+                                    c = False
+                                    break
+
+                        if not c:
+                            continue
+
                         if node.mode == "netns" and i_multi > 0:
                             param.virt = "ip netns exec npfns%d" % i_multi
                             param.sudo = True

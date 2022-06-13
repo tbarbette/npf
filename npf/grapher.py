@@ -686,10 +686,12 @@ class Grapher:
 
             # Save the pandas dataframe into a csv
             pandas_df_name=options.pandas_filename.split(".")[0] + ( "-%s" % fileprefix if fileprefix else "" ) + ".csv"
+
             # Create the destination folder if it doesn't exist
             df_path = os.path.dirname(pandas_df_name)
             if df_path and not os.path.exists(df_path):
                 os.makedirs(df_path)
+
             all_results_df.to_csv(pandas_df_name, index=True, index_label="index", sep=",", header=True)
             print("Pandas dataframe written to %s" % pandas_df_name)
 
@@ -1529,7 +1531,6 @@ class Grapher:
 
                     xticks = self.scriptconfig("var_ticks", key, default=None)
                     if xticks:
-                        print("got xt")
                         if isLog:
                             plt.gca().xaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
                         plt.xticks([get_numeric(x) for x in xticks.split('+')])

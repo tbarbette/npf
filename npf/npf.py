@@ -306,7 +306,7 @@ def parse_nodes(args):
             elif var == "multi":
                 node.multi = int(val)
             elif var == "mode":
-                mode = val
+                node.mode = val
             else:
                 raise Exception("Unknown cluster variable : %s" % var)
 
