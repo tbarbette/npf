@@ -243,7 +243,7 @@ def parse_nodes(args):
     local = Node.makeLocal(options)
     #Delete the test file
     os.unlink(experiment_path() + ".access_test")
-   
+
     roles['default'] = [local]
 
     options.search_path = set(options.search_path)
@@ -335,6 +335,8 @@ def npf_writeable_root_path():
     path = npf_root_path()
     if not os.access(path, os.W_OK):
         return experiment_path()
+    else:
+        return path
 
 def experiment_path():
     # Return the path to NPF experiment folder
