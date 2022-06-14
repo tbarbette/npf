@@ -57,10 +57,11 @@ def add_verbosity_options(parser: ArgumentParser):
 def add_graph_options(parser: ArgumentParser):
     o = parser.add_argument_group('Output data')
     o.add_argument('--output',
-                   help='Output data to CSV', dest='output', type=str, nargs='?', const='graph', default=None)
-    o.add_argument('--pandas', metavar='pandas_filename', type=str, default=None, dest='pandas_filename',
-                    help='Output a Pandas dataframe to CSV')
-    o.add_argument('--output-columns', dest='output_columns', type=str, nargs='+', default=['x', 'mean'])
+                   help='Output data to CSV files, one per result type. By default it prints the variable value as first column and the second column is the mean of all runs. Check --output-columns to change this behavior.', dest='output', type=str, nargs='?', const='graph', default=None)
+    o.add_argument('--output-columns', dest='output_columns', type=str, nargs='+', default=['x', 'mean'],
+                    help='Columns to print in each --output CSV files. By default x mean. Valid values are mean/average, min, max, perc[0-9]+, med/median/perc50, std, nres/n, first, last, all. Check the documentation for details.')
+    o.add_argument('--single-output', '--pandas', metavar='pandas_filename', type=str, default=None, dest='pandas_filename',
+                    help='Output a dataframe to CSV with all result types as columns, and one line per variables and per runs. This is a pandas dataframe, and can be read with pandas easily again. Time series are each outputed in a single different CSV.')
 
     g = parser.add_argument_group('Graph options')
     g.add_argument('--graph-size', metavar='INCH', type=float, nargs=2, default=None,
@@ -147,8 +148,6 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
     t.add_argument('--testie', '--test', '--npf', dest='test_files', metavar='path or testie', type=str, nargs='?', default='tests',
                    help='script or script folder. Default is tests')
 
-    t.add_argument('--cluster', metavar='user@address:path', type=str, nargs='*', default=[],
-                   help='role to node mapping for remote execution of tests')
 
     t.add_argument('--build-folder', '--build-path', metavar='path', type=str, default=None, dest='build_folder', help='Set where dependencies would be built. Defaults to npf\'s folder itself, so dependencies are shared between test scripts.')
 
@@ -161,6 +160,14 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
     t.add_argument('--expand', type=str, default=None, dest="expand")
     t.add_argument('--rand-env', type=int, default=65536, dest="rand_env")
     t.add_argument('--experimental-design', type=str, default="matrix.csv", help="The path towards the experimental design point selection file")
+
+    c = parser.add_argument_group('Cluster options')
+    c.add_argument('--cluster', metavar='role=user@address:path [...]', type=str, nargs='*', default=[],
+                   help='role to node mapping for remote execution of tests. The format is role=address, where address can be an address or a file in cluster/address.node describing supplementary parameters for the node.')
+    c.add_argument('--cluster-autosave', default=False, action='store_true', dest='cluster_autosave',
+                    help='Automatically save NICs found on the machine. If the file cluster/address.node does not exists, NPF will attempt to auto-discover NICs. If this option is set, it will auto-create the file.')
+
+
     return t
 
 

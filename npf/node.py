@@ -97,7 +97,9 @@ class Node:
     def _find_nics(self):
         if self.parsed:
             return
-        print("Looking for NICs on %s, to avoid this message write down the configuration in cluster/%s.node" % (self.name,self.name))
+        print("Looking for NICs on %s..." % self.name)
+        if not npf.options.cluster_autosave:
+            print("To avoid this message write down the configuration in cluster/%s.node or run again NPF with --cluster-autosave to create the file automatically." % (self.name))
         pid, out, err, ret = self.executor.exec(cmd="sudo lshw -class network -businfo -quiet", title="Listing network devices")
         if ret != 0:
             print("WARNING: %s has no configuration file and the NICs could not be found automatically. Please refer to the cluster documentation in NPF to define NIC order and addresses." % self.name)
@@ -130,21 +132,28 @@ class Node:
             except ValueError:
                 print("Cannot parse speed of %s : %s" % (words[1], res[-3]))
                 speed=0
-
+            print(speed)
             speeds.setdefault(speed, [])
             nic = NIC(pci=words[0][4:], mac=mac, ip=ip, ip6="", ifname=words[1])
             nic.speed = speed
             speeds[speed].append(nic)
         i = 0
+        conf=""
+        nl="\n"
+
         for speed in reversed(sorted(speeds.keys())):
             for n in speeds[speed]:
                 self._nics[i] = n
-                print("%d:pci=%s" % (i, n.pci))
-                print("%d:ifname=%s" % (i, n.ifname))
+                conf += "%d:pci=%s" % (i, n.pci) + nl
+                conf += "%d:ifname=%s" % (i, n.ifname)  + nl
                 #print("%d:speed=%s" % (i, n.speed))
-                print("%d:mac=%s" % (i, n.mac))
-                print("%d:ip=%s" % (i, n.ip))
+                conf += "%d:mac=%s" % (i, n.mac) + nl
+                conf += "%d:ip=%s" % (i, n.ip) + nl
                 i = i + 1
+        print(conf)
+        if npf.options.cluster_autosave:
+            os.makedirs("cluster", exist_ok=True)
+            open("cluster/%s.node" % self.name, 'w').write(conf)
 
 
     @classmethod
