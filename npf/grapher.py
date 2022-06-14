@@ -4,6 +4,11 @@ import re
 import natsort
 import copy
 import traceback
+import sys
+if sys.version_info < (3, 7):
+    from orderedset import OrderedSet
+else:
+    from ordered_set import OrderedSet
 
 from scipy import ndimage
 from asteval import Interpreter
@@ -694,7 +699,7 @@ class Grapher:
                     if var in tomerge:
                         del newrun.variables[var]
                         vals.append(str(val[1] if type(val) is tuple else val).strip())
-                combname = ', '.join(ordered_set(vals))
+                combname = ', '.join(OrderedSet(vals))
                 newrun.variables[toname] = combname
                 newnames.add(combname)
                 newgraph_variables.append(newrun)

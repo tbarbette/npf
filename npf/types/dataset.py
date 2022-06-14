@@ -1,12 +1,16 @@
 import numpy as np
 from typing import Dict, List, Tuple
 from collections import OrderedDict
-
-from ordered_set import OrderedSet
-from npf.variable import is_numeric, get_numeric, numeric_dict
-from npf import npf
+import sys
+if sys.version_info < (3, 7):
+    from orderedset import OrderedSet
+else:
+    from ordered_set import OrderedSet
 import natsort
 import csv
+
+from npf import npf
+from npf.variable import is_numeric, get_numeric, numeric_dict
 
 class Run:
     def __init__(self, variables):

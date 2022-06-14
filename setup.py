@@ -14,7 +14,8 @@ install_requires=[
     'pydotplus',
     'scipy',
     'sklearn',
-    'ordered_set',
+    'orderedset ; python_version < "3.7.0"'
+    'ordered_set ; python_version >= "3.7.0"',
     'paramiko',
     'asteval',
     'cryptography==36.0.2',

@@ -2,7 +2,12 @@ import os
 
 import numpy as np
 import pydotplus as pydotplus
-from ordered_set import OrderedSet
+import sys
+if sys.version_info < (3, 7):
+    from orderedset import OrderedSet
+else:
+    from ordered_set import OrderedSet
+
 from sklearn import tree
 from collections import OrderedDict
 
