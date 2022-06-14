@@ -2,7 +2,6 @@ import io
 import math
 import re
 import natsort
-from orderedset._orderedset import OrderedSet
 import copy
 import traceback
 
@@ -695,7 +694,7 @@ class Grapher:
                     if var in tomerge:
                         del newrun.variables[var]
                         vals.append(str(val[1] if type(val) is tuple else val).strip())
-                combname = ', '.join(OrderedSet(vals))
+                combname = ', '.join(ordered_set(vals))
                 newrun.variables[toname] = combname
                 newnames.add(combname)
                 newgraph_variables.append(newrun)

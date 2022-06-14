@@ -2,7 +2,7 @@ import numpy as np
 from typing import Dict, List, Tuple
 from collections import OrderedDict
 
-from orderedset._orderedset import OrderedSet
+from ordered_set import OrderedSet
 from npf.variable import is_numeric, get_numeric, numeric_dict
 from npf import npf
 import natsort

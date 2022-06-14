@@ -14,7 +14,7 @@ install_requires=[
     'pydotplus',
     'scipy',
     'sklearn',
-    'orderedset',
+    'ordered_set',
     'paramiko',
     'asteval',
     'cryptography==36.0.2',

@@ -2,7 +2,7 @@ import os
 
 import numpy as np
 import pydotplus as pydotplus
-from orderedset import OrderedSet
+from ordered_set import OrderedSet
 from sklearn import tree
 from collections import OrderedDict
 
