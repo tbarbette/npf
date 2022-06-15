@@ -213,9 +213,12 @@ class Build:
         self.__write_file(self.build_path() + '/.checkout_version', self.version)
         return True
 
+    def get_build_version(self):
+        c_ver = Build.__read_file(self.repo.get_build_path() + '/.checkout_version')
+        return c_ver
 
     def is_checkout_needed(self):
-        c_ver = Build.__read_file(self.repo.get_build_path() + '/.checkout_version')
+        c_ver = self.get_build_version()
         if c_ver is not None and c_ver == self.version:
             return False
         else:
@@ -275,7 +278,10 @@ class Build:
 
     def build(self, force_build : bool = False, never_build : bool = False, quiet_build : bool = False, show_build_cmd : bool = False, executor=None):
         if force_build or self.is_checkout_needed():
-            force_build = "there is a new version available"
+            if self.get_build_version() == None:
+                force_build = "it is the first checkout"
+            else:
+                force_build = "upgrading from %s to %s" % (self.get_build_version(), self.version)
             if never_build:
                 if not quiet_build:
                     print("Warning : test will be done with an unknown state of build")
