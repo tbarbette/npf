@@ -663,13 +663,19 @@ class Grapher:
             all_results_df=pd.DataFrame() # Empty dataframe
             for testie, build, all_results in series:
                 for i, (x) in enumerate(all_results):
-                    x_vars=pd.DataFrame(x.variables,index=[0])
-                    x_vars=pd.concat([pd.DataFrame({'build' :build.pretty_name()},index=[0]), pd.DataFrame({'test_index' :i},index=[0]), x_vars],axis=1)
-                    x_data=pd.DataFrame.from_dict(all_results[x],orient='index').transpose() #Use orient='index' to handle lists with different lengths
-                    x_data['run_index']=x_data.index
-                    x_vars = pd.concat([x_vars]*len(x_data), ignore_index=True)
-                    x_df = pd.concat([x_vars, x_data],axis=1)
-                    all_results_df = pd.concat([all_results_df,x_df],ignore_index = True, axis=0)
+                    try:
+                        x_vars=pd.DataFrame(x.variables,index=[0])
+                        x_vars=pd.concat([pd.DataFrame({'build' :build.pretty_name()},index=[0]), pd.DataFrame({'test_index' :i},index=[0]), x_vars],axis=1)
+                        x_data=pd.DataFrame.from_dict(all_results[x],orient='index').transpose() #Use orient='index' to handle lists with different lengths
+                        if len(x_data) == 0:
+                            continue
+                        x_data['run_index']=x_data.index
+                        x_vars = pd.concat([x_vars]*len(x_data), ignore_index=True)
+                        x_df = pd.concat([x_vars, x_data],axis=1)
+                        all_results_df = pd.concat([all_results_df,x_df],ignore_index = True, axis=0)
+                    except Exception as e:
+                        print("ERROR: When trying to export serie %s:" % build.pretty_name())
+                        raise(e)
 
             # Save the pandas dataframe into a csv
             pandas_df_name=options.pandas_filename.split(".")[0] + ( "-%s" % fileprefix if fileprefix else "" ) + ".csv"
