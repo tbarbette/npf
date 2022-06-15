@@ -654,6 +654,9 @@ class Grapher:
                     print(e)
 
 
+        if not series:
+            print("No data...")
+            return
 
         # Add series to a pandas dataframe
         if options.pandas_filename is not None:
@@ -666,14 +669,14 @@ class Grapher:
                     x_data['run_index']=x_data.index
                     x_vars = pd.concat([x_vars]*len(x_data), ignore_index=True)
                     x_df = pd.concat([x_vars, x_data],axis=1)
-                    all_results_df= all_results_df.append(x_df,ignore_index = True)
+                    all_results_df = pd.concat([all_results_df,x_df],ignore_index = True, axis=0)
 
             # Save the pandas dataframe into a csv
-            pandas_df_name=options.pandas_filename.split(".")[0] +"-pandas" + ".csv"
+            pandas_df_name=options.pandas_filename.split(".")[0] + ( "-%s" % fileprefix if fileprefix else "" ) + ".csv"
             # Create the destination folder if it doesn't exist
-            if not os.path.exists(os.path.dirname(pandas_df_name)):
-                os.makedirs(os.path.dirname(pandas_df_name))
-
+            df_path = os.path.dirname(pandas_df_name)
+            if df_path and not os.path.exists(df_path):
+                os.makedirs(df_path)
             all_results_df.to_csv(pandas_df_name, index=True, index_label="index", sep=",", header=True)
             print("Pandas dataframe written to %s" % pandas_df_name)
 

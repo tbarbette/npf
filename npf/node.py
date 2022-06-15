@@ -132,7 +132,6 @@ class Node:
             except ValueError:
                 print("Cannot parse speed of %s : %s" % (words[1], res[-3]))
                 speed=0
-            print(speed)
             speeds.setdefault(speed, [])
             nic = NIC(pci=words[0][4:], mac=mac, ip=ip, ip6="", ifname=words[1])
             nic.speed = speed
