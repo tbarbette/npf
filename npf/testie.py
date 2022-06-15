@@ -412,9 +412,12 @@ class Testie:
 
     def cleanup(self):
         for s in self.files:
+          try:
             path = Path(s.filename)
             if path.is_file():
                 path.unlink()
+          except:
+            print("Could not cleanup file %s" % s.filename)
 
     @staticmethod
     def killall(queue, event):
