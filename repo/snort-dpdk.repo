@@ -1,0 +1,4 @@
+name=Snort with DPDK DAQ
+parent=snort
+configure=cd snort-$version/ && ./configure --with-daq-includes=/usr/local/include/ --with-daq-libraries=/usr/local/lib/ --enable-sourcefire
+
