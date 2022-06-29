@@ -685,8 +685,7 @@ class Grapher:
                         raise(e)
 
             # Save the pandas dataframe into a csv
-            pandas_df_name=options.pandas_filename.split(".")[0] + ( "-%s" % fileprefix if fileprefix else "" ) + ".csv"
-
+            pandas_df_name=os.path.splitext(options.pandas_filename)[0] + ("-"+fileprefix if fileprefix else "") + ".csv"
             # Create the destination folder if it doesn't exist
             df_path = os.path.dirname(pandas_df_name)
             if df_path and not os.path.exists(df_path):
