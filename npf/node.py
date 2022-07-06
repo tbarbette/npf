@@ -41,7 +41,7 @@ class Node:
                 line = line.strip()
                 if not line or line.startswith("#") or line.startswith("//"):
                     continue
-                match = re.match(r'((?P<tag>[a-zA-Z]+[a-zA-Z0-9]*):)?(?P<nic_idx>[0-9]+):(?P<type>' + NIC.TYPES + ')=(?P<val>[a-z0-9:_.]*)', line,
+                match = re.match(r'((?P<tag>[a-zA-Z]+[a-zA-Z0-9]*):)?(?P<nic_idx>[0-9]+):(?P<type>' + NIC.TYPES + ')=(?P<val>[a-z0-9:_.-]*)', line,
                                  re.IGNORECASE)
                 if match:
                     if match.group('tag') and not match.group('tag') in tags:
