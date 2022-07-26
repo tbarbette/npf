@@ -21,8 +21,8 @@ total_th=0
 total_pps=0
 n_total=0
 function finish {
-    echo "RESULT-LINK $(( $total_th / $n_total ))"
-    echo "RESULT-PPS $(( $total_pps / $n_total ))"
+    echo "RESULT-DEV$1LINK $(( $total_th / $n_total ))"
+    echo "RESULT-DEV$1PPS $(( $total_pps / $n_total ))"
     exit 0
 }
 trap finish EXIT
@@ -37,6 +37,9 @@ while true; do
     echo "$diff_bytes $diff_len $diff_t"
     throughput=$(( ( ( $diff_len * 24 ) + ( $diff_bytes * 8 ) ) * 1000 / $diff_t ))
     pps=$(( $diff_len * 1000 / $diff_t ))
+
+    echo "DEV$intif-$t-RESULT-IDEV${intif}LINK $throughput"
+    echo "DEV$intif-$t-RESULT-IDEV${intif}PPS $pps"
     if [ $acc -eq 1 ] ; then
         if [ $throughput -lt 1000000 ] ; then
             echo "Throughput is $throughput, stopping computation"
