@@ -349,7 +349,7 @@ class Testie:
                     fpath = os.path.relpath(fpath)
                     print("Sending files %s to %s... " % (fpath, role), end = '')
                     t = node.executor.sendFolder(fpath)
-                    if (t > 0):
+                    if (t[0] > 0):
                         print("%d bytes sent." % t)
                     else:
                         print("Already up to date !")
