@@ -70,7 +70,7 @@ class Run:
                 return False
             ov = o.variables[k]
             if v == ov:
-                return True
+                continue
             if type(v) is tuple:
                 v = v[1]
             if type(ov) is tuple:
