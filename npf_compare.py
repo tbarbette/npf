@@ -63,20 +63,21 @@ def do_graph(filename,args,series,kind_series,options):
             series.append((testie, build, dataset))
 
     # Merge series with common name
-    merged_series = OrderedDict()
-    for testie, build, dataset in series:
-        #Group series by serie name
-        merged_series.setdefault(build.pretty_name(), []).append((testie, build, dataset))
+    if options.group_series:
+        merged_series = OrderedDict()
+        for testie, build, dataset in series:
+            #Group series by serie name
+            merged_series.setdefault(build.pretty_name(), []).append((testie, build, dataset))
 
-    series = []
-    for sname,slist in merged_series.items():
-            if len(slist) == 1:
-                series.append(slist[0])
-            else:
-                all_r = {}
-                for results in [l[2] for l in slist]:
-                    all_r.update(results)
-                series.append((slist[0][0], slist[0][1], all_r))
+        series = []
+        for sname,slist in merged_series.items():
+                if len(slist) == 1:
+                    series.append(slist[0])
+                else:
+                    all_r = {}
+                    for results in [l[2] for l in slist]:
+                        all_r.update(results)
+                    series.append((slist[0][0], slist[0][1], all_r))
 
     # We must find the common variables to all series, and change dataset to reflect only those
     all_variables = []
@@ -190,7 +191,7 @@ def main():
 
     series, time_series = comparator.run(testie_name=args.test_files, tags=args.tags, options=args, on_finish=lambda series,time_series:do_graph(filename,args,series,time_series,options=args) if args.iterative else None)
 
-    do_graph(filename,args,series, time_series, options=args)
+    do_graph(filename, args, series, time_series, options=args)
 
 if __name__ == "__main__":
     main()

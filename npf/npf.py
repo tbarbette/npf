@@ -74,8 +74,9 @@ def add_graph_options(parser: ArgumentParser):
 
     g.add_argument('--graph-no-series', dest='graph_no_series', action='store_true', default=False)
 
-    g.add_argument('--graph-group-repo', dest='group_repo', action='store_true', default=False)
+    g.add_argument('--graph-group-repo', dest='group_repo', action='store_true', default=False, help="Group series, using the repository name as a variable")
 
+    g.add_argument('--graph-group-series', dest='group_series', action='store_true', default=False, help="Group series with the same name")
     g.add_argument('--no-transform', dest='do_transform', action='store_false', default=True, help="Forbid automatic transformation of data such as extracting a variable as a serie")
 
     g.add_argument('--graph-select-max', dest='graph_select_max', type=int, default=None)
