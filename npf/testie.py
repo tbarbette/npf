@@ -459,6 +459,7 @@ class Testie:
                         'NPF_ROOT_PATH': os.path.relpath(npf.npf_root_path(), abs_test_folder),
                         'NPF_BUILD_PATH': bp,
                         'NPF_SCRIPT_PATH': tp,
+                        'NPF_TEST_PATH': tp, #Deprecatefd
                         'NPF_TESTIE_PATH': tp, #Deprecatefd
                         'NPF_RESULT_PATH': os.path.relpath(build.result_folder(), abs_test_folder)})
         if out_path:
@@ -664,7 +665,6 @@ class Testie:
                         for ik, iv in script.params.items():
                             if ik.startswith('ifeq-'):
                                 ik=ik[5:]
-                                print(ik,iv)
                                 if ik not in v:
                                     print("WARNING: Filtering for %s for script %s but it is not in the variables" % (ik, param.title))
                                 if v[ik] != iv:

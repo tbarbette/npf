@@ -10,6 +10,7 @@ if sys.version_info < (3, 7):
 else:
     from ordered_set import OrderedSet
 
+from packaging import version
 from scipy import ndimage
 from asteval import Interpreter
 from collections import OrderedDict
@@ -1494,7 +1495,10 @@ class Grapher:
                                 if thresh > 0:
                                     plt.xscale('symlog',base=base,linthresh=thresh )
                                 else:
-                                    plt.xscale('log',basex=base)
+                                    if version.parse(matplotlib.__version__) >= version.parse("3.3.0"):
+                                        plt.xscale('log',base=base)
+                                    else:
+                                        plt.xscale('log',basex=base)
 
                                 xticks = data[0][0]
                                 if not is_log(xticks) and xmin:

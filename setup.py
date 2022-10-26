@@ -25,12 +25,13 @@ install_requires=[
     'webcolors',
     'colorama',
     'pygtrie',
+    'packaging',
     'importlib_metadata'
         ]
 
 setuptools.setup(
     name="npf",
-    version="1.0.38",
+    version="1.0.39",
     author="Tom Barbette",
     author_email="t.barbette@gmail.com",
     install_requires=install_requires,

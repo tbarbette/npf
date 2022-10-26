@@ -13,6 +13,7 @@ KEEPALIVE=30
 ssl:NGINX_SSL=1
 NGINX_CPU_STEP=1
 NGINX_DAEMON=on
+NGINX_IRQ_AFFINITY=1
 
 %late_variables
 NGINX_SRVTYPE=default_server
@@ -37,11 +38,13 @@ killall -9 nginx &> /dev/null || true
 sleep 1
 echo "Generating SSL parameters for NGINX"
 bash genssl.sh
-service irqbalance stop
-echo "Setting NGINX number of queues"
-ethtool -L ${self:0:ifname} combined $NGINX_NWORKER
-echo "Setting IRQ affinity"
-set_irq_affinity.sh ${self:0:ifname} &
+if [ $NGINX_IRQ_AFFINITY -eq 1 ] ; then
+    service irqbalance stop
+    echo "Setting NGINX number of queues"
+    ethtool -L ${self:0:ifname} combined $NGINX_NWORKER
+    echo "Setting IRQ affinity"
+    set_irq_affinity.sh ${self:0:ifname} &
+fi
 echo "Launching NGINX..."
 nginx -c $(pwd)/nginx.conf -p $NGINX_ROOT
 r=$?
