@@ -458,6 +458,7 @@ class Testie:
                         'NPF_ROOT': '../', #Deprecated
                         'NPF_ROOT_PATH': os.path.relpath(npf.npf_root_path(), abs_test_folder),
                         'NPF_BUILD_PATH': bp,
+                        'NPF_BUILD_ROOT': bp, #Deprecated
                         'NPF_SCRIPT_PATH': tp,
                         'NPF_TEST_PATH': tp, #Deprecatefd
                         'NPF_TESTIE_PATH': tp, #Deprecatefd
