@@ -20,7 +20,7 @@ from npf import npf
 
 class Statistics:
     @staticmethod
-    def run(build: Build, all_results: Dataset, testie: Testie, max_depth=3, filename=None):
+    def run(build: Build, all_results: Dataset, testie: Testie, max_depth=3, filename=None, doviz=True):
         print("Building dataset...")
 
         #Transform the dataset into a standard table of X/Features and Y observations
@@ -39,17 +39,21 @@ class Statistics:
                 print(e)
                 continue
 
-            if (max_depth is None and len(X) > 16) or (max_depth is not None and max_depth > 8):
-                print("No tree graph when maxdepth is > 8. Use --statistics-maxdepth 8 to fix it to 8.")
-            else:
-                dot_data = tree.export_graphviz(clf, out_file=None, filled=True, rounded=True, special_characters=True,
-                                                feature_names=dtype['names'])
-                graph = pydotplus.graph_from_dot_data(dot_data)
+            if doviz:
+                if (max_depth is None and len(X) > 16) or (max_depth is not None and max_depth > 8):
+                    print("No tree graph when maxdepth is > 8. Use --statistics-maxdepth 8 to fix it to 8.")
+                else:
+                    dot_data = tree.export_graphviz(clf, out_file=None, filled=True, rounded=True, special_characters=True,
+                                                    feature_names=dtype['names'])
+                    graph = pydotplus.graph_from_dot_data(dot_data)
 
 
-                f = npf.build_filename(testie, build, filename if not filename is True else None, {}, 'pdf', result_type, show_serie=False, suffix="clf")
-                graph.write(f, format=os.path.splitext(f)[1][1:])
-                print("Decision tree visualization written to %s" % f)
+                    f = npf.build_filename(testie, build, filename if not filename is True else None, {}, 'pdf', result_type, show_serie=False, suffix="clf")
+                    try:
+                        graph.write(f, format=os.path.splitext(f)[1][1:])
+                        print("Decision tree visualization written to %s" % f)
+                    except Exception as e:
+                        print("Could not generate the tree vizualization : %s" % str(e))
 
             vars_values = OrderedDict()
 
