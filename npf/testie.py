@@ -450,8 +450,8 @@ class Testie:
         tp = os.path.relpath(self.path,abs_test_folder)
 
         if node and node.executor.path:
-            bp = os.path.relpath(bp, npf.experiment_path())
-            rp = os.path.relpath(rp, npf.experiment_path())
+            bp = os.path.relpath(bp, npf.experiment_path() + '/testfolder/')
+            rp = os.path.relpath(rp, npf.experiment_path() + '/testfolder/')
         v_internals.update({
                         'NPF_REPO':get_valid_filename(build.repo.name),
                         'NPF_REPO_PATH': rp,
