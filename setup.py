@@ -13,7 +13,7 @@ install_requires=[
     'typing',
     'pydotplus',
     'scipy',
-    'sklearn',
+    'scikit-learn',
     'orderedset; python_version < "3.7.0"',
     'ordered_set; python_version >= "3.7.0"',
     'paramiko',
@@ -31,7 +31,7 @@ install_requires=[
 
 setuptools.setup(
     name="npf",
-    version="1.0.39",
+    version="1.0.40",
     author="Tom Barbette",
     author_email="t.barbette@gmail.com",
     install_requires=install_requires,
