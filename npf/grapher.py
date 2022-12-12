@@ -1401,10 +1401,13 @@ class Grapher:
                             """Heatmap"""
                             r, ndata = self.do_heatmap(axis, key, result_type, data, xdata, vars_values, shift, isubplot, sparse = False)
                             default_doleg = False
+                            barplot = True
                         elif graph_type == "sparse_heatmap":
                             """sparse Heatmap"""
                             r, ndata = self.do_heatmap(axis, key, result_type, data, xdata, vars_values, shift, isubplot, sparse = True)
                             default_doleg = False
+
+                            barplot = True
                         else:
                             """Barplot. X is all seen variables combination, series are version"""
                             r, ndata= self.do_barplot(axis,vars_all, dyns, result_type, data, shift, ibrokenY==0)
