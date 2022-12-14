@@ -749,6 +749,9 @@ class SectionConfig(SectionVariable):
                             best_l = l
                             best = v
 
+                if var in d:
+                    return d[var]
+
             #Search for the exact key if there is no result_type
             for k, v in d.items():
                 m = re.search(k, key, re.IGNORECASE)

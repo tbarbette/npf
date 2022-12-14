@@ -1906,7 +1906,11 @@ class Grapher:
             nseries = max(len(y),nseries)
             y = get_numeric(build._pretty_name)
             yvals.append(y)
-        xvals = list(vars_values[key])
+        if not key in vars_values:
+            print("WARNING: Heatmap with an axis of size 1")
+            xvals = [1]
+        else:
+            xvals = list(vars_values[key])
         if sparse:
             xmin=min(xvals)
             xmax=max(xvals)
