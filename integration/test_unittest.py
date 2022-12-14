@@ -23,7 +23,7 @@ def test_args():
 
 def test_repo():
     args = test_args()
-    r = Repository('click-2021', args)
+    r = Repository('click-2022', args)
     assert r.branch == '2021'
     return r
 
@@ -65,7 +65,7 @@ def test_paths():
         assert v['NPF_REPO'] == 'Click_2021'
         assert v['NPF_ROOT_PATH'] == '../..'
         assert v['NPF_SCRIPT_PATH'] == '../../tests/examples'
-        assert v['NPF_RESULT_PATH'] == '../../results/click-2021'
+        assert v['NPF_RESULT_PATH'] == '../../results/click-2022'
 
 def test_type():
     assert dtype('0') == int
