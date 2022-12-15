@@ -654,7 +654,7 @@ class SectionConfig(SectionVariable):
         self.__add("graph_series_label", None)
         self.__add("graph_bar_stack", False)
         self.__add("graph_text",'')
-        self.__add("graph_legend",True)
+        self.__add("graph_legend", None), #the default behavior depends upon the type of graph
         self.__add("graph_error_fill",False)
         self.__add_dict("graph_error", {"CDF":"none"})
         self.__add("graph_mode",None)

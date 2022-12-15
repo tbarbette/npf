@@ -24,7 +24,7 @@ def test_args():
 def test_repo():
     args = test_args()
     r = Repository('click-2022', args)
-    assert r.branch == '2021'
+    assert r.branch == '2022'
     return r
 
 def test_node():
@@ -62,7 +62,7 @@ def test_paths():
     vl={}
     testie.update_constants(vl, build, local.experiment_path() + "/testie-1/", out_path=None)
     for d in [vl,v,v2]:
-        assert v['NPF_REPO'] == 'Click_2021'
+        assert v['NPF_REPO'] == 'Click_2022'
         assert v['NPF_ROOT_PATH'] == '../..'
         assert v['NPF_SCRIPT_PATH'] == '../../tests/examples'
         assert v['NPF_RESULT_PATH'] == '../../results/click-2022'

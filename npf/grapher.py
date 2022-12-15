@@ -266,6 +266,10 @@ class Grapher:
     def config_bool_or_in(self, var, obj, default=None):
         val = self.config(var, default)
 
+        #If not found, return the default
+        if val is None:
+            return default
+
         if type(val) == type(obj) and val == obj:
             return True
 
@@ -1653,7 +1657,12 @@ class Grapher:
                 if type(ncol) == list:
                     ncol = ncol[ilegend % len(ncol)]
                 doleg = self.config_bool_or_in('graph_legend', result_type)
-
+                if doleg is None:
+                    if len(labels) == 1 and labels[0] in ('local','version'):
+                        doleg = False
+                        print("Legend not shown as there is only one serie with a default name. Set --config graph_legend=1 to force printing a legend.")
+                    else:
+                        doleg = True
                 if default_doleg and doleg:
                     loc = self.config("legend_loc")
                     if type(loc) is dict or type(loc) is list:
