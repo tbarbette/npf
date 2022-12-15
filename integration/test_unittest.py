@@ -10,7 +10,7 @@ from npf.build import Build
 from npf.variable import dtype, numeric_dict
 from npf.types.dataset import Run, ImmutableRun
 
-def test_args():
+def get_args():
     parser = argparse.ArgumentParser(description='NPF Tester')
     npf.add_verbosity_options(parser)
     npf.add_building_options(parser)
@@ -21,14 +21,20 @@ def test_args():
     npf.set_args(args)
     return args
 
-def test_repo():
-    args = test_args()
+def test_args():
+    assert(get_args())
+
+def get_repo():
+    args = get_args()
     r = Repository('click-2022', args)
     assert r.branch == '2022'
     return r
 
+def test_repo():
+    assert(get_repo())
+
 def test_node():
-    args = test_args()
+    args = get_args()
     args.do_test = False
     n1 = Node.makeSSH(addr="cluster01.sample.node", user=None, path=None, options=args)
     n2 = Node.makeSSH(addr="cluster01.sample", user=None, path=None, options=args)
@@ -38,7 +44,7 @@ def test_node():
 
 def test_paths():
 
-    args = test_args()
+    args = get_args()
     args.do_test = False
     args.do_conntest = False
     args.experiment_folder = "test_root"
@@ -53,7 +59,7 @@ def test_paths():
     #Test the constants are correct
 
     testie = Testie("tests/examples/math.npf", options=args, tags=args.tags)
-    repo = test_repo()
+    repo = get_repo()
     build = Build(repo, "version")
     v={}
     testie.update_constants(v, build, ssh.experiment_path() + "/testie-1/", out_path=None)
