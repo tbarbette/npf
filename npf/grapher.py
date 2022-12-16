@@ -676,7 +676,12 @@ class Grapher:
             for testie, build, all_results in series:
                 for i, (x) in enumerate(all_results):
                     try:
-                        x_vars=pd.DataFrame(x.variables,index=[0])
+
+                        labels = [k[1] if type(k) is tuple else k for k,v in x.variables.items()]
+                        x_vars = [[v[1] if type(v) is tuple else v for k,v in x.variables.items()]]
+                        #x_vars = x.variables
+                        print(x_vars)
+                        x_vars=pd.DataFrame(x_vars,index=[0],columns=labels)
                         x_vars=pd.concat([pd.DataFrame({'build' :build.pretty_name()},index=[0]), pd.DataFrame({'test_index' :i},index=[0]), x_vars],axis=1)
                         x_data=pd.DataFrame.from_dict(all_results[x],orient='index').transpose() #Use orient='index' to handle lists with different lengths
                         if len(x_data) == 0:

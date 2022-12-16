@@ -236,6 +236,14 @@ def set_args(args):
 def parse_nodes(args):
     set_args(args)
 
+    #other random stuffs to do
+    if not options.build_folder is None:
+        if not os.access(options.build_folder, os.W_OK):
+            raise Exception("The provided build path is not writeable or does not exists : %s!" % options.build_folder)
+        options._build_path = options.build_folder
+    else:
+        options._build_path = npf_writeable_root_path()+'/build/'
+
     if type(options.use_last) is not int:
         if options.use_last:
             options.use_last = 100
@@ -315,7 +323,6 @@ def parse_nodes(args):
         if os.path.exists(experiment_path() + ".access_test"):
             os.unlink(experiment_path() + ".access_test")
 
-
 def parse_variables(args_variables, tags, sec) -> Dict:
     variables = {}
     for variable in args_variables:
@@ -356,13 +363,8 @@ def cwd_path():
     return sys.modules[__name__].cwd
 
 def get_build_path():
-    options = sys.modules[__name__].options
-    if not options.build_folder is None:
-        if not os.access(options.build_folder, os.W_OK):
-            raise Exception("The provided build path is not writeable or does not exists : %s!" % options.build_folder)
-        return options.build_folder
-    else:
-        return npf_writeable_root_path()+'/build/'
+    assert(options._build_path)
+    return options._build_path
 
 def from_experiment_path(path):
     # Returns the path under NPF root if it is not absolute
