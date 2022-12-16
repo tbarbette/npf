@@ -6,14 +6,14 @@ PERF_TIME=1
 
 %script sudo=true autokill=false
 echo "Starting perf..."
-perf stat -a -I 1000 -C 0-$(( $N_CORES - 1 )) -e "LLC-loads,LLC-load-misses,L1-dcache-load-misses,L1-dcache-loads,cycles" -o stats.log sleep $PERF_TIME
+perf stat -a -I 1000 -C 0-$(( $N_CORES - 1 )) -e "LLC-loads,LLC-load-misses,L1-dcache-load-misses,L1-icache-load-misses,L1-dcache-loads,cycles,branch-misses" -o stats.log sleep $PERF_TIME
 echo "EVENT PERF_DONE"
 
 
 echo "Analyzing stats..."
 chmod +x cache-stats.sh
 if true ; then
-    sudo sh cache-stats.sh stats.log
+    sudo bash cache-stats.sh stats.log
 fi
 
 echo "EVENT PERF_PARSED"
@@ -23,7 +23,7 @@ echo "EVENT PERF_PARSED"
 //-----------------------
 
 %file cache-stats.sh
-#! /bin/bash
+#!/bin/bash
 
 FILE=$1
 
@@ -36,16 +36,29 @@ kill_current_running_perfs () {
 
 calculate_and_print_stats () {
     cat $FILE
-    load_misses=$(perl -pe 's/(?<=\d),(?=\d)//g' $FILE | awk '$3 == "LLC-load-misses" {print $2}')
-    count=0
-    total_misses=0
 
-    for miss in $load_misses; do
-        num=$(echo $miss | tr -dc '0-9')
-        count=`expr $count + 1`
-        total_misses=`expr $total_misses + $num`
+    declare -a events
+    events[0]="LLC-load-misses;LLC-MISSES"
+    events[1]="L1-icache-load-misses;L1I-MISSES"
+    events[2]="branch-misses;BRANCH-MISSES"
+
+    for event in "${events[@]}"
+    do
+        IFS=";" read -r -a arr <<< "${event}"
+        ev=${arr[0]}
+        et=${arr[1]}
+        counters=$(perl -pe 's/(?<=\d),(?=\d)//g' $FILE | awk '$3 == "'$ev'" {print $2}')
+        echo $counters
+        count=0
+        total_ev=0
+
+        for miss in $counters; do
+            num=$(echo $miss | tr -dc '0-9')
+            count=`expr $count + 1`
+            total_ev=`expr $total_ev + $num`
+        done
+        echo "RESULT-TOTAL-$et $total_ev"
     done
-    echo "RESULT-TOTAL-LLC-MISSES $total_misses"
 
     ############################################
 
