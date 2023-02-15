@@ -23,13 +23,14 @@ PERF_PREFIX?=
 
 %script sudo=true autokill=false deps=perf-class
 trap : INT
-sh script.sh
+sh script.sh ${PERF_PREFIX}
 
 %file script.sh 
 echo "Launching perf record..."
 trap : INT
-perf record -r 80 -F $PERF_FREQ -a --call-graph dwarf $PERF_OPT -o perf${PERF_PREFIX}.data -e $PERF_EVENT sleep $PERF_TIME
-perf script -i perf${PERF_PREFIX}.data > perf${PERF_PREFIX}.script
+PREFIX=$1
+perf record -r 80 -F $PERF_FREQ -a --call-graph dwarf $PERF_OPT -o perf${PREFIX}.data -e $PERF_EVENT sleep $PERF_TIME
+perf script -i perf${PREFIX}.data > perf${PREFIX}.script
 
 %exit
 python3 ${NPF_BUILD_ROOT}/perf-class/perf_class/perf_class.py perf${PERF_PREFIX}.script --map ${PERF_CLASS_MAP} --min ${PERF_MIN} --stack-max ${PERF_STACK_MAX} --show-failed ${PERF_CLASS_OPT} > perf${PERF_PREFIX}.list

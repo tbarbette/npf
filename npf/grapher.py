@@ -1330,19 +1330,26 @@ class Grapher:
                             else:
                                 s=shift
                                 tot = len(data)
+
                             gi.setdefault(s,0)
-                            slen = len(graphcolorseries[s % len(graphcolorseries)])
-                            n = slen / tot
-                            if n < 0:
-                                n = 1
-                            #For the default colors we take them in order
-                            if s == 0:
-                                f = gi[s]
+                            if not is_numeric(s):
+                                build._color=s
                             else:
-                                f = round((gi[s] + (0.33 if gi[s] < tot / 2 else 0.66)) * n)
+                                slen = len(graphcolorseries[s % len(graphcolorseries)])
+                                n = slen / tot
+                                if n < 0:
+                                    n = 1
+                                #For the default colors we take them in order
+
+                                if s == 0:
+                                    f = gi[s]
+                                else:
+                                    f = round((gi[s] + (0.33 if gi[s] < tot / 2 else 0.66)) * n)
+
+                                cserie = graphcolorseries[s % len(graphcolorseries)]
+
+                                build._color=cserie[f % len(cserie)]
                             gi[s]+=1
-                            cserie = graphcolorseries[s % len(graphcolorseries)]
-                            build._color=cserie[f % len(cserie)]
 
 
                     axis.tick_params(**tick_params)
