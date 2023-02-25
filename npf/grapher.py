@@ -184,7 +184,7 @@ class Graph:
     def dyns(self):
         return [var for var,values in self.vars_values.items() if len(values) > 1]
 
-    #Convert the series into te XYEB format (see types.dataset)
+    #Convert the series into the XYEB format (see types.dataset)
     def dataset(self,kind=None):
         if not self.data_types:
 
