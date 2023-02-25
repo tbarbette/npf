@@ -56,6 +56,8 @@ def add_verbosity_options(parser: ArgumentParser):
 
 def add_graph_options(parser: ArgumentParser):
     o = parser.add_argument_group('Output data')
+    o.add_argument('--web',
+                   help='Generate interactive graphs in a .html file format')
     o.add_argument('--output',
                    help='Output data to CSV files, one per result type. By default it prints the variable value as first column and the second column is the mean of all runs. Check --output-columns to change this behavior.', dest='output', type=str, nargs='?', const='graph', default=None)
     o.add_argument('--output-columns', dest='output_columns', type=str, nargs='+', default=['x', 'mean'],

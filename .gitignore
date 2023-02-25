@@ -10,3 +10,6 @@ result
 tests/local
 .idea/modules.xml
 .idea/misc.xml
+
+npf.egg-info/
+tmp/
