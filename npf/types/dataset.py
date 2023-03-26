@@ -12,7 +12,7 @@ import csv
 from npf import npf
 from npf.variable import is_numeric, get_numeric, numeric_dict
 
-from npf.types.web import prepare_web_export
+from npf.types.web.web import prepare_web_export
 
 class Run:
     def __init__(self, variables):

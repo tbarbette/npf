@@ -6,7 +6,7 @@ import copy
 import traceback
 import sys
 
-from npf.types.web import prepare_web_export
+from npf.types.web.web import prepare_web_export
 if sys.version_info < (3, 7):
     from orderedset import OrderedSet
 else:
