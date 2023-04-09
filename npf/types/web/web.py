@@ -6,7 +6,7 @@ from ordered_set import OrderedSet
 import requests
 
 from npf.types.web.configuration import Configuration, Experiment, Result, Run
-
+from npf_web_extension import app
 
 def download_latest_release():
   url = 'https://github.com/dpcodebiz/npf-web-extension/releases/download/v0.1.0/release-0.1.0.zip'
@@ -21,7 +21,7 @@ def export_app():
     myzip.extractall('./tmp/web/')
 
 
-def hydrate_app(json_configuration):
+def hydrate_app_backup(json_configuration):
 
   with open('./tmp/web/build/index.html', 'r', encoding='utf-8') as file:
     data = file.readlines()
@@ -133,7 +133,8 @@ def prepare_web_export(datasets):
   # export_app()
 
   # Hydrating app
-  hydrate_app(configuration.to_json())
+  #hydrate_app(configuration.to_json())
 
-  with open("tmp/test.json", "w") as f:
-    json.dump(configuration.to_json(), f)
+  # with open("tmp/test.json", "w") as f:
+  #   json.dump(configuration.to_json(), f)
+  app.hydrate_app()

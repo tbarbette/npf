@@ -26,7 +26,8 @@ install_requires=[
     'colorama',
     'pygtrie',
     'packaging',
-    'importlib_metadata'
+    'importlib_metadata',
+    'npf-web-extension'
         ]
 
 setuptools.setup(
