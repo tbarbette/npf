@@ -27,7 +27,7 @@ install_requires=[
     'pygtrie',
     'packaging',
     'importlib_metadata',
-    'npf-web-extension'
+    'npf-web-extension >= 0.2.3'
         ]
 
 setuptools.setup(

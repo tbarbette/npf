@@ -1,55 +1,8 @@
 
-import json
-from zipfile import ZipFile
 import numpy as np
-from ordered_set import OrderedSet
-import requests
 
 from npf.types.web.configuration import Configuration, Experiment, Result, Run
 from npf_web_extension import app
-
-def download_latest_release():
-  url = 'https://github.com/dpcodebiz/npf-web-extension/releases/download/v0.1.0/release-0.1.0.zip'
-  r = requests.get(url, allow_redirects=True)
-
-  open('./tmp/release-0.1.0.zip', 'wb').write(r.content)
-
-
-def export_app():
-
-  with ZipFile('./tmp/release-0.1.0.zip') as myzip:
-    myzip.extractall('./tmp/web/')
-
-
-def hydrate_app_backup(json_configuration):
-
-  with open('./tmp/web/build/index.html', 'r', encoding='utf-8') as file:
-    data = file.readlines()
-  
-  start_line = -1
-  end_line = -1
-
-  for index, line in enumerate(data):
-
-    print(index, line.find("<!-- NPF_CONFIG_INSERTION_STARTT -->"), line)
-
-    if start_line == -1:
-      start_line = index if line.find("<!-- NPF_CONFIG_INSERTION_STARTT -->") != -1 else -1
-    
-    if end_line == -1:
-      end_line = index if line.find("<!-- NPF_CONFIG_INSERTION_END -->") != -1 else -1
-
-    if start_line != -1 and end_line != -1:
-      break
-  
-  print(start_line, end_line)
-  
-  if start_line != -1 and end_line != -1:
-    new_data = [x for i, x in enumerate(data) if i <= start_line or i >= end_line]
-    new_data.insert(end_line-(len(data)-len(new_data)), f'\t<script type="text/javascript">setTimeout(() => window.updateConfiguration({json.dumps(json_configuration)}), 2500)</script>\n')
-  
-    with open('./tmp/web/build/index.html', 'w', encoding='utf-8') as file:
-      file.writelines(new_data)
 
 def datasets_to_configuration(datasets):
 
@@ -117,24 +70,9 @@ def datasets_to_configuration(datasets):
 
 
 def prepare_web_export(datasets):
-
-  output = {}
-
-  # print(datasets)
-
   # Getting configuration from datasets
   configuration = datasets_to_configuration(datasets)
-  print(configuration.to_json())
-
-  # TODO find a solution to not download this in real time
-  # download_latest_release()
+  print(configuration.to_json()) # Debug
 
   # Exporting app
-  # export_app()
-
-  # Hydrating app
-  #hydrate_app(configuration.to_json())
-
-  # with open("tmp/test.json", "w") as f:
-  #   json.dump(configuration.to_json(), f)
-  app.hydrate_app()
+  app.export(configuration.to_json(), "./tmp")
