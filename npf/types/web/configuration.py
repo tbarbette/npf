@@ -8,6 +8,23 @@ class Configuration:
   # Data
   experiments = []
   
+  def get_experiment(self, experiment):
+    for e in self.experiments:
+      if e.name == experiment.name:
+        return e
+    return None
+
+  def append_experiment_data(self, experiment):
+
+    # Getting stored experiment
+    stored_experiment = self.get_experiment(experiment)
+
+    # Creating experiment if not already there
+    if stored_experiment == None:
+      self.experiments.append()
+
+
+
   def to_json(self):
     return {
       "experiments": [e.to_json() for e in self.experiments]
@@ -38,6 +55,8 @@ class Run:
 
     for result in self.results:
       results_dict[result.label] = result.value
+    
+    print(self.parameters, [e.value for e in self.results])
     
     return results_dict
 
