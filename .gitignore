@@ -13,3 +13,4 @@ tests/local
 
 npf.egg-info/
 tmp/
+.vscode/
