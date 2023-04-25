@@ -673,7 +673,7 @@ class Grapher:
             return
 
         # Add series to a pandas dataframe
-        if options.pandas_filename is not None:
+        if options.pandas_filename is not None or options.web is not None:
             all_results_df=pd.DataFrame() # Empty dataframe
             for testie, build, all_results in series:
                 for i, (x) in enumerate(all_results):
@@ -697,14 +697,15 @@ class Grapher:
                         raise(e)
 
             # Save the pandas dataframe into a csv
-            pandas_df_name=os.path.splitext(options.pandas_filename)[0] + ("-"+fileprefix if fileprefix else "") + ".csv"
-            # Create the destination folder if it doesn't exist
-            df_path = os.path.dirname(pandas_df_name)
-            if df_path and not os.path.exists(df_path):
-                os.makedirs(df_path)
+            if options.pandas_filename is not None:
+                pandas_df_name=os.path.splitext(options.pandas_filename)[0] + ("-"+fileprefix if fileprefix else "") + ".csv"
+                # Create the destination folder if it doesn't exist
+                df_path = os.path.dirname(pandas_df_name)
+                if df_path and not os.path.exists(df_path):
+                    os.makedirs(df_path)
 
-            all_results_df.to_csv(pandas_df_name, index=True, index_label="index", sep=",", header=True)
-            print("Pandas dataframe written to %s" % pandas_df_name)
+                all_results_df.to_csv(pandas_df_name, index=True, index_label="index", sep=",", header=True)
+                print("Pandas dataframe written to %s" % pandas_df_name)
 
         #Overwrite markers and lines from user
         self.graphmarkers = self.configlist("graph_markers")
@@ -895,7 +896,7 @@ class Grapher:
         # Export to web format
         # TODO maybe make this like an alternative? ie: choose between plotly graph or web graph (interactive)
         if options.web is not None:
-            prepare_web_export(series)
+            prepare_web_export(series, all_results_df, options.web)
 
 
     def graph_group(self, series, vars_values, filename, fileprefix, title):
