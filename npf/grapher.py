@@ -1020,7 +1020,9 @@ class Grapher:
         #Divide a serie by another
         prop = self.config('graph_series_prop')
         if prop:
-            series = Graph.series_prop(series, prop, self.configdict('graph_cross_reference').values())
+            if len(series) > 1:
+                series = Graph.series_prop(series, prop, self.configdict('graph_cross_reference').values())
+                prop = False
 
         #Eventually overwrite label of series
         graph_series_label = self.config("graph_series_label")
