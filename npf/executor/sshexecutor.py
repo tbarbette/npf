@@ -3,7 +3,11 @@ import os,errno
 import time
 from multiprocessing import Queue
 from typing import List
-import paramiko
+import warnings
+from cryptography.utils import CryptographyDeprecationWarning
+with warnings.catch_warnings():
+    warnings.filterwarnings('ignore', category=CryptographyDeprecationWarning)
+    import paramiko
 from .executor import Executor
 from ..eventbus import EventBus
 from .. import npf

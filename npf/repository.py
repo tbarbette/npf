@@ -329,7 +329,7 @@ class Repository:
     def pretty_name(self):
         return self.name
 
-    #Get the path 
+    #Get the path
     def get_build_path(self):
         return self._build_path
 
@@ -340,8 +340,8 @@ class Repository:
             return bp
         if not bp:
             return ""
-        #If the path is in the NPF build path, the remote 
-        if os.path.abspath(bp).startswith(npf.get_build_path()): 
+        #If the path is in the NPF build path, the remote
+        if os.path.abspath(bp).startswith(npf.get_build_path()):
             return os.path.relpath(bp, os.path.dirname(os.path.normpath(npf.get_build_path())))
         if os.path.abspath(bp).startswith(npf.experiment_path()):
             return os.path.relpath(bp, npf.experiment_path())

@@ -19,6 +19,7 @@ def get_args():
     args = parser.parse_args(args = "")
     args.tags = {}
     npf.set_args(args)
+    npf.parse_nodes(args)
     return args
 
 def test_args():
