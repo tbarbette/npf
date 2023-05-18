@@ -249,7 +249,7 @@ class Graph:
                             results = (results[f] / base[f] * float(abs(prop)) + (prop if prop < 0 else 0))
                         run_results[result_type] = results
                     new_results[run] = run_results
-                build._pretty_name = series[0][1]._pretty_name + " / " + build._pretty_name
+                build._pretty_name = build._pretty_name + " / " + series[0][1]._pretty_name
                 newseries.append((script, build, new_results))
             return newseries
 
