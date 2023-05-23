@@ -1395,6 +1395,7 @@ class Grapher:
                         print("WARNING: Cannot graph %s as a line without dynamic variables" % graph_type)
                         graph_type = "simple_bar"
                     barplot = False
+                    horizontal = False
 
                     try:
                         if graph_type == "simple_bar":
@@ -1424,8 +1425,12 @@ class Grapher:
                             """sparse Heatmap"""
                             r, ndata = self.do_heatmap(axis, key, result_type, data, xdata, vars_values, shift, isubplot, sparse = True)
                             default_doleg = False
-
                             barplot = True
+
+                        elif graph_type == "barh" or graph_type=="horizontal_bar":
+                            r, ndata= self.do_barplot(axis,vars_all, dyns, result_type, data, shift, ibrokenY==0, horizontal=True)
+                            barplot = True
+                            horizontal = True
                         else:
                             """Barplot. X is all seen variables combination, series are version"""
                             r, ndata= self.do_barplot(axis,vars_all, dyns, result_type, data, shift, ibrokenY==0)
@@ -1625,16 +1630,26 @@ class Grapher:
                             if print_xlabel:
                                 extra_artists.append(fig.text(0.5,0.03, xname,  transform=fig.transFigure))
                             if print_ylabel:
-                                axis.set_ylabel(axis.yname)
+                                if horizontal:
+                                    axis.set_xlabel(axis.yname)
+                                else:
+                                    axis.set_ylabel(axis.yname)
                             # We have 10% white bottom now
                             axis.yaxis.label.set_position((0,0.5 + 0.1))
                             axis.yaxis.label.set_transform(mtransforms.blended_transform_factory(mtransforms.IdentityTransform(), fig.transFigure))
                     else:
                         if print_xlabel:
-                            axis.set_xlabel(xname)
+
+                            if horizontal:
+                                axis.set_ylabel(xname)
+                            else:
+                                axis.set_xlabel(xname)
 
                         if print_ylabel:
-                            axis.set_ylabel(axis.yname)
+                            if horizontal:
+                                axis.set_xlabel(axis.yname)
+                            else:
+                                axis.set_ylabel(axis.yname)
 
                 if self.options.graph_size:
                     fig = plt.gcf()
@@ -1677,7 +1692,7 @@ class Grapher:
                         print("Legend not shown as there is only one serie with a default name. Set --config graph_legend=1 to force printing a legend.")
                     else:
                         doleg = True
-                if default_doleg and doleg:
+                if default_doleg or doleg:
                     loc = self.config("legend_loc")
                     if type(loc) is dict or type(loc) is list:
                         loc = self.scriptconfig("legend_loc",key="result",result_type=result_type)
@@ -2211,7 +2226,7 @@ class Grapher:
             ticks = [variable.get_numeric(npf.parseUnit(y)) for y in yticks.split('+')]
             plt.yticks(ticks)
 
-    def do_barplot(self, axis,vars_all, dyns, result_type, data, shift, show_vals):
+    def do_barplot(self, axis,vars_all, dyns, result_type, data, shift, show_vals, horizontal=False):
         nseries = len(data)
 
         self.format_figure(axis,result_type,shift)
@@ -2234,6 +2249,13 @@ class Grapher:
         ind = np.arange(n_series)
         patterns = ('-', '+', 'x', '\\', '*', 'o', 'O', '.')
         width = (1 - (2 * interbar)) / bars_per_serie
+        if horizontal:
+            func=axis.barh
+            ticks = plt.yticks
+        else:
+            func=axis.bar
+            ticks = plt.xticks
+
         if stack:
             last = 0
             for i, (x, y, e, build) in enumerate(data):
@@ -2243,15 +2265,17 @@ class Grapher:
             for i, (x, y, e, build) in enumerate(data):
                 y = np.asarray([0.0 if np.isnan(x) else x for x in y])
                 std = np.asarray([std for mean,std,raw in e])
-                rects = axis.bar(ind, last, width,
-                    label=str(build.pretty_name()), color=build._color, yerr=std,
+                rects = func(ind, last, width,
+                    label=str(build.pretty_name()), color=build._color,
+                    yerr=std if not horizontal else None, xerr=std if horizontal else None,
                     edgecolor=edgecolor)
                 last = last - y
         else:
             for i, (x, y, e, build) in enumerate(data):
                 std = np.asarray([std for mean,std,raw in e])
-                rects = axis.bar(interbar + ind + (i * width), y, width,
-                    label=str(build.pretty_name()), color=lighter(build._color, 0.6, 255) if do_hatch else build._color, yerr=std,
+                rects = func(interbar + ind + (i * width), y, width,
+                    label=str(build.pretty_name()), color=lighter(build._color, 0.6, 255) if do_hatch else build._color,
+                    yerr=std if not horizontal else None, xerr=std if horizontal else None,
                     edgecolor=lighter(build._color, 0.6, 0) if do_hatch else edgecolor, hatch=patterns[i] if do_hatch else None)
                 if show_vals:
                     self.write_labels(rects, plt, build._color)
@@ -2261,6 +2285,6 @@ class Grapher:
         if not bool(self.config_bool('graph_x_label', True)):
             ss = ["" for i in range(n_series)]
 
-        plt.xticks(ind if stack else interbar + ind + (width * (len(data) - 1) / 2.0), ss,
-                   rotation='vertical' if (sum([len(s) for s in ss]) > 80) else 'horizontal')
+        ticks(ind if stack else interbar + ind + (width * (len(data) - 1) / 2.0), ss,
+                   rotation='vertical' if (sum([len(s) for s in ss]) > 80) and not horizontal  else 'horizontal')
         return True, len(data)
