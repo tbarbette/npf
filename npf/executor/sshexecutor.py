@@ -154,7 +154,7 @@ class SSHExecutor(Executor):
                 except KeyboardInterrupt:
                     event.terminate()
                     ssh.close()
-                    return -1, out, err, -1
+                    return -1, output[0], output[1], 0
                 if timeout is not None:
                     if timeout < 0:
                         event.terminate()
@@ -178,6 +178,7 @@ class SSHExecutor(Executor):
                 ret = ssh_stdout.channel.recv_exit_status()
             ssh.close()
             ssh=None
+
 
 
             return pid,output[0], output[1],ret
