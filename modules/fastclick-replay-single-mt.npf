@@ -213,6 +213,7 @@ link_initialized :: Script(TYPE PACKET,
 
 run_test :: Script(TYPE PASSIVE,
             wait ${IGNORE}s,
+            print "",
             print "EVENT GEN_BEGIN",
             print "Starting bandwidth computation !",
             print "$GEN_PRINT_START",

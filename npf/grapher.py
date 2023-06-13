@@ -2273,7 +2273,8 @@ class Grapher:
         else:
             for i, (x, y, e, build) in enumerate(data):
                 std = np.asarray([std for mean,std,raw in e])
-                rects = func(interbar + ind + (i * width), y, width,
+                fx = interbar + ind + (i * width)
+                rects = func(fx, y, width,
                     label=str(build.pretty_name()), color=lighter(build._color, 0.6, 255) if do_hatch else build._color,
                     yerr=std if not horizontal else None, xerr=std if horizontal else None,
                     edgecolor=lighter(build._color, 0.6, 0) if do_hatch else edgecolor, hatch=patterns[i] if do_hatch else None)

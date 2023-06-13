@@ -92,32 +92,48 @@ class SSHExecutor(Executor):
         try:
             ssh = self.get_connection(cache=False)
 
-            ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command("echo $$;"+ pre + cmd,timeout=timeout, get_pty=True)
-            rpid = int(ssh_stdout.readline())
+            ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command("echo $$;"+ pre + cmd)
             if stdin is not None:
                 ssh_stdin.write(stdin)
             channels = [ssh_stdout, ssh_stderr]
             output = ['','']
-
+            buffers = ['','']
+            rpid = -1
             pid = os.getpid()
             step = 0.2
-            for channel in channels:
-                channel.channel.setblocking(False)
+            #for channel in channels:
+            #   channel.channel.setblocking(False)
 
-            while not event.is_terminated() and not ssh_stdout.channel.exit_status_ready():
+            while (not event.is_terminated() and not ssh_stdout.channel.exit_status_ready()) or (ssh_stdout.channel.recv_ready() or ssh_stderr.channel.recv_ready()):
                 try:
                     line = None
-                    while ssh_stdout.channel.recv_ready() or ssh_stderr.channel.recv_ready():
-                        for ichannel,channel in enumerate(channels[:1]):
-                            if channel.channel.recv_ready():
-                                try:
-                                    line = channel.readline()
-                                    if options and options.show_full:
-                                        self._print(title, line, False)
-                                    self.searchEvent(line, event)
-                                    output[ichannel] += line
-                                except UnicodeDecodeError:
-                                    print("Could not decode SSH input")
+                    for ichannel,channel in enumerate(channels):
+                        chan = channel.channel
+                        ichannel = 0
+                        if chan.recv_ready():
+                            try:
+                                data = chan.recv(1024)
+                                buffers[ichannel] = buffers[ichannel] + data.decode("utf-8")
+                                while "\n" in buffers[ichannel]:
+                                    p = buffers[ichannel].index("\n")
+                                    line = buffers[ichannel][:p+1]
+                                    buffers[ichannel] = buffers[ichannel][p+1:]
+                                    if rpid == -1:
+                                        rpid = int(line)
+                                    else:
+                                        if options and options.show_full:
+                                            self._print(title, line, False)
+                                        self.searchEvent(line, event)
+                                        output[ichannel] += line
+                                    if buffers[ichannel]:
+                                        self.searchEvent(buffers[ichannel], event)
+                            except UnicodeDecodeError:
+                                        print("Could not decode SSH input")
+                            except Exception as e:
+                                print("Error")
+                                print(e)
+                                raise(e)
+
                     else:
                         event.wait_for_termination(step)
                         if timeout is not None:
@@ -154,12 +170,6 @@ class SSHExecutor(Executor):
                 ssh.close()
                 ssh=None
 
-            for ichannel,channel in enumerate(channels):
-                for line in channel.readlines():
-                    if options and options.show_full:
-                        self._print(title, line, False)
-                    self.searchEvent(line, event)
-                    output[ichannel] += line
 
             return pid,output[0], output[1],ret
         except socket.gaierror as e:
