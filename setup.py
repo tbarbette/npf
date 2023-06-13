@@ -31,9 +31,9 @@ install_requires=[
 
 setuptools.setup(
     name="npf",
-    version="1.0.42",
+    version="1.0.43",
     author="Tom Barbette",
-    author_email="t.barbette@gmail.com",
+    author_email="tom.barbette@uclouvain.be",
     install_requires=install_requires,
     description="NPF",
     long_description=long_description,
