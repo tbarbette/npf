@@ -107,7 +107,7 @@ StaticThreadSched(gen1/replay $R1, gen1/uq $R1)
 StaticThreadSched(gen2/replay $R2, gen2/uq $R2)
 StaticThreadSched(gen3/replay $R3, gen3/uq $R3)
 
-receiveIN :: FromDPDKDevice($rxport, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, PAUSE $PAUSE, NDESC $GEN_DESC, NUMA true)
+receiveIN :: FromDPDKDevice($rxport, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, PAUSE $PAUSE, NDESC $GEN_DESC, NUMA true, MAXTHREADS $GEN_THREADS)
 
 elementclass Receiver { $mac, $dir |
     input[0]

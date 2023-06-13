@@ -30,7 +30,8 @@ RCV_NIC=0
 LIMIT=50000000
 LIMIT_TIME=65
 GEN_THREADS=4
-udpgen:GEN_PIPELINE=1
+GEN_PIPELINE=1
+udpgen:GEN_PIPELINE=0
 GEN_TX_PIPELINE=0
 GEN_SOCKET=0
 GEN_BURST=32
@@ -63,6 +64,7 @@ timing:TIMING_FNT=100
 %late_variables
 GEN_TX_DESC?=EXPAND($GEN_DESC)
 GEN_NGEN=EXPAND( $((1 if $GEN_PIPELINE else $GEN_THREADS)) )
+GEN_IPV6?=0
 
 UNQUEUE=
 udpgen:UNQUEUE=Unqueue()
@@ -116,7 +118,8 @@ BROADCAST_IGNORE= -> c :: Classifier(-, 0/ffffffffffff)
 
 
 %script deps=fastclick-light sudo=true delay=2 name=fastclick-play
-$GEN_GDB click --dpdk -l 0-15 -- PKTGEN_CONFIG
+proc=\$(( $(nproc --all) - 1 ))
+$GEN_GDB click --dpdk -l 0-$proc -- PKTGEN_CONFIG
 echo "EVENT TX_FINISHED"
 echo "Generator stopped..."
 
