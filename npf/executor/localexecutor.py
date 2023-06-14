@@ -1,11 +1,11 @@
 import os
 import pwd
 import signal
+import select
 from multiprocessing import Queue, Event
 from subprocess import PIPE, Popen, TimeoutExpired
 from typing import List
 from .executor import Executor
-
 class LocalKiller:
     def __init__(self, pgpid):
         self.pgpid = pgpid
@@ -51,48 +51,63 @@ class LocalExecutor(Executor):
         else:
             cmd = virt + " bash -c '"+ cmd.replace("'", "'\"'\"'") + "'";
 
+        outputs = ['', '']
 
         p = Popen(cmd,
                   stdin=PIPE, stdout=PIPE, stderr=PIPE,
                   shell=True, preexec_fn=os.setsid,
                   env=env)
+
+        select_set = select.poll()
+        select_set.register(p.stdout,select.POLLIN)
+        select_set.register(p.stderr,select.POLLIN)
+        os.set_blocking(p.stdout.fileno(), False)
+        os.set_blocking(p.stderr.fileno(), False)
         pid = p.pid
         pgpid = os.getpgid(pid)
 
+        step = 0.2
         killer = LocalKiller(pgpid)
         if queue:
             queue.put(killer)
         try:
-            s_output, s_err = [x.decode() for x in
-                               p.communicate(input = stdin,  timeout=timeout)]
-            self.searchEvent(s_output, event)
-            if options and options.show_full:
-                for line in s_output.splitlines():
-                    self._print(title, line, True)
+            while p.poll() is None:
+                select_set.poll(step * 1000)
+                for ichannel, channel in enumerate([p.stdout,p.stderr]):
+                    for line in channel.readlines():
+                        line = line.decode()
+                        outputs[ichannel] += line
+                        self.searchEvent(line, event)
+                        if options and not options.quiet:
+                            self._print(title, line.rstrip(), True)
+                if timeout is not None:
+                    timeout -= step
+                    if timeout < 0:
+                        raise TimeoutExpired(cmd, timeout)
+
             p.stdin.close()
             p.stderr.close()
             p.stdout.close()
             if testdir is not None:
                 os.chdir(testdir)
-            return pid, s_output, s_err, 0 if event and event.is_terminated() else p.returncode
+            return pid, outputs[0], outputs[1], 0 if event and event.is_terminated() else p.returncode
         except TimeoutExpired:
             print("Test expired")
             p.terminate()
             p.kill()
             os.killpg(pgpid, signal.SIGKILL)
             os.killpg(pgpid, signal.SIGTERM)
-            s_output, s_err = [x.decode() for x in p.communicate()]
             p.stdin.close()
             p.stderr.close()
             p.stdout.close()
             if testdir is not None:
                 os.chdir(testdir)
-            return 0, s_output, s_err, p.returncode
+            return 0, outputs[0], outputs[1], p.returncode
         except KeyboardInterrupt:
             os.killpg(pgpid, signal.SIGKILL)
             if testdir is not None:
                 os.chdir(testdir)
-            return -1, s_output, s_err, p.returncode
+            return -1, outputs[0], outputs[1], p.returncode
 
     def writeFile(self,filename,path_to_root,content,sudo=False):
         f = open(filename, "w")
