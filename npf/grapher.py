@@ -441,7 +441,7 @@ class Grapher:
 
     def aggregate_variable(self, key, series, method):
         nseries = []
-        for i,(testie, build, all_results) in enumerate(series):
+        for i,(test, build, all_results) in enumerate(series):
             aggregates = OrderedDict()
             for run, run_results in all_results.items():
                     #                    if (graph_variables and not run in graph_variables):
@@ -474,7 +474,7 @@ class Grapher:
                         else:
                             new_run_results[result_type] = [group_val(np.asarray(ag),method) for i,ag in agg[result_type].items()]
                     new_all_results[run] = new_run_results
-            nseries.append((testie,build,new_all_results))
+            nseries.append((test,build,new_all_results))
         return nseries
 
     # Extract the variable key so it becomes a serie
@@ -604,7 +604,7 @@ class Grapher:
 
     def map_variables(self, map_k, fmap, series, vars_values):
             transformed_series = []
-            for i, (testie, build, all_results) in enumerate(series):
+            for i, (test, build, all_results) in enumerate(series):
                 new_results={}
                 for run, run_results in all_results.items():
                     if map_k and not map_k in run.variables:
@@ -627,7 +627,7 @@ class Grapher:
                               new_results[run] = run_results
                     else:
                         new_results[run] = run_results
-                transformed_series.append((testie, build, new_results))
+                transformed_series.append((test, build, new_results))
             return transformed_series
 
     def graph(self, filename, options, fileprefix=None, graph_variables: List[Run] = None, title=False, series=None):
@@ -647,10 +647,10 @@ class Grapher:
                     graph_variables.add(run)
 
         # Get all scripts, and execute pypost
-        for i, (testie, build, all_results) in enumerate(series):
-            self.scripts.add(testie)
+        for i, (test, build, all_results) in enumerate(series):
+            self.scripts.add(test)
 
-            if hasattr(testie, 'pypost'):
+            if hasattr(test, 'pypost'):
                 def common_divide(a,b):
                     m = min(len(a),len(b))
                     return np.array(a)[:m] / np.array(b)[:m]
@@ -660,7 +660,7 @@ class Grapher:
                             all_results[RUN][res] = common_divide(RESULTS[a], RESULTS[b])
                 vs = {'ALL_RESULTS': all_results, 'common_divide': common_divide, 'results_divide': results_divide}
                 try:
-                    exec(testie.pypost.content, vs)
+                    exec(test.pypost.content, vs)
                 except Exception as e:
                     print("ERROR WHILE EXECUTING PYPOST SCRIPT:")
                     print(e)
@@ -673,7 +673,7 @@ class Grapher:
         # Add series to a pandas dataframe
         if options.pandas_filename is not None:
             all_results_df=pd.DataFrame() # Empty dataframe
-            for testie, build, all_results in series:
+            for test, build, all_results in series:
                 for i, (x) in enumerate(all_results):
                     try:
 
@@ -740,32 +740,32 @@ class Grapher:
             graph_variables = newgraph_variables
 
             newseries = []
-            for i, (testie, build, all_results) in enumerate(series):
+            for i, (test, build, all_results) in enumerate(series):
                 new_all_results = {}
                 for run, run_results in all_results.items():
                     newrun = run_map.get(run, None)
                     if newrun is not None:
                         new_all_results[newrun] = run_results
-                newseries.append((testie, build, new_all_results))
+                newseries.append((test, build, new_all_results))
             series = newseries
 
         # Data transformation : reject outliers, transform list to arrays, filter according to graph_variables
         #   and divide results as per the var_divider
         filtered_series = []
         vars_values = OrderedDict()
-        for i, (testie, build, all_results) in enumerate(series):
+        for i, (test, build, all_results) in enumerate(series):
             new_results = OrderedDict()
             for run, run_results in all_results.items():
                 if run in graph_variables:
                     for result_type, results in run_results.items():
                         if self.options.graph_reject_outliers:
-                            results = self.reject_outliers(np.asarray(results), testie)
+                            results = self.reject_outliers(np.asarray(results), test)
                         else:
                             results = np.asarray(results)
                         if self.options.graph_select_max:
                             results = np.sort(results)[-self.options.graph_select_max:]
 
-                        ydiv = dataset.var_divider(testie, "result", result_type)
+                        ydiv = dataset.var_divider(test, "result", result_type)
                         if not results.any():
                             results=np.asarray([0])
                         new_results.setdefault(run.copy(), OrderedDict())[result_type] = results / ydiv
@@ -776,7 +776,7 @@ class Grapher:
             if new_results:
                 if len(self.graphmarkers) > 0:
                     build._marker = self.graphmarkers[i % len(self.graphmarkers)]
-                filtered_series.append((testie, build, new_results))
+                filtered_series.append((test, build, new_results))
             else:
                 print("No valid data for %s" % build)
         series = filtered_series
@@ -787,12 +787,12 @@ class Grapher:
         if self.config_bool('graph_series_as_variables',False):
             new_results = {}
             vars_values['serie'] = set()
-            for i, (testie, build, all_results) in enumerate(series):
+            for i, (test, build, all_results) in enumerate(series):
                 for run, run_results in all_results.items():
                     run.variables['serie'] = build.pretty_name()
                     vars_values['serie'].add(build.pretty_name())
                     new_results[run] = run_results
-            series = [(testie, build, new_results)]
+            series = [(test, build, new_results)]
 
         # Transform results to variables as the graph_result_as_variable config
         #  option. It is a dict in the format
@@ -825,7 +825,7 @@ class Grapher:
 
             untouched_series = []
             exploded_series = []
-            for i, (testie, build, all_results) in enumerate(series):
+            for i, (test, build, all_results) in enumerate(series):
                 exploded_results = OrderedDict()
                 untouched_results = OrderedDict()
 
@@ -878,10 +878,10 @@ class Grapher:
                     untouched_results[run] = untouched_run_results
 
                 if exploded_results:
-                    exploded_series.append((testie, build, exploded_results))
+                    exploded_series.append((test, build, exploded_results))
 
                 if untouched_results:
-                    untouched_series.append((testie, build, untouched_results))
+                    untouched_series.append((test, build, untouched_results))
 
             exploded_vars_values[var_name] = vvalues
 
@@ -918,7 +918,7 @@ class Grapher:
             del vars_values[to_get_out]
 
             transformed_series = []
-            for sindex, (testie, build, all_results) in enumerate(series):
+            for sindex, (test, build, all_results) in enumerate(series):
                 new_series = OrderedDict()
                 for value in values:
                     new_series[value] = OrderedDict()
@@ -941,7 +941,7 @@ class Grapher:
 
                     nbuild._color_index = sindex + 1
                     nbuild.statics[to_get_out] = value
-                    transformed_series.append((testie, nbuild, data))
+                    transformed_series.append((test, nbuild, data))
 
             series = transformed_series
 
@@ -961,7 +961,7 @@ class Grapher:
         for var, prec in self.configdict("var_round",{}).items():
             transformed_series = []
             prec = float(prec)
-            for i, (testie, build, all_results) in enumerate(series):
+            for i, (test, build, all_results) in enumerate(series):
                 new_all_results = OrderedDict()
                 for run, run_results in all_results.items():
                     if var in run.variables:
@@ -971,7 +971,7 @@ class Grapher:
                             np.append(new_all_results[run], run_results)
                         else:
                             new_all_results[run] = run_results
-                transformed_series.append((testie, build, new_all_results))
+                transformed_series.append((test, build, new_all_results))
             series = transformed_series
 
 
@@ -979,7 +979,7 @@ class Grapher:
         for result_type, fil in self.configdict("graph_filter",{}).items():
             transformed_series = []
             aeval = Interpreter()
-            for i, (testie, build, all_results) in enumerate(series):
+            for i, (test, build, all_results) in enumerate(series):
                 new_all_results = OrderedDict()
                 def lam(x):
                     aeval.symtable['x'] = x
@@ -988,7 +988,7 @@ class Grapher:
                     if result_type in run_results:
                         run_results[result_type] = list(filter(lam, run_results[result_type]))
                     new_all_results[run] = run_results
-                transformed_series.append((testie, build, new_all_results))
+                transformed_series.append((test, build, new_all_results))
             series = transformed_series
 
 
@@ -1000,7 +1000,7 @@ class Grapher:
 
         versions = []
         vars_all = OrderedSet()
-        for i, (testie, build, all_results) in enumerate(series):
+        for i, (test, build, all_results) in enumerate(series):
             versions.append(build.pretty_name())
             for run, run_results in all_results.items():
                 vars_all.add(run)
@@ -1043,7 +1043,7 @@ class Grapher:
                 self.glob_legend_title = title #This variable has been extracted, the legend should not be the variable name in this case
 
                 if graph_series_label:
-                    for i, (testie, build, all_results) in enumerate(series):
+                    for i, (test, build, all_results) in enumerate(series):
                         v = {}
                         v.update(statics)
                         v.update(build.statics)
@@ -1102,7 +1102,7 @@ class Grapher:
         if len(graph.series) == 0:
             return
         data_types : AllXYEB = graph.dataset(kind=fileprefix)
-        one_testie,one_build,whatever = graph.series[0]
+        one_test,one_build,whatever = graph.series[0]
 
         if self.options.no_graph:
             return
@@ -1193,7 +1193,7 @@ class Grapher:
                 buf.seek(0)
                 ret[result_type] = buf.read()
             else:
-                type_filename = npf.build_filename(one_testie, one_build, filename if not filename is True else None, graph.statics(), 'pdf', type_str=(fileprefix +'-' if fileprefix else "") +result_type, show_serie=False)
+                type_filename = npf.build_filename(one_test, one_build, filename if not filename is True else None, graph.statics(), 'pdf', type_str=(fileprefix +'-' if fileprefix else "") +result_type, show_serie=False)
                 try:
                     plt.savefig(type_filename, bbox_extra_artists=extra_artists if len(extra_artists) > 0 else [],
                             bbox_inches='tight',
@@ -1756,8 +1756,8 @@ class Grapher:
             return result_type, lgd, extra_artists
 
 
-    def reject_outliers(self, result, testie):
-        return testie.reject_outliers(result)
+    def reject_outliers(self, result, test):
+        return test.reject_outliers(result)
 
     def write_labels(self, rects, plt, color, idx = 0, each=False):
         if self.config('graph_show_values',False):

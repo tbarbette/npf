@@ -6,7 +6,7 @@ This will generate UDP traffic using 2 NICs. Packets are expected to come back o
 Roles : client will use two NICs of the node running this file to send traffic
 towards "dut" and should receive back the packets on the opposite ports.
 
-See tests/generic_dpdk/l2_fwd_latency.testie for example
+See tests/generic_dpdk/l2_fwd_latency.test for example
 
 The client generates $GEN_FLOWS flows of $GEN_BURST packets in loop, and plays a max of $LIMIT packets
 

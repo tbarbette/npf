@@ -124,7 +124,7 @@ class SSHExecutor(Executor):
                                     if rpid == -1:
                                         rpid = int(line)
                                     else:
-                                        if options and options.show_full:
+                                        if options and not options.quiet:
                                             self._print(title, line, False)
                                         self.searchEvent(line, event)
                                         output[ichannel] += line

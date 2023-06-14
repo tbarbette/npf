@@ -88,10 +88,10 @@ def _parallel_exec(param: RemoteParameters):
                 v = param.autokill.value
                 param.event.c.release()
                 if v == 0:
-                    Testie.killall(param.queue, param.event)
+                    Test.killall(param.queue, param.event)
 
         elif pid == -1:
-            Testie.killall(param.queue, param.event)
+            Test.killall(param.queue, param.event)
         if pid == -1:
             return -1, o, e, c, param.script
         return True, o, e, c, param.script
@@ -101,7 +101,7 @@ class ScriptInitException(Exception):
     pass
 
 
-class Testie:
+class Test:
     __test__ = False
 
     def get_name(self):
@@ -110,20 +110,20 @@ class Testie:
     def get_scripts(self) -> List[SectionScript]:
         return self.scripts
 
-    def __init__(self, testie_path, options, tags=None, role=None, inline=None):
-        loc_path = npf.find_local(testie_path)
+    def __init__(self, test_path, options, tags=None, role=None, inline=None):
+        loc_path = npf.find_local(test_path)
         if os.path.exists(loc_path):
-            testie_path = loc_path
+            test_path = loc_path
         else:
-            loc_path = npf.find_local(testie_path + '.npf')
+            loc_path = npf.find_local(test_path + '.npf')
             if not os.path.exists(loc_path):
-                if os.path.exists(npf.find_local(testie_path + '.testie')):
-                    print("WARNING: .testie extension is deprecated, use .npf")
-                    testie_path = npf.find_local(testie_path + '.testie')
+                if os.path.exists(npf.find_local(test_path + '.test')):
+                    print("WARNING: .test extension is deprecated, use .npf")
+                    test_path = npf.find_local(test_path + '.test')
                 else:
-                    raise FileNotFoundError("Could not find test script %s (tried also with .npf and .testie extensions, without success)" % testie_path)
+                    raise FileNotFoundError("Could not find test script %s (tried also with .npf and .test extensions, without success)" % test_path)
             else:
-                testie_path = loc_path
+                test_path = loc_path
 
         self.sections = []
         self.files = []
@@ -133,8 +133,8 @@ class Testie:
         self.imports = []
         self.requirements = []
         self.sendfile = {}
-        self.filename = os.path.basename(testie_path)
-        self.path = os.path.dirname(os.path.abspath(testie_path))
+        self.filename = os.path.basename(test_path)
+        self.path = os.path.dirname(os.path.abspath(test_path))
         self.options = options
         self.tags = tags if tags else []
         self.role = role
@@ -142,7 +142,7 @@ class Testie:
         i = -1
         try:
             section = None
-            f = open(testie_path, 'r')
+            f = open(test_path, 'r')
             for i, line in enumerate(f):
                 if section is None or section.noparse is False:
                     line = re.sub(r'(^|[ ])//.*$', '', line)
@@ -189,9 +189,9 @@ class Testie:
                 section.finish(self)
         except Exception as e:
             if i == -1:
-                raise Exception("An exception occured while accessing the file %s" % (testie_path))
+                raise Exception("An exception occured while accessing the file %s" % (test_path))
             else:
-                raise Exception("An exception occured while parsing %s at line %d:\n%s" % (testie_path, i, e.__str__()))
+                raise Exception("An exception occured while parsing %s at line %d:\n%s" % (test_path, i, e.__str__()))
 
         # Check that all reference roles are defined
         known_roles = {'self', 'default'}.union(set(npf.roles.keys()))
@@ -202,25 +202,25 @@ class Testie:
         #                if nicref.group('role') not in known_roles:
         #                    raise Exception("Unknown role %s" % nicref.group('role'))
 
-        # Create imports testies
+        # Create imports tests
         for imp in self.imports:
             from npf.module import Module
-            imp.testie = Module(imp.module, options, self, imp, self.tags, imp.get_role())
-            if len(imp.testie.variables.dynamics()) > 0:
+            imp.test = Module(imp.module, options, self, imp, self.tags, imp.get_role())
+            if len(imp.test.variables.dynamics()) > 0:
                 raise Exception("Imports cannot have dynamic variables. Their parents decides what's dynamic.")
             if 'as_init' in imp.params:
-                for script in imp.testie.scripts:
+                for script in imp.test.scripts:
                     script.init = True
             if 'delay' in imp.params:
                 delay = imp.params.setdefault('delay', 0)
-                for script in imp.testie.scripts:
+                for script in imp.test.scripts:
                     if 'delay' in script.params:
                         script.params['delay'] = float(delay) + float(script.params['delay'])
                     else:
                         script.params['delay'] = float(delay)
                 del imp.params['delay']
             if 'waitfor' in imp.params:
-                for script in imp.testie.scripts:
+                for script in imp.test.scripts:
                     wf = imp.params['waitfor']
                     if type(wf) is not list:
                         wf=[wf]
@@ -233,46 +233,46 @@ class Testie:
                             script.params['waitfor'].expand(wf)
                 del imp.params['waitfor']
             if 'autokill' in imp.params:
-                for script in imp.testie.scripts:
+                for script in imp.test.scripts:
                     if script.type == SectionScript.TYPE_SCRIPT:
                         script.params['autokill'] = imp.params['autokill']
                 del imp.params['autokill']
             if imp.multi is not None:
-                for script in imp.testie.scripts:
+                for script in imp.test.scripts:
                     if script.type == SectionScript.TYPE_SCRIPT or script.type == SectionScript.TYPE_INIT:
                         script.multi = imp.multi
             overriden_variables = {}
             for k, v in imp.params.items():
                 overriden_variables[k] = VariableFactory.build(k, v)
-            imp.testie.variables.override_all(overriden_variables)
-            if "require_tags" in imp.testie.config.vlist:
-                tags = imp.testie.config.vlist["require_tags"].makeValues()
+            imp.test.variables.override_all(overriden_variables)
+            if "require_tags" in imp.test.config.vlist:
+                tags = imp.test.config.vlist["require_tags"].makeValues()
                 if tags:
                     tags = reduce(list.__add__,map(lambda x:x.split(','), tags))
 
                 if "import" in tags:
                     tags.remove("import")
 
-                imp.testie.config.vlist["require_tags"] = ListVariable(imp.testie.config.vlist["require_tags"].name, tags)
+                imp.test.config.vlist["require_tags"] = ListVariable(imp.test.config.vlist["require_tags"].name, tags)
 
-            imp.testie.config.override_all(self.config.vlist)
-            self.config = imp.testie.config
+            imp.test.config.override_all(self.config.vlist)
+            self.config = imp.test.config
             if not imp.is_include:
-                for script in imp.testie.scripts:
+                for script in imp.test.scripts:
                     if script.get_role():
                         raise Exception('Modules cannot have roles, their importer defines it')
                     script._role = imp.get_role()
                 nsendfile = {}
-                for role,fpaths in imp.testie.sendfile.items():
+                for role,fpaths in imp.test.sendfile.items():
                     if role and role != 'default':
                         raise Exception('Modules cannot have roles (sendfile has role %s), their importer defines it' % role)
                     nsendfile[imp.get_role()] = fpaths
-                imp.testie.sendfile = nsendfile
+                imp.test.sendfile = nsendfile
 
-                if hasattr(imp.testie, 'exit'):
-                    imp.testie.exit._role = imp.get_role()
+                if hasattr(imp.test, 'exit'):
+                    imp.test.exit._role = imp.get_role()
             else: #is include
-                self.variables.vlist.update(imp.testie.variables.vlist)
+                self.variables.vlist.update(imp.test.variables.vlist)
 
     def build_deps(self, repo_under_test: List[Repository], v_internals={}, no_build=False, done=None):
         if done is None:
@@ -291,7 +291,7 @@ class Testie:
                 raise Exception("Could not build dependency %s" % dep)
         #Do the same for the imports
         for imp in self.imports:
-            imp.testie.build_deps(repo_under_test, v_internals, True, done=done)
+            imp.test.build_deps(repo_under_test, v_internals, True, done=done)
 
         # Send dependencies for nfs=0 nodes
         toSend = set()
@@ -336,7 +336,7 @@ class Testie:
         for late_variables in self.get_late_variables():
             st.update(late_variables.execute(st, self, fail=False))
 
-        L = [imp.testie.sendfile for imp in self.imports]
+        L = [imp.test.sendfile for imp in self.imports]
         for role, fpaths in itertools.chain(self.sendfile.items(), {k: v for d in L for k, v in d.items()}.items()):
             nodes = npf.nodes_for_role(role)
             for node in nodes:
@@ -400,7 +400,7 @@ class Testie:
                         raise Exception("Could not create file %s on %s" % (filename, node.name))
 
     def test_require(self, v, build):
-        for require in self.requirements + list(itertools.chain.from_iterable([imp.testie.requirements for imp in self.imports])):
+        for require in self.requirements + list(itertools.chain.from_iterable([imp.test.requirements for imp in self.imports])):
             p = SectionVariable.replace_variables(v, require.content, require.role(),
                                                   self.config.get_dict("default_role_map"))
             pid, output, err, returncode = npf.executor(require.role(), self.config.get_dict("default_role_map")).exec(
@@ -547,7 +547,7 @@ class Testie:
 
         # Create temporary folder
         deps_repo = []
-        depscripts = [imp.testie.scripts for imp in self.imports]
+        depscripts = [imp.test.scripts for imp in self.imports]
 
         allscripts = [item for sublist in [self.scripts] + depscripts for item in sublist]
         for script in allscripts:
@@ -582,20 +582,20 @@ class Testie:
         n_err = 0
 
         for imp in self.get_imports():
-            imp.testie.parse_script_roles()
+            imp.test.parse_script_roles()
             imp.imp_v = {}
-            for k, val in imp.testie.variables.statics().items():
+            for k, val in imp.test.variables.statics().items():
                 imp.imp_v[k] = val.makeValues()[0]
 
             imp.imp_v.update(v)
 
-            for late_variables in imp.testie.get_late_variables():
-                imp.imp_v.update(late_variables.execute(imp.imp_v, imp.testie))
+            for late_variables in imp.test.get_late_variables():
+                imp.imp_v.update(late_variables.execute(imp.imp_v, imp.test))
 
             if SectionScript.TYPE_INIT in allowed_types:
-                file_list.extend(imp.testie.build_file_list(imp.imp_v, imp.get_role(), files=imp.testie.init_files))
+                file_list.extend(imp.test.build_file_list(imp.imp_v, imp.get_role(), files=imp.test.init_files))
             else:
-                file_list.extend(imp.testie.build_file_list(imp.imp_v, imp.get_role()))
+                file_list.extend(imp.test.build_file_list(imp.imp_v, imp.get_role()))
 
         self.create_files(file_list, test_folder)
 
@@ -621,7 +621,7 @@ class Testie:
 
                 remote_params = []
                 for t, v, role in (
-                                          [(imp.testie, imp.imp_v, imp.get_role()) for imp in
+                                          [(imp.test, imp.imp_v, imp.get_role()) for imp in
                                            self.imports] if do_imports else []) + [
                                       (self, v, None)]:
                   for script in t.scripts:
@@ -746,7 +746,7 @@ class Testie:
 
                     if not self.options.preserve_temp:
                         for imp in self.imports:
-                            imp.testie.cleanup()
+                            imp.test.cleanup()
                         self.cleanup()
                     os.chdir('..')
                     if not self.options.preserve_temp:
@@ -765,10 +765,9 @@ class Testie:
                     if r == 0:
                         print("Timeout of %d seconds expired for script %s on %s..." % (
                             script.timeout, script.get_name(), script.get_role()))
-                        if not self.options.quiet:
-                            if not self.options.show_full:
-                                print("stdout:")
-                                print(o)
+                        if self.options.quiet:
+                            print("stdout:")
+                            print(o)
                             print("stderr:")
                             print(e)
                         continue
@@ -784,10 +783,9 @@ class Testie:
                             print("[ERROR] A critical script failed ! Results will be ignored")
                         print("Bad return code (%d) for script %s on %s ! Something probably went wrong..." % (
                             c, script.get_name(), script.get_role()))
-                        if not self.options.quiet:
-                            if not self.options.show_full:
-                                print("stdout:")
-                                print(o)
+                        if self.options.quiet:
+                            print("stdout:")
+                            print(o)
                             print("stderr:")
                             print(e)
                         continue
@@ -803,7 +801,7 @@ class Testie:
                         err += e
 
                 if SectionScript.TYPE_EXIT in allowed_types:
-                 for s,vlist in [(t.testie,t.imp_v) for t in self.imports] + [(self, v)]:
+                 for s,vlist in [(t.test,t.imp_v) for t in self.imports] + [(self, v)]:
                   for script in s.get_scripts():
                     if not script.type == SectionScript.TYPE_EXIT:
                         continue
@@ -961,16 +959,15 @@ class Testie:
 
                     has_err = True
 
-                if has_err:
-                    if not self.options.show_full:
-                        print("stdout:")
-                        print(output)
+                if has_err and self.options.quiet:
+                    print("stdout:")
+                    print(output)
                     print("stderr:")
                     print(err)
 
         if not self.options.preserve_temp:
             for imp in self.imports:
-                imp.testie.cleanup()
+                imp.test.cleanup()
             self.cleanup()
         os.chdir(save_path)
         if not self.options.preserve_temp and f_mine:
@@ -1038,7 +1035,7 @@ class Testie:
     def execute_all(self, build, options, prev_results: Dataset = None, do_test=True, on_finish=None,
                     allowed_types=SectionScript.ALL_TYPES_SET, prev_kind_results: Dict[str, Dataset] = None, iserie=0,nseries=1) -> Tuple[
         Dataset, bool]:
-        """Execute script for all variables combinations. All tools reliy on this function for execution of the testie
+        """Execute script for all variables combinations. All tools reliy on this function for execution of the test
         :param allowed_types:Tyeps of scripts allowed to run. Set with either init, scripts or both
         :param do_test: Actually run the tests
         :param options: NPF options object
@@ -1052,7 +1049,7 @@ class Testie:
         init_done = False
         test_folder = self.make_test_folder()
 
-        #All the following paths must be relative to the NPF experiment root folder (that is something like NPF's folder/testie1234567/)
+        #All the following paths must be relative to the NPF experiment root folder (that is something like NPF's folder/test1234567/)
         full_test_folder = npf.from_experiment_path(test_folder) + os.sep
 
         dirname, basename, ext = npf.splitpath(options.output if options.output != 'graph' else options.graph_filename)
@@ -1089,7 +1086,7 @@ class Testie:
                 for imp in self.get_imports():
                   #If the module is an include, the variables should be visible to the user, for a real module, it's only a default initialization
                   if imp.is_include:
-                    for k,v in imp.testie.variables.statics().items():
+                    for k,v in imp.test.variables.statics().items():
                         variables[k] = v.makeValues()[0]
 
                 run = Run(variables)
@@ -1103,12 +1100,12 @@ class Testie:
                     variables.update(shadow_variables)
 
                 for late_variables in self.get_late_variables():
-                    variables.update(late_variables.execute({**variables, **v_internals}, testie=self))
+                    variables.update(late_variables.execute({**variables, **v_internals}, test=self))
 
                 for imp in self.get_imports():
                   if imp.is_include:
-                    for late_variables in imp.testie.get_late_variables():
-                        variables.update(late_variables.execute({**variables, **v_internals}, imp.testie))
+                    for late_variables in imp.test.get_late_variables():
+                        variables.update(late_variables.execute({**variables, **v_internals}, imp.test))
 
                 r_status, r_out, r_err = self.test_require(variables, build)
                 if not r_status:
@@ -1342,40 +1339,40 @@ class Testie:
         return data
 
     @staticmethod
-    def expand_folder(testie_path, options, tags=None) -> List['Testie']:
-        testies = []
-        if not os.path.exists(testie_path):
-            print("The npf script path %s does not exist" % testie_path)
-            return testies
-        if os.path.isfile(testie_path):
-            testie = Testie(testie_path, options=options, tags=tags)
-            testies.append(testie)
+    def expand_folder(test_path, options, tags=None) -> List['Test']:
+        tests = []
+        if not os.path.exists(test_path):
+            print("The npf script path %s does not exist" % test_path)
+            return tests
+        if os.path.isfile(test_path):
+            test = Test(test_path, options=options, tags=tags)
+            tests.append(test)
         else:
-            for root, dirs, files in os.walk(testie_path):
+            for root, dirs, files in os.walk(test_path):
                 for filename in files:
-                    if filename.endswith(".testie") or filename.endswith(".npf"):
+                    if filename.endswith(".test") or filename.endswith(".npf"):
                         try:
-                            testie = Testie(os.path.join(root, filename), options=options, tags=tags)
-                            testies.append(testie)
+                            test = Test(os.path.join(root, filename), options=options, tags=tags)
+                            tests.append(test)
                         except Exception as e:
                             print("Error during the parsing of %s :\n%s" % (filename, e))
 
-        filtered_testies = []
-        for testie in testies:
-            missing_tags = testie.test_tags()
+        filtered_tests = []
+        for test in tests:
+            missing_tags = test.test_tags()
             if len(missing_tags) > 0:
                 if not options.quiet:
                     print(
-                        "Passing testie %s as it lacks tags %s" % (testie.filename, ','.join(missing_tags)))
+                        "Passing test %s as it lacks tags %s" % (test.filename, ','.join(missing_tags)))
             else:
-                if testie.test_roles_mapping():
-                    filtered_testies.append(testie)
+                if test.test_roles_mapping():
+                    filtered_tests.append(test)
                 else:
                     raise Exception(
                         "Roles %s cannot be on the same node ! Please use --cluster argument to set them accross nodes" % ' and '.join(
-                           testie.config.get_list("role_exclude")))
+                           test.config.get_list("role_exclude")))
 
-        return filtered_testies
+        return filtered_tests
 
     def test_roles_mapping(self):
         for excludes in self.config.get_list("role_exclude"):
@@ -1408,6 +1405,6 @@ class Testie:
         return self.late_variables
 
     def make_test_folder(self):
-        test_folder = "testie%s-%05d" % (datetime.datetime.now().strftime("%y%m%d%H%M"), random.randint(1, 2 << 16))
+        test_folder = "test%s-%05d" % (datetime.datetime.now().strftime("%y%m%d%H%M"), random.randint(1, 2 << 16))
         os.mkdir(npf.experiment_path() + os.sep + test_folder)
         return test_folder

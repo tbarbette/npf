@@ -3,7 +3,7 @@
 
 ret=0
 
-#Function that launch a npf test on click-2022 and compare the expected output
+#Function that launches a npf test on click-2022 and compare the expected output
 compare() {
     test=$1
     python=$2
@@ -52,7 +52,7 @@ try() {
     test=$1
     python=$2
     params=$3
-    $python npf-run.py --force-test --no-graph-time --test $test --config n_runs=1 --tags fastregression $3
+    $python npf-run.py --force-test --no-graph-time --test $test --quiet --config n_runs=1 --tags fastregression $3
     if [ $? -ne 0 ] ; then
         echo "npf-run.py returned an error for test $test !"
         exit 1

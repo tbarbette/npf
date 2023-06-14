@@ -1,7 +1,7 @@
 %info
 f(x)
 
-A non-networking testie to understand the basis of NPF
+A non-networking test to understand the basis of NPF
 
 %config
 default_repo=local //No program under test

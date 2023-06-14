@@ -1,4 +1,4 @@
-Executing testie experimental.npf
+Executing test experimental.npf
 Executing init scripts...
 X = 0, ENORMOUS = 8388.171656999999, HUGE = 136.4821063, BIG = 47.99187509, SMALL = 2.384977173 [run 1/3 for test 1/190]
 X = 0, ENORMOUS = 8388.171656999999, HUGE = 136.4821063, BIG = 47.99187509, SMALL = 2.384977173 [run 2/3 for test 1/190]

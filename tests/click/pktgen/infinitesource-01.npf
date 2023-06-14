@@ -1,7 +1,7 @@
 %info
 Simple performance test generating packets with InfiniteSource
 
-Same as fastupdgen-01.testie, but with InfiniteSource
+Same as fastupdgen-01.test, but with InfiniteSource
 
 %config
 //Script is time-based on 3s, so if it is longer than 10s, there is a bug somewhere
