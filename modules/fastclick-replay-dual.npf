@@ -3,7 +3,7 @@ This is not a test, this is a module to be imported using "%import" to run a pkt
 
 Packets are directed towards the server NIC 0 MAC address using the client NIC 0 and expect to receive packets back on the NIC 1. There is no L3 support (ARP).
 
-Suggested usage example in your testie (omit the prefixed "//" that prevent loop import here)
+Suggested usage example in your test (omit the prefixed "//" that prevent loop import here)
 
 //%import@client fastclick-replay-dual traceIN=path/to.pcap traceOUT=path/to.pcap NIC_IN=0 NIC_OUT=1
 

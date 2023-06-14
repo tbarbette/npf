@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-NPF repository watcher. Essentially a loop watching for commits in a list of git repo to execute given testies when
+NPF repository watcher. Essentially a loop watching for commits in a list of git repo to execute given tests when
 a commit is made. If you want to integrate npf in your CI test suite, use npf-run. Passive watching is intended
 to watch project you don't own but you use, just to be sure that they do not mess performances.
 
@@ -17,11 +17,11 @@ import sys
 
 from npf import npf
 from npf.regression import *
-from npf.testie import Testie
+from npf.test import Test
 
 
 class Watcher():
-    def __init__(self, repo_list:List[Tuple[Repository,List[Testie]]], mail_to: List[str], mail_from: str, mail_smtp : str, interval: int,
+    def __init__(self, repo_list:List[Tuple[Repository,List[Test]]], mail_to: List[str], mail_from: str, mail_smtp : str, interval: int,
                  mail_always: bool, history: int, options):
         self.interval = interval
         self.repo_list = repo_list
@@ -59,7 +59,7 @@ class Watcher():
         s.send_message(msg)
         s.quit()
 
-    def mail_results(self, repo: Repository, build: Build, testies: List[Testie], datasets: List[Dataset],
+    def mail_results(self, repo: Repository, build: Build, tests: List[Test], datasets: List[Dataset],
                      graph_num: int = 0):
         ext = 'png'
         body = '<html>'
@@ -69,26 +69,26 @@ class Watcher():
             self.mail(subject="[%s] Could not compile %s !" % (repo.name, build.version), body='')
 
         graphs = []
-        for testie,all_results in zip(testies,datasets):
+        for test,all_results in zip(tests,datasets):
             body += '<b>%s</b> :' % build.version
-            if testie.n_variables_passed == testie.n_variables:
+            if test.n_variables_passed == test.n_variables:
                 body += '<span style="color:green;">PASSED</span><br />'
             else:
-                print("[%s] Testie %s FAILED !" % (repo.name, testie.filename))
+                print("[%s] Test %s FAILED !" % (repo.name, test.filename))
                 body += '<span style="color:red;">FAILED</span> with %d/%d points in constraints.<br />' % (
-                    testie.n_variables_passed, testie.n_variables)
+                    test.n_variables_passed, test.n_variables)
 
             grapher = Grapher()
-            graphs_series = [(testie, build, all_results)]
+            graphs_series = [(test, build, all_results)]
 
-            graphs_series += repo.get_old_results(build, graph_num - len(graphs_series), testie)
+            graphs_series += repo.get_old_results(build, graph_num - len(graphs_series), test)
 
-            gs = grapher.graph(series=graphs_series, title=testie.get_title(),
-                              filename=None, graph_variables=[Run(x) for x in testie.variables],
+            gs = grapher.graph(series=graphs_series, title=test.get_title(),
+                              filename=None, graph_variables=[Run(x) for x in test.variables],
                               options=self.options)
 
             for result_type,g in gs.items():
-                fname = testie.filename + "-" + result_type + "." + ext
+                fname = test.filename + "-" + result_type + "." + ext
                 body += '<img src="cid:%s"><br/>' % (fname)
                 graphs.append((g, fname))
 
@@ -105,7 +105,7 @@ class Watcher():
     def run(self,options):
         terminate = False
         while not terminate:
-            for repo, testies in self.repo_list:
+            for repo, tests in self.repo_list:
                 build = repo.get_last_build(with_results=False,force_fetch=(self.history==1))
                 if repo.last_build.version == build.version:
                     if not options.quiet:
@@ -114,13 +114,13 @@ class Watcher():
 
                 regressor = Regression(repo)
 
-                build,datasets,time_datasets = regressor.regress_all_testies(testies=testies, options=options, history = self.history)
+                build,datasets,time_datasets = regressor.regress_all_tests(tests=tests, options=options, history = self.history)
 
                 if (build is None):
                     continue
 
                 if self.history == 1 and (build.n_passed < build.n_tests or self.mail_always):
-                    self.mail_results(repo, build, testies, datasets)
+                    self.mail_results(repo, build, tests, datasets)
 
             if self.history > 1:
                 self.history -= 1
@@ -184,12 +184,12 @@ def main():
             print("[%s] Last tested version is %s" % (repo.name, last_build.version))
         repo.last_build = last_build
 
-        testies = Testie.expand_folder(args.test_files, tags=tags,options=args)
+        tests = Test.expand_folder(args.test_files, tags=tags,options=args)
 
-        if len(testies) == 0:
-            print("[%s] No valid testies. Ignoring this repo." % (repo.name))
+        if len(tests) == 0:
+            print("[%s] No valid tests. Ignoring this repo." % (repo.name))
         else:
-            repo_list.append((repo, testies))
+            repo_list.append((repo, tests))
 
     if len(repo_list) == 0:
         print("ERROR : No valid repositories to use !")

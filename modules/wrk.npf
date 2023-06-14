@@ -3,13 +3,13 @@ HTTP Request sizes
 
 Generate HTTP requests towards "http://server/bin-XK" files using WRK
 
-The HTTP server configuration is not part of this testie. Your main testie
+The HTTP server configuration is not part of this test. Your main test
 should include something like FILE_PATH={file1,file2}
 
 The address to make the request will use the adress from the node having the "dut" role. The port can be changed setting the HTTP_PORT variable.
 
 See generic/http.wrk for examples such as fetching files with sizes from 1K to 1G
-See experiments/test_wrk.testie for an experiment trying to find best configuration for 1K requests varying GEN_THREADS and GEN_CONCURRENT on a 16 cores CPU
+See experiments/test_wrk.test for an experiment trying to find best configuration for 1K requests varying GEN_THREADS and GEN_CONCURRENT on a 16 cores CPU
 
 %variables
 GEN_CONCURRENT=128

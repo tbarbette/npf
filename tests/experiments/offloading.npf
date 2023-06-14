@@ -194,7 +194,7 @@ exit -1
 %cpufreq:import@dut cpufreq
 
 
-%include offloading.d/http.testie
+%include offloading.d/http.test
 
 %perf:import@dut perf-functions delay=10
 %-perf,-campus,-rate,-http:import@client fastclick-udpgen-latency-single delay=6 GEN_REPLAY=20 LIMIT=1000000

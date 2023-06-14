@@ -1,7 +1,7 @@
 %info
 f(a,b) = a * b with a in 1..10, b in 10..100
 
-A non-networking testie to show a heatmap
+A non-networking test to show a heatmap
 
 %config
 default_repo=local //No program under test

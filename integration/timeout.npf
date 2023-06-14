@@ -6,6 +6,7 @@ timeout=1
 n_runs=1
 
 %script
+echo "Unexpectedly long processing..."
 sleep 3
 echo "RESULT 1"
 

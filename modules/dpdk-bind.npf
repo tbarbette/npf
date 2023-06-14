@@ -8,7 +8,7 @@ binding NICs to the UIO driver.
 
 User can set the igb_uio tag to use igb_uio instead of uio_pci_generic
 
-Suggested usage example in your testie (omit the prefixed "//" that prevent loop import here)
+Suggested usage example in your test (omit the prefixed "//" that prevent loop import here)
 
 //%import@client dpdk-bind NIC=0
 

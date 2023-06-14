@@ -153,8 +153,8 @@ XYEB = Tuple
 # A dictionnary of XYEB for all results
 AllXYEB = Dict[ResultType, List[XYEB]]
 
-def var_divider(testie: 'Testie', key: str, result_type = None):
-    div = testie.config.get_dict_value("var_divider", key, result_type=result_type, default=1)
+def var_divider(test: 'Test', key: str, result_type = None):
+    div = test.config.get_dict_value("var_divider", key, result_type=result_type, default=1)
     if is_numeric(div):
         return float(div)
     if div.lower() == 'g':
@@ -199,11 +199,11 @@ def write_output(datasets, statics, options, run_list, kind=None):
 
     all_result_types = OrderedSet()
 
-    for testie,build,all_results in datasets:
+    for test,build,all_results in datasets:
         for run, run_results in all_results.items():
             for result_type,results in run_results.items():
                 all_result_types.add(result_type)
-    for testie, build, all_results in datasets:
+    for test, build, all_results in datasets:
         csvs = OrderedDict()
         for run in run_list:
             results_types = all_results.get(run, OrderedDict())
@@ -211,7 +211,7 @@ def write_output(datasets, statics, options, run_list, kind=None):
                 if result_type in csvs:
                     type_filename,csvfile,wr = csvs[result_type]
                 else:
-                    type_filename = npf.build_filename(testie, build, options.output if options.output != 'graph' else options.graph_filename, statics, 'csv', type_str=result_type, show_serie=(len(datasets) > 1 or options.show_serie), force_ext=True, data_folder=True, prefix = kind + '-' if kind else None)
+                    type_filename = npf.build_filename(test, build, options.output if options.output != 'graph' else options.graph_filename, statics, 'csv', type_str=result_type, show_serie=(len(datasets) > 1 or options.show_serie), force_ext=True, data_folder=True, prefix = kind + '-' if kind else None)
                     csvfile = open(type_filename, 'w')
                     wr = csv.writer(csvfile, delimiter=' ',
                                 quotechar='"', quoting=csv.QUOTE_MINIMAL)
@@ -248,17 +248,17 @@ def write_output(datasets, statics, options, run_list, kind=None):
                 csvs[result_type][1].close()
 
 # Converts a dataset (a most of series) to a more mathematical format, XYEB (see above)
-def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list, key, do_x_sort, statics, options, max_series = None, series_sort=None, y_group={}, color=[], kind = None) -> AllXYEB:
+def convert_to_xyeb(datasets: List[Tuple['Test', 'Build' , Dataset]], run_list, key, do_x_sort, statics, options, max_series = None, series_sort=None, y_group={}, color=[], kind = None) -> AllXYEB:
     write_output(datasets, statics, options, run_list, kind)
     data_types = OrderedDict()
     all_result_types = OrderedSet()
 
-    for testie,build,all_results in datasets:
+    for test,build,all_results in datasets:
         for run, run_results in all_results.items():
             for result_type,results in run_results.items():
                 all_result_types.add(result_type)
 
-    for testie, build, all_results in datasets:
+    for test, build, all_results in datasets:
         x = OrderedDict()
         y = OrderedDict()
         e = OrderedDict()
@@ -271,8 +271,8 @@ def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list
             results_types = all_results.get(run, OrderedDict())
             for result_type in all_result_types:
 
-                #ydiv = var_divider(testie, "result", result_type) results are now divided before
-                xdiv = var_divider(testie, key)
+                #ydiv = var_divider(test, "result", result_type) results are now divided before
+                xdiv = var_divider(test, key)
                 result = results_types.get(result_type,None)
 
                 if xdiv != 1 and is_numeric(xval):

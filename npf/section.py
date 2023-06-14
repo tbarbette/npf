@@ -48,10 +48,10 @@ class SectionFactory:
                      "(:?script|init|exit)(:?[@](?P<scriptRole>[a-zA-Z0-9]+)(:?[-](?P<scriptMulti>[*0-9]+))?)?(?P<scriptParams>([ \t]+" + varPattern + ")*))$")
 
     @staticmethod
-    def build(testie, data):
+    def build(test, data):
         """
         Create a section from a given header
-        :param testie: The parent script
+        :param test: The parent script
         :param data: Array containing the section name and possible arguments
         :return: A Section object
         """
@@ -59,7 +59,7 @@ class SectionFactory:
         if not matcher:
             raise Exception("Unknown section line '%s'. Did you mean %s ?" % (data,hu.suggest(data)))
 
-        if not SectionVariable.match_tags(matcher.group('tags'), testie.tags):
+        if not SectionVariable.match_tags(matcher.group('tags'), test.tags):
             return SectionNull()
         sectionName = matcher.group('name')
 
@@ -116,7 +116,7 @@ class SectionFactory:
         elif sectionName == 'late_variables':
             s = SectionLateVariable()
             return s
-        if hasattr(testie, sectionName):
+        if hasattr(test, sectionName):
             raise Exception("Only one section of type " + sectionName + " is allowed")
 
         if sectionName == 'variables':
@@ -133,7 +133,7 @@ class SectionFactory:
             s = Section('info')
         if s is None:
             raise Exception("Unknown section %s, did you meant %s?" % sectionName, hu.suggest(sectionName))
-        setattr(testie, s.name, s)
+        setattr(test, s.name, s)
         return s
 
 
@@ -146,7 +146,7 @@ class Section:
     def get_content(self):
         return self.content
 
-    def finish(self, testie):
+    def finish(self, test):
         pass
 
 
@@ -160,8 +160,8 @@ class SectionSendFile(Section):
         self._role = role
         self.path = path
 
-    def finish(self, testie):
-        testie.sendfile.setdefault(self._role,[]).append(self.path)
+    def finish(self, test):
+        test.sendfile.setdefault(self._role,[]).append(self.path)
 
     def set_role(self, role):
         self._role = role
@@ -194,15 +194,18 @@ class SectionScript(Section):
         if 'name' in self.params:
             return self.params['name']
         elif full:
-            return "%s [%s]" % (self.get_role(), str(self.index))
+            if self.get_role():
+                return "%s [%s]" % (self.get_role(), str(self.index))
+            else:
+                return "[%s]" % (str(self.index))
         else:
             return str(self.index)
 
     def get_type(self):
         return self.type
 
-    def finish(self, testie):
-        testie.scripts.append(self)
+    def finish(self, test):
+        test.scripts.append(self)
 
     def delay(self):
         return float(self.params.get("delay", 0))
@@ -235,21 +238,21 @@ class SectionImport(Section):
         elif module is not None and module != '':
             self.module = 'modules/' + module
         else:
-            if not 'testie' in params:
-                raise Exception("%import section must define a module name or a testie=[path] to import")
-            self.module = params['testie']
-            del params['testie']
+            if not 'test' in params:
+                raise Exception("%import section must define a module name or a test=[path] to import")
+            self.module = params['test']
+            del params['test']
 
         self._role = role
 
     def get_role(self):
         return self._role
 
-    def finish(self, testie):
+    def finish(self, test):
         content = self.get_content().strip()
         if content != '':
             raise Exception("%%import section does not support any content (got %s)" % content)
-        testie.imports.append(self)
+        test.imports.append(self)
 
 
 class SectionFile(Section):
@@ -263,16 +266,16 @@ class SectionFile(Section):
     def get_role(self):
         return self._role
 
-    def finish(self, testie):
-        testie.files.append(self)
+    def finish(self, test):
+        test.files.append(self)
 
 
 class SectionInitFile(SectionFile):
     def __init__(self, filename, role=None, noparse=False):
         super().__init__(filename, role, noparse)
 
-    def finish(self, testie):
-        testie.init_files.append(self)
+    def finish(self, test):
+        test.init_files.append(self)
 
 
 class SectionRequire(Section):
@@ -284,8 +287,8 @@ class SectionRequire(Section):
         # For now, require is only on one node, the default one
         return 'default'
 
-    def finish(self, testie):
-        testie.requirements.append(self)
+    def finish(self, test):
+        test.requirements.append(self)
 
 
 class BruteVariableExpander:
@@ -476,7 +479,7 @@ class SectionVariable(Section):
             else:
                 return None, None, False
 
-    def build(self, content:str, testie, check_exists:bool=False, fail:bool=True):
+    def build(self, content:str, test, check_exists:bool=False, fail:bool=True):
         sections_stack = [self]
         for line in content.split("\n"):
             if line.strip() == "{":
@@ -491,7 +494,7 @@ class SectionVariable(Section):
             else:
                 line = line.lstrip()
                 sect = sections_stack[-1]
-                var, val, assign = self.parse_variable(line, testie.tags, vsection=sect, fail=fail)
+                var, val, assign = self.parse_variable(line, test.tags, vsection=sect, fail=fail)
                 if not var is None and not val is None:
                     # If check_exists, we verify that we overwrite a variable. This is used by config section to ensure we write known parameters
                     if check_exists and not var in sect.vlist:
@@ -507,8 +510,8 @@ class SectionVariable(Section):
                     self._assign(sect.vlist, assign, var, val)
         return OrderedDict(self.vlist.items())
 
-    def finish(self, testie):
-        self.vlist = self.build(self.content, testie)
+    def finish(self, test):
+        self.vlist = self.build(self.content, test)
 
     def dtype(self):
         formats = []
@@ -528,16 +531,16 @@ class SectionLateVariable(SectionVariable):
     def __init__(self, name='late_variables'):
         super().__init__(name)
 
-    def finish(self, testie):
-        testie.late_variables.append(self)
+    def finish(self, test):
+        test.late_variables.append(self)
 
-    def execute(self, variables, testie, fail=True):
+    def execute(self, variables, test, fail=True):
         self.vlist = OrderedDict()
         for k, v in variables.items():
             self.vlist[k] = SimpleVariable(k, v)
         content = self.content
 
-        vlist = self.build(content, testie, fail=fail)
+        vlist = self.build(content, test, fail=fail)
         final = OrderedDict()
         for k, v in vlist.items():
             vals = v.makeValues()
@@ -801,5 +804,5 @@ class SectionConfig(SectionVariable):
             print("ERROR : Regex %s does not work" % key)
         return False
 
-    def finish(self, testie):
-        self.vlist = self.build(self.content, testie, check_exists=True)
+    def finish(self, test):
+        self.vlist = self.build(self.content, test, check_exists=True)

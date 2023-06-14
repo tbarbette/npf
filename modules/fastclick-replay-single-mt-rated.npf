@@ -3,7 +3,7 @@ Module to replay a trace with throughput and latency testing
 
 Packets are directed towards one NIC of the "server" role using one NIC of the CLIENT and expect to receive packets back on the same NIC. There is no L3 support (ARP).
 
-Suggested usage example in your testie (omit the prefixed "//" that prevent loop import here)
+Suggested usage example in your test (omit the prefixed "//" that prevent loop import here)
 
 //%import@client fastclick-replay-single trace=path/to.pcap NIC=0 RCV_NIC=0 SND_NIC=0
 

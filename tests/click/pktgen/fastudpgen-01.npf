@@ -1,14 +1,14 @@
 %info
 FastUDPFlows Generation Speed
 
-This local testie use the FastUDPFlows element of Click to generate packets and compute the generation speed,
+This local test use the FastUDPFlows element of Click to generate packets and compute the generation speed,
  it is a purely CPU-based test, even if the CONFIG file use some real nics address
 
 Assign the "default" role to run this test on a a specific node.
 
 The fastregression tag reduce the variables to the most interesting values
 
-Consider replay-01.testie for a faster version, but only FastClick-compatible. The slowiness of this test
+Consider replay-01.test for a faster version, but only FastClick-compatible. The slowiness of this test
 resides in the lack of batching capabilities, and the push<->pull part and notifications
 
 %config

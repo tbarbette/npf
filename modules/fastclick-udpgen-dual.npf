@@ -8,7 +8,7 @@ traffic is accounted for and printed as the RESULT.
 Roles : client will use two NICs of the node running this file to send traffic
 towards "dut" and should receive back the packets on the opposite ports.
 
-See tests/generic_dpdk/l2_fwd.testie for example
+See tests/generic_dpdk/l2_fwd.test for example
 
 GEN_WAIT is the test time, while the client generates $GEN_FLOWS flows of $GEN_BURST packets in loop
 

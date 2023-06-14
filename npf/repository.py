@@ -410,7 +410,7 @@ class Repository:
     def last_build_before(self, old_build) -> Build:
         return self.get_last_build(stop_at=old_build, history=-1)
 
-    def get_old_results(self, last_graph: Build, num_old: int, testie):
+    def get_old_results(self, last_graph: Build, num_old: int, test):
         graphs_series = []
         # Todo
         parents = self.method.gitrepo().iter_commits(last_graph.version)
@@ -418,10 +418,10 @@ class Repository:
 
         for i, commit in enumerate(parents):  # Get old results for graph
             g_build = Build(self, commit.hexsha[:7], self.options.result_path)
-            if not g_build.hasResults(testie):
+            if not g_build.hasResults(test):
                 continue
-            g_all_results = g_build.load_results(testie)
-            graphs_series.append((testie, g_build, g_all_results))
+            g_all_results = g_build.load_results(test)
+            graphs_series.append((test, g_build, g_all_results))
             if (i > 100 or len(graphs_series) == num_old):
                 break
         return graphs_series

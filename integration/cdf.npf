@@ -1,7 +1,7 @@
 %info
 f(x) = (rand() % 100) * x, for x in [1-5], 20 runs
 
-A non-networking testie to show a CDF
+A non-networking test to show a CDF
 
 %config
 default_repo=local //No program under test
