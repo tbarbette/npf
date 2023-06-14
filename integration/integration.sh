@@ -65,6 +65,8 @@ else
     python=python
 fi
 
+
+try integration/empty.npf $python
 compare experimental $python
 compare pyexit $python
 compare integration-01 $python
