@@ -59,6 +59,7 @@ class SSHExecutor(Executor):
         if options and options.show_cmd:
             print("Executing on %s%s (PATH+=%s) :\n%s" % (self.addr,(' with sudo' if sudo and self.user != "root" else ''),':'.join(path_list) + (("NS:"  + virt) if virt else ""), cmd.strip()))
 
+        # The pre-command goes into the test folder
         pre = 'cd '+ self.path + ';'
 
         if self.path:
@@ -85,14 +86,16 @@ class SSHExecutor(Executor):
         if sudo and self.user != "root":
             cmd = "mkdir -p "+testdir+" && sudo -E " + virt +" "+unbuffer+" bash -c '"+path_cmd + cmd.replace("'", "'\"'\"'") + "'";
         else:
-            cmd = virt +" "+unbuffer+" bash -c '"+path_cmd + cmd.replace("'", "'\"'\"'") + "'";
-            #pre = path_cmd + pre
+            cmd = virt + " " + unbuffer +" bash -c '" + path_cmd + cmd.replace("'", "'\"'\"'") + "'";
 
         ssh = None
         try:
             ssh = self.get_connection(cache=False)
 
-            ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command("echo $$;"+ pre + cmd)
+            #First echo the pid of the shell, so it can be recovered and killed in case of kill from another script
+            #Then launch the pre-command (goes to the right folder)
+            #Then the user command, wrapped with sudo and/or bash if needed
+            ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command("echo $$;"+ pre + cmd + " ; echo '' ;")
             if stdin is not None:
                 ssh_stdin.write(stdin)
             channels = [ssh_stdout, ssh_stderr]
