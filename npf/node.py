@@ -147,7 +147,8 @@ class Node:
                 conf += "%d:ifname=%s" % (i, n.ifname)  + nl
                 #print("%d:speed=%s" % (i, n.speed))
                 conf += "%d:mac=%s" % (i, n.mac) + nl
-                conf += "%d:ip=%s" % (i, n.ip) + nl
+                if n.ip:
+                    conf += "%d:ip=%s" % (i, n.ip) + nl
                 i = i + 1
         print(conf)
         if npf.options.cluster_autosave:
