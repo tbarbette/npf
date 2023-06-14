@@ -110,6 +110,10 @@ class Testie:
     def get_scripts(self) -> List[SectionScript]:
         return self.scripts
 
+    def get_pyexits(self) -> List[SectionPyExit]:
+        self.pyexits.sort(key=lambda p: f"{p.name}_{p.index}")
+        return self.pyexits
+
     def __init__(self, testie_path, options, tags=None, role=None, inline=None):
         loc_path = npf.find_local(testie_path)
         if os.path.exists(loc_path):
@@ -133,6 +137,7 @@ class Testie:
         self.imports = []
         self.requirements = []
         self.sendfile = {}
+        self.pyexits = []
         self.filename = os.path.basename(testie_path)
         self.path = os.path.dirname(os.path.abspath(testie_path))
         self.options = options
@@ -854,11 +859,27 @@ class Testie:
                     has_err = True
                 if this_has_value:
                     has_values = True
-                if hasattr(self, 'pyexit') and allowed_types != set([SectionScript.TYPE_INIT]):
+
+
+                all_pyexits = []
+                all_pyexits_v = []
+                for s,vlist in [(t.testie,t.imp_v) for t in self.imports] + [(self, v)]:
+                    for p in s.get_pyexits():
+                        all_pyexits.append(p)
+                        all_pyexits_v.append(vlist)
+
+                if len(all_pyexits) >0 and allowed_types != set([SectionScript.TYPE_INIT]):
                     vs = {'RESULTS': new_data_results, 'TIME_RESULTS': new_kind_results["time"], 'KIND_RESULTS':new_kind_results}
                     vs.update(v)
+
+                    for late_variables in self.get_late_variables():
+                        vs.update(late_variables.execute(vs, self, fail=False))
+
                     try:
-                        exec(self.pyexit.content, vs)
+                        for p,v in zip(all_pyexits, all_pyexits_v):
+                            print("Executing PyExit script", p.name)
+                            v.update(vs)
+                            exec(p.content, v)
                     except SystemExit as e:
                         if e.code != 0:
                             print("ERROR WHILE EXECUTING PYEXIT SCRIPT: returned code %d" % e.code)

@@ -40,11 +40,12 @@ for sect in known_sections:
 class SectionFactory:
     varPattern = "([a-zA-Z0-9_:-]+)[=](" + Variable.VALUE_REGEX + ")?"
     namePattern = re.compile(
-        "^(?P<tags>" + Variable.TAGS_REGEX + "[:])?(?P<name>info|config|variables|exit|pypost|pyexit|late_variables|include (?P<includeName>[a-zA-Z0-9_./-]+)(?P<includeParams>([ \t]+" +
+        "^(?P<tags>" + Variable.TAGS_REGEX + "[:])?(?P<name>info|config|variables|exit|pypost|late_variables|include (?P<includeName>[a-zA-Z0-9_./-]+)(?P<includeParams>([ \t]+" +
         varPattern + ")+)?|(init-)?file(:?[@](?P<fileRole>[a-zA-Z0-9]+))? (?P<fileName>[a-zA-Z0-9_.-]+)(:? (?P<fileNoparse>noparse))?|require|"
                                              "import(:?[@](?P<importRole>[a-zA-Z0-9]+)(:?[-](?P<importMulti>[*0-9]+))?)?[ \t]+(?P<importModule>" + Variable.VALUE_REGEX + ")(?P<importParams>([ \t]+" +
         varPattern + ")+)?|" +
                      "sendfile(:?[@](?P<sendfileRole>[a-zA-Z0-9]+))?[ \t]+(?P<sendfilePath>.*)|" +
+                     "pyexit(?P<PyExitName>.*)|"
                      "(:?script|init|exit)(:?[@](?P<scriptRole>[a-zA-Z0-9]+)(:?[-](?P<scriptMulti>[*0-9]+))?)?(?P<scriptParams>([ \t]+" + varPattern + ")*))$")
 
     @staticmethod
@@ -93,6 +94,11 @@ class SectionFactory:
 
             return s
 
+        if sectionName.startswith('pyexit'):
+            name = matcher.group("PyExitName").strip()
+            s = SectionPyExit(name)
+            return s
+
         if matcher.group('scriptParams') is not None:
             raise Exception("Only script sections takes arguments (" + sectionName + " has argument " +
                             matcher.groups("params") + ")")
@@ -121,8 +127,6 @@ class SectionFactory:
 
         if sectionName == 'variables':
             s = SectionVariable()
-        elif sectionName == 'pyexit':
-            s = Section('pyexit')
         elif sectionName == 'pypost':
             s = Section('pypost')
         elif sectionName == 'exit':
@@ -220,6 +224,24 @@ class SectionScript(Section):
         for dep in self.params["deps"].split(","):
             deps.add(dep)
         return deps
+
+class SectionPyExit(Section):
+    num = 0
+
+    def __init__(self, name = ""):
+        super().__init__('pyexit')
+        self.index = ++self.num
+        self.name = name
+
+    def finish(self, testie):
+        testie.pyexits.append(self)
+
+    def get_name(self, full=False):
+        if self.name != "":
+            return "pyexit_"+str(self.index)
+        else:
+            return "pyexit_"+self.name
+
 
 
 class SectionImport(Section):

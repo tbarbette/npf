@@ -1,0 +1,12 @@
+%script
+echo "RESULT-N $N"
+echo "RESULT-LOG-MODULE $(( log(2*$N) ))"
+echo "RESULT-EXP-MODULE $(( pow(3,$N) ))"
+
+
+%pyexit module1
+print("This is pyexit in module!")
+RESULTS["PYEXIT_MODULE_RESULT1"] = 7
+
+%pyexit module2
+RESULTS["PYEXIT_MODULE_RESULT2"] = 17
