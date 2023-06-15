@@ -104,3 +104,21 @@ def test_local_executor():
     assert stdout == "TEST\n"
     assert stderr == ""
     assert ret == 0
+
+    pid, stdout, stderr, ret = l.exec("echo -n TEST")
+    assert pid > 0
+    assert stdout == "TEST"
+    assert stderr == ""
+    assert ret == 0
+
+    pid, stdout, stderr, ret = l.exec("echo -n TEST 1>&2")
+    assert pid > 0
+    assert stdout == ""
+    assert stderr == "TEST"
+    assert ret == 0
+
+    pid, stdout, stderr, ret = l.exec("exit 1")
+    assert pid > 0
+    assert stdout == ""
+    assert stderr == ""
+    assert ret == 1
