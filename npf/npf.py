@@ -50,6 +50,10 @@ def add_verbosity_options(parser: ArgumentParser):
                     action='store_true', default=False)
     vf.add_argument('--show-build-cmd', help='Show build commands', dest='show_build_cmd', action='store_true',
                     default=False)
+    from npf.version import __version__
+    v.add_argument('--version', action='version',
+                    version='%(prog)s {version}'.format(version=__version__))
+    
     return v
 
 

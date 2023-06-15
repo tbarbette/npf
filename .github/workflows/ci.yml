@@ -25,6 +25,9 @@ jobs:
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         pip install -e .         
         pip install pytest
+    - name: Version
+      run: |
+        npf-run --version
     - name: Unit test
       run: |
         python -m pytest integration/test_unittest.py
