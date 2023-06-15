@@ -29,7 +29,29 @@ class LocalExecutor(Executor):
     def __init__(self):
         super().__init__()
 
-    def exec(self, cmd, bin_paths : List[str]=[], queue: Queue = None, options = None, stdin = None, timeout = None, sudo = False, testdir=None, event=None, title=None, env = {}, virt="" ):
+    def exec(self, cmd : str, bin_paths : List[str]=[],
+             queue: Queue = None, options = None,
+             stdin = None, timeout = None, sudo = False,
+             testdir=None, event=None, title=None, env = {}, virt="" ) -> [int, str, str, int]:
+        """Runs a command in local
+
+        Args:
+            cmd (_type_): The command to run
+            bin_paths (List[str], optional): Paths to binaries, to be added to $PATH. Defaults to [].
+            queue (Queue, optional): Killing queue, to add this script to the list of script to be killed when the test is finished. Defaults to None.
+            options (_type_, optional): Global options. Defaults to None.
+            stdin (_type_, optional): stdin to echo to the script. Defaults to None.
+            timeout (_type_, optional): Timeout after which the execution is cancelled. Defaults to None.
+            sudo (bool, optional): If su priviledge should be gain. Defaults to False.
+            testdir (_type_, optional): Path in which to execute tests. Defaults to None.
+            event (_type_, optional): Event queue. Defaults to None.
+            title (_type_, optional): Title for the script. Defaults to None.
+            env (dict, optional): Env array. Defaults to {}.
+            virt (str, optional): Virtualisation decorator (eg namespaces). Defaults to "".
+
+        Returns:
+            [int, str, str, int]: pid, stdout, stderr, return code
+        """
         if testdir is not None:
             os.chdir("..")
         if not title:

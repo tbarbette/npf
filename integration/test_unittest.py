@@ -96,3 +96,11 @@ def test_runequality():
     assert a.inside(b)
     assert b.inside(a)
     assert a.__hash__() == b.__hash__()
+
+def test_local_executor():
+    l = LocalExecutor()
+    pid, stdout, stderr, ret = l.exec("echo TEST")
+    assert pid > 0
+    assert stdout == "TEST\n"
+    assert stderr == ""
+    assert ret == 0
