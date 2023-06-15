@@ -181,7 +181,10 @@ def main():
 
     for build in reversed(builds):
         if len(builds) > 1 or repo.version:
-            print("Starting tests for version %s" % build.version)
+            if build.version == "local":
+                print("Starting tests")
+            else:
+                print("Starting tests for version %s" % build.version)
 
         nok = 0
         ntests = 0
