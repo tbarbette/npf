@@ -1,4 +1,5 @@
 import setuptools
+from npf.version import __version__
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
@@ -31,7 +32,7 @@ install_requires=[
 
 setuptools.setup(
     name="npf",
-    version="1.0.46",
+    version=__version__,
     author="Tom Barbette",
     author_email="tom.barbette@uclouvain.be",
     install_requires=install_requires,
@@ -50,6 +51,8 @@ setuptools.setup(
     python_requires='>=3.6',
     entry_points = {
               'console_scripts': [
+                  'npf=npf_compare:main',
+                  'npf-regress=npf_run:main',
                   'npf-run=npf_run:main',
                   'npf-compare=npf_compare:main',
                   'npf-watch=npf_watch:main',
