@@ -66,6 +66,8 @@ def _parallel_exec(param: RemoteParameters):
 
     param.event.wait_for_termination(param.delay)
     if param.event.is_terminated():
+        if param.options.debug:
+                print("[DEBUG] Script %s killed before its execution" % param.name)
         return 1, 'Killed before execution', 'Killed before execution', 0, param.script
     pid, o, e, c = executor.exec(cmd=param.commands,
                                  stdin=param.stdin,
@@ -79,19 +81,26 @@ def _parallel_exec(param: RemoteParameters):
                                  title=param.name,
                                  env=param.env,
                                  virt=param.virt)
+
     if pid == 0:
         return False, o, e, c, param.script
     else:
         if param.autokill is not None:
-                param.event.c.acquire()
-                param.autokill.value = param.autokill.value - 1
-                v = param.autokill.value
-                param.event.c.release()
-                if v == 0:
-                    Test.killall(param.queue, param.event)
-
+            if param.options.debug:
+                print("[DEBUG] Script %s finished, killing all other scripts" % param.name)
+            param.event.c.acquire()
+            param.autokill.value = param.autokill.value - 1
+            v = param.autokill.value
+            param.event.c.release()
+            if v == 0:
+                Test.killall(param.queue, param.event)
         elif pid == -1:
+            #Keyboard interrupt
+            if param.options.debug:
+                print("[DEBUG] Script %s stopped through keyboard interrupt." % param.name)
             Test.killall(param.queue, param.event)
+        else:
+            print("[DEBUG] Script %s finished, autokill=false so it will not terminate the other scripts." % param.name)
         if pid == -1:
             return -1, o, e, c, param.script
         return True, o, e, c, param.script

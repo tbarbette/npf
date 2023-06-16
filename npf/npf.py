@@ -31,7 +31,8 @@ class ExtendAction(argparse.Action):
 def add_verbosity_options(parser: ArgumentParser):
     v = parser.add_argument_group('Verbosity options')
     v.add_argument('--show-full', '--show-all', help='Deprecated : show full execution results, this is now the default. Use --quiet instead.',
-                   dest="deprecated_0")
+                   dest="deprecated_0", action='store_true',
+                   default=False)
     v.add_argument('--show-files', help='Show content of created files',
                    dest='show_files', action='store_true',
                    default=False)
@@ -45,15 +46,19 @@ def add_verbosity_options(parser: ArgumentParser):
     v.add_argument('--quiet', help='Quiet mode', dest='quiet', action='store_true', default=False)
     v.add_argument('--quiet-regression', help='Do not tell about the regression process', dest='quiet_regression',
                     action='store_true', default=False)
+
+    v.add_argument('--debug', help='Debug mode : show scripts execution and termination and more information about synchronization', dest='debug', action='store_true', default=False)
+
     vf = v.add_mutually_exclusive_group()
     vf.add_argument('--quiet-build', help='Do not tell about the build process', dest='quiet_build',
                     action='store_true', default=False)
     vf.add_argument('--show-build-cmd', help='Show build commands', dest='show_build_cmd', action='store_true',
                     default=False)
+
     from npf.version import __version__
     v.add_argument('--version', action='version',
                     version='%(prog)s {version}'.format(version=__version__))
-    
+
     return v
 
 

@@ -151,27 +151,30 @@ class SSHExecutor(Executor):
                 except KeyboardInterrupt:
                     event.terminate()
                     ssh.close()
-                    return -1, out, err
+                    return -1, out, err, -1
                 if timeout is not None:
                     if timeout < 0:
                         event.terminate()
                         pid = 0
                         break
-            if event.is_terminated():
-                if not ssh_stdin.channel.closed:
-                    ssh_stdin.channel.send(chr(3))
+                if event.is_terminated():
+                    if not ssh_stdin.channel.closed:
+
+                        if options and options.debug:
+                            print("[DEBUG] %s: Sending SIGKILL to %d" % (title,rpid))
+                        ssh_stdin.channel.send(chr(3))
                     ssh.exec_command("kill "+str(rpid))
 #                   unneeded ssh.exec_command("kill $(ps -s  "+str(rpid)+" -o pid=)" )
                     i=0
                     ssh_stdout.channel.status_event.wait(timeout=1)
+                # end of loop
 
+            if event.is_terminated():
                 ret = 0 #Ignore return code because we kill it before completion.
-                ssh.close()
-                ssh=None
             else:
                 ret = ssh_stdout.channel.recv_exit_status()
-                ssh.close()
-                ssh=None
+            ssh.close()
+            ssh=None
 
 
             return pid,output[0], output[1],ret
