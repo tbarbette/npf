@@ -87,13 +87,14 @@ class LocalExecutor(Executor):
         os.set_blocking(p.stderr.fileno(), False)
         pid = p.pid
         pgpid = os.getpgid(pid)
+        flushing = False
 
         step = 0.2
         killer = LocalKiller(pgpid)
         if queue:
             queue.put(killer)
         try:
-            while p.poll() is None:
+            while True:
                 select_set.poll(step * 1000)
                 for ichannel, channel in enumerate([p.stdout,p.stderr]):
                     for line in channel.readlines():
@@ -102,6 +103,15 @@ class LocalExecutor(Executor):
                         self.searchEvent(line, event)
                         if options and not options.quiet:
                             self._print(title, line.rstrip(), True)
+
+                #When the program is closed, do one last turn
+                if p.poll() is not None or (event and event.is_terminated()):
+                    if flushing:
+                        break
+                    else:
+                        flushing = True
+
+
                 if timeout is not None:
                     timeout -= step
                     if timeout < 0:
