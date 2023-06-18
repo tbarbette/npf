@@ -2,7 +2,7 @@
 Test throughput of Replay element
 
 Replay allows to preload packet in memory in a preload phase, and then loop on the memory to generate the packets,
-which is faster. This testie tries multiple configuration fo Replay to see which is best. Should we use the dangerous
+which is faster. This test tries multiple configuration fo Replay to see which is best. Should we use the dangerous
 QUICK_CLONE parameter when we can? What's the perfect burst size? Does the number of replay count have an influence?
 
 %config

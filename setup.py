@@ -1,4 +1,5 @@
 import setuptools
+from npf.version import __version__
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
@@ -18,7 +19,7 @@ install_requires=[
     'ordered_set; python_version >= "3.7.0"',
     'paramiko',
     'asteval',
-    'cryptography==36.0.2',
+    'cryptography==41.0.0',
     'gitdb',
     'pyasn1',
     'natsort',
@@ -32,9 +33,9 @@ install_requires=[
 
 setuptools.setup(
     name="npf",
-    version="1.0.40",
+    version=__version__,
     author="Tom Barbette",
-    author_email="t.barbette@gmail.com",
+    author_email="tom.barbette@uclouvain.be",
     install_requires=install_requires,
     description="NPF",
     long_description=long_description,
@@ -51,6 +52,8 @@ setuptools.setup(
     python_requires='>=3.6',
     entry_points = {
               'console_scripts': [
+                  'npf=npf_compare:main',
+                  'npf-regress=npf_run:main',
                   'npf-run=npf_run:main',
                   'npf-compare=npf_compare:main',
                   'npf-watch=npf_watch:main',

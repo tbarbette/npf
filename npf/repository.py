@@ -329,7 +329,7 @@ class Repository:
     def pretty_name(self):
         return self.name
 
-    #Get the path 
+    #Get the path
     def get_build_path(self):
         return self._build_path
 
@@ -340,8 +340,8 @@ class Repository:
             return bp
         if not bp:
             return ""
-        #If the path is in the NPF build path, the remote 
-        if os.path.abspath(bp).startswith(npf.get_build_path()): 
+        #If the path is in the NPF build path, the remote
+        if os.path.abspath(bp).startswith(npf.get_build_path()):
             return os.path.relpath(bp, os.path.dirname(os.path.normpath(npf.get_build_path())))
         if os.path.abspath(bp).startswith(npf.experiment_path()):
             return os.path.relpath(bp, npf.experiment_path())
@@ -410,7 +410,7 @@ class Repository:
     def last_build_before(self, old_build) -> Build:
         return self.get_last_build(stop_at=old_build, history=-1)
 
-    def get_old_results(self, last_graph: Build, num_old: int, testie):
+    def get_old_results(self, last_graph: Build, num_old: int, test):
         graphs_series = []
         # Todo
         parents = self.method.gitrepo().iter_commits(last_graph.version)
@@ -418,10 +418,10 @@ class Repository:
 
         for i, commit in enumerate(parents):  # Get old results for graph
             g_build = Build(self, commit.hexsha[:7], self.options.result_path)
-            if not g_build.hasResults(testie):
+            if not g_build.hasResults(test):
                 continue
-            g_all_results = g_build.load_results(testie)
-            graphs_series.append((testie, g_build, g_all_results))
+            g_all_results = g_build.load_results(test)
+            graphs_series.append((test, g_build, g_all_results))
             if (i > 100 or len(graphs_series) == num_old):
                 break
         return graphs_series

@@ -5,7 +5,7 @@ import argparse
 from collections import OrderedDict
 
 from npf.repository import Repository
-from npf.testie import Testie
+from npf.test import Test
 from npf.build import Build
 from npf.variable import dtype, numeric_dict
 from npf.types.dataset import Run, ImmutableRun
@@ -19,6 +19,7 @@ def get_args():
     args = parser.parse_args(args = "")
     args.tags = {}
     npf.set_args(args)
+    npf.parse_nodes(args)
     return args
 
 def test_args():
@@ -58,15 +59,15 @@ def test_paths():
 
     #Test the constants are correct
 
-    testie = Testie("tests/examples/math.npf", options=args, tags=args.tags)
+    test = Test("tests/examples/math.npf", options=args, tags=args.tags)
     repo = get_repo()
     build = Build(repo, "version")
     v={}
-    testie.update_constants(v, build, ssh.experiment_path() + "/testie-1/", out_path=None)
+    test.update_constants(v, build, ssh.experiment_path() + "/test-1/", out_path=None)
     v2={}
-    testie.update_constants(v2, build, ssh2.experiment_path() + "/testie-1/", out_path=None)
+    test.update_constants(v2, build, ssh2.experiment_path() + "/test-1/", out_path=None)
     vl={}
-    testie.update_constants(vl, build, local.experiment_path() + "/testie-1/", out_path=None)
+    test.update_constants(vl, build, local.experiment_path() + "/test-1/", out_path=None)
     for d in [vl,v,v2]:
         assert v['NPF_REPO'] == 'Click_2022'
         assert v['NPF_ROOT_PATH'] == '../..'
@@ -95,3 +96,29 @@ def test_runequality():
     assert a.inside(b)
     assert b.inside(a)
     assert a.__hash__() == b.__hash__()
+
+def test_local_executor():
+    l = LocalExecutor()
+    pid, stdout, stderr, ret = l.exec("echo TEST")
+    assert pid > 0
+    assert stdout == "TEST\n"
+    assert stderr == ""
+    assert ret == 0
+
+    pid, stdout, stderr, ret = l.exec("echo -n TEST")
+    assert pid > 0
+    assert stdout == "TEST"
+    assert stderr == ""
+    assert ret == 0
+
+    pid, stdout, stderr, ret = l.exec("echo -n TEST 1>&2")
+    assert pid > 0
+    assert stdout == ""
+    assert stderr == "TEST"
+    assert ret == 0
+
+    pid, stdout, stderr, ret = l.exec("exit 1")
+    assert pid > 0
+    assert stdout == ""
+    assert stderr == ""
+    assert ret == 1

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Main NPF testie runner program
+Main NPF test runner program
 """
 import argparse
 import errno
@@ -10,11 +10,11 @@ import sys
 from npf import npf
 from npf.regression import *
 from npf.statistics import Statistics
-from npf.testie import Testie, ScriptInitException
+from npf.test import Test, ScriptInitException
 
 
 def main():
-    parser = argparse.ArgumentParser(description='NPF Testie runner')
+    parser = argparse.ArgumentParser(description='NPF Test runner')
     v = npf.add_verbosity_options(parser)
 
     b = npf.add_building_options(parser)
@@ -77,14 +77,14 @@ def main():
         repo = Repository.get_instance(args.repo, args)
     else:
         if os.path.exists(args.test_files) and os.path.isfile(args.test_files):
-            tmptestie = Testie(args.test_files,options=args)
-            if "default_repo" in tmptestie.config and tmptestie.config["default_repo"] is not None:
-                repo = Repository.get_instance(tmptestie.config["default_repo"], args)
+            tmptest = Test(args.test_files,options=args)
+            if "default_repo" in tmptest.config and tmptest.config["default_repo"] is not None:
+                repo = Repository.get_instance(tmptest.config["default_repo"], args)
             else:
                 print("This npf script has no default repository")
                 sys.exit(1)
         else:
-            print("Please specify a repository to use to the command line or only a single testie with a default_repo")
+            print("Please specify a repository to use to the command line or only a single test with a default_repo")
             sys.exit(1)
 
     if args.graph_num == -1:
@@ -152,20 +152,20 @@ def main():
                 if len(graph_builds) > args.graph_num:
                     break
 
-    testies = Testie.expand_folder(testie_path=args.test_files, options=args, tags=tags)
-    if not testies:
+    tests = Test.expand_folder(test_path=args.test_files, options=args, tags=tags)
+    if not tests:
         sys.exit(errno.ENOENT)
 
-    npf.override(args, testies)
+    npf.override(args, tests)
 
     for b in last_rebuilds:
         print("Last version %s had no result. Re-executing tests for it." % b.version)
         did_something = False
-        for testie in testies:
-            prev_results = b.load_results(testie)
-            print("Executing testie %s" % testie.filename)
+        for test in tests:
+            prev_results = b.load_results(test)
+            print("Executing test %s" % test.filename)
             try:
-                all_results, time_results, init_done = testie.execute_all(b,options=args, prev_results=prev_results)
+                all_results, time_results, init_done = test.execute_all(b,options=args, prev_results=prev_results)
 
                 if all_results is None and time_results is None:
                     continue
@@ -173,7 +173,7 @@ def main():
                 continue
             else:
                 did_something = True
-            b.writeversion(testie, all_results, allow_overwrite=True)
+            b.writeversion(test, all_results, allow_overwrite=True)
         if did_something:
             b.writeResults()
 
@@ -181,30 +181,33 @@ def main():
 
     for build in reversed(builds):
         if len(builds) > 1 or repo.version:
-            print("Starting tests for version %s" % build.version)
+            if build.version == "local":
+                print("Starting tests")
+            else:
+                print("Starting tests for version %s" % build.version)
 
         nok = 0
         ntests = 0
 
-        for testie in testies:
-            print("Executing testie %s" % testie.filename)
+        for test in tests:
+            print("Executing test %s" % test.filename)
 
-            regression = Regression(testie)
+            regression = Regression(test)
 
-            if testie.get_title() != testie.filename:
-                print(testie.get_title())
+            if test.get_title() != test.filename:
+                print(test.get_title())
 
             old_all_results = None
             if last_build:
                 try:
-                    old_all_results = last_build.load_results(testie)
+                    old_all_results = last_build.load_results(test)
                 except FileNotFoundError:
                     print("Previous build %s could not be found, we will not compare !" % last_build.version)
                     last_build = None
 
             try:
-                prev_results = build.load_results(testie)
-                prev_kind_results = build.load_results(testie, kind=True)
+                prev_results = build.load_results(test)
+                prev_kind_results = build.load_results(test, kind=True)
             except FileNotFoundError:
                 prev_results = None
                 prev_kind_results = None
@@ -213,7 +216,7 @@ def main():
             time_results = None
             try:
                 if all_results is None and time_results is None:
-                    all_results, time_results, init_done = testie.execute_all(build, prev_results=prev_results, prev_kind_results=prev_kind_results, do_test=args.do_test, options=args)
+                    all_results, time_results, init_done = test.execute_all(build, prev_results=prev_results, prev_kind_results=prev_kind_results, do_test=args.do_test, options=args)
                 if not all_results and not time_results:
                     returncode+=1
                     continue
@@ -221,7 +224,7 @@ def main():
                 continue
 
             if args.compare:
-                variables_passed,variables_passed = regression.compare(testie, testie.variables, all_results, build, old_all_results, last_build)
+                variables_passed,variables_passed = regression.compare(test, test.variables, all_results, build, old_all_results, last_build)
                 if variables_passed == variables_passed:
                     nok += 1
                 else:
@@ -233,40 +236,40 @@ def main():
 
             #Filtered results are results only for the given current variables
             filtered_results = {}
-            for v in testie.variables:
+            for v in test.variables:
                 run = Run(v)
                 if run in all_results:
                     filtered_results[run] = all_results[run]
 
             if args.statistics:
-                Statistics.run(build,filtered_results, testie, max_depth=args.statistics_maxdepth, filename=args.statistics_filename)
+                Statistics.run(build,filtered_results, test, max_depth=args.statistics_maxdepth, filename=args.statistics_filename)
 
             grapher = Grapher()
 
             g_series = []
             if last_build and old_all_results and args.compare:
-                g_series.append((testie, last_build, old_all_results))
+                g_series.append((test, last_build, old_all_results))
 
             for g_build in graph_builds:
                 try:
-                    g_all_results = g_build.load_results(testie)
+                    g_all_results = g_build.load_results(test)
                     if (g_all_results and len(g_all_results) > 0):
-                        g_series.append((testie, g_build, g_all_results))
+                        g_series.append((test, g_build, g_all_results))
                 except FileNotFoundError:
                     print("Previous build %s could not be found, we will not graph it !" % g_build.version)
 
-            filename = args.graph_filename if args.graph_filename else build.result_path(testie.filename, 'pdf')
-            grapher.graph(series=[(testie, build, all_results)] + g_series,
-                          title=testie.get_title(),
+            filename = args.graph_filename if args.graph_filename else build.result_path(test.filename, 'pdf')
+            grapher.graph(series=[(test, build, all_results)] + g_series,
+                          title=test.get_title(),
                           filename=filename,
-                          graph_variables=[Run(x) for x in testie.variables],
+                          graph_variables=[Run(x) for x in test.variables],
                           options = args)
             if time_results:
                 for find, results in time_results.items():
                     if not results:
                         continue
-                    grapher.graph(series=[(testie, build, results)],
-                          title=testie.get_title(),
+                    grapher.graph(series=[(test, build, results)],
+                          title=test.get_title(),
                           filename=filename,
                           options = args)
         if last_build and args.graph_num > 0:

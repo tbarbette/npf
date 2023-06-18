@@ -3,7 +3,7 @@ Module to replay a trace or a dump with throughput and latency measurement
 
 Packets are directed towards one NIC of the "server" role using one NIC of the CLIENT and expect to receive packets back on any (eventyally the same) NIC. There is no L3 support (ARP).
 
-Suggested usage example in your testie (omit the prefixed "//" that prevent loop import here)
+Suggested usage example in your test (omit the prefixed "//" that prevent loop import here)
 
 //%import@client fastclick-replay-single-mt trace=path/to.pcap NIC=0 CLIENT_NIC=0
 
@@ -31,6 +31,7 @@ LIMIT=50000000
 LIMIT_TIME=65
 GEN_THREADS=4
 GEN_PIPELINE=1
+udpgen:GEN_PIPELINE=0
 GEN_TX_PIPELINE=0
 GEN_SOCKET=0
 GEN_BURST=32
@@ -53,7 +54,7 @@ GEN_DUMP=0
 gen_dump:GEN_DUMP=1
 gen_mindump:GEN_DUMP=2
 udpgen:GEN_DUMP=-1
-GEN_SEQUENTIAL=0
+GEN_SEQUENTIAL=1
 GEN_RX=1
 NUMBEROFFSET=40
 gen_norx:GEN_RX=0
@@ -63,11 +64,12 @@ timing:TIMING_FNT=100
 %late_variables
 GEN_TX_DESC?=EXPAND($GEN_DESC)
 GEN_NGEN=EXPAND( $((1 if $GEN_PIPELINE else $GEN_THREADS)) )
+GEN_IPV6?=0
 
 UNQUEUE=
 udpgen:UNQUEUE=Unqueue()
-rate:UNQUEUE=EXPAND( BandwidthRatedUnqueue( $(( int($GEN_RATE / $GEN_NGEN) )), EXTRA_LENGTH true, LINK_RATE true, BURST_DURATION 1, BURST 1) )
-prate:UNQUEUE=EXPAND( RatedUnqueue($(( int($GEN_RATE / $GEN_NGEN)  )), BURST 1, ACTIVE $(( "false" if $GEN_PROGRESSIVE else "true" )) ) )
+rate:UNQUEUE=EXPAND( BandwidthRatedUnqueue( $(( int($GEN_RATE / $GEN_NGEN) )), EXTRA_LENGTH true, LINK_RATE true, BURST_DURATION 1, BURST $GEN_BURST) )
+prate:UNQUEUE=EXPAND( RatedUnqueue($(( int($GEN_RATE / $GEN_NGEN)  )), BURST $GEN_BURST, ACTIVE $(( "false" if $GEN_PROGRESSIVE else "true" )) ) )
 HAVE_UNQUEUE?=0
 udpgen|prate|rate|replay:HAVE_UNQUEUE=1
 NRECORD=EXPAND( $(( ($LIMIT + 1024) * 2 )) )
@@ -116,7 +118,8 @@ BROADCAST_IGNORE= -> c :: Classifier(-, 0/ffffffffffff)
 
 
 %script deps=fastclick-light sudo=true delay=2 name=fastclick-play
-$GEN_GDB click --dpdk -l 0-15 -- PKTGEN_CONFIG
+proc=\$(( $(nproc --all) - 1 ))
+$GEN_GDB click --dpdk -l 0-$proc -- PKTGEN_CONFIG
 echo "EVENT TX_FINISHED"
 echo "Generator stopped..."
 

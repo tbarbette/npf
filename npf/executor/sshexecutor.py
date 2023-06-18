@@ -3,7 +3,11 @@ import os,errno
 import time
 from multiprocessing import Queue
 from typing import List
-import paramiko
+import warnings
+from cryptography.utils import CryptographyDeprecationWarning
+with warnings.catch_warnings():
+    warnings.filterwarnings('ignore', category=CryptographyDeprecationWarning)
+    import paramiko
 from .executor import Executor
 from ..eventbus import EventBus
 from .. import npf
@@ -55,6 +59,7 @@ class SSHExecutor(Executor):
         if options and options.show_cmd:
             print("Executing on %s%s (PATH+=%s) :\n%s" % (self.addr,(' with sudo' if sudo and self.user != "root" else ''),':'.join(path_list) + (("NS:"  + virt) if virt else ""), cmd.strip()))
 
+        # The pre-command goes into the test folder
         pre = 'cd '+ self.path + ';'
 
         if self.path:
@@ -81,39 +86,57 @@ class SSHExecutor(Executor):
         if sudo and self.user != "root":
             cmd = "mkdir -p "+testdir+" && sudo -E " + virt +" "+unbuffer+" bash -c '"+path_cmd + cmd.replace("'", "'\"'\"'") + "'";
         else:
-            cmd = virt +" "+unbuffer+" bash -c '"+path_cmd + cmd.replace("'", "'\"'\"'") + "'";
-            #pre = path_cmd + pre
+            cmd = virt + " " + unbuffer +" bash -c '" + path_cmd + cmd.replace("'", "'\"'\"'") + "'";
 
         ssh = None
         try:
             ssh = self.get_connection(cache=False)
 
-            ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command("echo $$;"+ pre + cmd,timeout=timeout, get_pty=True)
-            rpid = int(ssh_stdout.readline())
+            #First echo the pid of the shell, so it can be recovered and killed in case of kill from another script
+            #Then launch the pre-command (goes to the right folder)
+            #Then the user command, wrapped with sudo and/or bash if needed
+            ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command("echo $$;"+ pre + cmd + " ; echo '' ;")
             if stdin is not None:
                 ssh_stdin.write(stdin)
             channels = [ssh_stdout, ssh_stderr]
             output = ['','']
-
+            buffers = ['','']
+            rpid = -1
             pid = os.getpid()
             step = 0.2
-            for channel in channels:
-                channel.channel.setblocking(False)
+            #for channel in channels:
+            #   channel.channel.setblocking(False)
 
-            while not event.is_terminated() and not ssh_stdout.channel.exit_status_ready():
+            while (not event.is_terminated() and not ssh_stdout.channel.exit_status_ready()) or (ssh_stdout.channel.recv_ready() or ssh_stderr.channel.recv_ready()):
                 try:
                     line = None
-                    while ssh_stdout.channel.recv_ready() or ssh_stderr.channel.recv_ready():
-                        for ichannel,channel in enumerate(channels[:1]):
-                            if channel.channel.recv_ready():
-                                try:
-                                    line = channel.readline()
-                                    if options and options.show_full:
-                                        self._print(title, line, False)
-                                    self.searchEvent(line, event)
-                                    output[ichannel] += line
-                                except UnicodeDecodeError:
-                                    print("Could not decode SSH input")
+                    for ichannel,channel in enumerate(channels):
+                        chan = channel.channel
+                        ichannel = 0
+                        if chan.recv_ready():
+                            try:
+                                data = chan.recv(1024)
+                                buffers[ichannel] = buffers[ichannel] + data.decode("utf-8")
+                                while "\n" in buffers[ichannel]:
+                                    p = buffers[ichannel].index("\n")
+                                    line = buffers[ichannel][:p+1]
+                                    buffers[ichannel] = buffers[ichannel][p+1:]
+                                    if rpid == -1:
+                                        rpid = int(line)
+                                    else:
+                                        if options and not options.quiet:
+                                            self._print(title, line, False)
+                                        self.searchEvent(line, event)
+                                        output[ichannel] += line
+                                    if buffers[ichannel]:
+                                        self.searchEvent(buffers[ichannel], event)
+                            except UnicodeDecodeError:
+                                        print("Could not decode SSH input")
+                            except Exception as e:
+                                print("Error")
+                                print(e)
+                                raise(e)
+
                     else:
                         event.wait_for_termination(step)
                         if timeout is not None:
@@ -128,34 +151,31 @@ class SSHExecutor(Executor):
                 except KeyboardInterrupt:
                     event.terminate()
                     ssh.close()
-                    return -1, out, err
+                    return -1, out, err, -1
                 if timeout is not None:
                     if timeout < 0:
                         event.terminate()
                         pid = 0
                         break
-            if event.is_terminated():
-                if not ssh_stdin.channel.closed:
-                    ssh_stdin.channel.send(chr(3))
+                if event.is_terminated():
+                    if not ssh_stdin.channel.closed:
+
+                        if options and options.debug:
+                            print("[DEBUG] %s: Sending SIGKILL to %d" % (title,rpid))
+                        ssh_stdin.channel.send(chr(3))
                     ssh.exec_command("kill "+str(rpid))
 #                   unneeded ssh.exec_command("kill $(ps -s  "+str(rpid)+" -o pid=)" )
                     i=0
                     ssh_stdout.channel.status_event.wait(timeout=1)
+                # end of loop
 
+            if event.is_terminated():
                 ret = 0 #Ignore return code because we kill it before completion.
-                ssh.close()
-                ssh=None
             else:
                 ret = ssh_stdout.channel.recv_exit_status()
-                ssh.close()
-                ssh=None
+            ssh.close()
+            ssh=None
 
-            for ichannel,channel in enumerate(channels):
-                for line in channel.readlines():
-                    if options and options.show_full:
-                        self._print(title, line, False)
-                    self.searchEvent(line, event)
-                    output[ichannel] += line
 
             return pid,output[0], output[1],ret
         except socket.gaierror as e:

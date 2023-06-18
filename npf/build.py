@@ -10,7 +10,7 @@ import copy
 
 renametable = {
     'npf.script': 'npf.npf',
-    'npf.testie': 'npf.npf'
+    'npf.test': 'npf.npf'
 }
 
 
@@ -80,25 +80,25 @@ class Build:
         else:
             return self.result_folder() + self.version + '.results'
 
-    def writeversion(self, testie, all_results: Dataset, allow_overwrite: bool = False, kind = False, reload=True):
+    def writeversion(self, test, all_results: Dataset, allow_overwrite: bool = False, kind = False, reload=True):
         if not reload and all_results:
-          prev=self.load_results(testie = testie, kind = kind, cache=True)
+          prev=self.load_results(test = test, kind = kind, cache=True)
           if prev and len(all_results) < len(prev):
             print("ERROR ! Have less results than before. Forcing update write !")
             reload = True
             return
         if reload:
-            results = self.load_results(testie = testie, kind = kind, cache=False)
+            results = self.load_results(test = test, kind = kind, cache=False)
             if results:
                 results.update(all_results)
                 all_results = results
 
         if kind:
             for kind, kresult in all_results.items():
-                filename = self.__resultFilename(testie) + '-' + kind
+                filename = self.__resultFilename(test) + '-' + kind
                 self._writeversion(filename, kresult, allow_overwrite)
         else:
-            filename = self.__resultFilename(testie)
+            filename = self.__resultFilename(test)
             self._writeversion(filename, all_results, allow_overwrite)
 
     def _writeversion(self, filename, all_results, allow_overwrite):
@@ -134,23 +134,23 @@ class Build:
         self.cache[filename] = all_results
 
 
-    def load_results(self, testie, kind=False, cache=True):
+    def load_results(self, test, kind=False, cache=True):
         if kind:
             kr={}
-            filename = self.__resultFilename(testie) + '-'
+            filename = self.__resultFilename(test) + '-'
             if os.path.exists(os.path.dirname(filename)):
               for f in os.listdir(os.path.dirname(filename)):
                 if os.path.basename(filename) in f:
                     kind = f[f.rfind("-") + 1 :]
                     f = filename + kind
-                    kr[kind] = self._load_results(testie, f, cache)
+                    kr[kind] = self._load_results(test, f, cache)
             return kr
 
         else:
-            filename = self.__resultFilename(testie)
-            return self._load_results(testie, filename, cache)
+            filename = self.__resultFilename(test)
+            return self._load_results(test, filename, cache)
 
-    def _load_results(self, testie, filename, cache):
+    def _load_results(self, test, filename, cache):
         if not Path(filename).exists():
             return None
         if cache:
@@ -169,7 +169,7 @@ class Build:
                 for v_data in re.split(r'(?<!\\),', variables_data):
                     if v_data.strip():
                         k, v = re.split(r'(?<!\\):', v_data)
-                        variables[k] = variable.get_numeric(v) if testie.variables.is_numeric(k) else str(v).replace('\:',':')
+                        variables[k] = variable.get_numeric(v) if test.variables.is_numeric(k) else str(v).replace('\:',':')
                 results = {}
 
                 results_data = results_data.strip()[1:-1].split('},{')
@@ -285,7 +285,7 @@ class Build:
             if never_build:
                 if not quiet_build:
                     print("Warning : test will be done with an unknown state of build")
-            if not quiet_build:
+            if not quiet_build and self.repo.name != "Local":
                 print("Checking out %s" % (self.repo.name))
             if not self.checkout(quiet_build):
                 return False
@@ -295,7 +295,7 @@ class Build:
                 print("Warning : version changed but you disallowed build. Test will be done with an unknown state of build")
                 self.repo._current_build = self
                 return True
-            if not quiet_build:
+            if not quiet_build and self.repo.name != "Local":
                 print("Building %s (because %s)" % (self.repo.name, "you force the build with --force-build" if force_build is True else reason if not force_build else force_build ))
             if not self.compile(quiet_build, show_build_cmd):
                 return False

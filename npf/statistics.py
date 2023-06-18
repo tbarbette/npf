@@ -14,17 +14,17 @@ from collections import OrderedDict
 from typing import List
 
 from npf.build import Build
-from npf.testie import Testie
+from npf.test import Test
 from npf.types.dataset import Dataset
 from npf import npf
 
 class Statistics:
     @staticmethod
-    def run(build: Build, all_results: Dataset, testie: Testie, max_depth=3, filename=None, doviz=True):
+    def run(build: Build, all_results: Dataset, test: Test, max_depth=3, filename=None, doviz=True):
         print("Building dataset...")
 
         #Transform the dataset into a standard table of X/Features and Y observations
-        dataset = Statistics.buildDataset(all_results, testie)
+        dataset = Statistics.buildDataset(all_results, test)
 
         #There's one per serie, so for each of those
         for result_type, X, y, dtype in dataset:
@@ -48,7 +48,7 @@ class Statistics:
                     graph = pydotplus.graph_from_dot_data(dot_data)
 
 
-                    f = npf.build_filename(testie, build, filename if not filename is True else None, {}, 'pdf', result_type, show_serie=False, suffix="clf")
+                    f = npf.build_filename(test, build, filename if not filename is True else None, {}, 'pdf', result_type, show_serie=False, suffix="clf")
                     try:
                         graph.write(f, format=os.path.splitext(f)[1][1:])
                         print("Decision tree visualization written to %s" % f)
@@ -100,9 +100,9 @@ class Statistics:
                 print("")
 
     @classmethod
-    def buildDataset(cls, all_results: Dataset, testie: Testie) -> List[tuple]:
+    def buildDataset(cls, all_results: Dataset, test: Test) -> List[tuple]:
         #map of every <variable name, format>
-        dtype = testie.variables.dtype()
+        dtype = test.variables.dtype()
 
         y = OrderedDict()
         dataset = []

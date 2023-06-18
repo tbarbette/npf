@@ -30,8 +30,8 @@ class ExtendAction(argparse.Action):
 
 def add_verbosity_options(parser: ArgumentParser):
     v = parser.add_argument_group('Verbosity options')
-    v.add_argument('--show-full', '--show-all', help='Show full execution results',
-                   dest='show_full', action='store_true',
+    v.add_argument('--show-full', '--show-all', help='Deprecated : show full execution results, this is now the default. Use --quiet instead.',
+                   dest="deprecated_0", action='store_true',
                    default=False)
     v.add_argument('--show-files', help='Show content of created files',
                    dest='show_files', action='store_true',
@@ -46,11 +46,19 @@ def add_verbosity_options(parser: ArgumentParser):
     v.add_argument('--quiet', help='Quiet mode', dest='quiet', action='store_true', default=False)
     v.add_argument('--quiet-regression', help='Do not tell about the regression process', dest='quiet_regression',
                     action='store_true', default=False)
+
+    v.add_argument('--debug', help='Debug mode : show scripts execution and termination and more information about synchronization', dest='debug', action='store_true', default=False)
+
     vf = v.add_mutually_exclusive_group()
     vf.add_argument('--quiet-build', help='Do not tell about the build process', dest='quiet_build',
                     action='store_true', default=False)
     vf.add_argument('--show-build-cmd', help='Show build commands', dest='show_build_cmd', action='store_true',
                     default=False)
+
+    from npf.version import __version__
+    v.add_argument('--version', action='version',
+                    version='%(prog)s {version}'.format(version=__version__))
+
     return v
 
 
@@ -148,7 +156,7 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
     t.add_argument('--config', metavar='config=value', type=str, nargs='+', action=ExtendAction,
                    help='list of config values to override', default=[])
 
-    t.add_argument('--testie', '--test', '--npf', dest='test_files', metavar='path or testie', type=str, nargs='?', default='tests',
+    t.add_argument('--test', '--test', '--npf', dest='test_files', metavar='path or test', type=str, nargs='?', default='tests',
                    help='script or script folder. Default is tests')
 
 
@@ -335,13 +343,13 @@ def parse_variables(args_variables, tags, sec) -> Dict:
     return variables
 
 
-def override(args, testies):
-    for testie in testies:
-        overriden_variables = parse_variables(args.variables, testie.tags, testie.variables)
-        overriden_config = parse_variables(args.config, testie.tags, testie.config)
-        testie.variables.override_all(overriden_variables)
-        testie.config.override_all(overriden_config)
-    return testies
+def override(args, tests):
+    for test in tests:
+        overriden_variables = parse_variables(args.variables, test.tags, test.variables)
+        overriden_config = parse_variables(args.config, test.tags, test.config)
+        test.variables.override_all(overriden_variables)
+        test.config.override_all(overriden_config)
+    return tests
 
 
 def npf_root_path():
@@ -404,15 +412,15 @@ def splitpath(hint):
             basename = ''
     return dirname, basename, ext
 
-def build_filename(testie, build, hint, variables, def_ext, type_str='', show_serie=False, suffix='', force_ext = False, data_folder = False, prefix=None):
+def build_filename(test, build, hint, variables, def_ext, type_str='', show_serie=False, suffix='', force_ext = False, data_folder = False, prefix=None):
     var_str = get_valid_filename('_'.join(
         ["%s=%s" % (k, (val[1] if type(val) is tuple else val)) for k, val in sorted(variables.items()) if val]))
 
     if hint is None:
         if data_folder:
-            path = build.result_path(testie.filename, def_ext, folder = var_str + (('-' if var_str else '') + type_str if type_str else ''), prefix=prefix, suffix = ('-' + suffix if suffix else '') + ('-' + get_valid_filename(build.pretty_name()) if show_serie else ''))
+            path = build.result_path(test.filename, def_ext, folder = var_str + (('-' if var_str else '') + type_str if type_str else ''), prefix=prefix, suffix = ('-' + suffix if suffix else '') + ('-' + get_valid_filename(build.pretty_name()) if show_serie else ''))
         else:
-            path = build.result_path(testie.filename, def_ext, suffix=('-' + suffix if suffix else '') + var_str + ('-' + type_str if type_str else '') + ('-' + get_valid_filename(build.pretty_name()) if show_serie else '') , prefix=prefix)
+            path = build.result_path(test.filename, def_ext, suffix=('-' + suffix if suffix else '') + var_str + ('-' + type_str if type_str else '') + ('-' + get_valid_filename(build.pretty_name()) if show_serie else '') , prefix=prefix)
     else:
         dirname, basename, ext = splitpath(hint)
 

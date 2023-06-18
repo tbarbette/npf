@@ -8,7 +8,7 @@ This will generate UDP traffic using 1 NICs and receive it back on (maybe anothe
 Roles : client:0 (first NIC of the server running this file) will send traffic
 towards "dut" and should receive back the packets on client:1.
 
-See tests/generic_dpdk/l2_fwd_latency.testie for example using the "dual" (bidirectional) version of this test
+See tests/generic_dpdk/l2_fwd_latency.test for example using the "dual" (bidirectional) version of this test
 
 The client generates $GEN_FLOWS flows of $GEN_BURST packets in loop, and plays a max of $LIMIT packets
 
