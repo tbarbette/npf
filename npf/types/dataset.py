@@ -276,7 +276,7 @@ def process_output_options(datasets, statics, options, run_list, kind=None):
     
 # Converts a dataset (a most of series) to a more mathematical format, XYEB (see above)
 def convert_to_xyeb(datasets: List[Tuple['Test', 'Build' , Dataset]], run_list, key, do_x_sort, statics, options, max_series = None, series_sort=None, y_group={}, color=[], kind = None) -> AllXYEB:
-    write_output(datasets, statics, options, run_list, kind)
+    process_output_options(datasets, statics, options, run_list, kind)
     data_types = OrderedDict()
     all_result_types = OrderedSet()
 
