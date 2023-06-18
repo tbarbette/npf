@@ -26,5 +26,5 @@ def prepare_web_export(datasets, all_results_df, path):
     }
 
     # Exporting
-    app.export(configurationData, "./tmp")
+    app.export(configurationData, path)
 
