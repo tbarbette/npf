@@ -894,7 +894,6 @@ class Grapher:
         self.graph_group(series, vars_values, filename=filename, fileprefix = fileprefix, title=title)
     
         # Export to web format
-        # TODO maybe make this like an alternative? ie: choose between plotly graph or web graph (interactive)
         if options.web is not None:
             prepare_web_export(series, all_results_df, options.web)
 

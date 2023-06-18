@@ -273,11 +273,6 @@ def process_output_options(datasets, statics, options, run_list, kind=None):
 
     # Export all csvs based on options
     export_csvs(all_csvs, options)
-
-    # TODO REMOVE?
-    # Prepare for web export
-    # if options.web is not None:
-    #     prepare_web_export(datasets)
     
 # Converts a dataset (a most of series) to a more mathematical format, XYEB (see above)
 def convert_to_xyeb(datasets: List[Tuple['Testie', 'Build' , Dataset]], run_list, key, do_x_sort, statics, options, max_series = None, series_sort=None, y_group={}, color=[], kind = None) -> AllXYEB:
