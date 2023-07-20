@@ -63,7 +63,7 @@ class Statistics:
                 vars_values[varname] = set([v for v in np.unique(column)])
 
             print("")
-            print("Feature importances :")
+            print("Feature importance:")
             # noinspection PyUnresolvedReferences
             l = list(zip(dtype['names'], clf.feature_importances_))
             l.sort(key=lambda x: x[1])
@@ -72,19 +72,27 @@ class Statistics:
                     print("  %s : %0.4f" % (key, f))
 
             print('')
-            print("Better :")
-            best = X[y.argmax()]
-            print("  ", end='')
-            for i, name in enumerate(dtype['names']):
-                print("%s = %s, " % (name, best[i] if (dtype['values'][i] is None) else best[i] if type(best[i]) is np.str_ else dtype['values'][i][int(best[i])]), end='')
-            print(' : %.02f' % y.max())
+            def printline(n):
+                best = X[n]
+                vs=[]
+                for i, name in enumerate(dtype['names']):
+                    vs.append("%s = %s" % (name, best[i] if (dtype['values'][i] is None) else best[i] if type(best[i]) is np.str_ else dtype['values'][i][int(best[i])]))
+                print("  " + ", ".join(vs), end='')
+                print(' : %.02f' % y[n])
+
+            print("Max:")
+            printline(y.argmax())
+
+            print("Min:")
+            printline(y.argmin())
+
 
             print('')
-            print("Means and std/mean per variables :")
+            print("Means per variables:")
             for i, (k, vals) in enumerate(vars_values.items()):
                 if len(vals) == 1:
                     continue
-                print("%s :" % k)
+                print("%s:" % k)
                 for v in sorted(vals):
                     vs = v if (dtype['values'][i] is None) else dtype['values'][i][int(v)]
                     tot = 0
@@ -96,7 +104,7 @@ class Statistics:
                     if n == 0:
                         print("  %s : None" % vs)
                     else:
-                        print("  %s : %.02f, " % (vs, tot / n))
+                        print("  %s : %.02f " % (vs, tot / n))
                 print("")
 
     @classmethod
