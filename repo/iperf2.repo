@@ -1,0 +1,11 @@
+name=IPerf
+method=get
+url=https://iperf.fr/download/source/iperf-$version-source.tar.gz
+version=2.0.9
+tags=iperf
+
+bin_folder=iperf-$version/src/
+bin_name=iperf2
+configure=cd iperf-$version && ./configure
+make=cd iperf-$version && make
+clean= cd iperf-$version && make clean

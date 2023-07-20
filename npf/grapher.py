@@ -26,6 +26,12 @@ from npf.build import Build
 from npf import npf, variable
 
 import matplotlib
+# There is a matplotlib bug which causes CI failures
+# see https://github.com/rstudio/py-shiny/issues/611#issuecomment-1632866419
+if matplotlib.__version__ == "3.7.2":
+        warnings.filterwarnings(
+                        "ignore", category=UserWarning, message="The figure layout has changed to tight"
+                            )
 matplotlib.use('Agg')
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
@@ -34,6 +40,7 @@ from matplotlib.ticker import LinearLocator, ScalarFormatter, Formatter, Multipl
 from matplotlib.lines import Line2D
 from matplotlib.ticker import FuncFormatter, FormatStrFormatter, EngFormatter
 import matplotlib.transforms as mtransforms
+
 
 import itertools
 import math
