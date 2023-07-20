@@ -1,12 +1,13 @@
 %info
-IPerf 2 Throughput Experiment
+IPerf 3 Throughput Experiment
 
 %config
 n_runs=5
 var_names+={PARALLEL:Number of parallel connexions,ZEROCOPY:Zero-Copy}
 timeout=25
-default_repo=iperf2
+default_repo=iperf
 
+graph_background=1
 
 %import graph-beautiful
 
@@ -18,8 +19,8 @@ TIME=2
 fastregression:PARALLEL={1,8}
 
 %script@server
-iperf -s
+iperf3 -s
 
 %script@client delay=2
-result=$(iperf -f k -t $TIME -P $PARALLEL $ZEROCOPY -c ${server:0:ip} | tail -n 3 | grep -ioE "[0-9.]+ [kmg]bits")
+result=$(iperf3 -f k -t $TIME -P $PARALLEL $ZEROCOPY -c ${server:0:ip} | tail -n 3 | grep -ioE "[0-9.]+ [kmg]bits")
 echo "RESULT-THROUGHPUT $result"

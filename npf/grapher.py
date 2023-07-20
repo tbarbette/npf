@@ -1577,8 +1577,8 @@ class Grapher:
                             idx = int(graph_bg[result_type])
 
                     if idx is not None:
-                        bgcolor = lighter(graphcolor[idx],0.12,255)
-                        bgcolor2 = lighter(graphcolor[idx],0.03,255)
+                        bgcolor = lighter(graphcolor[idx*2],0.12,255)
+                        bgcolor2 = lighter(graphcolor[idx*2],0.03,255)
                         yl = axis.get_ylim()
                         xt = axis.get_xticks()
                         if len(xt) > 1:
