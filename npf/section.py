@@ -41,7 +41,7 @@ class SectionFactory:
     varPattern = "([a-zA-Z0-9_:-]+)[=](" + Variable.VALUE_REGEX + ")?"
     namePattern = re.compile(
         "^(?P<tags>" + Variable.TAGS_REGEX + "[:])?(?P<name>info|config|variables|exit|pypost|pyexit|late_variables|include (?P<includeName>[a-zA-Z0-9_./-]+)(?P<includeParams>([ \t]+" +
-        varPattern + ")+)?|(init-)?file(:?[@](?P<fileRole>[a-zA-Z0-9]+))? (?P<fileName>[a-zA-Z0-9_.-]+)(:? (?P<fileNoparse>noparse))?|require|"
+        varPattern + ")+)?|(init-)?file(:?[@](?P<fileRole>[a-zA-Z0-9]+))? (?P<fileName>[a-zA-Z0-9_.${}-]+)(:? (?P<fileNoparse>noparse))?|require|"
                                              "import(:?[@](?P<importRole>[a-zA-Z0-9]+)(:?[-](?P<importMulti>[*0-9]+))?)?[ \t]+(?P<importModule>" + Variable.VALUE_REGEX + ")(?P<importParams>([ \t]+" +
         varPattern + ")+)?|" +
                      "sendfile(:?[@](?P<sendfileRole>[a-zA-Z0-9]+))?[ \t]+(?P<sendfilePath>.*)|" +

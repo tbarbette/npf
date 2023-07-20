@@ -23,12 +23,12 @@ default_role_map+={server:dut}
 
 %variables
 PKTGEN_BURST_OUT=32
-PKTGEN_REPLAY_COUNT=1
+-udpgen:PKTGEN_REPLAY_COUNT=1
 NIC=0
 CLIENT_NIC=0
 RCV_NIC=0
 LIMIT=50000000
-LIMIT_TIME=65
+LIMIT_TIME=10
 GEN_THREADS=4
 GEN_PIPELINE=1
 udpgen:GEN_PIPELINE=0
@@ -43,6 +43,7 @@ GEN_DESC=0
 END_AFTER=0
 GEN_PROGRESSIVE=0
 progressive:GEN_PROGRESSIVE=1
+rate,prate:GEN_RATE?=1000
 GEN_RATE?=-1
 LATENCYDUMP=/tmp/latency.csv
 ITERATION_TIME?=0
@@ -66,6 +67,7 @@ GEN_TX_DESC?=EXPAND($GEN_DESC)
 GEN_NGEN=EXPAND( $((1 if $GEN_PIPELINE else $GEN_THREADS)) )
 GEN_IPV6?=0
 GEN_NANO?=0
+GEN_PREFIX?=
 
 UNQUEUE=
 udpgen:UNQUEUE=Unqueue()
@@ -120,11 +122,14 @@ BROADCAST_IGNORE= -> c :: Classifier(-, 0/ffffffffffff)
 
 %script deps=fastclick-light sudo=true delay=2 name=fastclick-play
 proc=\$(( $(nproc --all) - 1 ))
-$GEN_GDB click --dpdk -l 0-$proc -- PKTGEN_CONFIG
+if [ "$GEN_CPUS" = "" ] ; then
+    GEN_CPUS=0-$proc
+fi
+$GEN_GDB click --dpdk -l $GEN_CPUS --file-prefix gen-$RCV_NIC -a ${self:$RCV_NIC:pci}  -- PKTGEN_CONFIG_${RCV_NIC} PREFIX=$GEN_PREFIX
 echo "EVENT TX_FINISHED"
 echo "Generator stopped..."
 
-%file PKTGEN_CONFIG
+%file PKTGEN_CONFIG_${RCV_NIC}
 d :: DPDKInfo($NBBUF)
 
 define($bout $PKTGEN_BURST_OUT)
@@ -136,7 +141,7 @@ define($RAW_INdstmac ${server:$NIC:raw_mac})
 
 define($ignore $IGNORE)
 define($replay_count $PKTGEN_REPLAY_COUNT)
-define($port ${self:$RCV_NIC:pci})
+define($port 0)
 define($quick true)
 define($txverbose 99)
 define($rxverbose 99)
@@ -246,18 +251,18 @@ ig :: Script(TYPE ACTIVE,
                 set sent $(avgSIN.add count),
                 set bytessent $(avgSIN.add byte_count),
                 set bytes $(RIN/avg.add byte_count),
-                print "IG-$t-RESULT-IGCOUNT $(sub $count $lastcount)",
-                print "IG-$t-RESULT-IGSENT $(sub $sent $lastsent)",
-                print "IG-$t-RESULT-IGBYTESSENT $(sub $bytessent $lastbytessent)",
+                print "IG-$t-RESULT-${PREFIX}IGCOUNT $(sub $count $lastcount)",
+                print "IG-$t-RESULT-${PREFIX}IGSENT $(sub $sent $lastsent)",
+                print "IG-$t-RESULT-${PREFIX}IGBYTESSENT $(sub $bytessent $lastbytessent)",
                 set drop $(sub $sent $count),
-                print "IG-$t-RESULT-IGDROPPED $(sub $drop $lastdrop)",
+                print "IG-$t-RESULT-${PREFIX}IGDROPPED $(sub $drop $lastdrop)",
                 set lastdrop $drop,
-                print "IG-$t-RESULT-IGTHROUGHPUT $(div $(mul $(add $(mul $(sub $count $lastcount) 24) $(sub $bytes $lastbytes)) 8) $elapsed)",
+                print "IG-$t-RESULT-${PREFIX}IGTHROUGHPUT $(div $(mul $(add $(mul $(sub $count $lastcount) 24) $(sub $bytes $lastbytes)) 8) $elapsed)",
                 goto next $(eq $DOLAT 0),
-//                print "IG-$t-RESULT-ILAT01 $(RIN/tsd0.perc01 $indexA)",
-//                print "IG-$t-RESULT-ILAT50 $(RIN/tsd0.median $indexA)",
-                print "IG-$t-RESULT-ILATENCY $(RIN/tsd0.average $indexA)",
-//                print "IG-$t-RESULT-ILAT99 $(RIN/tsd0.perc99 $indexA)",
+//                print "IG-$t-RESULT-${PREFIX}ILAT01 $(RIN/tsd0.perc01 $indexA)",
+//                print "IG-$t-RESULT-${PREFIX}ILAT50 $(RIN/tsd0.median $indexA)",
+                print "IG-$t-RESULT-${PREFIX}ILATENCY $(RIN/tsd0.average $indexA)",
+//                print "IG-$t-RESULT-${PREFIX}ILAT99 $(RIN/tsd0.perc99 $indexA)",
                 set indexA $(RIN/tsd0.index),
                 label next,
                 set lastcount $count,
@@ -268,7 +273,7 @@ ig :: Script(TYPE ACTIVE,
     label end
 )
 
-StaticThreadSched(ig 15);
+StaticThreadSched(ig -1);
 
 receiveIN -> RIN :: Receiver($RAW_INsrcmac,"IN");
 
@@ -306,38 +311,39 @@ dm :: DriverManager(  print "Waiting 2 seconds before launching generation...",
                 print >>$LATENCYDUMP $(RIN/tsdD.dump_list),*/
                 label adump,
 
-                print "RESULT-LATENCY $(tsd.avg average)",
-                print "RESULT-LAT00 $(tsd.avg min)",
-                print "RESULT-LAT01 $(tsd.avg perc01)",
-                print "RESULT-LAT50 $(tsd.avg median)",
-                print "RESULT-LAT95 $(tsd.avg perc95)",
-                print "RESULT-LAT99 $(tsd.avg perc99)",
-                print "RESULT-LAT999 $(tsd.avg perc 99.9)",
-                print "RESULT-LAT100 $(tsd.avg max)",
+                print "RESULT-${PREFIX}LATENCY $(tsd.avg average)",
+                print "RESULT-${PREFIX}LAT00 $(tsd.avg min)",
+                print "RESULT-${PREFIX}LAT01 $(tsd.avg perc01)",
+                print "RESULT-${PREFIX}LAT50 $(tsd.avg median)",
+                print "RESULT-${PREFIX}LAT95 $(tsd.avg perc95)",
+                print "RESULT-${PREFIX}LAT99 $(tsd.avg perc99)",
+                print "RESULT-${PREFIX}LAT999 $(tsd.avg perc 99.9)",
+                print "RESULT-${PREFIX}LAT100 $(tsd.avg max)",
                 goto alatval $(eq ${DOLATVAL} 0),
                 set i 0,
                 set step 1,
                 label perc,
-                print "CDFLATVAL-$(tsd.avg perc $i)-RESULT-CDFLATPC $(div $i 100.0)",
+                print "CDFLATVAL-$(tsd.avg perc $i)-RESULT-${PREFIX}CDFLATPC $(div $i 100.0)",
                 set i $(add $i $step),
                 set step $(if $(ge $i 99) 0.1 1),
                 goto perc $(le $i 100.0),
                 label alatval,
-                print "RESULT-TESTTIME $(sub $stoptime $starttime)",
-                print "RESULT-RCVTIME $(RIN/avg.avg time)",
-                print "RESULT-THROUGHPUT $(RIN/avg.add link_rate)",
+                print "RESULT-${PREFIX}TESTTIME $(sub $stoptime $starttime)",
+                print "RESULT-${PREFIX}RCVTIME $(RIN/avg.avg time)",
+                print "RESULT-${PREFIX}THROUGHPUT $(RIN/avg.add link_rate)",
                 set sent $(avgSIN.add count),
                 set count $(RIN/avg.add count),
                 set bytes $(RIN/avg.add byte_count),
-                print "RESULT-COUNT $count",
-                print "RESULT-BYTES $bytes",
-                print "RESULT-SENT $sent",
-                print "RESULT-DROPPED $(sub $sent $count)",
-                print "RESULT-DROPPEDPC $(div $(sub $sent $count) $sent)",
-//                print "RESULT-DROPPEDPS $(div $(sub $sent $count) $(RIN/avg.avg time))",
-                print "RESULT-TX $(avgSIN.add link_rate)",
-                print "RESULT-TXPPS $(avgSIN.add rate)",
-                print "RESULT-PPS $(RIN/avg.add rate)",
+                print "RESULT-${PREFIX}COUNT $count",
+                print "RESULT-${PREFIX}BYTES $bytes",
+                print "RESULT-${PREFIX}SENT $sent",
+                print "RESULT-${PREFIX}DROPPED $(sub $sent $count)",
+                print "RESULT-${PREFIX}DROPPEDPC $(div $(sub $sent $count) $sent)",
+//                print "RESULT-${PREFIX}DROPPEDPS $(div $(sub $sent $count) $(RIN/avg.avg time))",
+                print "RESULT-${PREFIX}TX $(avgSIN.add link_rate)",
+                print "RESULT-${PREFIX}TXPPS $(avgSIN.add rate)",
+                print "RESULT-${PREFIX}PPS $(RIN/avg.add rate)",
+                print "EVENT GEN_POST",
                 stop);
 
-StaticThreadSched(dm 15);
+StaticThreadSched(dm -1);
