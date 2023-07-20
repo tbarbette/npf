@@ -65,6 +65,7 @@ timing:TIMING_FNT=100
 GEN_TX_DESC?=EXPAND($GEN_DESC)
 GEN_NGEN=EXPAND( $((1 if $GEN_PIPELINE else $GEN_THREADS)) )
 GEN_IPV6?=0
+GEN_NANO?=0
 
 UNQUEUE=
 udpgen:UNQUEUE=Unqueue()
@@ -149,7 +150,7 @@ tdIN ::
  $(( " Pipeliner(CAPACITY 1024, ALWAYS_UP true) -> " if $GEN_TX_PIPELINE == 1 else "PathSpinlock -> " if $GEN_TX_PIPELINE == 2 else "" ))
     ToDPDKDevice($port, BLOCKING $GEN_BLOCKING, BURST $bout, VERBOSE $txverbose, IQUEUE $bout, NDESC $GEN_TX_DESC, IPCO true )
 
-elementclass NoTimestampDiff { $a, $b, $c, $d |
+elementclass NoTimestampDiff { $a, $b, $c, $d, $e |
 input -> output;
 Idle->[1]output;
 }
@@ -202,7 +203,7 @@ $GEN_MAGIC
     c[1] //Not for this computer or broadcasts
     -> Discard;
 
-$((  "\n".join([ "magic[%d] -> tsd%d :: $GEN_TSDIFF(gen%d/rt, OFFSET %d, N $NRECORD, SAMPLE $SAMPLE ) -> Unstrip(14) ->  avg%d :: AverageCounterMP(IGNORE $ignore) -> Discard;  tsd%d[1] -> Print('WARNING: Untimestamped packet on thread %d', 64) -> Discard;" % (t,t,t,${NUMBEROFFSET} + 2,t,t,t) for t in range($GEN_THREADS) ]) ))
+$((  "\n".join([ "magic[%d] -> tsd%d :: $GEN_TSDIFF(gen%d/rt, OFFSET %d, N $NRECORD, SAMPLE $SAMPLE, NANO $GEN_NANO ) -> Unstrip(14) ->  avg%d :: AverageCounterMP(IGNORE $ignore) -> Discard;  tsd%d[1] -> Print('WARNING: Untimestamped packet on thread %d', 64) -> Discard;" % (t,t,t,${NUMBEROFFSET} + 2,t,t,t) for t in range($GEN_THREADS) ]) ))
 
 
 $(( (  "avg :: HandlerAggregate( " + ",".join(["ELEMENT avg%d" % (i) for i in range($GEN_THREADS) ]) + " );" ) if 1 else "" ))

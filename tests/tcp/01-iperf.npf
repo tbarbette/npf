@@ -3,7 +3,7 @@ IPerf 2 Throughput Experiment
 
 %config
 n_runs=5
-var_names+={PARALLEL:Number of parallel connections,WINDOW:Window size (kB),THROUGHPUT:Throughput (Gbps)}
+var_names={PARALLEL:Number of parallel connections,WINDOW:Window size (kB),THROUGHPUT:Throughput}
 timeout=25
 default_repo=iperf2
 graph_background=7
