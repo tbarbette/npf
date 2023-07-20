@@ -3,23 +3,25 @@ IPerf 2 Throughput Experiment
 
 %config
 n_runs=5
-var_names+={PARALLEL:Number of parallel connexions,ZEROCOPY:Zero-Copy}
+var_names+={PARALLEL:Number of parallel connections,WINDOW:Window size (kB),THROUGHPUT:Throughput (Gbps)}
 timeout=25
 default_repo=iperf2
-
+graph_background=7
 
 %import graph-beautiful
 
 %variables
 PARALLEL=[1-8]
-ZEROCOPY={:without,-Z:with}
+WINDOW={16,512}
 TIME=2
-
-fastregression:PARALLEL={1,8}
 
 %script@server
 iperf -s
 
-%script@client delay=2
-result=$(iperf -f k -t $TIME -P $PARALLEL $ZEROCOPY -c ${server:0:ip} | tail -n 3 | grep -ioE "[0-9.]+ [kmg]bits")
+%script@client delay=1
+//Launch the program, copy the output to a log
+iperf -c ${server:0:ip} -w ${WINDOW}k -t $TIME -P $PARALLEL 2>&1 | tee iperf.log
+//Parse the log to find the throughput
+result=$(cat iperf.log | grep -ioE "[0-9.]+ [kmg]bits" | tail -n 1)
+//Give the throughput to NPF through stdout
 echo "RESULT-THROUGHPUT $result"

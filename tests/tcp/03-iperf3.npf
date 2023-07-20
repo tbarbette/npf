@@ -22,5 +22,5 @@ fastregression:PARALLEL={1,8}
 iperf3 -s
 
 %script@client delay=2
-result=$(iperf3 -f k -t $TIME -P $PARALLEL $ZEROCOPY -c ${server:0:ip} | tail -n 3 | grep -ioE "[0-9.]+ [kmg]bits")
+result=$(iperf3 -c ${server:0:ip} -f k -t $TIME -P $PARALLEL $ZEROCOPY | grep -ioE "[0-9.]+ [kmg]bits" | tail -n 1)
 echo "RESULT-THROUGHPUT $result"

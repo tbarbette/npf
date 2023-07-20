@@ -1,0 +1,28 @@
+%info
+IPerf 2 Throughput Experiment
+
+%config
+n_runs=5
+var_names+={PARALLEL:Number of parallel connections,WINDOW:Window size (kB),NODELAY:No delay option,CONGESTION:Congestion control}
+timeout=25
+default_repo=iperf
+
+%import graph-beautiful
+
+%variables
+PARALLEL=[1-8]
+WINDOW=[1*32768]
+CONGESTION={bbr,cubic,vegas,newreno}
+NODELAY={-N:Nagle disabled,:Nagle enabled}
+TIME={2,10}
+
+fastregression:PARALLEL={1,8}
+fastregression:CONGESTION=cubic
+fastregression:TIME=2
+
+%script@server
+iperf -s
+
+%script@client delay=1
+result=$(iperf -w ${WINDOW}k -t $TIME -P $PARALLEL $NODELAY -Z $CONGESTION -c ${server:0:ip} | tail -n 3 | grep -ioE "[0-9.]+ [kmg]bits")
+echo "RESULT-THROUGHPUT $result"
