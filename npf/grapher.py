@@ -28,6 +28,7 @@ from npf import npf, variable
 import matplotlib
 # There is a matplotlib bug which causes CI failures
 # see https://github.com/rstudio/py-shiny/issues/611#issuecomment-1632866419
+import warnings
 if matplotlib.__version__ == "3.7.2":
         warnings.filterwarnings(
                         "ignore", category=UserWarning, message="The figure layout has changed to tight"
