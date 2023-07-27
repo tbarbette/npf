@@ -1328,6 +1328,8 @@ class Test:
                 shutil.rmtree(npf.experiment_path() + os.sep + test_folder)
             except PermissionError:
                 pass
+            except OSError:
+                pass
         else:
             print("Test files have been kept in folder %s" % test_folder)
 

@@ -2101,6 +2101,13 @@ class Grapher:
                 if result_type in filters:
                     #The result type to filter on
                     fl = filters[result_type]
+                    fl_min=1
+                    fl_op = '>'
+                    flm = re.match("(.*)([><=])(.*)", fl)
+                    if flm:
+                        fl = flm.group(1)
+                        fl_min=float(flm.group(3))
+                        fl_op=flm.group(2)
                     if not fl in data_types:
                         print("ERROR: graph_filter_by's %s not found" % fl)
                         return
@@ -2110,7 +2117,15 @@ class Grapher:
                         if fl_xyeb[3] ==  build:
                             fl_y = np.array(fl_xyeb[1])
                             break
-                    mask = fl_y > 1
+                    if fl_op == '>':
+                        mask = fl_y > fl_min
+                    elif fl_op == '<':
+                        mask = fl_y < fl_min
+                    elif fl_op == '=':
+                        mask = fl_y == fl_min
+                    else:
+                        raise Exception("Unknown operator in filter_by : " + fl_op )
+
 
                     if len(mask) != len(ax) or len(mask) != len(y):
                         print("ERROR: graph_filter_by cannot be applied, because length of X is %d, length of Y is %d but length of mask is %d" % (len(ax), len(y), len(mask)))
