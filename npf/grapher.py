@@ -17,6 +17,7 @@ from collections import OrderedDict
 from typing import List
 import numpy as np
 from pygtrie import Trie
+from math import log,pow
 
 from npf.types import dataset
 from npf.types.dataset import Run, XYEB, AllXYEB, group_val
@@ -1548,17 +1549,24 @@ class Grapher:
                                             i = 1
                                         else:
                                             i = i * base
+
                                 if len(xticks) > (float(self.options.graph_size[0]) * 1.5):
                                     n =int(math.ceil(len(xticks) / 8))
                                     index = np.array(range(len(xticks)))[1::n]
                                     if index[-1] != len(xticks) -1:
                                         index = np.append(index,[len(xticks)-1])
                                     xticks = np.delete(xticks,np.delete(np.array(range(len(xticks))),index))
-#Weird code.
-#                        if not xlims and min(data[0][0]) >= 1:
-#                            xlims = [1]
-#                            axis.set_xlim(xlims[0])
+
                                 plt.xticks(xticks)
+
+                                d = log(max(ax),base) - log(min(ax),base)
+                                #Force recomputation of xmin
+                                if not xmin:
+                                    xmin = log(min(ax),base) - (d * plt.margins()[0])
+                                    plt.xlim(xmin=pow(base,xmin))
+                                if not xmax:
+                                    xmax = log(max(ax),base) + (d * plt.margins()[0])
+                                    plt.xlim(xmax=pow(base,xmax))
                             else:
                                 plt.xscale('symlog')
                             plt.gca().xaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%d'))
