@@ -655,6 +655,7 @@ class SectionConfig(SectionVariable):
         self.__add("graph_series_prop", False)
         self.__add("graph_series_sort", None)
         self.__add("graph_series_label", None)
+        self.__add_dict("graph_filter_by", {})
         self.__add("graph_bar_stack", False)
         self.__add("graph_text",'')
         self.__add("graph_legend", None), #the default behavior depends upon the type of graph
