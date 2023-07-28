@@ -75,7 +75,7 @@ rate:UNQUEUE=EXPAND( BandwidthRatedUnqueue( $(( int($GEN_RATE / $GEN_NGEN) )), E
 prate:UNQUEUE=EXPAND( RatedUnqueue($(( int($GEN_RATE / $GEN_NGEN)  )), BURST $GEN_BURST, ACTIVE $(( "false" if $GEN_PROGRESSIVE else "true" )) ) )
 HAVE_UNQUEUE?=0
 udpgen|prate|rate|replay:HAVE_UNQUEUE=1
-NRECORD=EXPAND( $(( ($LIMIT + 1024) * 2 )) )
+NRECORD=EXPAND( $(( int($LIMIT / $SAMPLE + 1024) * 2 )) )
 BROADCAST_IGNORE= -> c :: Classifier(0/$mac,-) //Ignore broadcasts
 GEN_NOREWRITE_ETHER?=0
 TIMING?=false
@@ -95,7 +95,7 @@ gen_nolat:GEN_RECORD=
 gen_nolat:GEN_MAGIC=EXPAND(-> magic :: {[0]-> RoundRobinSwitch(SPLITBATCH false)[0-$(( $GEN_THREADS - 1 ))] => [0-$(( $GEN_THREADS - 1 ))]output;Idle->[$GEN_THREADS]output;})
 GEN_TSDIFF?=TimestampDiff
 -gen_preped:GEN_NUMBER?=EXPAND( -> check :: MarkIPHeader  -> nPacket :: NumberPacket( $(( ${NUMBEROFFSET} + 2 )) ) -> StoreData(${NUMBEROFFSET}, $magic) )
-GEN_RECORD?=EXPAND(-> rt :: RecordTimestamp(N $NRECORD, OFFSET $(( ${NUMBEROFFSET} + 14 + 2 )) ))
+GEN_RECORD?=EXPAND(-> rt :: RecordTimestamp(N $NRECORD, SAMPLE $SAMPLE, OFFSET $(( ${NUMBEROFFSET} + 14 + 2 )) ))
 GEN_MAGIC?=EXPAND(    -> magic :: Classifier( $(( ", ".join([ "${NUMBEROFFSET}/57%02x" % t for t in range($GEN_THREADS) ]) )),  -);)
 DOLAT?=1
 FDDISPATCH=EXPAND( $((" rr :: RoundRobinSwitch(SPLITBATCH false);" if $GEN_THREADS > 1 and $GEN_PIPELINE else "rr :: MyNull;")) )
