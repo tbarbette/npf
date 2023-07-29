@@ -8,8 +8,8 @@ def prepare_web_export(datasets, all_results_df, path):
     name = "undefined"
     parameters = []
     measurements = []
-    for testie, _, runs in datasets:
-      name = testie.get_title()
+    for test, _, runs in datasets:
+      name = test.get_title()
       for run, results in runs.items():
         measurements = list(results.keys())
         parameters = list(run.variables.keys())
