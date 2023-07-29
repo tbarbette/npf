@@ -35,7 +35,7 @@ class Node:
         clusterFileName = 'cluster/' + name + ('.node' if not name.endswith(".node") else "")
         try:
             clusterFilePath = npf.find_local(clusterFileName, critical=False)
-
+            self.path = clusterFilePath
             f = open(clusterFilePath, 'r')
             for i, line in enumerate(f):
                 line = line.strip()
@@ -64,7 +64,7 @@ class Node:
 
     def get_nic(self, nic_idx):
         if nic_idx >= len(self.active_nics):
-            raise Exception("ERROR: node %s has no nic number %d" % (self.name, nic_idx))
+            raise Exception("ERROR: node %s has no nic number %d. Description file %s was used." % (self.name, nic_idx, self.path))
 
         return self._nics[self.active_nics[nic_idx]]
 

@@ -375,18 +375,19 @@ class Test:
         return missings
 
     def build_file_list(self, v, self_role=None, files=None) -> List[Tuple[str, str, str]]:
-        list = []
+        create_list = []
         if files is None:
             files = self.files
         for s in files:
             role = s.get_role() if s.get_role() else self_role
             v["NPF_NODE_MAX"] = len(npf.nodes_for_role(role))
             if not s.noparse:
+                s.filename = SectionVariable.replace_variables(v, s.filename, role, default_role_map = self.config.get_dict("default_role_map"))
                 p = SectionVariable.replace_variables(v, s.content, role,default_role_map = self.config.get_dict("default_role_map"))
             else:
                 p = s.content
-            list.append((s.filename, p, role))
-        return list
+            create_list.append((s.filename, p, role))
+        return create_list
 
     def create_files(self, file_list, path_to_root):
         unique_list = {}
@@ -1326,6 +1327,8 @@ class Test:
             try:
                 shutil.rmtree(npf.experiment_path() + os.sep + test_folder)
             except PermissionError:
+                pass
+            except OSError:
                 pass
         else:
             print("Test files have been kept in folder %s" % test_folder)

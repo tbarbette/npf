@@ -19,6 +19,7 @@ from collections import OrderedDict
 from typing import List
 import numpy as np
 from pygtrie import Trie
+from math import log,pow
 
 from npf.types import dataset
 from npf.types.dataset import Run, XYEB, AllXYEB, group_val
@@ -28,6 +29,13 @@ from npf.build import Build
 from npf import npf, variable
 
 import matplotlib
+# There is a matplotlib bug which causes CI failures
+# see https://github.com/rstudio/py-shiny/issues/611#issuecomment-1632866419
+import warnings
+if matplotlib.__version__ == "3.7.2":
+        warnings.filterwarnings(
+                        "ignore", category=UserWarning, message="The figure layout has changed to tight"
+                            )
 matplotlib.use('Agg')
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
@@ -36,6 +44,7 @@ from matplotlib.ticker import LinearLocator, ScalarFormatter, Formatter, Multipl
 from matplotlib.lines import Line2D
 from matplotlib.ticker import FuncFormatter, FormatStrFormatter, EngFormatter
 import matplotlib.transforms as mtransforms
+
 
 import itertools
 import math
@@ -1548,17 +1557,24 @@ class Grapher:
                                             i = 1
                                         else:
                                             i = i * base
+
                                 if len(xticks) > (float(self.options.graph_size[0]) * 1.5):
                                     n =int(math.ceil(len(xticks) / 8))
                                     index = np.array(range(len(xticks)))[1::n]
                                     if index[-1] != len(xticks) -1:
                                         index = np.append(index,[len(xticks)-1])
                                     xticks = np.delete(xticks,np.delete(np.array(range(len(xticks))),index))
-#Weird code.
-#                        if not xlims and min(data[0][0]) >= 1:
-#                            xlims = [1]
-#                            axis.set_xlim(xlims[0])
+
                                 plt.xticks(xticks)
+
+                                d = log(max(ax),base) - log(min(ax),base)
+                                #Force recomputation of xmin
+                                if not xmin:
+                                    xmin = log(min(ax),base) - (d * plt.margins()[0])
+                                    plt.xlim(xmin=pow(base,xmin))
+                                if not xmax:
+                                    xmax = log(max(ax),base) + (d * plt.margins()[0])
+                                    plt.xlim(xmax=pow(base,xmax))
                             else:
                                 plt.xscale('symlog')
                             plt.gca().xaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%d'))
@@ -1585,8 +1601,8 @@ class Grapher:
                             idx = int(graph_bg[result_type])
 
                     if idx is not None:
-                        bgcolor = lighter(graphcolor[idx],0.12,255)
-                        bgcolor2 = lighter(graphcolor[idx],0.03,255)
+                        bgcolor = lighter(graphcolor[idx*2],0.12,255)
+                        bgcolor2 = lighter(graphcolor[idx*2],0.03,255)
                         yl = axis.get_ylim()
                         xt = axis.get_xticks()
                         if len(xt) > 1:
@@ -2093,6 +2109,13 @@ class Grapher:
                 if result_type in filters:
                     #The result type to filter on
                     fl = filters[result_type]
+                    fl_min=1
+                    fl_op = '>'
+                    flm = re.match("(.*)([><=])(.*)", fl)
+                    if flm:
+                        fl = flm.group(1)
+                        fl_min=float(flm.group(3))
+                        fl_op=flm.group(2)
                     if not fl in data_types:
                         print("ERROR: graph_filter_by's %s not found" % fl)
                         return
@@ -2102,7 +2125,15 @@ class Grapher:
                         if fl_xyeb[3] ==  build:
                             fl_y = np.array(fl_xyeb[1])
                             break
-                    mask = fl_y > 1
+                    if fl_op == '>':
+                        mask = fl_y > fl_min
+                    elif fl_op == '<':
+                        mask = fl_y < fl_min
+                    elif fl_op == '=':
+                        mask = fl_y == fl_min
+                    else:
+                        raise Exception("Unknown operator in filter_by : " + fl_op )
+
 
                     if len(mask) != len(ax) or len(mask) != len(y):
                         print("ERROR: graph_filter_by cannot be applied, because length of X is %d, length of Y is %d but length of mask is %d" % (len(ax), len(y), len(mask)))

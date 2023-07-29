@@ -41,7 +41,7 @@ class SectionFactory:
     varPattern = "([a-zA-Z0-9_:-]+)[=](" + Variable.VALUE_REGEX + ")?"
     namePattern = re.compile(
         "^(?P<tags>" + Variable.TAGS_REGEX + "[:])?(?P<name>info|config|variables|exit|pypost|pyexit|late_variables|include (?P<includeName>[a-zA-Z0-9_./-]+)(?P<includeParams>([ \t]+" +
-        varPattern + ")+)?|(init-)?file(:?[@](?P<fileRole>[a-zA-Z0-9]+))? (?P<fileName>[a-zA-Z0-9_.-]+)(:? (?P<fileNoparse>noparse))?|require|"
+        varPattern + ")+)?|(init-)?file(:?[@](?P<fileRole>[a-zA-Z0-9]+))? (?P<fileName>[a-zA-Z0-9_.${}-]+)(:? (?P<fileNoparse>noparse))?|require|"
                                              "import(:?[@](?P<importRole>[a-zA-Z0-9]+)(:?[-](?P<importMulti>[*0-9]+))?)?[ \t]+(?P<importModule>" + Variable.VALUE_REGEX + ")(?P<importParams>([ \t]+" +
         varPattern + ")+)?|" +
                      "sendfile(:?[@](?P<sendfileRole>[a-zA-Z0-9]+))?[ \t]+(?P<sendfilePath>.*)|" +
@@ -623,7 +623,7 @@ class SectionConfig(SectionVariable):
         self.__add("timeout", 30)
         self.__add("hardkill", 5000)
         self.__add("time_precision", 1)
-        self.__add("time_sync", True)
+        self.__add("time_sync", False)
         self.__add_list("glob_sync", [])
         self.__add_list("var_sync", ["time"])
         self.__add_dict("var_shift", {})
@@ -655,6 +655,7 @@ class SectionConfig(SectionVariable):
         self.__add("graph_series_prop", False)
         self.__add("graph_series_sort", None)
         self.__add("graph_series_label", None)
+        self.__add_dict("graph_filter_by", {})
         self.__add("graph_bar_stack", False)
         self.__add("graph_text",'')
         self.__add("graph_legend", None), #the default behavior depends upon the type of graph
@@ -686,7 +687,7 @@ class SectionConfig(SectionVariable):
         self.__add_dict("graph_tick_params", {})
         self.__add_list("test_time_sync", [])
         self.__add("var_serie",None)
-        self.__add_dict("var_names", {"result-LATENCY":"Latency (µs)", "result-THROUGHPUT":"Throughput", "^THROUGHPUT$":"Throughput", "boxplot":"", "^PARALLEL$":"Number of parallel connections", "^ZEROCOPY$":"Zero-Copy"})
+        self.__add_dict("var_names", {"result-LATENCY":"Latency (µs)", "result-THROUGHPUT":"Throughput", "^THROUGHPUT$":"Throughput", "boxplot":"", "^PARALLEL$":"Number of parallel connections", "^ZEROCOPY$":"Zero-Copy", "CDFLATPC":"CDF", "CDFLATVAL":"Latency"})
         self.__add_dict("var_unit", {"result": "","result-LATENCY":"us","latency":"us","throughput":"bps"})
         self.__add("graph_show_fliers", True)
         self.__add_dict("graph_cross_reference", {})

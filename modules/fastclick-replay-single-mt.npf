@@ -76,6 +76,8 @@ GEN_LAT_RECORD?=
 GEN_LAT_DISPATCH?=EXPAND( -> magic :: {[0] -> RoundRobinSwitch() => [0-$((${GEN_THREADS} -1))]; Idle->[$GEN_THREADS]})
 GEN_LAT_TSDIFF?= NoTimestampDiff
 
+GEN_BLOCKING?=true
+
 
 %promisc:late_variables
 BROADCAST_IGNORE= -> c :: Classifier(-, 0/ffffffffffff)
@@ -111,7 +113,7 @@ define($limit $LIMIT)
 
 $(( "fdIN :: FromDump($trace, STOP false, TIMING false)" if $GEN_DUMP == 0 else "fdIN :: FromIPSummaryDump($trace, TIMING false, TIMESTAMP false, ZERO false, TIMES -1, STOP true);" if $GEN_DUMP==1 else "fdIN :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH $GEN_LENGTH, SRCETH $INsrcmac, DSTETH $INdstmac, SRCIP ${client:0:ip}, DSTIP ${server:0:ip}, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST, SEQUENTIAL $GEN_SEQUENTIAL)" ))
 
-tdIN :: ToDPDKDevice($txport, BLOCKING true, BURST $bout, VERBOSE $txverbose, IQUEUE $bout, NDESC $GEN_DESC, TCO $TCO)
+tdIN :: ToDPDKDevice($txport, BLOCKING $GEN_BLOCKING, BURST $bout, VERBOSE $txverbose, IQUEUE $bout, NDESC $GEN_DESC, TCO $TCO)
 
 elementclass NoTimestampDiff { $a, $b, $c, $d |
     input -> output;
