@@ -1,6 +1,8 @@
 import sys
 import argparse
 import os
+
+from pathlib import Path
 from argparse import ArgumentParser
 from typing import Dict, List
 
@@ -9,7 +11,6 @@ import re
 from decimal import Decimal
 
 from npf.node import Node
-from .variable import VariableFactory
 
 import numpy as np
 
@@ -496,3 +497,13 @@ def all_num(l):
         if type(x) is not int and type(x) is not Decimal and not isinstance(x, (np.floating, float)):
             return False
     return True
+
+
+def ensure_folder_exists(filename):
+    savedir = Path(os.path.dirname(filename))
+    if not savedir.exists():
+        os.makedirs(savedir.as_posix())
+
+    if not os.path.isabs(filename):
+        filename = os.getcwd() + os.sep + filename
+    return filename

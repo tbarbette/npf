@@ -39,7 +39,7 @@ class Node:
             f = open(clusterFilePath, 'r')
             for i, line in enumerate(f):
                 line = line.strip()
-                if not line or line.startswith("#") or line.startswith("//"):
+                if not line or re.match("^\\s*(#|//)", line):
                     continue
                 match = re.match(r'((?P<tag>[a-zA-Z]+[a-zA-Z0-9]*):)?(?P<nic_idx>[0-9]+):(?P<type>' + NIC.TYPES + ')=(?P<val>[a-z0-9:_.-]*)', line,
                                  re.IGNORECASE)

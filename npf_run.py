@@ -8,6 +8,8 @@ import errno
 import sys
 
 from npf import npf
+from npf.pipeline import pypost
+from npf.pipeline import export_pandas
 from npf.regression import *
 from npf.statistics import Statistics
 from npf.test import Test, ScriptInitException
@@ -258,20 +260,30 @@ def main():
                 except FileNotFoundError:
                     print("Previous build %s could not be found, we will not graph it !" % g_build.version)
 
-            filename = args.graph_filename if args.graph_filename else build.result_path(test.filename, 'pdf')
-            grapher.graph(series=[(test, build, all_results)] + g_series,
+
+
+
+            filename = args.graph_filename or build.result_path(test.filename, 'pdf')
+            series_with_history = [(test, build, all_results)] + g_series
+            pypost.execute_pypost(series=series_with_history)
+            export_pandas.export_pandas(options=args, series= series_with_history)
+            grapher.graph(series=series_with_history,
                           title=test.get_title(),
                           filename=filename,
                           graph_variables=[Run(x) for x in test.variables],
                           options = args)
             if time_results:
-                for find, results in time_results.items():
+                for kind, results in time_results.items():
                     if not results:
                         continue
-                    grapher.graph(series=[(test, build, results)],
+                    series_with_history = [(test, build, results)]
+                    pypost.execute_pypost(series=series_with_history)
+                    export_pandas.export_pandas(options=args, series= series_with_history, fileprefix=kind)
+                    grapher.graph(series=series_with_history,
                           title=test.get_title(),
                           filename=filename,
-                          options = args)
+                          options = args,
+                          fileprefix=kind)
         if last_build and args.graph_num > 0:
             graph_builds = [last_build] + graph_builds[:-1]
         last_build = build

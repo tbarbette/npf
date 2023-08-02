@@ -115,7 +115,7 @@ class Statistics:
         y = OrderedDict()
         dataset = []
         for i, (run, results_types) in enumerate(all_results.items()):
-            vars = list(run.variables[k] for k in dtype['names'])
+            vars = list(run.read_variables()[k] for k in dtype['names'])
             if not results_types is None and len(results_types) > 0:
 
                 dataset.append([v for v in vars])
