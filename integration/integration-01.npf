@@ -15,5 +15,5 @@ var_serie=LENGTH
 
 %file CONFIG
 DriverManager(
-			print "RESULT $BURST"
+			print "RESULT $BURST",
 			stop);
