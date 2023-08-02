@@ -1045,9 +1045,9 @@ class Test:
 
     def execute_all(self, build, options, prev_results: Dataset = None, do_test=True, on_finish=None,
                     allowed_types=SectionScript.ALL_TYPES_SET, prev_kind_results: Dict[str, Dataset] = None, iserie=0,nseries=1) -> Tuple[
-        Dataset, bool]:
-        """Execute script for all variables combinations. All tools reliy on this function for execution of the test
-        :param allowed_types:Tyeps of scripts allowed to run. Set with either init, scripts or both
+        Dataset, Dataset, bool]:
+        """Execute script for all variables combinations. All tools rely on this function for execution of the test
+        :param allowed_types:Type of scripts allowed to run. Set with either init, scripts or both
         :param do_test: Actually run the tests
         :param options: NPF options object
         :param build: A build object
@@ -1074,7 +1074,7 @@ class Test:
             self.do_init_all(build, options, do_test=do_test, allowed_types=allowed_types, v_internals=v_internals)
             if not self.options.preserve_temp:
                 shutil.rmtree(test_folder)
-            return {}, True
+            return {}, {}, True
 
         all_data_results = OrderedDict()
         all_kind_results = OrderedDict()
@@ -1100,10 +1100,11 @@ class Test:
                     for k,v in imp.test.variables.statics().items():
                         variables[k] = v.makeValues()[0]
 
-                run = Run(variables)
                 variables.update(root_variables)
-                run.variables.update(build.repo.overriden_variables)
-                variables = run.variables.copy()
+                run = Run(variables)
+
+                run.write_variables().update(build.repo.overriden_variables)
+                variables = run.read_variables().copy()
 
                 if shadow_variables:
                     shadow_variables.update(root_variables)
@@ -1147,10 +1148,10 @@ class Test:
                         nprev_kresults = OrderedDict()
                         kind_results.setdefault(kind,OrderedDict())
                         for trun, results in prev_kresults.items():
-                            if run.inside(trun):
-                                kind_results[kind][trun] = results
-                            else:
-                                nprev_kresults[trun] = results
+                            #if run.inside(trun):
+                                #kind_results[kind][trun] = results
+                            #else:
+                            nprev_kresults[trun] = results
                         nprev_kind_results[kind] = nprev_kresults
                     prev_kind_results = nprev_kind_results
                 if not run_results and options.use_last and build.repo.url:
@@ -1282,7 +1283,7 @@ class Test:
                     for kind, kresults in new_all_kind_results.items():
                       kind_results.setdefault(kind, OrderedDict())
                       for time, results in sorted(kresults.items()):
-                        time_run = Run(run.variables.copy())
+                        time_run = Run(run.read_variables().copy())
                         time_run.variables[kind] = time
                         for result_type, result in results.items():
                             rt = kind_results[kind].setdefault(time_run, {}).setdefault(result_type, [])

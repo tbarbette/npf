@@ -1,7 +1,8 @@
 import numpy as np
-from typing import Dict, List, Tuple
+from typing import Dict, Final, List, Tuple
 from collections import OrderedDict
 import sys
+
 if sys.version_info < (3, 7):
     from orderedset import OrderedSet
 else:
@@ -14,13 +15,27 @@ from npf.variable import is_numeric, get_numeric, numeric_dict
 
 class Run:
     def __init__(self, variables):
-        self.variables = variables
+        self._variables = variables
+        self._hash = None
+        self._data_repr = None
+
+    def read_variables(self) -> Final[Dict]:
+        return self._variables
+
+    def write_variables(self) -> Dict:
+        self._hash = None
+        self._data_repr = None
+        return self._variables
+
+    @property
+    def variables(self):
+        return self.write_variables()
 
     def format_variables(self, hide=None):
         if hide is None:
             hide = {}
         s = []
-        for k, v in self.variables.items():
+        for k, v in self._variables.items():
             if k in hide: continue
             if type(v) is tuple:
                 s.append('%s = %s' % (k, v[1]))
@@ -29,21 +44,21 @@ class Run:
         return ', '.join(s)
 
     def print_variable(self, k, default=None):
-        v = self.variables.get(k,default)
+        v = self._variables.get(k,default)
         if type(v) is tuple:
             return v[1]
         else:
             return v
 
     def copy(self):
-        newrun = Run(self.variables.copy())
+        newrun = Run(self._variables.copy())
         return newrun
 
     def inside(self, o):
-        for k, v in self.variables.items():
-            if not k in o.variables:
+        for k, v in self._variables.items():
+            if not k in o._variables:
                 return False
-            ov = o.variables[k]
+            ov = o._variables[k]
             if type(v) is tuple:
                 v = v[1]
             if type(ov) is tuple:
@@ -57,35 +72,35 @@ class Run:
         return True
 
     def intersect(self, common):
-        difs = set.difference(set(self.variables.keys()), common)
+
+        difs = set.difference(set(self._variables.keys()), common)
         for dif in difs:
-            del self.variables[dif]
+            self._hash = None
+            self._data_repr = None
+            del self._variables[dif]
         return self
 
-    def __eq__(self, o):
-        if len(self.variables) != len(o.variables):
-            return False
-        for k, v in self.variables.items():
-            if not k in o.variables:
-                return False
-            ov = o.variables[k]
-            if v == ov:
-                continue
+    def data_repr(self):
+        if self._data_repr is not None:
+            return self._data_repr
+        r=""
+        for k, v in sorted(self._variables.items()):
             if type(v) is tuple:
                 v = v[1]
-            if type(ov) is tuple:
-                ov = ov[1]
-            if is_numeric(v) and is_numeric(ov):
-                if not get_numeric(v) == get_numeric(ov):
-                    return False
-            else:
-                if not v == ov:
-                    return False
-        return True
+            r = r+str(k)+str(v)
+        self._data_repr = r
+        return r
+
+    def __eq__(self, o):
+        if len(self._variables) != len(o._variables):
+            return False
+        return  self.data_repr() == o.data_repr()
 
     def __hash__(self):
+        if self._hash is not None:
+            return self._hash
         n = 0
-        for k, v in self.variables.items():
+        for k, v in self._variables.items():
             if type(v) is tuple:
                 v = v[1]
             if is_numeric(v):
@@ -93,15 +108,17 @@ class Run:
             else:
                 n += str(v).__hash__()
             n += k.__hash__()
+        self._hash = n
         return n
+
 
     def __repr__(self):
         return "Run(" + self.format_variables() + ")"
 
     def __cmp__(self, o):
-        for k, v in self.variables.items():
-            if not k in o.variables: return 1
-            ov = o.variables[k]
+        for k, v in self._variables.items():
+            if not k in o._variables: return 1
+            ov = o._variables[k]
             if is_numeric(v) and is_numeric(ov):
                 return get_numeric(v) - get_numeric(ov)
 
@@ -121,21 +138,7 @@ class Run:
         return self.__cmp__(o) < 0
 
     def __len__(self):
-        return len(self.variables)
-
-class ImmutableRun:
-    def __init__(self, variables):
-        self._run = Run(numeric_dict(variables))
-        self._hash = self._run.__hash__()
-
-    def __hash__(self):
-        return self._hash
-
-    def __eq__(self, o):
-        if type(o) is Run:
-            return self._run.__eq__(o)
-        else:
-            return self._run.__eq__(o._run)
+        return len(self._variables)
 
 
 
@@ -223,12 +226,12 @@ def write_output(datasets, statics, options, run_list, kind=None):
                        row = []
                        for t in options.output_columns:
                            if t == 'x':
-                               for var,val in run.variables.items():
+                               for var,val in run._variables.items():
                                    if var in statics:
                                        continue
                                    row.append(val)
                            elif t == 'all_x':
-                               for var,val in run.variables.items():
+                               for var,val in run._variables.items():
                                    row.append(val)
                            elif t == 'raw':
                                row.extend(result)
