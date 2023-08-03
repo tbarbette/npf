@@ -118,13 +118,17 @@ class Node:
             if len(words) < 3:
                 continue
 
-            pid, out, err, ret = self.executor.exec(cmd="( sudo ethtool %s | grep Speed | grep -oE '[0-9]+' ) || echo '0'\ncat /sys/class/net/%s/address\n( /sbin/ifconfig %s | grep 'inet addr:' | cut -d: -f2| cut -d' ' -f1 ) || echo ''" % (words[1], words[1], words[1]), title="Getting device %s info" % words[1])
+            pid, out, err, ret = self.executor.exec(cmd="echo \"SPEED=$( sudo ethtool %s | grep Speed | grep -oE '[0-9]+' )\"\necho \"MAC=$(cat /sys/class/net/%s/address)\"\necho \"IP=$( /sbin/ifconfig %s | grep 'inet addr:' | cut -d: -f2| cut -d' ' -f1 )\"" % (words[1], words[1], words[1]), title="Getting device %s info" % words[1])
 
-            res = out.split("\n")
+            res = re.findall("(SPEED|MAC|IP)=(.*)",out)
+            vals={}
+            for r in res:
+                vals[r[0]] = r[1].strip()
+
             try:
-                ip = res[-1].strip()
-                mac = res[-2].strip()
-                speed = int(res[-3].strip())
+                ip = vals['IP'] or  self._addr_gen()[1]
+                mac = vals['MAC']
+                speed = int(vals['SPEED'])
             except IndexError:
                 print("Cannot find speed of %s" % words[1])
                 print(out)

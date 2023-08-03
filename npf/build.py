@@ -189,7 +189,7 @@ class Build:
                         results[type_r] = type_results
                 all_results[Run(variables)] = results
         except:
-            print("Could not parse %s. The program will stop to avoid erasing data. Please correct or delete the file.\nLine %d : %s" % (filename,iline, line))
+            print("Could not parse %s. The program will stop to avoid erasing data. Please correct or delete the file.\nLine %d : %s\n" % (filename,iline, line))
             raise
         f.close()
         self.cache[filename] = all_results
