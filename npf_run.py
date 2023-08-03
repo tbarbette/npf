@@ -110,7 +110,7 @@ def main():
     builds = []
 
     for version in versions:
-        builds.append(Build(repo, version))
+        builds.append(Build(repo, version, args.result_path))
 
     last_rebuilds = []
 

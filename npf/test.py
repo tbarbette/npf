@@ -1156,14 +1156,14 @@ class Test:
                     prev_kind_results = nprev_kind_results
                 if not run_results and options.use_last and build.repo.url:
                     for version in build.repo.method.get_history(build.version, limit=options.use_last):
-                        oldb = Build(build.repo, version)
+                        oldb = Build(build.repo, version, options.result_path)
                         r = oldb.load_results(self)
                         if r and run in r:
                             run_results = r[run]
                             break
                 if not kind_results and options.use_last and build.repo.url:
                     for version in build.repo.method.get_history(build.version, limit=options.use_last):
-                        oldb = Build(build.repo, version)
+                        oldb = Build(build.repo, version, options.result_path)
                         r = oldb.load_results(self, kind=True)
                         found = False
                         if r:
