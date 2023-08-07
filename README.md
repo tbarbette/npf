@@ -34,7 +34,7 @@ When launching NPF with:
 npf-run --test tests/tcp/01-iperf.npf --cluster client=machine01.cluster.com server=machine02.cluster.com
 ```
 
-NPF will automatically produce the following graph (configuration option allow to change the graph type, and many other options easily):
+NPF will automatically produce the following graph. Configuration options enables to change the graph type, and many other options easily, [check the wiki](https://npf.readthedocs.io/en/latest/) to see different graphs displaying the same data.
 
 ![sample picture](https://github.com/tbarbette/npf/raw/master/tests/tcp/iperf2-THROUGHPUT-wide.svg "Result for tests/tcp/01-iperf.npf")
 
