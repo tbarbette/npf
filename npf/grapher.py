@@ -5,6 +5,8 @@ import natsort
 import copy
 import traceback
 import sys
+
+from npf.types.web.web import prepare_web_export
 if sys.version_info < (3, 7):
     from orderedset import OrderedSet
 else:
@@ -193,7 +195,7 @@ class Graph:
     def dyns(self):
         return [var for var,values in self.vars_values.items() if len(values) > 1]
 
-    #Convert the series into te XYEB format (see types.dataset)
+    #Convert the series into the XYEB format (see types.dataset)
     def dataset(self,kind=None):
         if not self.data_types:
 
@@ -680,7 +682,7 @@ class Grapher:
             return
 
         # Add series to a pandas dataframe
-        if options.pandas_filename is not None:
+        if options.pandas_filename is not None or options.web is not None:
             all_results_df=pd.DataFrame() # Empty dataframe
             for test, build, all_results in series:
                 for i, (x) in enumerate(all_results):
@@ -704,14 +706,15 @@ class Grapher:
                         raise(e)
 
             # Save the pandas dataframe into a csv
-            pandas_df_name=os.path.splitext(options.pandas_filename)[0] + ("-"+fileprefix if fileprefix else "") + ".csv"
-            # Create the destination folder if it doesn't exist
-            df_path = os.path.dirname(pandas_df_name)
-            if df_path and not os.path.exists(df_path):
-                os.makedirs(df_path)
+            if options.pandas_filename is not None:
+                pandas_df_name=os.path.splitext(options.pandas_filename)[0] + ("-"+fileprefix if fileprefix else "") + ".csv"
+                # Create the destination folder if it doesn't exist
+                df_path = os.path.dirname(pandas_df_name)
+                if df_path and not os.path.exists(df_path):
+                    os.makedirs(df_path)
 
-            all_results_df.to_csv(pandas_df_name, index=True, index_label="index", sep=",", header=True)
-            print("Pandas dataframe written to %s" % pandas_df_name)
+                all_results_df.to_csv(pandas_df_name, index=True, index_label="index", sep=",", header=True)
+                print("Pandas dataframe written to %s" % pandas_df_name)
 
         #Overwrite markers and lines from user
         self.graphmarkers = self.configlist("graph_markers")
@@ -898,6 +901,11 @@ class Grapher:
             series=untouched_series
 
         self.graph_group(series, vars_values, filename=filename, fileprefix = fileprefix, title=title)
+    
+        # Export to web format
+        if options.web is not None:
+            prepare_web_export(series, all_results_df, options.web)
+
 
     def graph_group(self, series, vars_values, filename, fileprefix, title):
         if len(series) == 0:
