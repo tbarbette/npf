@@ -63,6 +63,7 @@ SND_NIC?=EXPAND($CLIENT_NIC)
 RCV_NIC?=EXPAND($CLIENT_NIC)
 DODUMP?=0
 GEN_DUMP?=0
+udpgen:GEN_SEQUENTIAL?=1
 GEN_SEQUENTIAL?=0
 gdb:GDB=gdb -ex run -ex "signal 2" -ex bt -batch -args
 udpgen:GEN_TRACE_SUP+=->MarkMACHeader->EnsureDPDKBuffer->Pad
