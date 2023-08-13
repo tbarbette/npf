@@ -4,7 +4,7 @@ url=https://github.com/kohler/click.git
 method=git
 bin_folder=bin
 bin_name=click
-configure=./configure --disable-linuxmodule --enable-userlevel --enable-user-multithread --enable-etherswitch --enable-bound-port-transfer --disable-dynamic-linking --enable-local
-make=make -j $(nproc)
+configure=./configure --disable-linuxmodule --enable-userlevel --enable-user-multithread --enable-etherswitch --enable-bound-port-transfer --disable-dynamic-linking --enable-local --prefix=$(pwd)
+make=make -j $(nproc) && ( make install || exit 0 )
 intel:configure+=--enable-intel-cpu
 tags=click,vanilla

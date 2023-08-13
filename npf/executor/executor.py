@@ -24,7 +24,7 @@ class Executor:
 
     def _print(self, title, line, nl = True):
         try:
-            print(self.color + title + Style.RESET_ALL + ' ' + line, end=None if nl else '')
+            print(self.color + title + (Style.RESET_ALL if self.color else '') + ' ' + line, end=None if nl else '')
         except UnicodeEncodeError:
             print("Line ignored due to invalid encoding")
 

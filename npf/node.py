@@ -155,7 +155,7 @@ class Node:
                     conf += "%d:ip=%s" % (i, n.ip) + nl
                 i = i + 1
         print(conf)
-        if npf.options.cluster_autosave:
+        if npf.options.cluster_autosave and len(conf) > 0:
             os.makedirs("cluster", exist_ok=True)
             open("cluster/%s.node" % self.name, 'w').write(conf)
 
