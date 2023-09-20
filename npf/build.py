@@ -200,7 +200,8 @@ class Build:
         filename = self.__resultFilename()
         if not os.path.exists(os.path.dirname(filename)):
             os.makedirs(os.path.dirname(filename))
-        open(filename, 'a').close()
+        
+        open(filename, 'w').close()
 
     def build_path(self):
         return self.repo.get_build_path()
