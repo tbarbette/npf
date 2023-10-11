@@ -7,6 +7,6 @@ branch=netperf-2.7.0
 bin_folder=src/
 bin_name=netperf
 configure=./autogen.sh && ./configure
-make=make
+make=make CFLAGS=-fcommon
 //Do not clean after configure as this breaks netperf build
 clean=
