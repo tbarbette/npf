@@ -116,7 +116,7 @@ class Build:
             for key, val in sorted(run.variables.items()):
                 if type(val) is tuple:
                     val = val[1]
-                v.append((key + ":" + str(val).replace(':','\:')).replace(',','\,'))
+                v.append((key + ":" + str(val).replace('\:', ':').replace(':','\:')).replace('\,', ',').replace(',','\,'))
             type_results = []
             for t,r in results.items():
                 str_results = []
@@ -200,7 +200,8 @@ class Build:
         filename = self.__resultFilename()
         if not os.path.exists(os.path.dirname(filename)):
             os.makedirs(os.path.dirname(filename))
-        open(filename, 'a').close()
+        
+        open(filename, 'w').close()
 
     def build_path(self):
         return self.repo.get_build_path()
