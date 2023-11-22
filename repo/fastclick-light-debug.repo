@@ -1,0 +1,3 @@
+parent=fastclick-light
+name=FastClick - Light + Debug
+configure+=--enable-dpdk CFLAGS="-O2 -gdwarf" CXXFLAGS="-std=gnu++11 -O2 -gdwarf" --disable-bound-port-transfer
