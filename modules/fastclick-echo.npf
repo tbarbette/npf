@@ -1,0 +1,2 @@
+%script deps=fastclick sudo=true
+click --dpdk -l 0-7 -a ${self:0:pci} -- -e "FromDPDKDevice(0, PROMISC true) -> EtherMirror -> ToDPDKDevice(0);"
