@@ -23,7 +23,6 @@ from math import log,pow
 
 from npf.types import dataset
 from npf.types.series import Series
-from npf.types.series import Series
 from npf.types.dataset import Run, XYEB, AllXYEB, group_val
 from npf.variable import is_log, is_numeric, get_numeric, numericable, get_bool, is_bool
 from npf.section import SectionVariable
@@ -94,19 +93,14 @@ def buildLight(c,m=4):
     return l
 
 graphcolorseries = [graphcolor]
-#graphcolorseries.append(hexToList("#144c73 #185a88 #1b699e #1f77b4 #2385ca #2b93db #419ede"))
-#graphcolorseries.append(hexToList("#1c641c #217821 #278c27 #2ca02c #32b432 #37c837 #4bce4b"))
-#graphcolorseries.append(hexToList("#c15a00 #da6600 #f47200 #ff7f0e #ff8d28 #ff9a41 #ffa85b"))
-#graphcolorseries.append(hexToList("#951b1c #ab1f20 #c02324 #d62728 #db3b3c #df5152 #e36667"))
-#graphcolorseries.append(hexToList("#6e4196 #7b49a8 #8755b5 #9467bd #a179c5 #ad8bcc #ba9cd4"))
+
 for i in range((int)(len(graphcolor) / 2)):
     graphcolorseries.append(buildLight([(graphcolor[i * 2][c] + graphcolor[i * 2 + 1][c]) / 2 for c in range(3)]))
 
 gridcolors = [ (0.7,0.7,0.7) ]
 legendcolors = [ None ]
+
 for clist in graphcolorseries[1:]:
-    gridcolors.append(lighter(clist[len(clist) // 2], 0.25, 200))
-    legendcolors.append(lighter(clist[len(clist) // 2], 0.45, 25))
     gridcolors.append(lighter(clist[len(clist) // 2], 0.25, 200))
     legendcolors.append(lighter(clist[len(clist) // 2], 0.45, 25))
 
