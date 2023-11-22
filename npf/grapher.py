@@ -414,7 +414,7 @@ class Grapher:
         if len(variables_to_merge) == 1:
             for run in run_list:
                 s = []
-                for k, v in run.read_read_variables()().items():
+                for k, v in run.read_variables().items():
                     if k in variables_to_merge:
                         s.append("%s" % str(v[1] if type(v) is tuple else v))
                 ss.append(','.join(s))
@@ -424,7 +424,7 @@ class Grapher:
             for run in run_list:
                 s = []
                 short_s = {}
-                for k, v in run.read_read_variables()().items():
+                for k, v in run.read_variables().items():
                     if k in variables_to_merge:
                         v = str(v[1] if type(v) is tuple else v)
                         s.append("%s = %s" % (self.var_name(k), v))
