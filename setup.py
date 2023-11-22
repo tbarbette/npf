@@ -19,7 +19,7 @@ install_requires=[
     'ordered_set; python_version >= "3.7.0"',
     'paramiko',
     'asteval',
-    'cryptography==41.0.3',
+    'cryptography==41.0.4',
     'gitdb',
     'pyasn1',
     'natsort',
@@ -27,7 +27,8 @@ install_requires=[
     'colorama',
     'pygtrie',
     'packaging',
-    'importlib_metadata'
+    'importlib_metadata',
+    'npf-web-extension >= 0.6.4'
         ]
 
 setuptools.setup(

@@ -5,6 +5,8 @@ import natsort
 import copy
 import traceback
 import sys
+
+from npf.types.web.web import prepare_web_export
 if sys.version_info < (3, 7):
     from orderedset import OrderedSet
 else:
@@ -191,7 +193,7 @@ class Graph:
     def dyns(self):
         return [var for var,values in self.vars_values.items() if len(values) > 1]
 
-    #Convert the series into te XYEB format (see types.dataset)
+    #Convert the series into the XYEB format (see types.dataset)
     def dataset(self,kind=None):
         if not self.data_types:
 
@@ -684,6 +686,41 @@ class Grapher:
             print("No data...")
             return
 
+        # Add series to a pandas dataframe
+        if options.pandas_filename is not None or options.web is not None:
+            all_results_df=pd.DataFrame() # Empty dataframe
+            for test, build, all_results in series:
+                for i, (x) in enumerate(all_results):
+                    try:
+
+                        labels = [k[1] if type(k) is tuple else k for k,v in x.variables.items()]
+                        x_vars = [[v[1] if type(v) is tuple else v for k,v in x.variables.items()]]
+                        #x_vars = x.variables
+                        print(x_vars)
+                        x_vars=pd.DataFrame(x_vars,index=[0],columns=labels)
+                        x_vars=pd.concat([pd.DataFrame({'build' :build.pretty_name()},index=[0]), pd.DataFrame({'test_index' :i},index=[0]), x_vars],axis=1)
+                        x_data=pd.DataFrame.from_dict(all_results[x],orient='index').transpose() #Use orient='index' to handle lists with different lengths
+                        if len(x_data) == 0:
+                            continue
+                        x_data['run_index']=x_data.index
+                        x_vars = pd.concat([x_vars]*len(x_data), ignore_index=True)
+                        x_df = pd.concat([x_vars, x_data],axis=1)
+                        all_results_df = pd.concat([all_results_df,x_df],ignore_index = True, axis=0)
+                    except Exception as e:
+                        print("ERROR: When trying to export serie %s:" % build.pretty_name())
+                        raise(e)
+
+            # Save the pandas dataframe into a csv
+            if options.pandas_filename is not None:
+                pandas_df_name=os.path.splitext(options.pandas_filename)[0] + ("-"+fileprefix if fileprefix else "") + ".csv"
+                # Create the destination folder if it doesn't exist
+                df_path = os.path.dirname(pandas_df_name)
+                if df_path and not os.path.exists(df_path):
+                    os.makedirs(df_path)
+
+                all_results_df.to_csv(pandas_df_name, index=True, index_label="index", sep=",", header=True)
+                print("Pandas dataframe written to %s" % pandas_df_name)
+
         #Overwrite markers and lines from user
         self.graphmarkers = self.configlist("graph_markers")
         self.graphlines = self.configlist("graph_lines")
@@ -871,6 +908,11 @@ class Grapher:
             series=untouched_series
 
         self.graph_group(series, vars_values, filename=filename, fileprefix = fileprefix, title=title)
+    
+        # Export to web format
+        if options.web is not None:
+            prepare_web_export(series, all_results_df, options.web)
+
 
     def graph_group(self, series, vars_values, filename, fileprefix, title):
         if len(series) == 0:

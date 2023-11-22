@@ -13,6 +13,8 @@ import csv
 from npf import npf
 from npf.variable import is_numeric, get_numeric, numeric_dict
 
+from npf.types.web.web import prepare_web_export
+
 class Run:
     def __init__(self, variables):
         self._variables = variables
@@ -195,17 +197,21 @@ def group_val(result, t):
                                print("WARNING : Unknown format %s" % t)
                                return np.nan
 
-
-def write_output(datasets, statics, options, run_list, kind=None):
-    if options.output is None:
-        return
-
+def prepare_result_types(datasets):
     all_result_types = OrderedSet()
 
     for test,build,all_results in datasets:
         for run, run_results in all_results.items():
             for result_type,results in run_results.items():
                 all_result_types.add(result_type)
+    
+    return all_result_types
+
+def prepare_csvs(all_result_types, datasets, statics, run_list, options, kind=None):
+
+    # Preparing all csvs
+    all_csvs = list()
+
     for test, build, all_results in datasets:
         csvs = OrderedDict()
         for run in run_list:
@@ -245,14 +251,35 @@ def write_output(datasets, statics, options, run_list, kind=None):
                                        row.append(yval)
                        if row:
                            wr.writerow(row)
+        
+        # Appending csvs
+        all_csvs.append(csvs)
+    
+    return all_csvs
+
+def export_csvs(all_csvs, options):
+    for csvs in all_csvs:
         for result_type in csvs.keys():
             if options.output is not None:
                 print("Output written to %s" % csvs[result_type][0])
                 csvs[result_type][1].close()
 
+def process_output_options(datasets, statics, options, run_list, kind=None):
+    if options.output is None:
+        return
+
+    # Getting all result types
+    all_result_types = prepare_result_types(datasets)
+
+    # Prepare all csvs for each dataset
+    all_csvs = prepare_csvs(all_result_types, datasets, statics, run_list, options, kind)
+
+    # Export all csvs based on options
+    export_csvs(all_csvs, options)
+    
 # Converts a dataset (a most of series) to a more mathematical format, XYEB (see above)
 def convert_to_xyeb(datasets: List[Tuple['Test', 'Build' , Dataset]], run_list, key, do_x_sort, statics, options, max_series = None, series_sort=None, y_group={}, color=[], kind = None) -> AllXYEB:
-    write_output(datasets, statics, options, run_list, kind)
+    process_output_options(datasets, statics, options, run_list, kind)
     data_types = OrderedDict()
     all_result_types = OrderedSet()
 

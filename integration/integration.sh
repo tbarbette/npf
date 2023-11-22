@@ -59,6 +59,19 @@ try() {
     fi
 }
 
+#Function to test integration with npf-web-extension
+tryweb() {
+    FILE=results/index.html
+    try tests/examples/math.npf $python "--web $FILE"
+
+    if [ -f "$FILE" ]; then
+        echo "integration with npf-web-extension PASSED"
+    else
+        echo "error for npf-web-extension integration: no file generated through npf-run.py"
+        exit 1
+    fi
+}
+
 if [ $# -eq 1 ] ; then
     python=$1
 else
@@ -78,6 +91,7 @@ compare math $python
 try integration/cdf.npf $python "--config n_runs=20"
 try integration/heatmap.npf $python
 try tests/tcp/01-iperf.npf $python "--variables TIME=1"
+tryweb
 #compare_watcher $python
 
 exit $ret
