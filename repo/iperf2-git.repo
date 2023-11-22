@@ -1,0 +1,8 @@
+parent=iperf2
+url=https://git.code.sf.net/p/iperf2/code
+method=git
+bin_folder=src/
+bin_name=iperf2
+configure=./configure
+make=make
+clean=make clean
