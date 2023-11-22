@@ -23,6 +23,7 @@ from math import log,pow
 
 from npf.types import dataset
 from npf.types.series import Series
+from npf.types.series import Series
 from npf.types.dataset import Run, XYEB, AllXYEB, group_val
 from npf.variable import is_log, is_numeric, get_numeric, numericable, get_bool, is_bool
 from npf.section import SectionVariable
@@ -106,6 +107,8 @@ legendcolors = [ None ]
 for clist in graphcolorseries[1:]:
     gridcolors.append(lighter(clist[len(clist) // 2], 0.25, 200))
     legendcolors.append(lighter(clist[len(clist) // 2], 0.45, 25))
+    gridcolors.append(lighter(clist[len(clist) // 2], 0.25, 200))
+    legendcolors.append(lighter(clist[len(clist) // 2], 0.45, 25))
 
 def find_base(ax):
     if ax[0] == 0 and len(ax) > 2:
@@ -156,6 +159,7 @@ class Map(OrderedDict):
                 self[re.compile(k)] = v
 
     def search(self, map_v):
+        return next((v for k, v in self.items() if re.search(k,str(map_v))), None)
         return next((v for k, v in self.items() if re.search(k,str(map_v))), None)
 
 
@@ -416,7 +420,7 @@ class Grapher:
         if len(variables_to_merge) == 1:
             for run in run_list:
                 s = []
-                for k, v in run.read_variables().items():
+                for k, v in run.read_read_variables()().items():
                     if k in variables_to_merge:
                         s.append("%s" % str(v[1] if type(v) is tuple else v))
                 ss.append(','.join(s))
@@ -426,7 +430,7 @@ class Grapher:
             for run in run_list:
                 s = []
                 short_s = {}
-                for k, v in run.read_variables().items():
+                for k, v in run.read_read_variables()().items():
                     if k in variables_to_merge:
                         v = str(v[1] if type(v) is tuple else v)
                         s.append("%s = %s" % (self.var_name(k), v))

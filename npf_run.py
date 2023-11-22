@@ -49,14 +49,14 @@ def main():
     g.add_argument('--branch', help='Branch', type=str, nargs='?', default=None)
     g.add_argument('--compare-version', dest='compare_version', metavar='version', type=str, nargs='?',
                    help='A version to compare against the last version. Default is the first parent of the last version containing some results.')
+    af = g.add_mutually_exclusive_group()
+    af.add_argument('--regress-version', '--graph-version', dest='graph_version', metavar='version', type=str, nargs='*',
+                    help='Versions to compare against. Alternative to --regress-history to identify versions to compare against.')
+    af.add_argument('--regress-history', '--graph-num', dest='graph_num', metavar='N', type=int, nargs='?', default=-1,
+                    help='Number of olds versions to graph after --compare-version, unused if --graph-version is given. Default is 0 or 8 if --regress is given.')
 
 
     a = npf.add_graph_options(parser)
-    af = a.add_mutually_exclusive_group()
-    af.add_argument('--graph-version', metavar='version', type=str, nargs='*',
-                    help='versions to simply graph')
-    af.add_argument('--graph-num', metavar='N', type=int, nargs='?', default=-1,
-                    help='Number of olds versions to graph after --compare-version, unused if --graph-version is given. Default is 0 or 8 if --regress is given.')
     # a.add_argument('--graph-allvariables', help='Graph only the latest variables (usefull when you restrict variables '
     #                                             'with tags)', dest='graph_newonly', action='store_true', default=False)
     # a.add_argument('--graph-serie', dest='graph_serie', metavar='variable', type=str, nargs=1, default=[None],
@@ -110,7 +110,7 @@ def main():
     builds = []
 
     for version in versions:
-        builds.append(Build(repo, version))
+        builds.append(Build(repo, version, args.result_path))
 
     last_rebuilds = []
 

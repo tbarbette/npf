@@ -30,6 +30,7 @@ RCV_NIC=0
 LIMIT=50000000
 LIMIT_TIME=10
 GEN_THREADS=4
+GEN_RX_THREADS=4
 GEN_PIPELINE=1
 udpgen:GEN_PIPELINE=0
 GEN_TX_PIPELINE=0
@@ -195,7 +196,7 @@ $(( " StaticThreadSched(fdIN0 0/0, unqueue0 0/0);" if $GEN_PIPELINE else "" ))
 
 $(( " StaticThreadSched(tdIN 0/%d);" % ($GEN_THREADS + 1) if $GEN_TX_PIPELINE else "" ))
 
-receiveIN :: FromDPDKDevice($port, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, PAUSE $PAUSE, NDESC $GEN_DESC, MAXTHREADS $GEN_THREADS, NUMA false, ACTIVE $GEN_RX)
+receiveIN :: FromDPDKDevice($port, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, PAUSE $PAUSE, NDESC $GEN_DESC, MAXTHREADS $GEN_RX_THREADS, NUMA false, ACTIVE $GEN_RX)
 
 elementclass Receiver { $mac, $dir |
     input[0]
@@ -208,7 +209,7 @@ $GEN_MAGIC
     c[1] //Not for this computer or broadcasts
     -> Discard;
 
-$((  "\n".join([ "magic[%d] -> tsd%d :: $GEN_TSDIFF(gen%d/rt, OFFSET %d, N $NRECORD, SAMPLE $SAMPLE, NANO $GEN_NANO ) -> Unstrip(14) ->  avg%d :: AverageCounterMP(IGNORE $ignore) -> Discard;  tsd%d[1] -> Print('WARNING: Untimestamped packet on thread %d', 64) -> Discard;" % (t,t,t,${NUMBEROFFSET} + 2,t,t,t) for t in range($GEN_THREADS) ]) ))
+$((  "\n".join([ "magic[%d] -> tsd%d :: $GEN_TSDIFF(gen%d/rt, OFFSET %d, N $NRECORD, SAMPLE $SAMPLE, NANO $GEN_NANO ) -> Unstrip(14) ->  avg%d :: AverageCounterIMP(IGNORE $ignore) -> Discard;  tsd%d[1] -> Print('WARNING: Untimestamped packet on thread %d', 64) -> Discard;" % (t,t,t,${NUMBEROFFSET} + 2,t,t,t) for t in range($GEN_THREADS) ]) ))
 
 
 $(( (  "avg :: HandlerAggregate( " + ",".join(["ELEMENT avg%d" % (i) for i in range($GEN_THREADS) ]) + " );" ) if 1 else "" ))

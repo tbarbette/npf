@@ -44,6 +44,7 @@ def add_verbosity_options(parser: ArgumentParser):
                    dest='print_time_results', action='store_true',
                    default=False)
 
+    v.add_argument('--no-colors', help='Do not use terminal colors', dest='color', action='store_false', default=True)
     v.add_argument('--quiet', help='Quiet mode', dest='quiet', action='store_true', default=False)
     v.add_argument('--quiet-regression', help='Do not tell about the regression process', dest='quiet_regression',
                     action='store_true', default=False)
