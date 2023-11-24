@@ -158,6 +158,8 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
     t.add_argument('--config', metavar='config=value', type=str, nargs='+', action=ExtendAction,
                    help='list of config values to override', default=[])
 
+    t.add_argument('--env', metavar='list of variables', dest='keep_env', type=str, nargs='+', help='list of environment variables to pass in scripts', default=[], action=ExtendAction)
+
     t.add_argument('--test', '--test', '--npf', dest='test_files', metavar='path or test', type=str, nargs='?', default='tests',
                    help='script or script folder. Default is tests')
 

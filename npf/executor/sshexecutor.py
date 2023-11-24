@@ -60,17 +60,17 @@ class SSHExecutor(Executor):
             print("Executing on %s%s (PATH+=%s) :\n%s" % (self.addr,(' with sudo' if sudo and self.user != "root" else ''),':'.join(path_list) + (("NS:"  + virt) if virt else ""), cmd.strip()))
 
         # The pre-command goes into the test folder
-        pre = 'cd '+ self.path + ';'
+        pre = 'cd '+ self.path + ';\n'
 
         if self.path:
             env['NPF_ROOT'] = self.path
             env['NPF_CWD_PATH'] = os.path.relpath(npf.cwd_path(),self.path)
             env['NPF_EXPERIMENT_PATH'] = '../' + os.path.relpath(npf.experiment_path(), self.path)
             env['NPF_ROOT_PATH'] = '../' + os.path.relpath(npf.npf_root_path(), self.path)
-
+        env_str=""
         for k,v in env.items():
             if v is not None:
-                pre += 'export ' + k + '='+v+'\n'
+                env_str += 'export ' + k + '='+v+'\n'
         if path_list:
             path_cmd = 'export PATH="%s:$PATH"\n' % (':'.join(path_list))
         else:
@@ -83,6 +83,7 @@ class SSHExecutor(Executor):
             if stdin is not None:
                 unbuffer = unbuffer + " -p"
 
+        cmd = env_str + cmd
         if sudo and self.user != "root":
             cmd = "mkdir -p "+testdir+" && sudo -E " + virt +" "+unbuffer+" bash -c '"+path_cmd + cmd.replace("'", "'\"'\"'") + "'";
         else:

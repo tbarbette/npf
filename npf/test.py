@@ -723,9 +723,12 @@ class Test:
                         param.name = script.get_name(True)
                         param.autokill = autokill
                         param.env = OrderedDict()
+                        if self.options.keep_env:
+                            param.env.update({key:os.environ[key] for key in self.options.keep_env})
                         param.env.update(v_internals)
                         param.env.update([(k, v.replace('$NPF_BUILD_PATH', build.repo.get_build_path())) for k, v in
                                           build.repo.env.items()])
+
 
                         if self.options.rand_env:
                             param.env['RANDENV'] = ''.join(random.choice(string.ascii_lowercase) for i in range(random.randint(0,self.options.rand_env)))
