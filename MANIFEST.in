@@ -1,2 +1,3 @@
 include modules/*.npf
 include repo/*.repo
+include cluster/localhost.node
