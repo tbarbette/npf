@@ -175,6 +175,10 @@ class Test:
                 elif section is None:
                     raise Exception("Bad syntax, file must start by a section. Line %d :\n%s" % (i, line))
                 else:
+                    if section.name == "variables":  # if the current section is "variables"
+                        # then the variable assigned to a value may not contain any '='
+                        assert '=' not in line[line.find('=') + 1:], (f"Variables values cannot include a '=' character"
+                                                                      f". Please correct this line: {line[:-1]}.")
                     section.content += line
             f.close()
 
