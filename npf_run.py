@@ -4,6 +4,7 @@ Main NPF test runner program
 """
 import argparse
 import errno
+import os
 
 import sys
 
@@ -63,7 +64,11 @@ def main():
     parser.add_argument('repo', metavar='repo name', type=str, nargs='?', help='name of the repo/group of builds', default=None)
 
     args = parser.parse_args()
-
+    if args.use_openssh_config:
+        openssh_conf_path = os.path.join(os.getenv("HOME"), ".ssh", "config")
+        if not os.path.exists(openssh_conf_path):
+            print(f"Could not find a openssh config: {openssh_conf_path}")
+            del args.use_openssh_config
 
     npf.parse_nodes(args)
 

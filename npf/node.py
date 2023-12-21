@@ -170,19 +170,21 @@ class Node:
         return node
 
     @classmethod
-    def makeSSH(cls, user, addr, path, options, port=22, nfs=None):
+    def makeSSH(cls, user, addr, path, options, port=22, nfs=None, use_openssh_config=False):
         if path is None:
             path = os.path.abspath(npf.experiment_path())
         node = cls._nodes.get(addr, None)
         if node is not None:
             return node
-        sshex = SSHExecutor(user, addr, path, port)
+        sshex = SSHExecutor(user, addr, path, port, use_openssh_config=use_openssh_config)
         node = Node(addr, sshex, options.tags)
         if nfs is not None:
             node.nfs = nfs
         cls._nodes[addr] = node
 
-        if options.do_test and options.do_conntest:
+        if options.do_test and options.do_conntest: #disable conn test for opensshconfigs
+            if use_openssh_config:
+                print("When using --use-openssh-config, please disable connection tests !")
             try:
                 node.ip = socket.gethostbyname(node.executor.addr)
             except Exception as e:

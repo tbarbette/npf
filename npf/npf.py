@@ -173,6 +173,7 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
     t.add_argument('--experimental-design', type=str, default="matrix.csv", help="The path towards the experimental design point selection file")
 
     c = parser.add_argument_group('Cluster options')
+    c.add_argument('--use-openssh-config', action='store_true', help="Parse and use the openssh config file in /home/<user>/.ssh/config", default=False)
     c.add_argument('--cluster', metavar='role=user@address:path [...]', type=str, nargs='*', default=[],
                    help='role to node mapping for remote execution of tests. The format is role=address, where address can be an address or a file in cluster/address.node describing supplementary parameters for the node.')
     c.add_argument('--cluster-autosave', default=False, action='store_true', dest='cluster_autosave',
@@ -310,7 +311,7 @@ def parse_nodes(args):
             node = local
         else:
             node = Node.makeSSH(user=match.group('user'), addr=match.group('addr'), path=path,
-                            options=options, nfs=nfs)
+                            options=options, nfs=nfs, use_openssh_config=args.use_openssh_config)
         role = match.group('role')
         if role in roles:
             roles[role].append(node)

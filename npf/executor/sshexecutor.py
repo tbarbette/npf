@@ -1,5 +1,6 @@
 import multiprocessing
 import os,errno
+import shlex
 import time
 from multiprocessing import Queue
 from typing import List
@@ -17,7 +18,7 @@ import stat
 
 class SSHExecutor(Executor):
 
-    def __init__(self, user, addr, path, port):
+    def __init__(self, user, addr, path, port, use_openssh_config=False):
         super().__init__()
         self.user = user
         self.addr = addr
@@ -27,6 +28,7 @@ class SSHExecutor(Executor):
             self.path = path + '/'
         self.port = port
         self.ssh = False
+        self.use_openssh_config = use_openssh_config
         #Executor should not make any connection in init as parameters can be overwritten afterward
 
     def __del__(self):
@@ -37,16 +39,67 @@ class SSHExecutor(Executor):
         import paramiko
         if cache and self.ssh:
             return self.ssh
+
+        def find_proxy_command_host(proxy_command: str):
+            """
+            find the host argument, compliant with OpenSSH_8.2p1 args
+            """
+            shlexed = shlex.split(proxy_command)
+            no_arg_ssh_opts = [f'-{o}' for o in "46AaCfGgKkMNnqsTtVvXxYy"]
+            idx = shlexed.index('ssh') + 1
+            while shlexed[idx].startswith('-'):
+                if shlexed[idx] not in no_arg_ssh_opts:
+                    idx += 2
+                else:
+                    idx += 1
+            return shlexed[idx]
+
         ssh = paramiko.SSHClient()
         ssh.load_system_host_keys()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect(self.addr, username=self.user, port=self.port)
+        cfg = {'hostname': self.addr, 'username': self.user, 'port':self.port}
+
+
+        if self.use_openssh_config:
+            #Code for parsing and using openssh config taken from https://gist.github.com/acdha/6064215
+            ssh._policy = paramiko.WarningPolicy()
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            ssh_config = paramiko.SSHConfig()
+            user_config_file = os.path.join(os.getenv("HOME"), ".ssh", "config")
+            with open(user_config_file) as f:
+                ssh_config.parse(f)
+
+
+            user_config = ssh_config.lookup(cfg['hostname'])
+            for k in ('hostname', 'username', 'port'):
+                if k in user_config:
+                    cfg[k] = user_config[k]
+            if 'identityfile' in user_config:
+                cfg['key_filename'] = user_config['identityfile']
+            #If using a proxycommand, follow back the chain of proxies and use it to build the proxyjump chain
+            if 'proxycommand' in user_config:
+
+                parent_proxy_host = find_proxy_command_host(user_config['proxycommand'])
+                parent_proxy_config = ssh_config.lookup(parent_proxy_host)
+                proxies_names = [parent_proxy_host]
+
+                while 'proxycommand' in parent_proxy_config and parent_proxy_config != None:
+
+                    parent_proxy_host = find_proxy_command_host(parent_proxy_config['proxycommand'])
+                    proxies_names.insert(0, parent_proxy_host)
+                    parent_proxy_config = ssh_config.lookup(parent_proxy_host)
+                
+                cmd = ['ssh', '-J', f"{','.join(proxies_names[:-1])}", proxies_names[-1], '-W', f"{cfg['hostname']}:{cfg['port']}"]
+                cfg['sock'] = paramiko.ProxyCommand(" ".join(cmd))
+
+        ssh.connect(**cfg)
         if cache:
             self.ssh = ssh
         return ssh
 
 
     def exec(self, cmd, bin_paths : List[str] = None, queue: Queue = None, options = None, stdin = None, timeout=None, sudo=False, testdir=None, event=None, title=None, env={}, virt = "", raw = False):
+
         if not title:
             title = self.addr
         else:
@@ -58,10 +111,9 @@ class SSHExecutor(Executor):
         path_list = [p if os.path.isabs(p) else os.path.join(self.path, p) for p in bin_paths]
         if options and options.show_cmd:
             print("Executing on %s%s (PATH+=%s) :\n%s" % (self.addr,(' with sudo' if sudo and self.user != "root" else ''),':'.join(path_list) + (("NS:"  + virt) if virt else ""), cmd.strip()))
-
         # The pre-command goes into the test folder
         pre = 'cd '+ self.path + ';'
-
+        
         if self.path:
             env['NPF_ROOT'] = self.path
             env['NPF_CWD_PATH'] = os.path.relpath(npf.cwd_path(),self.path)
