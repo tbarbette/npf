@@ -82,6 +82,8 @@ def _parallel_exec(param: RemoteParameters):
                                  env=param.env,
                                  virt=param.virt)
 
+    sys.stdout.flush()
+    sys.stderr.flush()
     if pid == 0:
         return False, o, e, c, param.script
     else:
