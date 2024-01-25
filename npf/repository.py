@@ -10,7 +10,6 @@ import urllib.request
 import sys
 
 import shutil
-from build.lib.npf import repository
 
 import gitdb
 
@@ -25,7 +24,7 @@ repo_variables = ['name', 'branch', 'configure', 'url', 'method', 'parent', 'tag
 
 
 class Method(metaclass=ABCMeta):
-    repo: repository.Repository
+
     def __init__(self, repo):
         self.repo = repo
 
