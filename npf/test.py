@@ -23,12 +23,28 @@ from .variable import get_bool
 from decimal import *
 from functools import reduce
 
+import logging
+
 from subprocess import PIPE, Popen, TimeoutExpired
 
+if __name__ == '__main__':
+    multiprocessing.set_start_method('forkserver')
+
 class RemoteParameters:
+    default_role_map: dict
+    role: str
+    role_id: str
+    script: object
+    name: str
+    delay: int
+    executor: object
+
     def __init__(self):
         self.default_role_map = None
         self.role = None
+        self.role_id = None
+        self.script = None
+        self.name = None
         self.delay = None
         self.executor = None
         self.bin_paths = None
@@ -46,12 +62,14 @@ class RemoteParameters:
         self.title = None
         self.env = None
         self.virt = ""
+        self.options = None
 
     pass
 
 
 def _parallel_exec(param: RemoteParameters):
-    nodes = npf.nodes_for_role(param.role)
+    npf.options = param.options
+    nodes = param.nodes
     executor = nodes[param.role_id].executor
     for wf in param.waitfor if type(param.waitfor) is list else [param.waitfor]:
         if wf is None:
@@ -718,6 +736,7 @@ class Test:
                         param.role = srole
                         param.role_id = i_node
                         param.default_role_map = self.config.get_dict("default_role_map")
+                        param.nodes = npf.nodes_for_role(param.role)
                         param.delay = script.delay()
 
                         deps_bin_path = [repo.get_remote_bin_folder(node) for repo in script.get_deps_repos(self.options) if

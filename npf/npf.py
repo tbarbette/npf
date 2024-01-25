@@ -174,7 +174,7 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
 
     c = parser.add_argument_group('Cluster options')
     c.add_argument('--cluster', metavar='role=user@address:path [...]', type=str, nargs='*', default=[],
-                   help='role to node mapping for remote execution of tests. The format is role=address, where address can be an address or a file in cluster/address.node describing supplementary parameters for the node.')
+                   help='role to node mapping for remote execution of tests. The format is role=address[,option=value,...] . Address can be an address or a file in cluster/address.node describing supplementary parameters for the node.')
     c.add_argument('--cluster-autosave', default=False, action='store_true', dest='cluster_autosave',
                     help='Automatically save NICs found on the machine. If the file cluster/address.node does not exists, NPF will attempt to auto-discover NICs. If this option is set, it will auto-create the file.')
 
@@ -241,7 +241,7 @@ def executor(role, default_role_map):
 
 def set_args(args):
     sys.modules[__name__].options = args
-    sys.modules[__name__].cwd = os.getcwd()
+    args.cwd = os.getcwd()
 
 def parse_nodes(args):
     set_args(args)
@@ -363,16 +363,21 @@ def npf_writeable_root_path():
     else:
         return path
 
-def experiment_path():
+def experiment_path(options = None):
     # Return the path to NPF experiment folder
-    options = sys.modules[__name__].options
+    if options is None:
+        options = sys.modules[__name__].options
     return os.path.join(options.experiment_folder,'')
 
-def cwd_path():
+def cwd_path(options=None):
     # Return the path to where NPF was first executed
-    return sys.modules[__name__].cwd
+    if options is None:
+        options = sys.modules[__name__].options
+    return options.cwd
 
-def get_build_path():
+def get_build_path(options = None):
+    if options is None:
+        options = sys.modules[__name__].options
     assert(options._build_path)
     return options._build_path
 

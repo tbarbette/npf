@@ -316,7 +316,7 @@ class Repository:
             else:
                 self._build_path = path
         else:
-            self._build_path = npf.get_build_path() + self.reponame
+            self._build_path = npf.get_build_path(self.options) + self.reponame
         #Ensure trailing /
         self._build_path = os.path.join(self._build_path,'')
 
@@ -341,12 +341,12 @@ class Repository:
         if not bp:
             return ""
         #If the path is in the NPF build path, the remote
-        if os.path.abspath(bp).startswith(npf.get_build_path()):
-            return os.path.relpath(bp, os.path.dirname(os.path.normpath(npf.get_build_path())))
-        if os.path.abspath(bp).startswith(npf.experiment_path()):
-            return os.path.relpath(bp, npf.experiment_path())
-        if os.path.abspath(bp).startswith(npf.npf_root_path()):
-            return os.path.relpath(bp, npf.npf_root_path())
+        if os.path.abspath(bp).startswith(npf.get_build_path(self.options)):
+            return os.path.relpath(bp, os.path.dirname(os.path.normpath(npf.get_build_path(self.options))))
+        if os.path.abspath(bp).startswith(npf.experiment_path(self.options)):
+            return os.path.relpath(bp, npf.experiment_path(self.options))
+        if os.path.abspath(bp).startswith(npf.npf_root_path(self.options)):
+            return os.path.relpath(bp, npf.npf_root_path(self.options))
         return os.path.basename(bp)
 
 
