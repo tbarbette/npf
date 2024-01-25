@@ -1,0 +1,3 @@
+url=git@github.com:OISF/suricata.git
+configure=./autogen.sh && ./configure
+make=make
