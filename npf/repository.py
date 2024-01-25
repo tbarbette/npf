@@ -7,8 +7,10 @@ from pathlib import Path
 import re
 from urllib.error import URLError
 import urllib.request
+import sys
 
 import shutil
+from build.lib.npf import repository
 
 import gitdb
 
@@ -23,6 +25,7 @@ repo_variables = ['name', 'branch', 'configure', 'url', 'method', 'parent', 'tag
 
 
 class Method(metaclass=ABCMeta):
+    repo: repository.Repository
     def __init__(self, repo):
         self.repo = repo
 
@@ -86,16 +89,24 @@ class MethodGit(Method):
             branch = self.repo.branch
 
         need_clone=False
-        if os.path.exists(self.repo.get_build_path()):
+
+        repo_path = self.repo.get_build_path()
+        if os.path.exists(repo_path):
             try:
-                gitrepo = git.Repo(self.repo.get_build_path())
+                gitrepo = git.Repo(repo_path)
                 o = gitrepo.remotes.origin
                 if not self.repo.options.no_build and not self._fetch_done:
                     o.fetch()
                     self._fetch_done = True
-            except git.exc.InvalidGitRepositoryError:
-                print("Path %s appear to be invalid" % self.repo.get_build_path())
-                #shutil.rmtree(self.repo.get_build_path())
+            except git.exc.InvalidGitRepositoryError as e:
+                print("Path %s appear to be invalid:" % repo_path)
+                print(f"It appears {repo_path} is invalid. Do you want to delete it and re-checkout ? [(Y)es/(n)o]: \n", file=sys.stderr)
+                sys.stdout.flush()
+                answer=input().lower()
+                if answer == "y":
+                    shutil.rmtree(self.repo.get_build_path())
+                else:
+                    raise e
                 need_clone=True
         else:
             need_clone=True
