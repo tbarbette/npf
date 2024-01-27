@@ -32,7 +32,8 @@ class LocalExecutor(Executor):
     def exec(self, cmd : str, bin_paths : List[str]=[],
              queue: Queue = None, options = None,
              stdin = None, timeout = None, sudo = False,
-             testdir=None, event=None, title=None, env = {}, virt="" ) -> [int, str, str, int]:
+             testdir=None, event=None, title=None, env = {}, virt="" ,
+        ) -> [int, str, str, int]:
         """Runs a command in local
 
         Args:

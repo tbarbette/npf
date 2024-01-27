@@ -64,7 +64,7 @@ class SSHExecutor(Executor):
 
         if self.path:
             env['NPF_ROOT'] = self.path
-            env['NPF_CWD_PATH'] = os.path.relpath(npf.cwd_path(),self.path)
+            env['NPF_CWD_PATH'] = os.path.relpath(npf.cwd_path(options),self.path)
             env['NPF_EXPERIMENT_PATH'] = '../' + os.path.relpath(npf.experiment_path(), self.path)
             env['NPF_ROOT_PATH'] = '../' + os.path.relpath(npf.npf_root_path(), self.path)
         env_str=""
@@ -85,7 +85,7 @@ class SSHExecutor(Executor):
 
         cmd = env_str + cmd
         if sudo and self.user != "root":
-            cmd = "mkdir -p "+testdir+" && sudo -E " + virt +" "+unbuffer+" bash -c '"+path_cmd + cmd.replace("'", "'\"'\"'") + "'";
+            cmd = "sudo -E  mkdir -p "+testdir+" && sudo -E " + virt +" "+unbuffer+" bash -c '"+path_cmd + cmd.replace("'", "'\"'\"'") + "'";
         else:
             cmd = virt + " " + unbuffer +" bash -c '" + path_cmd + cmd.replace("'", "'\"'\"'") + "'";
 

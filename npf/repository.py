@@ -7,6 +7,7 @@ from pathlib import Path
 import re
 from urllib.error import URLError
 import urllib.request
+import sys
 
 import shutil
 
@@ -23,6 +24,7 @@ repo_variables = ['name', 'branch', 'configure', 'url', 'method', 'parent', 'tag
 
 
 class Method(metaclass=ABCMeta):
+
     def __init__(self, repo):
         self.repo = repo
 
@@ -86,16 +88,24 @@ class MethodGit(Method):
             branch = self.repo.branch
 
         need_clone=False
-        if os.path.exists(self.repo.get_build_path()):
+
+        repo_path = self.repo.get_build_path()
+        if os.path.exists(repo_path):
             try:
-                gitrepo = git.Repo(self.repo.get_build_path())
+                gitrepo = git.Repo(repo_path)
                 o = gitrepo.remotes.origin
                 if not self.repo.options.no_build and not self._fetch_done:
                     o.fetch()
                     self._fetch_done = True
-            except git.exc.InvalidGitRepositoryError:
-                print("Path %s appear to be invalid" % self.repo.get_build_path())
-                #shutil.rmtree(self.repo.get_build_path())
+            except git.exc.InvalidGitRepositoryError as e:
+                print("Path %s appear to be invalid:" % repo_path)
+                print(f"It appears {repo_path} is invalid. Do you want to delete it and re-checkout ? [(Y)es/(n)o]: \n", file=sys.stderr)
+                sys.stdout.flush()
+                answer=input().lower()
+                if answer == "y":
+                    shutil.rmtree(self.repo.get_build_path())
+                else:
+                    raise e
                 need_clone=True
         else:
             need_clone=True
@@ -316,7 +326,7 @@ class Repository:
             else:
                 self._build_path = path
         else:
-            self._build_path = npf.get_build_path() + self.reponame
+            self._build_path = npf.get_build_path(self.options) + self.reponame
         #Ensure trailing /
         self._build_path = os.path.join(self._build_path,'')
 
@@ -341,12 +351,12 @@ class Repository:
         if not bp:
             return ""
         #If the path is in the NPF build path, the remote
-        if os.path.abspath(bp).startswith(npf.get_build_path()):
-            return os.path.relpath(bp, os.path.dirname(os.path.normpath(npf.get_build_path())))
-        if os.path.abspath(bp).startswith(npf.experiment_path()):
-            return os.path.relpath(bp, npf.experiment_path())
-        if os.path.abspath(bp).startswith(npf.npf_root_path()):
-            return os.path.relpath(bp, npf.npf_root_path())
+        if os.path.abspath(bp).startswith(npf.get_build_path(self.options)):
+            return os.path.relpath(bp, os.path.dirname(os.path.normpath(npf.get_build_path(self.options))))
+        if os.path.abspath(bp).startswith(npf.experiment_path(self.options)):
+            return os.path.relpath(bp, npf.experiment_path(self.options))
+        if os.path.abspath(bp).startswith(npf.npf_root_path(self.options)):
+            return os.path.relpath(bp, npf.npf_root_path(self.options))
         return os.path.basename(bp)
 
 
