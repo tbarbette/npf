@@ -694,7 +694,6 @@ class Grapher:
                         labels = [k[1] if type(k) is tuple else k for k,v in x.variables.items()]
                         x_vars = [[v[1] if type(v) is tuple else v for k,v in x.variables.items()]]
                         #x_vars = x.variables
-                        print(x_vars)
                         x_vars=pd.DataFrame(x_vars,index=[0],columns=labels)
                         x_vars=pd.concat([pd.DataFrame({'build' :build.pretty_name()},index=[0]), pd.DataFrame({'test_index' :i},index=[0]), x_vars],axis=1)
                         x_data=pd.DataFrame.from_dict(all_results[x],orient='index').transpose() #Use orient='index' to handle lists with different lengths
@@ -1571,12 +1570,17 @@ class Grapher:
                                     xticks = np.delete(xticks,np.delete(np.array(range(len(xticks))),index))
 
                                 plt.xticks(xticks)
-
-                                d = log(max(ax),base) - log(min(ax),base)
+                                ma = min(ax)
+                                mal = (log(ma,base) if ma > 0 else 0)
+                                d = log(max(ax),base) - mal
                                 #Force recomputation of xmin
-                                if not xmin:
-                                    xmin = log(min(ax),base) - (d * plt.margins()[0])
-                                    plt.xlim(xmin=pow(base,xmin))
+                                if not xmin or ma==0:
+                                    xmin = mal - (d * plt.margins()[0])
+                                    if (xmin <= 1):
+                                        print(xmin)
+                                        plt.xlim(xmin=xmin)
+                                    else:
+                                        plt.xlim(xmin=pow(base,xmin))
                                 if not xmax:
                                     xmax = log(max(ax),base) + (d * plt.margins()[0])
                                     plt.xlim(xmax=pow(base,xmax))

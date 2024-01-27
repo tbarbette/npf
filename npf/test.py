@@ -444,10 +444,11 @@ class Test:
                 pass
 
             i = 0
-            while killer.is_alive() and i < 500:
+            while killer.is_alive() and i < 2000:
                 time.sleep(0.010)
                 i += 1
             try:
+                print("Force kill!")
                 killer.force_kill()
             except OSError:
                 pass

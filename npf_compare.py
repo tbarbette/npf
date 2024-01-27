@@ -77,8 +77,14 @@ def export_output(filename: str, series: Series , kind_series:Series,options):
         print(kind_series)
         for test, build, kind_dataset in kind_series:
             for kind, dataset in kind_dataset.items():
-                pypost.execute_pypost(dataset)
-                export_pandas.export_pandas(options, dataset, fileprefix=kind)
+                try:
+                    pypost.execute_pypost(dataset)
+                    export_pandas.export_pandas(options, dataset, fileprefix=kind)
+                except Exception as e:
+                    print(f"While exporting dataset for kind {kind}:")
+                    print(dataset)
+                    print("Error:")
+                    print(e)
 
     #Group repo if asked to do so
     if options.group_repo:
