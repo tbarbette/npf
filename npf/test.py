@@ -767,9 +767,10 @@ class Test:
                     break
                 try:
                     if self.options.allow_mp:
-                        p = multiprocessing.Pool(n)
+                        p = multiprocessing.pool.ThreadPool(n)
                         parallel_execs = p.map(_parallel_exec,
                                                remote_params)
+
                     else:
                         print("Sequential execution...")
                         parallel_execs = []

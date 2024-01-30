@@ -1,19 +1,29 @@
 %script
-unbuffer python3 cpuload.py
+unbuffer python3 cpuload.py "${NPF_NODE}"
 
 %variables
 CPUMIN=0
 CPUMAX=128
+CPUTHRESH=1
+CPUSUM=0
+
+%init
+python3 -m pip install parse || python -m pip install parse
 
 %file cpuload.py
 from time import sleep,time
 from parse import parse
 from collections import defaultdict
+import sys
 
 last_idle = defaultdict(int)
 last_total = defaultdict(int)
+thresh = False
+csum=0
+name=sys.argv[1]
 while True:
     t = time()
+    do_thresh = False
     with open('/proc/stat') as f:
       f.readline()
       while True:
@@ -28,5 +38,17 @@ while True:
         last_idle[cpuid], last_total[cpuid] = idle, total
         utilisation = 100.0 * (1.0 - idle_delta / total_delta)
         if cpuid < $CPUMAX and cpuid >= $CPUMIN:
-            print('TLOAD-%f-RESULT-CPU-%d %f' % (t,cpuid,utilisation))
+            if $CPUTHRESH > 0:
+                if utilisation > $CPUTHRESH and not thresh:
+                    do_thresh=True
+                if not thresh:
+                    continue
+            if $CPUSUM:
+                csum+=utilisation
+            else:
+                print('TLOAD-%f-RESULT-CPU-%d %f' % (t,cpuid,utilisation))
+    if do_thresh:
+        thresh = True
+    if $CPUSUM:
+        print('TLOAD-%f-RESULT-%s-CPUSUM %f' % (t,name,csum))
     sleep(1)
