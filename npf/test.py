@@ -659,6 +659,8 @@ class Test:
                                           [(imp.test, imp.imp_v, imp.get_role()) for imp in
                                            self.imports] if do_imports else []) + [
                                       (self, v, None)]:
+
+                  v["NPF_ROLE"] = role
                   for script in t.scripts:
                     srole = role if role else script.get_role()
                     nodes = npf.nodes_for_role(srole)
