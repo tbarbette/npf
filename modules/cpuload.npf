@@ -1,5 +1,5 @@
 %script
-unbuffer python3 cpuload.py "${NPF_NODE}"
+unbuffer python3 cpuload.py "${NPF_ROLE}"
 
 %variables
 CPUMIN=0
@@ -19,9 +19,9 @@ import sys
 last_idle = defaultdict(int)
 last_total = defaultdict(int)
 thresh = False
-csum=0
 name=sys.argv[1]
 while True:
+    csum=0
     t = time()
     do_thresh = False
     with open('/proc/stat') as f:
