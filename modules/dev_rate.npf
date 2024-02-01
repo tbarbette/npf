@@ -15,6 +15,7 @@ exit 0
 intif=$1
 role=$2
 thresh=$3
+stop_below_thresh=0
 echo "Rate of $intif"
 old_bytes=$(cat /sys/class/net/$intif/statistics/rx_bytes)
 old_len=$(cat /sys/class/net/$intif/statistics/rx_packets)
@@ -44,7 +45,7 @@ while true; do
     echo "DEV-$role-$intif-$t-RESULT-IDEV-$role-${intif}LINK $throughput"
     echo "DEV-$role-$intif-$t-RESULT-IDEV-$role-${intif}PPS $pps"
     if [ $acc -eq 1 ] ; then
-        if [ $throughput -lt 1000000 ] ; then
+        if [ $throughput -lt $thresh -a $stop_below_thresh -eq 1 ] ; then
             echo "Throughput is $throughput, stopping computation"
             break
         else

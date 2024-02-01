@@ -706,7 +706,7 @@ class Grapher:
                         all_results_df = pd.concat([all_results_df,x_df],ignore_index = True, axis=0)
                     except Exception as e:
                         print("ERROR: When trying to export serie %s:" % build.pretty_name())
-                        raise(e)
+
 
             # Save the pandas dataframe into a csv
             if options.pandas_filename is not None:
@@ -904,7 +904,7 @@ class Grapher:
             series=untouched_series
 
         self.graph_group(series, vars_values, filename=filename, fileprefix = fileprefix, title=title)
-    
+
         # Export to web format
         if options.web is not None:
             prepare_web_export(series, all_results_df, options.web)
