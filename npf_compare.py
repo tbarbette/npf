@@ -17,6 +17,8 @@ from npf.test import Test
 
 from npf.statistics import Statistics
 
+import multiprocessing
+
 class Comparator():
     def __init__(self, repo_list: List[Repository]):
         self.repo_list = repo_list
@@ -194,4 +196,5 @@ def main():
     do_graph(filename, args, series, time_series, options=args)
 
 if __name__ == "__main__":
+    multiprocessing.set_start_method('forkserver')
     main()

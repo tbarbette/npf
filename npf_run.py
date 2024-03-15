@@ -12,6 +12,7 @@ from npf.regression import *
 from npf.statistics import Statistics
 from npf.test import Test, ScriptInitException
 
+import multiprocessing
 
 def main():
     parser = argparse.ArgumentParser(description='NPF Test runner')
@@ -282,4 +283,5 @@ def main():
 
 
 if __name__ == "__main__":
+    multiprocessing.set_start_method('forkserver')
     main()

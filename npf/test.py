@@ -27,9 +27,6 @@ import logging
 
 from subprocess import PIPE, Popen, TimeoutExpired
 
-if __name__ == '__main__':
-    multiprocessing.set_start_method('forkserver')
-
 class RemoteParameters:
     default_role_map: dict
     role: str
@@ -716,7 +713,7 @@ class Test:
                             param.virt = "ip netns exec npfns%d" % i_multi
                             param.sudo = True
 
-                        param.commands = "mkdir -p " + test_folder + " && cd " + test_folder + ";\n" + SectionVariable.replace_variables(
+                        param.commands = SectionVariable.replace_variables(
                             v,
                             script.content,
                             self_role = srole, self_node=node,

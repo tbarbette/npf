@@ -101,12 +101,12 @@ class Node:
         if not npf.options.cluster_autosave:
             print("To avoid this message write down the configuration in cluster/%s.node or run again NPF with --cluster-autosave to create the file automatically." % (self.name))
         pid, out, err, ret = self.executor.exec(cmd="sudo lshw -class network -businfo -quiet", title="Listing network devices")
-        if ret != 0:
+        if ret != 0 or out == "" or out.isspace():
             print("WARNING: %s has no configuration file and the NICs could not be found automatically. Please refer to the cluster documentation in NPF to define NIC order and addresses." % self.name)
             print(out)
             return
-
-        header=out[:out.find('====')].splitlines()[-1]
+        eqpos = out.find('====')
+        header=out[:eqpos].splitlines()[-1]
         descpos = header.find('Description') - 1
         lines=out[out.find('===='):].splitlines()[1:]
         speeds = {}
@@ -215,5 +215,8 @@ class Node:
                 if out.split("\n")[-1] != "test":
                     raise Exception("Could not communicate with user %s on node %s, unbuffer (expect package) could not be installed, or passwordless sudo is not working, got return code %d : %s" %  (sshex.user, sshex.addr, ret, out + err))
         if options.do_test:
-            node._find_nics()
+            try:
+                node._find_nics()
+            except Exception as e:
+                print(f"Error while trying to look for NICs on {node.name} : ", e)
         return node
