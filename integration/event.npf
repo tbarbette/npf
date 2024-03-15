@@ -12,5 +12,5 @@ echo "RESULT-Y 1"
 %script waitfor=test autokill=false
 echo "RESULT-X 1"
 
-%script waitfor=test autokill=false
+%script waitfor=test autokill=false delay=0.5
 echo "RESULT-Z 1"

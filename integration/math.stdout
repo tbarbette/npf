@@ -2,132 +2,420 @@ Executing test math.npf
 f(x)
 Executing init scripts...
 N = 1 [run 1/3 for test 1/32]
+[30m[0][0m RESULT-N 1
+[30m[0][0m RESULT-LOG 0.0
+[30m[0][0m RESULT-EXP 2.0
 N = 1 [run 2/3 for test 1/32]
+[30m[0][0m RESULT-N 1
+[30m[0][0m RESULT-LOG 0.0
+[30m[0][0m RESULT-EXP 2.0
 N = 1 [run 3/3 for test 1/32]
+[30m[0][0m RESULT-N 1
+[30m[0][0m RESULT-LOG 0.0
+[30m[0][0m RESULT-EXP 2.0
 EXP: [2.0, 2.0, 2.0], LOG: [0.0, 0.0, 0.0], N: [1.0, 1.0, 1.0]
 N = 2 [run 1/3 for test 2/32]
+[30m[0][0m RESULT-N 2
+[30m[0][0m RESULT-LOG 0.69
+[30m[0][0m RESULT-EXP 4.0
 N = 2 [run 2/3 for test 2/32]
+[30m[0][0m RESULT-N 2
+[30m[0][0m RESULT-LOG 0.69
+[30m[0][0m RESULT-EXP 4.0
 N = 2 [run 3/3 for test 2/32]
+[30m[0][0m RESULT-N 2
+[30m[0][0m RESULT-LOG 0.69
+[30m[0][0m RESULT-EXP 4.0
 EXP: [4.0, 4.0, 4.0], LOG: [0.69, 0.69, 0.69], N: [2.0, 2.0, 2.0]
 N = 3 [run 1/3 for test 3/32]
+[30m[0][0m RESULT-N 3
+[30m[0][0m RESULT-LOG 1.1
+[30m[0][0m RESULT-EXP 8.0
 N = 3 [run 2/3 for test 3/32]
+[30m[0][0m RESULT-N 3
+[30m[0][0m RESULT-LOG 1.1
+[30m[0][0m RESULT-EXP 8.0
 N = 3 [run 3/3 for test 3/32]
+[30m[0][0m RESULT-N 3
+[30m[0][0m RESULT-LOG 1.1
+[30m[0][0m RESULT-EXP 8.0
 EXP: [8.0, 8.0, 8.0], LOG: [1.1, 1.1, 1.1], N: [3.0, 3.0, 3.0]
 N = 4 [run 1/3 for test 4/32]
+[30m[0][0m RESULT-N 4
+[30m[0][0m RESULT-LOG 1.39
+[30m[0][0m RESULT-EXP 16.0
 N = 4 [run 2/3 for test 4/32]
+[30m[0][0m RESULT-N 4
+[30m[0][0m RESULT-LOG 1.39
+[30m[0][0m RESULT-EXP 16.0
 N = 4 [run 3/3 for test 4/32]
+[30m[0][0m RESULT-N 4
+[30m[0][0m RESULT-LOG 1.39
+[30m[0][0m RESULT-EXP 16.0
 EXP: [16.0, 16.0, 16.0], LOG: [1.39, 1.39, 1.39], N: [4.0, 4.0, 4.0]
 N = 5 [run 1/3 for test 5/32]
+[30m[0][0m RESULT-N 5
+[30m[0][0m RESULT-LOG 1.61
+[30m[0][0m RESULT-EXP 32.0
 N = 5 [run 2/3 for test 5/32]
+[30m[0][0m RESULT-N 5
+[30m[0][0m RESULT-LOG 1.61
+[30m[0][0m RESULT-EXP 32.0
 N = 5 [run 3/3 for test 5/32]
+[30m[0][0m RESULT-N 5
+[30m[0][0m RESULT-LOG 1.61
+[30m[0][0m RESULT-EXP 32.0
 EXP: [32.0, 32.0, 32.0], LOG: [1.61, 1.61, 1.61], N: [5.0, 5.0, 5.0]
 N = 6 [run 1/3 for test 6/32]
+[30m[0][0m RESULT-N 6
+[30m[0][0m RESULT-LOG 1.79
+[30m[0][0m RESULT-EXP 64.0
 N = 6 [run 2/3 for test 6/32]
+[30m[0][0m RESULT-N 6
+[30m[0][0m RESULT-LOG 1.79
+[30m[0][0m RESULT-EXP 64.0
 N = 6 [run 3/3 for test 6/32]
+[30m[0][0m RESULT-N 6
+[30m[0][0m RESULT-LOG 1.79
+[30m[0][0m RESULT-EXP 64.0
 EXP: [64.0, 64.0, 64.0], LOG: [1.79, 1.79, 1.79], N: [6.0, 6.0, 6.0]
 N = 7 [run 1/3 for test 7/32]
+[30m[0][0m RESULT-N 7
+[30m[0][0m RESULT-LOG 1.95
+[30m[0][0m RESULT-EXP 128.0
 N = 7 [run 2/3 for test 7/32]
+[30m[0][0m RESULT-N 7
+[30m[0][0m RESULT-LOG 1.95
+[30m[0][0m RESULT-EXP 128.0
 N = 7 [run 3/3 for test 7/32]
+[30m[0][0m RESULT-N 7
+[30m[0][0m RESULT-LOG 1.95
+[30m[0][0m RESULT-EXP 128.0
 EXP: [128.0, 128.0, 128.0], LOG: [1.95, 1.95, 1.95], N: [7.0, 7.0, 7.0]
 N = 8 [run 1/3 for test 8/32]
+[30m[0][0m RESULT-N 8
+[30m[0][0m RESULT-LOG 2.08
+[30m[0][0m RESULT-EXP 256.0
 N = 8 [run 2/3 for test 8/32]
+[30m[0][0m RESULT-N 8
+[30m[0][0m RESULT-LOG 2.08
+[30m[0][0m RESULT-EXP 256.0
 N = 8 [run 3/3 for test 8/32]
+[30m[0][0m RESULT-N 8
+[30m[0][0m RESULT-LOG 2.08
+[30m[0][0m RESULT-EXP 256.0
 EXP: [256.0, 256.0, 256.0], LOG: [2.08, 2.08, 2.08], N: [8.0, 8.0, 8.0]
 N = 9 [run 1/3 for test 9/32]
+[30m[0][0m RESULT-N 9
+[30m[0][0m RESULT-LOG 2.2
+[30m[0][0m RESULT-EXP 512.0
 N = 9 [run 2/3 for test 9/32]
+[30m[0][0m RESULT-N 9
+[30m[0][0m RESULT-LOG 2.2
+[30m[0][0m RESULT-EXP 512.0
 N = 9 [run 3/3 for test 9/32]
+[30m[0][0m RESULT-N 9
+[30m[0][0m RESULT-LOG 2.2
+[30m[0][0m RESULT-EXP 512.0
 EXP: [512.0, 512.0, 512.0], LOG: [2.2, 2.2, 2.2], N: [9.0, 9.0, 9.0]
 N = 10 [run 1/3 for test 10/32]
+[30m[0][0m RESULT-N 10
+[30m[0][0m RESULT-LOG 2.3
+[30m[0][0m RESULT-EXP 1024.0
 N = 10 [run 2/3 for test 10/32]
+[30m[0][0m RESULT-N 10
+[30m[0][0m RESULT-LOG 2.3
+[30m[0][0m RESULT-EXP 1024.0
 N = 10 [run 3/3 for test 10/32]
+[30m[0][0m RESULT-N 10
+[30m[0][0m RESULT-LOG 2.3
+[30m[0][0m RESULT-EXP 1024.0
 EXP: [1024.0, 1024.0, 1024.0], LOG: [2.3, 2.3, 2.3], N: [10.0, 10.0, 10.0]
 N = 11 [run 1/3 for test 11/32]
+[30m[0][0m RESULT-N 11
+[30m[0][0m RESULT-LOG 2.4
+[30m[0][0m RESULT-EXP 2048.0
 N = 11 [run 2/3 for test 11/32]
+[30m[0][0m RESULT-N 11
+[30m[0][0m RESULT-LOG 2.4
+[30m[0][0m RESULT-EXP 2048.0
 N = 11 [run 3/3 for test 11/32]
+[30m[0][0m RESULT-N 11
+[30m[0][0m RESULT-LOG 2.4
+[30m[0][0m RESULT-EXP 2048.0
 EXP: [2048.0, 2048.0, 2048.0], LOG: [2.4, 2.4, 2.4], N: [11.0, 11.0, 11.0]
 N = 12 [run 1/3 for test 12/32]
+[30m[0][0m RESULT-N 12
+[30m[0][0m RESULT-LOG 2.48
+[30m[0][0m RESULT-EXP 4096.0
 N = 12 [run 2/3 for test 12/32]
+[30m[0][0m RESULT-N 12
+[30m[0][0m RESULT-LOG 2.48
+[30m[0][0m RESULT-EXP 4096.0
 N = 12 [run 3/3 for test 12/32]
+[30m[0][0m RESULT-N 12
+[30m[0][0m RESULT-LOG 2.48
+[30m[0][0m RESULT-EXP 4096.0
 EXP: [4096.0, 4096.0, 4096.0], LOG: [2.48, 2.48, 2.48], N: [12.0, 12.0, 12.0]
 N = 13 [run 1/3 for test 13/32]
+[30m[0][0m RESULT-N 13
+[30m[0][0m RESULT-LOG 2.56
+[30m[0][0m RESULT-EXP 8192.0
 N = 13 [run 2/3 for test 13/32]
+[30m[0][0m RESULT-N 13
+[30m[0][0m RESULT-LOG 2.56
+[30m[0][0m RESULT-EXP 8192.0
 N = 13 [run 3/3 for test 13/32]
+[30m[0][0m RESULT-N 13
+[30m[0][0m RESULT-LOG 2.56
+[30m[0][0m RESULT-EXP 8192.0
 EXP: [8192.0, 8192.0, 8192.0], LOG: [2.56, 2.56, 2.56], N: [13.0, 13.0, 13.0]
 N = 14 [run 1/3 for test 14/32]
+[30m[0][0m RESULT-N 14
+[30m[0][0m RESULT-LOG 2.64
+[30m[0][0m RESULT-EXP 16384.0
 N = 14 [run 2/3 for test 14/32]
+[30m[0][0m RESULT-N 14
+[30m[0][0m RESULT-LOG 2.64
+[30m[0][0m RESULT-EXP 16384.0
 N = 14 [run 3/3 for test 14/32]
+[30m[0][0m RESULT-N 14
+[30m[0][0m RESULT-LOG 2.64
+[30m[0][0m RESULT-EXP 16384.0
 EXP: [16384.0, 16384.0, 16384.0], LOG: [2.64, 2.64, 2.64], N: [14.0, 14.0, 14.0]
 N = 15 [run 1/3 for test 15/32]
+[30m[0][0m RESULT-N 15
+[30m[0][0m RESULT-LOG 2.71
+[30m[0][0m RESULT-EXP 32768.0
 N = 15 [run 2/3 for test 15/32]
+[30m[0][0m RESULT-N 15
+[30m[0][0m RESULT-LOG 2.71
+[30m[0][0m RESULT-EXP 32768.0
 N = 15 [run 3/3 for test 15/32]
+[30m[0][0m RESULT-N 15
+[30m[0][0m RESULT-LOG 2.71
+[30m[0][0m RESULT-EXP 32768.0
 EXP: [32768.0, 32768.0, 32768.0], LOG: [2.71, 2.71, 2.71], N: [15.0, 15.0, 15.0]
 N = 16 [run 1/3 for test 16/32]
+[30m[0][0m RESULT-N 16
+[30m[0][0m RESULT-LOG 2.77
+[30m[0][0m RESULT-EXP 65536.0
 N = 16 [run 2/3 for test 16/32]
+[30m[0][0m RESULT-N 16
+[30m[0][0m RESULT-LOG 2.77
+[30m[0][0m RESULT-EXP 65536.0
 N = 16 [run 3/3 for test 16/32]
+[30m[0][0m RESULT-N 16
+[30m[0][0m RESULT-LOG 2.77
+[30m[0][0m RESULT-EXP 65536.0
 EXP: [65536.0, 65536.0, 65536.0], LOG: [2.77, 2.77, 2.77], N: [16.0, 16.0, 16.0]
 N = 17 [run 1/3 for test 17/32]
+[30m[0][0m RESULT-N 17
+[30m[0][0m RESULT-LOG 2.83
+[30m[0][0m RESULT-EXP 131072.0
 N = 17 [run 2/3 for test 17/32]
+[30m[0][0m RESULT-N 17
+[30m[0][0m RESULT-LOG 2.83
+[30m[0][0m RESULT-EXP 131072.0
 N = 17 [run 3/3 for test 17/32]
+[30m[0][0m RESULT-N 17
+[30m[0][0m RESULT-LOG 2.83
+[30m[0][0m RESULT-EXP 131072.0
 EXP: [131072.0, 131072.0, 131072.0], LOG: [2.83, 2.83, 2.83], N: [17.0, 17.0, 17.0]
 N = 18 [run 1/3 for test 18/32]
+[30m[0][0m RESULT-N 18
+[30m[0][0m RESULT-LOG 2.89
+[30m[0][0m RESULT-EXP 262144.0
 N = 18 [run 2/3 for test 18/32]
+[30m[0][0m RESULT-N 18
+[30m[0][0m RESULT-LOG 2.89
+[30m[0][0m RESULT-EXP 262144.0
 N = 18 [run 3/3 for test 18/32]
+[30m[0][0m RESULT-N 18
+[30m[0][0m RESULT-LOG 2.89
+[30m[0][0m RESULT-EXP 262144.0
 EXP: [262144.0, 262144.0, 262144.0], LOG: [2.89, 2.89, 2.89], N: [18.0, 18.0, 18.0]
 N = 19 [run 1/3 for test 19/32]
+[30m[0][0m RESULT-N 19
+[30m[0][0m RESULT-LOG 2.94
+[30m[0][0m RESULT-EXP 524288.0
 N = 19 [run 2/3 for test 19/32]
+[30m[0][0m RESULT-N 19
+[30m[0][0m RESULT-LOG 2.94
+[30m[0][0m RESULT-EXP 524288.0
 N = 19 [run 3/3 for test 19/32]
+[30m[0][0m RESULT-N 19
+[30m[0][0m RESULT-LOG 2.94
+[30m[0][0m RESULT-EXP 524288.0
 EXP: [524288.0, 524288.0, 524288.0], LOG: [2.94, 2.94, 2.94], N: [19.0, 19.0, 19.0]
 N = 20 [run 1/3 for test 20/32]
+[30m[0][0m RESULT-N 20
+[30m[0][0m RESULT-LOG 3.0
+[30m[0][0m RESULT-EXP 1048576.0
 N = 20 [run 2/3 for test 20/32]
+[30m[0][0m RESULT-N 20
+[30m[0][0m RESULT-LOG 3.0
+[30m[0][0m RESULT-EXP 1048576.0
 N = 20 [run 3/3 for test 20/32]
+[30m[0][0m RESULT-N 20
+[30m[0][0m RESULT-LOG 3.0
+[30m[0][0m RESULT-EXP 1048576.0
 EXP: [1048576.0, 1048576.0, 1048576.0], LOG: [3.0, 3.0, 3.0], N: [20.0, 20.0, 20.0]
 N = 21 [run 1/3 for test 21/32]
+[30m[0][0m RESULT-N 21
+[30m[0][0m RESULT-LOG 3.04
+[30m[0][0m RESULT-EXP 2097152.0
 N = 21 [run 2/3 for test 21/32]
+[30m[0][0m RESULT-N 21
+[30m[0][0m RESULT-LOG 3.04
+[30m[0][0m RESULT-EXP 2097152.0
 N = 21 [run 3/3 for test 21/32]
+[30m[0][0m RESULT-N 21
+[30m[0][0m RESULT-LOG 3.04
+[30m[0][0m RESULT-EXP 2097152.0
 EXP: [2097152.0, 2097152.0, 2097152.0], LOG: [3.04, 3.04, 3.04], N: [21.0, 21.0, 21.0]
 N = 22 [run 1/3 for test 22/32]
+[30m[0][0m RESULT-N 22
+[30m[0][0m RESULT-LOG 3.09
+[30m[0][0m RESULT-EXP 4194304.0
 N = 22 [run 2/3 for test 22/32]
+[30m[0][0m RESULT-N 22
+[30m[0][0m RESULT-LOG 3.09
+[30m[0][0m RESULT-EXP 4194304.0
 N = 22 [run 3/3 for test 22/32]
+[30m[0][0m RESULT-N 22
+[30m[0][0m RESULT-LOG 3.09
+[30m[0][0m RESULT-EXP 4194304.0
 EXP: [4194304.0, 4194304.0, 4194304.0], LOG: [3.09, 3.09, 3.09], N: [22.0, 22.0, 22.0]
 N = 23 [run 1/3 for test 23/32]
+[30m[0][0m RESULT-N 23
+[30m[0][0m RESULT-LOG 3.14
+[30m[0][0m RESULT-EXP 8388608.0
 N = 23 [run 2/3 for test 23/32]
+[30m[0][0m RESULT-N 23
+[30m[0][0m RESULT-LOG 3.14
+[30m[0][0m RESULT-EXP 8388608.0
 N = 23 [run 3/3 for test 23/32]
+[30m[0][0m RESULT-N 23
+[30m[0][0m RESULT-LOG 3.14
+[30m[0][0m RESULT-EXP 8388608.0
 EXP: [8388608.0, 8388608.0, 8388608.0], LOG: [3.14, 3.14, 3.14], N: [23.0, 23.0, 23.0]
 N = 24 [run 1/3 for test 24/32]
+[30m[0][0m RESULT-N 24
+[30m[0][0m RESULT-LOG 3.18
+[30m[0][0m RESULT-EXP 16777216.0
 N = 24 [run 2/3 for test 24/32]
+[30m[0][0m RESULT-N 24
+[30m[0][0m RESULT-LOG 3.18
+[30m[0][0m RESULT-EXP 16777216.0
 N = 24 [run 3/3 for test 24/32]
+[30m[0][0m RESULT-N 24
+[30m[0][0m RESULT-LOG 3.18
+[30m[0][0m RESULT-EXP 16777216.0
 EXP: [16777216.0, 16777216.0, 16777216.0], LOG: [3.18, 3.18, 3.18], N: [24.0, 24.0, 24.0]
 N = 25 [run 1/3 for test 25/32]
+[30m[0][0m RESULT-N 25
+[30m[0][0m RESULT-LOG 3.22
+[30m[0][0m RESULT-EXP 33554432.0
 N = 25 [run 2/3 for test 25/32]
+[30m[0][0m RESULT-N 25
+[30m[0][0m RESULT-LOG 3.22
+[30m[0][0m RESULT-EXP 33554432.0
 N = 25 [run 3/3 for test 25/32]
+[30m[0][0m RESULT-N 25
+[30m[0][0m RESULT-LOG 3.22
+[30m[0][0m RESULT-EXP 33554432.0
 EXP: [33554432.0, 33554432.0, 33554432.0], LOG: [3.22, 3.22, 3.22], N: [25.0, 25.0, 25.0]
 N = 26 [run 1/3 for test 26/32]
+[30m[0][0m RESULT-N 26
+[30m[0][0m RESULT-LOG 3.26
+[30m[0][0m RESULT-EXP 67108864.0
 N = 26 [run 2/3 for test 26/32]
+[30m[0][0m RESULT-N 26
+[30m[0][0m RESULT-LOG 3.26
+[30m[0][0m RESULT-EXP 67108864.0
 N = 26 [run 3/3 for test 26/32]
+[30m[0][0m RESULT-N 26
+[30m[0][0m RESULT-LOG 3.26
+[30m[0][0m RESULT-EXP 67108864.0
 EXP: [67108864.0, 67108864.0, 67108864.0], LOG: [3.26, 3.26, 3.26], N: [26.0, 26.0, 26.0]
 N = 27 [run 1/3 for test 27/32]
+[30m[0][0m RESULT-N 27
+[30m[0][0m RESULT-LOG 3.3
+[30m[0][0m RESULT-EXP 134217728.0
 N = 27 [run 2/3 for test 27/32]
+[30m[0][0m RESULT-N 27
+[30m[0][0m RESULT-LOG 3.3
+[30m[0][0m RESULT-EXP 134217728.0
 N = 27 [run 3/3 for test 27/32]
+[30m[0][0m RESULT-N 27
+[30m[0][0m RESULT-LOG 3.3
+[30m[0][0m RESULT-EXP 134217728.0
 EXP: [134217728.0, 134217728.0, 134217728.0], LOG: [3.3, 3.3, 3.3], N: [27.0, 27.0, 27.0]
 N = 28 [run 1/3 for test 28/32]
+[30m[0][0m RESULT-N 28
+[30m[0][0m RESULT-LOG 3.33
+[30m[0][0m RESULT-EXP 268435456.0
 N = 28 [run 2/3 for test 28/32]
+[30m[0][0m RESULT-N 28
+[30m[0][0m RESULT-LOG 3.33
+[30m[0][0m RESULT-EXP 268435456.0
 N = 28 [run 3/3 for test 28/32]
+[30m[0][0m RESULT-N 28
+[30m[0][0m RESULT-LOG 3.33
+[30m[0][0m RESULT-EXP 268435456.0
 EXP: [268435456.0, 268435456.0, 268435456.0], LOG: [3.33, 3.33, 3.33], N: [28.0, 28.0, 28.0]
 N = 29 [run 1/3 for test 29/32]
+[30m[0][0m RESULT-N 29
+[30m[0][0m RESULT-LOG 3.37
+[30m[0][0m RESULT-EXP 536870912.0
 N = 29 [run 2/3 for test 29/32]
+[30m[0][0m RESULT-N 29
+[30m[0][0m RESULT-LOG 3.37
+[30m[0][0m RESULT-EXP 536870912.0
 N = 29 [run 3/3 for test 29/32]
+[30m[0][0m RESULT-N 29
+[30m[0][0m RESULT-LOG 3.37
+[30m[0][0m RESULT-EXP 536870912.0
 EXP: [536870912.0, 536870912.0, 536870912.0], LOG: [3.37, 3.37, 3.37], N: [29.0, 29.0, 29.0]
 N = 30 [run 1/3 for test 30/32]
+[30m[0][0m RESULT-N 30
+[30m[0][0m RESULT-LOG 3.4
+[30m[0][0m RESULT-EXP 1073741824.0
 N = 30 [run 2/3 for test 30/32]
+[30m[0][0m RESULT-N 30
+[30m[0][0m RESULT-LOG 3.4
+[30m[0][0m RESULT-EXP 1073741824.0
 N = 30 [run 3/3 for test 30/32]
+[30m[0][0m RESULT-N 30
+[30m[0][0m RESULT-LOG 3.4
+[30m[0][0m RESULT-EXP 1073741824.0
 EXP: [1073741824.0, 1073741824.0, 1073741824.0], LOG: [3.4, 3.4, 3.4], N: [30.0, 30.0, 30.0]
 N = 31 [run 1/3 for test 31/32]
+[30m[0][0m RESULT-N 31
+[30m[0][0m RESULT-LOG 3.43
+[30m[0][0m RESULT-EXP 2147483648.0
 N = 31 [run 2/3 for test 31/32]
+[30m[0][0m RESULT-N 31
+[30m[0][0m RESULT-LOG 3.43
+[30m[0][0m RESULT-EXP 2147483648.0
 N = 31 [run 3/3 for test 31/32]
+[30m[0][0m RESULT-N 31
+[30m[0][0m RESULT-LOG 3.43
+[30m[0][0m RESULT-EXP 2147483648.0
 EXP: [2147483648.0, 2147483648.0, 2147483648.0], LOG: [3.43, 3.43, 3.43], N: [31.0, 31.0, 31.0]
 N = 32 [run 1/3 for test 32/32]
+[30m[0][0m RESULT-N 32
+[30m[0][0m RESULT-LOG 3.47
+[30m[0][0m RESULT-EXP 4294967296.0
 N = 32 [run 2/3 for test 32/32]
+[30m[0][0m RESULT-N 32
+[30m[0][0m RESULT-LOG 3.47
+[30m[0][0m RESULT-EXP 4294967296.0
 N = 32 [run 3/3 for test 32/32]
+[30m[0][0m RESULT-N 32
+[30m[0][0m RESULT-LOG 3.47
+[30m[0][0m RESULT-EXP 4294967296.0
 EXP: [4294967296.0, 4294967296.0, 4294967296.0], LOG: [3.47, 3.47, 3.47], N: [32.0, 32.0, 32.0]
 Graph of test written to results/click-2022/9197a59/math-EXP.pdf
 Graph of test written to results/click-2022/9197a59/math-LOG.pdf
