@@ -66,6 +66,14 @@ pip3 install --user npf
 
 At run-time, NPF uses SSH and can benefit from usage of sudo and NFS, see the [run-time dependencies](https://npf.readthedocs.io/en/latest/usage.html#run-time-dependencies) in the documentation for more information.
 
+#### With docker ####
+We provide a Dockerfile to use npf.
+
+```bash
+docker build --tag npf .
+docker run -it npf npf-compare ...
+```
+
 ### Big picture ###
 Your *.npf* test file is composed of a serie of sections, as in the example given above. The sections describe the scripts to run, where to run them, what variables should be tested, what are their ranges, configuration parameters such as timeout or graph colors, etc. Each section is described in more details in [the "writing test script" documentation](https://npf.readthedocs.io/en/latest/tests.html).
 
