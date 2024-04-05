@@ -1,11 +1,11 @@
 %config
 var_names+={TIME:Time (s)}
 
+
 %script
 
 echo "TIME-1001-RESULT-THROUGHPUT 7 pps"
 echo "TIME-1002-RESULT-THROUGHPUT 8 pps"
-
 echo "TIME-1003-RESULT-THROUGHPUT 9 pps"
 echo "TIME-1004-RESULT-THROUGHPUT 6 pps"
 echo "RESULT-RX 30"
