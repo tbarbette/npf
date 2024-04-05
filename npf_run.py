@@ -106,7 +106,7 @@ def main():
         versions = ['local']
 
     # Builds of the regression versions
-    builds = []
+    builds : List[Build] = []
 
     for version in versions:
         builds.append(Build(repo, version))
@@ -260,6 +260,7 @@ def main():
                     print("Previous build %s could not be found, we will not graph it !" % g_build.version)
 
             filename = args.graph_filename if args.graph_filename else build.result_path(test.filename, 'pdf')
+
             grapher.graph(series=[(test, build, all_results)] + g_series,
                           title=test.get_title(),
                           filename=filename,
