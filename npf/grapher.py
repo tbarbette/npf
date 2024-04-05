@@ -1713,13 +1713,14 @@ class Grapher:
                 if type(ncol) == list:
                     ncol = ncol[ilegend % len(ncol)]
                 doleg = self.config_bool_or_in('graph_legend', result_type)
+
                 if doleg is None:
                     if len(labels) == 1 and labels[0] in ('local','version'):
                         doleg = False
                         print("Legend not shown as there is only one serie with a default name. Set --config graph_legend=1 to force printing a legend.")
                     else:
                         doleg = True
-                if default_doleg or doleg:
+                if (default_doleg or doleg) and doleg is not False:
                     loc = self.config("legend_loc")
                     if type(loc) is dict or type(loc) is list:
                         loc = self.scriptconfig("legend_loc",key="result",result_type=result_type)
