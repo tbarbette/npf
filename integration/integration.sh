@@ -92,6 +92,9 @@ try integration/cdf.npf $python "--config n_runs=20"
 try integration/heatmap.npf $python
 try tests/tcp/01-iperf.npf $python "--variables TIME=1"
 tryweb
+
+doc/build_graphs.sh || ret=1
+
 #compare_watcher $python
 
 exit $ret
