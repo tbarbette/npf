@@ -27,6 +27,7 @@ class SSHExecutor(Executor):
             self.path = path + '/'
         self.port = port
         self.ssh = False
+        self.unbuffer = True
         #Executor should not make any connection in init as parameters can be overwritten afterward
 
     def __del__(self):
@@ -78,7 +79,7 @@ class SSHExecutor(Executor):
         else:
             path_cmd = ''
 
-        if raw:
+        if raw or not self.unbuffer:
             unbuffer = ""
         else:
             unbuffer = "unbuffer"

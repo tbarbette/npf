@@ -177,6 +177,7 @@ class Node:
         if node is not None:
             return node
         sshex = SSHExecutor(user, addr, path, port)
+
         node = Node(addr, sshex, options.tags)
         if nfs is not None:
             node.nfs = nfs
@@ -200,20 +201,25 @@ class Node:
                     print("While checking if file .access_test can be sent from local path %s to remote %s" % (npf.experiment_path(),node.executor.addr))
                     raise e
 
-            pid, out, err, ret = sshex.exec(cmd="pwd;ls -al;test -e " + ".access_test" + " && echo 'access_ok' && if ! type 'unbuffer' ; then ( ( sudo apt-get update && sudo apt-get install -y expect ) || sudo yum install -y expect ) && sudo echo 'test' ; else sudo echo 'test' ; fi", raw=True, title="SSH dependencies installation")
+            pid, out, err, ret = sshex.exec(cmd="pwd;test -e " + ".access_test" + " && echo 'access_ok' &&  if sudo whoami ; then echo 'sudo_ok' ; else echo 'sudo_fail' ; fi ; if ! type 'unbuffer' ; then echo \"installing expect...\" && ( ( sudo apt-get update && sudo apt-get install -y expect ) || sudo yum install -y expect ) fi ; ( ( type 'unbuffer' && echo 'unbuffer_ok' )  || echo 'unbuffer_fail' ) ; echo 'test'", raw=True, title="SSH dependencies installation")
             out = out.strip()
-
             if not node.nfs:
                 node.executor.deleteFolder(".access_test")
-            if ret != 0:
+            if ret != 0 or not "access_ok" in out:
                 #Something was wrong, try first with a more basic test to help the user pinpoint the problem
                 pidT, outT, errT, retT = sshex.exec(cmd="echo -n 'test'", raw=True, title="SSH echo test")
-                if retT != 0 or outT.split("\n")[-1] != "test":
+                if retT != 0 or outT.strip().split("\n")[-1] != "test":
                     raise Exception("Could not communicate with%s node %s, got return code %d : %s" %  (" user "+ sshex.user if sshex.user else "", sshex.addr, retT, outT + errT))
-                if not "access_ok" in out:
-                    raise Exception(("Could not find the access test file at %s on %s. Verify the path= paramater in the cluster file and that this directory already exists. It must match --experiment-folder on the remote equivalent when nfs is active. If the path is not shared accross clusters, ensure you set nfs=0 in the cluster file.\n\nIf you think the above is not correct, please paste the output of the test script below to the github issues:\n" % (sshex.path, sshex.addr)) + "\n---" + out + err + "\n---")
-                if out.split("\n")[-1] != "test":
-                    raise Exception("Could not communicate with user %s on node %s, unbuffer (expect package) could not be installed, or passwordless sudo is not working, got return code %d : %s" %  (sshex.user, sshex.addr, ret, out + err))
+            if not "access_ok" in out:
+                raise Exception(("Could not find the access test file at %s on %s. Verify the path= paramater in the cluster file and that this directory already exists. It must match --experiment-folder on the remote equivalent when nfs is active. If the path is not shared accross clusters, ensure you set nfs=0 in the cluster file.\n\nIf you think the above is not correct, please paste the output of the test script below to the github issues:\n" % (sshex.path, sshex.addr)) + "\n---" + out + err + "\n---")
+            if not "sudo_ok" in out:
+                print("WARNING : node %s does not seem tu support passwordless sudo." % sshex.addr)
+                sshex.sudo = False
+            if not "unbuffer_ok" in out:
+                sshex.unbuffer = False
+            if out.split("\n")[-1] != "test":
+                raise Exception("Could not communicate with user %s on node %s, unbuffer (expect package) could not be installed, or passwordless sudo is not working, got return code %d : %s" %  (sshex.user, sshex.addr, ret, out + err))
+
         if options.do_test:
             try:
                 node._find_nics()

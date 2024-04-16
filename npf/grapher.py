@@ -1671,8 +1671,10 @@ class Grapher:
                             axis.yaxis.label.set_position((0,0.5 + 0.1))
                             axis.yaxis.label.set_transform(mtransforms.blended_transform_factory(mtransforms.IdentityTransform(), fig.transFigure))
                     else:
-                        if print_xlabel:
-
+                        if print_xlabel and (not barplot or xname!= "version" or (barplot and len(data) > 1)):
+                            if xname == "version":
+                                print("WARNING: The label of an axis is the default value 'version'. Change it with '--config var_names+={version:My Label}'")
+                                
                             if horizontal:
                                 axis.set_ylabel(xname)
                             else:
@@ -1719,13 +1721,14 @@ class Grapher:
                 if type(ncol) == list:
                     ncol = ncol[ilegend % len(ncol)]
                 doleg = self.config_bool_or_in('graph_legend', result_type)
+
                 if doleg is None:
-                    if len(labels) == 1 and labels[0] in ('local','version'):
+                    if len(labels) == 1 and labels[0].lower() in ('local','version'):
                         doleg = False
-                        print("Legend not shown as there is only one serie with a default name. Set --config graph_legend=1 to force printing a legend.")
+                        print("INFO: Legend not shown as there is only one serie with a default name (local, version). Set --config graph_legend=1 to force printing a legend. See the documentation at https://npf.readthedocs.io/en/latest/graph.html to see how to change the legend.")
                     else:
                         doleg = True
-                if default_doleg or doleg:
+                if (default_doleg or doleg) and doleg is not False:
                     loc = self.config("legend_loc")
                     if type(loc) is dict or type(loc) is list:
                         loc = self.scriptconfig("legend_loc",key="result",result_type=result_type)
@@ -1885,6 +1888,9 @@ class Grapher:
                     x.append(np.mean(xdata[i][2][yi][2]))
 
             label = str(build.pretty_name())
+            if label == "Local" and len(data) == 1:
+                print(f"INFO: The label for a serie is 'Local' which is a default name when no serie is passed. Use a command like {sys.argv[0]} 'local:My Label' --test ... to set the label.")
+
             boxdata=[]
             pos = []
             for yi in range(nseries):
