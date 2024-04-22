@@ -1,13 +1,13 @@
 from npf import npf
 
 
-def decide_graph_type(grapher, key, vars_all, vars_values, result_type, ndyn, isubplot):
+def decide_graph_type(config, n_values, data_for_key, result_type, ndyn, isubplot):
     graph_type = False
     if ndyn == 0:
-        graph_type = "boxplot" if len(vars_all) == 1 else "simple_bar"
-    elif ndyn == 1 and len(vars_all) > 2 and npf.all_num(vars_values[key]):
+        graph_type = "boxplot" if n_values == 1 else "simple_bar"
+    elif ndyn == 1 and n_values > 2 and npf.all_num(data_for_key):
         graph_type = "line"
-    graph_types = grapher.config("graph_type", [])
+    graph_types = config("graph_type", [])
 
     if len(graph_types) > 0 and (type(graph_types[0]) is tuple or type(graph_types) is tuple):
         if type(graph_types) is tuple:
@@ -35,4 +35,4 @@ def decide_graph_type(grapher, key, vars_all, vars_values, result_type, ndyn, is
               "as a line without dynamic variables")
         graph_type = "simple_bar"
 
-    return graph_type
+    return graph_type if graph_type else "bar"

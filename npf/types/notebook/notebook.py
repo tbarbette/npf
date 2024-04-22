@@ -1,3 +1,4 @@
+from typing import List
 import nbformat as nbf
 from nbconvert.preprocessors import ExecutePreprocessor, CellExecutionError
 from jupyter_client.kernelspec import NoSuchKernel
@@ -8,17 +9,21 @@ import re
 import os
 import time
 
+import pandas as pd
+from npf.graph_choice import decide_graph_type
+
 INDENT_DATA = True
 
 
-def prepare_notebook_export(datasets, all_results_df, path):
+def prepare_notebook_export(datasets: List[tuple], all_results_df:pd.DataFrame, path:str, config):
     # SIMTODO: (help) why could there be multiple datasets?
+    # TODO: with npf-compare there might be multiple dataset. Try the netperf vs iperf experiment from the examples
     dataset = datasets[0]
     test, build, runs = dataset
-    var_names = dict(datasets[0][0].config["var_names"])
-
+    var_names = dict(test.config["var_names"])
     x_vars = list(test.variables.dynamics().keys())
-    y_vars = list(list(runs.values())[0].keys())
+
+    y_vars = list(filter(lambda x:x.startswith("y_"),all_results_df.columns))
 
     # variables that get replaced in the template notebook
     variables = {
@@ -26,12 +31,30 @@ def prepare_notebook_export(datasets, all_results_df, path):
         "x_vars": x_vars,
         "x_names": get_name(x_vars, var_names),
         "y_vars": y_vars,
-        "y_names": get_name(y_vars, var_names),
+        "y_names": get_name([y[2:] for y in y_vars], var_names),
         "data": dumps(all_results_df.to_dict(orient="records"), indent=4 if INDENT_DATA else None),
         "dir_name": os.path.dirname(path),
         "file_path": ".".join(path.split(".")[:-1]),  # remove extension
         "file_name": ".".join(path.split("/")[-1].split(".")[:-1]),
     }
+
+    key = x_vars[0]
+    # TODO : Select a suitable key when there are multiple values
+
+
+    # TODO : there might be many result types
+    result_type = y_vars[0]
+
+    n_values = len(all_results_df[x_vars].value_counts())
+
+    # graph type
+    graph_type = decide_graph_type(config,
+                                   n_values,
+                                   data_for_key=all_results_df[key].unique(),
+                                   result_type=result_type,
+                                   ndyn=len(x_vars), isubplot=0)
+
+    print("Graph type : ", graph_type)
 
     # read template notebook
     with open("npf/types/notebook/template.ipynb") as f:
