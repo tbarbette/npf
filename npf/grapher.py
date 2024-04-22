@@ -28,6 +28,7 @@ from npf.types.dataset import Run, XYEB, AllXYEB, group_val
 from npf.variable import is_log, is_numeric, get_numeric, numericable, get_bool, is_bool
 from npf.section import SectionVariable
 from npf.build import Build
+from npf.graph_choice import decide_graph_type
 from npf import npf, variable
 
 import matplotlib
@@ -1237,8 +1238,8 @@ class Grapher:
 
 
     #Generate the plot of data_types at the given i/i_subplot position over n_cols/n_lines
-    def generate_plot_for_graph(self, i, i_subplot, figure, n_cols, n_lines, vars_values, data_types, dyns, vars_all, key, title, ret, subplot_legend_titles):
-            ndyn=len(dyns)
+    def generate_plot_for_graph(self, i, i_subplot, figure, n_cols, n_lines, vars_values, data_types, dyns, VARS_ALL, key, title, ret, subplot_legend_titles):
+            NDYN=len(dyns)
             subplot_type=self.config("graph_subplot_type")
             subplot_handles=[]
             axiseis = []
@@ -1268,7 +1269,7 @@ class Grapher:
                 brokenaxesY = [ b if len(b) == 3 else b + [None] for b in brokenaxesY ]
                 brokenaxesX = [ b if len(b) == 3 else b + [None] for b in brokenaxesX ]
 
-                isubplot = int(i_subplot * len(figure) + i_s_subplot)
+                ISUBPLOT = int(i_subplot * len(figure) + i_s_subplot)
 
                 if result_type in cross_reference:
                     cross_key = cross_reference[result_type]
@@ -1318,23 +1319,23 @@ class Grapher:
                             #    plt.setp(axiseis[0].get_xticklabels(), visible=False)
                             #axiseis[0].set_xlabel("")
                             axis = plt.subplot(n_lines * nbrokenY, n_cols * nbrokenX,
-                                    isubplot + 1 + ibrokenY,
+                                    ISUBPLOT + 1 + ibrokenY,
                                     sharex = axiseis[0] if ibrokenY > 0 and nbrokenY > 1 else None,
                                     sharey = axiseis[0] if ibrokenX > 0 and nbrokenX > 1 else None)
                             ihandle = 0
                             shift = 0
                         else: #subplot_type=="axis" for dual axis
-                            if isubplot == 0:
+                            if ISUBPLOT == 0:
                                 fix,axis=plt.subplots(nbrokenY * nbrokenX)
                                 ihandle = 0
-                            elif isubplot == len(figure) - 1:
+                            elif ISUBPLOT == len(figure) - 1:
                                 axis=axis.twinx()
                                 ihandle = 1
                             else:
                                 axis=axiseis[0]
                                 ihandle = 0
                             if len(figure) > 1:
-                                shift = isubplot + 1
+                                shift = ISUBPLOT + 1
                             else:
                                 shift = 0
 
@@ -1353,7 +1354,7 @@ class Grapher:
                                 s = build._color_index
                                 tot = [build._color_index for x,y,e,build in data].count(s)
                             elif gcolor:
-                                s=gcolor[(i + isubplot*len(data)) % len(gcolor)]
+                                s=gcolor[(i + ISUBPLOT*len(data)) % len(gcolor)]
                                 tot = gcolor.count(s)
                             else:
                                 s=shift
@@ -1384,82 +1385,50 @@ class Grapher:
 
 
                     #This is the heart of the logic to find which kind of graph to use for the data
-
-                    graph_type = False
-                    default_doleg = True
-                    if ndyn == 0:
-                        default_doleg = False
-                        if len(vars_all) == 1:
-                            graph_type = "boxplot"
-                        else:
-                            graph_type = "simple_bar"
-                    elif ndyn == 1 and len(vars_all) > 2 and npf.all_num(vars_values[key]):
-                        graph_type = "line"
-                    graph_types = self.config("graph_type",[])
-
-
-                    if len(graph_types) > 0 and (type(graph_types[0]) is tuple or type(graph_types) is tuple):
-                        if type(graph_types) is tuple:
-                            graph_types = dict([graph_types])
-                        else:
-                            graph_types = dict(graph_types)
-                        if result_type in graph_types:
-                            graph_type = graph_types[result_type]
-                        elif "default" in graph_types:
-                            graph_type = graph_types["default"]
-                        elif "result" in graph_types:
-                            graph_type = graph_types["result"]
-                        else:
-                            graph_type = "line"
-
-                    else:
-                        if type(graph_types) is str:
-                            graph_types = [graph_types]
-                        graph_types.extend([graph_type, "line"])
-                        graph_type = graph_types[isubplot if isubplot < len(graph_types) else len(graph_types) - 1]
-                    if ndyn == 0 and graph_type == "line":
-                        print("WARNING: Cannot graph %s as a line without dynamic variables" % graph_type)
-                        graph_type = "simple_bar"
                     barplot = False
                     horizontal = False
+                    default_add_legend = True
+
+
+                    graph_type = decide_graph_type(self, key, VARS_ALL, vars_values, result_type, NDYN, ISUBPLOT)
 
                     try:
                         if graph_type == "simple_bar":
                             """No dynamic variables : do a barplot X=version"""
-                            r, ndata = self.do_simple_barplot(axis, result_type, data, shift, isubplot)
+                            r, ndata = self.do_simple_barplot(axis, result_type, data, shift, ISUBPLOT)
                             barplot = True
                         elif graph_type == "line" or graph_type == "lines":
                             """One dynamic variable used as X, series are version line plots"""
-                            r, ndata = self.do_line_plot(axis, key, result_type, data, data_types, shift, isubplot, xmin, xmax, xdata)
+                            r, ndata = self.do_line_plot(axis, key, result_type, data, data_types, shift, ISUBPLOT, xmin, xmax, xdata)
                         elif graph_type == "boxplot":
                             """A box plot, with multiple X values and series in color"""
-                            r, ndata = self.do_box_plot(axis, key, result_type, data, xdata, shift, isubplot)
+                            r, ndata = self.do_box_plot(axis, key, result_type, data, xdata, shift, ISUBPLOT)
                             barplot = True #It's like a barplot, no formatting
                         elif graph_type == "cdf":
                             """CDF"""
-                            r, ndata = self.do_cdf(axis, key, result_type, data, xdata, shift, isubplot)
-                            default_doleg = True
+                            r, ndata = self.do_cdf(axis, key, result_type, data, xdata, shift, ISUBPLOT)
+                            default_add_legend = True
                             ymin = 0
                             ymax = 100
                             xname=self.var_name(result_type)
                         elif graph_type == "heatmap":
                             """Heatmap"""
-                            r, ndata = self.do_heatmap(axis, key, result_type, data, xdata, vars_values, shift, isubplot, sparse = False)
-                            default_doleg = False
+                            r, ndata = self.do_heatmap(axis, key, result_type, data, xdata, vars_values, shift, ISUBPLOT, sparse = False)
+                            default_add_legend = False
                             barplot = True
                         elif graph_type == "sparse_heatmap":
                             """sparse Heatmap"""
-                            r, ndata = self.do_heatmap(axis, key, result_type, data, xdata, vars_values, shift, isubplot, sparse = True)
-                            default_doleg = False
+                            r, ndata = self.do_heatmap(axis, key, result_type, data, xdata, vars_values, shift, ISUBPLOT, sparse = True)
+                            default_add_legend = False
                             barplot = True
 
                         elif graph_type == "barh" or graph_type=="horizontal_bar":
-                            r, ndata= self.do_barplot(axis,vars_all, dyns, result_type, data, shift, ibrokenY==0, horizontal=True)
+                            r, ndata= self.do_barplot(axis,VARS_ALL, dyns, result_type, data, shift, ibrokenY==0, horizontal=True)
                             barplot = True
                             horizontal = True
                         else:
                             """Barplot. X is all seen variables combination, series are version"""
-                            r, ndata= self.do_barplot(axis,vars_all, dyns, result_type, data, shift, ibrokenY==0)
+                            r, ndata= self.do_barplot(axis,VARS_ALL, dyns, result_type, data, shift, ibrokenY==0)
                             barplot = True
                     except Exception as e:
                         print("ERROR : could not graph %s" % result_type)
@@ -1507,7 +1476,7 @@ class Grapher:
                     if len(figure) == 1 or subplot_type=="subplot":
                         sl = 0
                     elif gcolor:
-                        sl = gcolor[(isubplot * len(data)) % len(gcolor)] % len(legendcolors)
+                        sl = gcolor[(ISUBPLOT * len(data)) % len(gcolor)] % len(legendcolors)
                     else:
                         sl = shift % len(legendcolors)
 
@@ -1728,7 +1697,7 @@ class Grapher:
                         print("INFO: Legend not shown as there is only one serie with a default name (local, version). Set --config graph_legend=1 to force printing a legend. See the documentation at https://npf.readthedocs.io/en/latest/graph.html to see how to change the legend.")
                     else:
                         doleg = True
-                if (default_doleg or doleg) and doleg is not False:
+                if (default_add_legend or doleg) and doleg is not False:
                     loc = self.config("legend_loc")
                     if type(loc) is dict or type(loc) is list:
                         loc = self.scriptconfig("legend_loc",key="result",result_type=result_type)
@@ -1749,10 +1718,7 @@ class Grapher:
                             if self.configlist("subplot_legend_loc"):
                                 loc=self.configlist("subplot_legend_loc")[ilegend]
                             else:
-                                if ilegend == 0:
-                                    loc = 'upper left'
-                                else:
-                                    loc = 'lower right'
+                                loc = 'upper left' if ilegend == 0 else 'lower right'
 
                         else:
                             if ilegend > 0:
