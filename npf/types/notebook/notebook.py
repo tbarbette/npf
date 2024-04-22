@@ -1,6 +1,7 @@
 import nbformat as nbf
 from nbconvert.preprocessors import ExecutePreprocessor, CellExecutionError
 from jupyter_client.kernelspec import NoSuchKernel
+from jinja2 import Template
 
 from json import dumps
 import re
@@ -36,21 +37,10 @@ def prepare_notebook_export(datasets, all_results_df, path):
     with open("npf/types/notebook/template.ipynb") as f:
         nb = nbf.read(f, as_version=4)
 
-    # replace variables in loaded template nb
+    # replace variables in loaded template nb using jinja2
     for cell in nb.cells:
-        # if cell.cell_type == "code": # SIMTODO: should we replace only in code cells?
-        for name, value in variables.items():
-            cell.source = cell.source.replace(
-                "{{" + name + "}}", str(value))  # replaces {{name}} by value
-
-        # Find all occurrences of {{var[index]}} in the cell source
-        for name, index in re.findall(r'{{(\w+)\[(\d+)\]}}', cell.source):
-            index = int(index)
-
-            # Replace {{var[index]}} with the actual value from the variables dictionary
-            if name in variables and index < len(variables[name]):
-                cell.source = cell.source.replace(
-                    '{{' + name + '[' + str(index) + ']}}', str(variables[name][index]))
+        cell_template = Template(cell.source)
+        cell.source = cell_template.render(variables)
 
     # execute notebook and save it to file
     try:

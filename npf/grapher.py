@@ -1235,8 +1235,6 @@ class Grapher:
         return ret
 
 
-
-
     #Generate the plot of data_types at the given i/i_subplot position over n_cols/n_lines
     def generate_plot_for_graph(self, i, i_subplot, figure, n_cols, n_lines, vars_values, data_types, dyns, VARS_ALL, key, title, ret, subplot_legend_titles):
             NDYN=len(dyns)
@@ -1380,7 +1378,6 @@ class Grapher:
                                 build._color=cserie[f % len(cserie)]
                             gi[s]+=1
 
-
                     axis.tick_params(**tick_params)
 
 
@@ -1389,8 +1386,8 @@ class Grapher:
                     horizontal = False
                     default_add_legend = True
 
-
                     graph_type = decide_graph_type(self, key, VARS_ALL, vars_values, result_type, NDYN, ISUBPLOT)
+
 
                     try:
                         if graph_type == "simple_bar":
