@@ -1,6 +1,11 @@
 import nbformat as nbf
+from nbconvert.preprocessors import ExecutePreprocessor, CellExecutionError
+from jupyter_client.kernelspec import NoSuchKernel
+
 from json import dumps
 import re
+import os
+import time
 
 INDENT_DATA = True
 
@@ -22,6 +27,7 @@ def prepare_notebook_export(datasets, all_results_df, path):
         "y_vars": y_vars,
         "y_names": get_name(y_vars, var_names),
         "data": dumps(all_results_df.to_dict(orient="records"), indent=4 if INDENT_DATA else None),
+        "dir_name": os.path.dirname(path),
         "file_path": ".".join(path.split(".")[:-1]),  # remove extension
         "file_name": ".".join(path.split("/")[-1].split(".")[:-1]),
     }
@@ -46,10 +52,27 @@ def prepare_notebook_export(datasets, all_results_df, path):
                 cell.source = cell.source.replace(
                     '{{' + name + '[' + str(index) + ']}}', str(variables[name][index]))
 
-    # write notebook to file
-    with open(path, 'w') as f:
-        nbf.write(nb, f)
-        print("Notebook exported to", path)
+    # execute notebook and save it to file
+    try:
+        # SIMTODO: specify timeout, and kernel_name?
+        ep = ExecutePreprocessor(timeout=60, kernel_name='python3')
+        start_time = time.time()
+        ep.preprocess(nb, {'metadata': {'path': os.path.dirname(path)}})
+        print("Notebook executed in %.2f seconds." %
+              (time.time() - start_time))
+    except CellExecutionError:
+        print("Notebook execution failed.")
+        raise
+    except NoSuchKernel:
+        print("\n[ERROR] No such kernel. Try the following to fix this issue:")
+        # SIMTODO: add argument
+        print("\tList kernels with `jupyter kernelspec list` and specify another kernel.")
+        print("\tIf no kernel exists, install one with `python3 -m pip install ipykernel` and `python3 -m ipykernel install --user`.\n")
+        raise
+    finally:
+        with open(path, 'w') as f:
+            nbf.write(nb, f)  # write notebook to file
+            print("Notebook exported to", path)
 
 
 def get_name(var: str | list[str], var_names: dict[str, str]) -> str | list[str]:
