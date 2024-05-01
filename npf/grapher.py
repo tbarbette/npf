@@ -528,6 +528,7 @@ class Grapher:
             series.append((script, nb, newserie))
             self.glob_legend_title = self.var_name(key)
         vars_all = list(new_varsall)
+
         if len(dyns) == 1:
             key = dyns[0]
             do_sort = True
@@ -694,13 +695,14 @@ class Grapher:
                     try:
 
                         labels = [k[1] if type(k) is tuple else k for k,v in x.variables.items()]
-                        x_vars = [[v[1] if type(v) is tuple else v for k,v in x.variables.items()]]
+                        x_vars = [[(v[1] if type(v) is tuple else v) for k,v in x.variables.items()]]
                         x_vars=pd.DataFrame(x_vars,index=[0],columns=labels)
                         x_vars=pd.concat([pd.DataFrame({'build' :build.pretty_name()},index=[0]), pd.DataFrame({'test_index' :i},index=[0]), x_vars],axis=1)
+
                         vals = all_results[x]
                         if not vals:
                             continue
-                        x_data=pd.DataFrame.from_dict(vals,orient='index').transpose() #Use orient='index' to handle lists with different lengths
+                        x_data=pd.DataFrame.from_dict( {"y_"+k: v for k, v in vals.items()},orient='index').transpose() #Use orient='index' to handle lists with different lengths
                         if len(x_data) == 0:
                             continue
                         x_data['run_index']=x_data.index
@@ -914,7 +916,7 @@ class Grapher:
 
         # Export to Jupyter notebook
         if options.notebook is not None:
-            prepare_notebook_export(series, all_results_df, options.notebook)
+            prepare_notebook_export(series, all_results_df, options.notebook, self.config)
 
 
     def graph_group(self, series, vars_values, filename, fileprefix, title):
@@ -1026,6 +1028,9 @@ class Grapher:
 
 
         versions = []
+        """Vars_all is the set of all variable combination that have some value. Taking the iperf case, it will be
+        [ZERO_COPY=0, PARALLEL=1], [ZERO_COPY=0, PARALLEL=2], ... [ZERO_COPY=1, PARALLEL=8],
+        """
         vars_all = OrderedSet()
         for i, (test, build, all_results) in enumerate(series):
             versions.append(build.pretty_name())
@@ -1386,7 +1391,7 @@ class Grapher:
                     horizontal = False
                     default_add_legend = True
 
-                    graph_type = decide_graph_type(self, key, VARS_ALL, vars_values, result_type, NDYN, ISUBPLOT)
+                    graph_type = decide_graph_type(self.config, n_values=len(VARS_ALL), data_for_key=vars_values[key], result_type=result_type, ndyn=NDYN, isubplot=ISUBPLOT)
 
 
                     try:
