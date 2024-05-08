@@ -405,6 +405,14 @@ class Test:
             if not s.noparse:
                 s.filename = SectionVariable.replace_variables(v, s.filename, role, default_role_map = self.config.get_dict("default_role_map"))
                 p = SectionVariable.replace_variables(v, s.content, role,default_role_map = self.config.get_dict("default_role_map"))
+                if s.jinja:
+                    from jinja2 import Environment, PackageLoader, select_autoescape
+                    env = Environment(
+                        loader=PackageLoader("npf"),
+                        autoescape=select_autoescape()
+                    )
+                    template = env.from_string(p)
+                    p = template.render(**v)
             else:
                 p = s.content
             create_list.append((s.filename, p, role))
