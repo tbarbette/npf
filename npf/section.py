@@ -41,12 +41,13 @@ for sect in known_sections:
 class SectionFactory:
     varPattern = "([a-zA-Z0-9_:-]+)[=](" + Variable.VALUE_REGEX + ")?"
     namePattern = re.compile(
-        "^(?P<tags>" + Variable.TAGS_REGEX + "[:])?(?P<name>info|config|variables|exit|pypost|pyexit|late_variables|include (?P<includeName>[a-zA-Z0-9_./-]+)(?P<includeParams>([ \t]+" +
-        varPattern + ")+)?|(init-)?file(:?[@](?P<fileRole>[a-zA-Z0-9]+))? (?P<fileName>[a-zA-Z0-9_.${}-]+)(:? (?P<fileNoparse>noparse))?|require|"
-                                             "import(:?[@](?P<importRole>[a-zA-Z0-9]+)(:?[-](?P<importMulti>[*0-9]+))?)?[ \t]+(?P<importModule>" + Variable.VALUE_REGEX + ")(?P<importParams>([ \t]+" +
-        varPattern + ")+)?|" +
-                     "sendfile(:?[@](?P<sendfileRole>[a-zA-Z0-9]+))?[ \t]+(?P<sendfilePath>.*)|" +
-                     "(:?script|init|exit)(:?[@](?P<scriptRole>[a-zA-Z0-9]+)(:?[-](?P<scriptMulti>[*0-9]+))?)?(?P<scriptParams>([ \t]+" + varPattern + ")*))$")
+        "^(?P<tags>" + Variable.TAGS_REGEX + "[:])?(?P<name>info|config|variables|exit|pypost|pyexit|late_variables|"
+        "include (?P<includeName>[a-zA-Z0-9_./-]+)(?P<includeParams>([ \t]+" + varPattern + ")+)?|"
+        "(init-)?file(:?[@](?P<fileRole>[a-zA-Z0-9]+))? (?P<fileName>[a-zA-Z0-9_.${}-]+)(:? (?P<fileNoparse>noparse))?(:? (?P<fileJinja>jinja))?|"
+        "require|"
+        "import(:?[@](?P<importRole>[a-zA-Z0-9]+)(:?[-](?P<importMulti>[*0-9]+))?)?[ \t]+(?P<importModule>" + Variable.VALUE_REGEX + ")(?P<importParams>([ \t]+" + varPattern + ")+)?|"
+        "sendfile(:?[@](?P<sendfileRole>[a-zA-Z0-9]+))?[ \t]+(?P<sendfilePath>.*)|" +
+        "(:?script|init|exit)(:?[@](?P<scriptRole>[a-zA-Z0-9]+)(:?[-](?P<scriptMulti>[*0-9]+))?)?(?P<scriptParams>([ \t]+" + varPattern + ")*))$")
 
     @staticmethod
     def build(test, data):
@@ -100,7 +101,7 @@ class SectionFactory:
 
         if sectionName.startswith('file'):
             s = SectionFile(matcher.group('fileName').strip(), role=matcher.group('fileRole'),
-                            noparse=matcher.group('fileNoparse'))
+                            noparse=matcher.group('fileNoparse'), jinja=matcher.group('fileJinja'))
             return s
         if sectionName.startswith('init-file'):
             s = SectionInitFile(matcher.group('fileName').strip(), role=matcher.group('fileRole'),
@@ -257,12 +258,13 @@ class SectionImport(Section):
 
 
 class SectionFile(Section):
-    def __init__(self, filename, role=None, noparse=False):
+    def __init__(self, filename, role=None, noparse=False, jinja=False):
         super().__init__('file')
         self.content = ''
         self.filename = filename
         self._role = role
         self.noparse = noparse
+        self.jinja = jinja
 
     def get_role(self):
         return self._role
