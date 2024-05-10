@@ -474,7 +474,6 @@ class Test:
                 time.sleep(0.010)
                 i += 1
             try:
-                print("Force kill!")
                 killer.force_kill()
             except OSError:
                 pass
