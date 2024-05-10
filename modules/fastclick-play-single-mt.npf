@@ -38,7 +38,7 @@ GEN_BURST=32
 PROMISC=false
 promisc:PROMISC=true
 IGNORE?=0
-PAUSE=none
+GEN_PAUSE=none
 GEN_DESC=0
 END_AFTER=0
 GEN_PROGRESSIVE=0
@@ -68,6 +68,7 @@ GEN_NGEN=EXPAND( $((1 if $GEN_PIPELINE else $GEN_THREADS)) )
 GEN_IPV6?=0
 GEN_NANO?=0
 GEN_PREFIX?=
+GEN_FNT?=
 
 UNQUEUE=
 udpgen:UNQUEUE=Unqueue()
@@ -163,6 +164,7 @@ Idle->[1]output;
 elementclass Numberise { $magic |
     input-> Strip(14)
     $GEN_NUMBER
+    $GEN_FNT
 $(( "" if $GEN_IPV6 else " -> ResetIPChecksum()  " ))
     -> Unstrip(14) -> output
 }
@@ -195,7 +197,7 @@ $(( " StaticThreadSched(fdIN0 0/0, unqueue0 0/0);" if $GEN_PIPELINE else "" ))
 
 $(( " StaticThreadSched(tdIN 0/%d);" % ($GEN_THREADS + 1) if $GEN_TX_PIPELINE else "" ))
 
-receiveIN :: FromDPDKDevice($port, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, PAUSE $PAUSE, NDESC $GEN_DESC, MAXTHREADS $GEN_THREADS, NUMA false, ACTIVE $GEN_RX)
+receiveIN :: FromDPDKDevice($port, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, PAUSE $GEN_PAUSE, NDESC $GEN_DESC, MAXTHREADS $GEN_THREADS, NUMA false, ACTIVE $GEN_RX)
 
 elementclass Receiver { $mac, $dir |
     input[0]
