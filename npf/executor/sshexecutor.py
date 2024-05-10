@@ -27,6 +27,7 @@ class SSHExecutor(Executor):
             self.path = path + '/'
         self.port = port
         self.ssh = False
+        self.unbuffer = True
         #Executor should not make any connection in init as parameters can be overwritten afterward
 
     def __del__(self):
@@ -47,6 +48,8 @@ class SSHExecutor(Executor):
 
 
     def exec(self, cmd, bin_paths : List[str] = None, queue: Queue = None, options = None, stdin = None, timeout=None, sudo=False, testdir=None, event=None, title=None, env={}, virt = "", raw = False):
+        if testdir:
+            cmd = "mkdir -p " + testdir + " && cd " + testdir + ";\n" + cmd;
         if not title:
             title = self.addr
         else:
@@ -76,7 +79,7 @@ class SSHExecutor(Executor):
         else:
             path_cmd = ''
 
-        if raw:
+        if raw or not self.unbuffer:
             unbuffer = ""
         else:
             unbuffer = "unbuffer"

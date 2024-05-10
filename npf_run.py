@@ -14,6 +14,7 @@ from npf.regression import *
 from npf.statistics import Statistics
 from npf.test import Test, ScriptInitException
 
+import multiprocessing
 
 def main():
     parser = argparse.ArgumentParser(description='NPF Test runner')
@@ -107,7 +108,7 @@ def main():
         versions = ['local']
 
     # Builds of the regression versions
-    builds = []
+    builds : List[Build] = []
 
     for version in versions:
         builds.append(Build(repo, version, args.result_path))
@@ -294,4 +295,5 @@ def main():
 
 
 if __name__ == "__main__":
+    multiprocessing.set_start_method('forkserver')
     main()

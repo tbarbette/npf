@@ -19,6 +19,8 @@ from npf.test import Test
 
 from npf.statistics import Statistics
 
+import multiprocessing
+
 from npf import npf
 
 from npf.types.series import Series
@@ -241,4 +243,5 @@ def main():
     export_output(filename, series, time_series, options=args)
 
 if __name__ == "__main__":
+    multiprocessing.set_start_method('forkserver')
     main()

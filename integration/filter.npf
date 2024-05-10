@@ -1,0 +1,20 @@
+%config
+graph_filter_by={THROUGHPUT:DROPPEDPC>10}
+var_format={THROUGHPUT:%d}
+var_names={RATE:Input rate (Gbps),THROUGHPUT:Throughput (Gbps)}
+graph_legend=0
+var_lim={result:0-100}
+
+%variables
+RATE=[10-100#10]
+
+%script
+if [ $RATE -lt 50 ] ; then
+    d=0
+else
+    d=$(echo "(50-(100-$RATE)) / 2" | bc)
+fi
+
+t=$(echo "$RATE*(100-$d)/100" | bc)
+echo "RESULT-DROPPEDPC $d"
+echo "RESULT-THROUGHPUT $t"

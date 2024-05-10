@@ -46,6 +46,8 @@ class Build:
         if self._pretty_name:
             return self._pretty_name
         else:
+            if self.version == 'local':
+                return self.repo.pretty_name()
             return self.version
 
     @staticmethod
@@ -116,7 +118,7 @@ class Build:
             for key, val in sorted(run.read_variables().items()):
                 if type(val) is tuple:
                     val = val[1]
-                v.append((key + ":" + str(val).replace('\:', ':').replace(':','\:')).replace('\,', ',').replace(',','\,'))
+                v.append((key + ":" + str(val).replace('\\:', ':').replace(':','\\:')).replace('\\,', ',').replace(',','\\,'))
             type_results = []
             for t,r in results.items():
                 str_results = []

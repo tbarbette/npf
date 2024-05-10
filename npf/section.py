@@ -1,6 +1,7 @@
 import ast
 
 from typing import List, Set
+from collections.abc import Mapping
 
 from npf import npf
 from npf.repository import Repository
@@ -734,6 +735,9 @@ class SectionConfig(SectionVariable):
         best_l = -1
         best = default
         if var in self:
+            if not isinstance(self.vlist[var], DictVariable) and self.vlist[var]:
+                return self[var]
+
             d = self.get_dict(var)
             if result_type is not None:
                 #Search for "key-result_type", such as result-throughput

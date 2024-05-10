@@ -27,9 +27,6 @@ import logging
 
 from subprocess import PIPE, Popen, TimeoutExpired
 
-if __name__ == '__main__':
-    multiprocessing.set_start_method('forkserver')
-
 class RemoteParameters:
     default_role_map: dict
     role: str
@@ -660,6 +657,8 @@ class Test:
                                           [(imp.test, imp.imp_v, imp.get_role()) for imp in
                                            self.imports] if do_imports else []) + [
                                       (self, v, None)]:
+
+                  v["NPF_ROLE"] = role
                   for script in t.scripts:
                     srole = role if role else script.get_role()
                     nodes = npf.nodes_for_role(srole)
@@ -715,7 +714,7 @@ class Test:
                             param.virt = "ip netns exec npfns%d" % i_multi
                             param.sudo = True
 
-                        param.commands = "mkdir -p " + test_folder + " && cd " + test_folder + ";\n" + SectionVariable.replace_variables(
+                        param.commands = SectionVariable.replace_variables(
                             v,
                             script.content,
                             self_role = srole, self_node=node,
@@ -769,9 +768,10 @@ class Test:
                     break
                 try:
                     if self.options.allow_mp:
-                        p = multiprocessing.Pool(n)
+                        p = multiprocessing.pool.ThreadPool(n)
                         parallel_execs = p.map(_parallel_exec,
                                                remote_params)
+
                     else:
                         print("Sequential execution...")
                         parallel_execs = []

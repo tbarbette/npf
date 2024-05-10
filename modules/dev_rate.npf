@@ -3,15 +3,19 @@ Give the Link rate and PPS through Linux API
 
 %variables
 NIC=0
+RATE_THRESH=1000000
 
 %script autokill=false
-bash get_th.sh ${self:$NIC:ifname}
+bash get_th.sh ${self:$NIC:ifname} "$(hostname -s)" $RATE_THRESH
 exit 0
 
 %file get_th.sh noparse
 #!/bin/bash
 
 intif=$1
+role=$2
+thresh=$3
+stop_below_thresh=0
 echo "Rate of $intif"
 old_bytes=$(cat /sys/class/net/$intif/statistics/rx_bytes)
 old_len=$(cat /sys/class/net/$intif/statistics/rx_packets)
@@ -21,8 +25,8 @@ total_th=0
 total_pps=0
 n_total=0
 function finish {
-    echo "RESULT-DEV$1LINK $(( $total_th / $n_total ))"
-    echo "RESULT-DEV$1PPS $(( $total_pps / $n_total ))"
+    echo "RESULT-DEV-$role-$1-LINK $(( $total_th / $n_total ))"
+    echo "RESULT-DEV-$role-$1-PPS $(( $total_pps / $n_total ))"
     exit 0
 }
 trap finish EXIT
@@ -38,10 +42,10 @@ while true; do
     throughput=$(( ( ( $diff_len * 24 ) + ( $diff_bytes * 8 ) ) * 1000 / $diff_t ))
     pps=$(( $diff_len * 1000 / $diff_t ))
 
-    echo "DEV$intif-$t-RESULT-IDEV${intif}LINK $throughput"
-    echo "DEV$intif-$t-RESULT-IDEV${intif}PPS $pps"
+    echo "DEV-$role-$intif-$t-RESULT-IDEV-$role-${intif}LINK $throughput"
+    echo "DEV-$role-$intif-$t-RESULT-IDEV-$role-${intif}PPS $pps"
     if [ $acc -eq 1 ] ; then
-        if [ $throughput -lt 1000000 ] ; then
+        if [ $throughput -lt $thresh -a $stop_below_thresh -eq 1 ] ; then
             echo "Throughput is $throughput, stopping computation"
             break
         else
@@ -51,7 +55,7 @@ while true; do
         total_pps=$(( $total_pps + $pps))
         n_total=$(( $n_total + 1 ))
     else
-        if [ $throughput -ge 1000000 ] ; then
+        if [ $throughput -ge $thresh ] ; then
             echo "Throughput is now big enough, starting computation ($throughput)"
             acc=1
         else

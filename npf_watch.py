@@ -19,6 +19,8 @@ from npf import npf
 from npf.regression import *
 from npf.test import Test
 
+import multiprocessing
+
 
 class Watcher():
     def __init__(self, repo_list:List[Tuple[Repository,List[Test]]], mail_to: List[str], mail_from: str, mail_smtp : str, interval: int,
@@ -207,4 +209,5 @@ def main():
 
 
 if __name__ == "__main__":
+    multiprocessing.set_start_method('forkserver')
     main()

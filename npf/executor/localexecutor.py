@@ -6,6 +6,8 @@ from multiprocessing import Queue, Event
 from subprocess import PIPE, Popen, TimeoutExpired
 from typing import List
 from .executor import Executor
+from pathlib import Path
+
 class LocalKiller:
     def __init__(self, pgpid):
         self.pgpid = pgpid
@@ -53,11 +55,10 @@ class LocalExecutor(Executor):
         Returns:
             [int, str, str, int]: pid, stdout, stderr, return code
         """
-        if testdir is not None:
-            os.chdir("..")
+
         if not title:
             title = "local"
-        cwd = os.getcwd()
+        cwd = Path(os.getcwd()).parent
         env = env.copy()
         env.update(os.environ)
         if bin_paths:
@@ -121,8 +122,7 @@ class LocalExecutor(Executor):
             p.stdin.close()
             p.stderr.close()
             p.stdout.close()
-            if testdir is not None:
-                os.chdir(testdir)
+
             return pid, outputs[0], outputs[1], 0 if event and event.is_terminated() else p.returncode
         except TimeoutExpired:
             print("Test expired")
@@ -133,13 +133,11 @@ class LocalExecutor(Executor):
             p.stdin.close()
             p.stderr.close()
             p.stdout.close()
-            if testdir is not None:
-                os.chdir(testdir)
+
             return 0, outputs[0], outputs[1], p.returncode
         except KeyboardInterrupt:
             os.killpg(pgpid, signal.SIGKILL)
-            if testdir is not None:
-                os.chdir(testdir)
+
             return -1, outputs[0], outputs[1], p.returncode
 
     def writeFile(self,filename,path_to_root,content,sudo=False):
