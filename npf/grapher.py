@@ -154,7 +154,6 @@ class Map(OrderedDict):
 
     def search(self, map_v):
         return next((v for k, v in self.items() if re.search(k,str(map_v))), None)
-        return next((v for k, v in self.items() if re.search(k,str(map_v))), None)
 
 
 def guess_type(d):

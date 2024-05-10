@@ -9,7 +9,6 @@ import sys
 
 from npf import npf
 from npf.pipeline import pypost
-from npf.pipeline import export_pandas
 from npf.regression import *
 from npf.statistics import Statistics
 from npf.test import Test, ScriptInitException
@@ -267,7 +266,6 @@ def main():
             filename = args.graph_filename or build.result_path(test.filename, 'pdf')
             series_with_history = [(test, build, all_results)] + g_series
             pypost.execute_pypost(series=series_with_history)
-            export_pandas.export_pandas(options=args, series= series_with_history)
             grapher.graph(series=series_with_history,
                           title=test.get_title(),
                           filename=filename,
@@ -279,7 +277,6 @@ def main():
                         continue
                     series_with_history = [(test, build, results)]
                     pypost.execute_pypost(series=series_with_history)
-                    export_pandas.export_pandas(options=args, series= series_with_history, fileprefix=kind)
                     grapher.graph(series=series_with_history,
                           title=test.get_title(),
                           filename=filename,

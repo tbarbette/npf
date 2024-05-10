@@ -10,8 +10,6 @@ supported in comparator.
 import argparse
 from typing import Dict
 from npf.pipeline import pypost
-from npf.pipeline import export_pandas
-
 
 from npf.regression import *
 
@@ -73,7 +71,6 @@ def export_output(filename: str, series: Series , kind_series:Series,options):
         return
 
     pypost.execute_pypost(series)
-    export_pandas.export_pandas(options, series)
 
     if options.do_time:
         print(kind_series)
@@ -81,7 +78,6 @@ def export_output(filename: str, series: Series , kind_series:Series,options):
             for kind, dataset in kind_dataset.items():
                 try:
                     pypost.execute_pypost(dataset)
-                    export_pandas.export_pandas(options, dataset, fileprefix=kind)
                 except Exception as e:
                     print(f"While exporting dataset for kind {kind}:")
                     print(dataset)
