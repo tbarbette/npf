@@ -407,6 +407,11 @@ class Test:
                 p = SectionVariable.replace_variables(v, s.content, role,default_role_map = self.config.get_dict("default_role_map"))
             else:
                 p = s.content
+            if s.jinja:
+                    from jinja2 import Environment, BaseLoader
+                    env = Environment(loader=BaseLoader)
+                    template = env.from_string(p)
+                    p = template.render(**v)
             create_list.append((s.filename, p, role))
         return create_list
 
