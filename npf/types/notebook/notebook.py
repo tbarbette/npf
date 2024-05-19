@@ -12,18 +12,19 @@ import time
 import pandas as pd
 from npf.graph_choice import decide_graph_type
 
-INDENT_DATA = True
+TEMPLATE_PATH = "npf/types/notebook/template.ipynb"
+INDENT_DATA = False
 
 
-def prepare_notebook_export(datasets: List[tuple], all_results_df:pd.DataFrame, path:str, config):
+def prepare_notebook_export(datasets: List[tuple], all_results_df: pd.DataFrame, path: str, config):
     # SIMTODO: (help) why could there be multiple datasets?
     # TODO: with npf-compare there might be multiple dataset. Try the netperf vs iperf experiment from the examples
     dataset = datasets[0]
     test, build, runs = dataset
     var_names = dict(test.config["var_names"])
-    x_vars = list(test.variables.dynamics().keys())
 
-    y_vars = list(filter(lambda x:x.startswith("y_"),all_results_df.columns))
+    x_vars = list(test.variables.dynamics().keys())
+    y_vars = list(filter(lambda x: x.startswith("y_"), all_results_df.columns))
 
     # variables that get replaced in the template notebook
     variables = {
@@ -31,7 +32,7 @@ def prepare_notebook_export(datasets: List[tuple], all_results_df:pd.DataFrame, 
         "x_vars": x_vars,
         "x_names": get_name(x_vars, var_names),
         "y_vars": y_vars,
-        "y_names": get_name([y[2:] for y in y_vars], var_names),
+        "y_names": get_name([y.lstrip('y_') for y in y_vars], var_names),
         "data": dumps(all_results_df.to_dict(orient="records"), indent=4 if INDENT_DATA else None),
         "dir_name": os.path.dirname(path),
         "file_path": ".".join(path.split(".")[:-1]),  # remove extension
@@ -40,7 +41,6 @@ def prepare_notebook_export(datasets: List[tuple], all_results_df:pd.DataFrame, 
 
     key = x_vars[0]
     # TODO : Select a suitable key when there are multiple values
-
 
     # TODO : there might be many result types
     result_type = y_vars[0]
@@ -54,11 +54,14 @@ def prepare_notebook_export(datasets: List[tuple], all_results_df:pd.DataFrame, 
                                    result_type=result_type,
                                    ndyn=len(x_vars), isubplot=0)
 
-    print("Graph type : ", graph_type)
+    print("Graph type:", graph_type)
 
     # read template notebook
-    with open("npf/types/notebook/template.ipynb") as f:
+    with open(TEMPLATE_PATH) as f:
         nb = nbf.read(f, as_version=4)
+
+    # keep only cells with the specified tag
+    nb.cells = [cell for cell in nb.cells if has_tag(cell, graph_type)]
 
     # replace variables in loaded template nb using jinja2
     for cell in nb.cells:
@@ -86,6 +89,11 @@ def prepare_notebook_export(datasets: List[tuple], all_results_df:pd.DataFrame, 
         with open(path, 'w') as f:
             nbf.write(nb, f)  # write notebook to file
             print("Notebook exported to", path)
+
+
+def has_tag(cell, tag):
+    """Returns True if the cell has the specified tag."""
+    return tag in cell.metadata.get("tags", [])
 
 
 def get_name(var: str | list[str], var_names: dict[str, str]) -> str | list[str]:
