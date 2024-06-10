@@ -4,9 +4,10 @@ Give the Link rate and PPS through Linux API
 %variables
 NIC=0
 RATE_THRESH=1000000
+SIDE=rx
 
 %script autokill=false
-bash get_th.sh ${self:$NIC:ifname} "$(hostname -s)" $RATE_THRESH
+bash get_th.sh ${self:$NIC:ifname} "$(hostname -s)" $RATE_THRESH $SIDE
 exit 0
 
 %file get_th.sh noparse
@@ -15,10 +16,11 @@ exit 0
 intif=$1
 role=$2
 thresh=$3
+side=$4
 stop_below_thresh=0
-echo "Rate of $intif"
-old_bytes=$(cat /sys/class/net/$intif/statistics/rx_bytes)
-old_len=$(cat /sys/class/net/$intif/statistics/rx_packets)
+echo "$side Rate of $intif"
+old_bytes=$(cat /sys/class/net/$intif/statistics/${side}_bytes)
+old_len=$(cat /sys/class/net/$intif/statistics/${side}_packets)
 start=`date +%s%N`
 acc=0
 total_th=0
@@ -33,15 +35,15 @@ trap finish EXIT
 while true; do
     sleep 1
     t=`date +%s%N`
-    n_bytes=$(cat /sys/class/net/$intif/statistics/rx_bytes)
-    n_len=$(cat /sys/class/net/$intif/statistics/rx_packets)
+    n_bytes=$(cat /sys/class/net/$intif/statistics/${side}_bytes)
+    n_len=$(cat /sys/class/net/$intif/statistics/${side}_packets)
     diff_bytes=$(( $n_bytes - $old_bytes ))
     diff_len=$(( $n_len - $old_len ))
     diff_t=$(( ($t - $start ) / 1000000 ))
-    echo "$diff_bytes $diff_len $diff_t"
+    #echo "$n_bytes $old_bytes"
+    #echo "$diff_bytes $diff_len $diff_t"
     throughput=$(( ( ( $diff_len * 24 ) + ( $diff_bytes * 8 ) ) * 1000 / $diff_t ))
     pps=$(( $diff_len * 1000 / $diff_t ))
-
     echo "DEV-$role-$intif-$t-RESULT-IDEV-$role-${intif}LINK $throughput"
     echo "DEV-$role-$intif-$t-RESULT-IDEV-$role-${intif}PPS $pps"
     if [ $acc -eq 1 ] ; then
