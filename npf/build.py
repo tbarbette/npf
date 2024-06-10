@@ -171,7 +171,7 @@ class Build:
                 for v_data in re.split(r'(?<!\\),', variables_data):
                     if v_data.strip():
                         k, v = re.split(r'(?<!\\):', v_data)
-                        variables[k] = variable.get_numeric(v) if test.variables.is_numeric(k) else str(v).replace('\:',':')
+                        variables[k] = variable.get_numeric(v) if test.variables.is_numeric(k) else str(v).replace('\\:',':')
                 results = {}
 
                 results_data = results_data.strip()[1:-1].split('},{')
