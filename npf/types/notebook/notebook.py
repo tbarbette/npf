@@ -29,6 +29,7 @@ def prepare_notebook_export(datasets: List[tuple], all_results_df: pd.DataFrame,
     # variables that get replaced in the template notebook
     variables = {
         "name": test.get_title(),
+        "var_names": var_names,
         "x_vars": x_vars,
         "x_names": get_name(x_vars, var_names),
         "y_vars": y_vars,
