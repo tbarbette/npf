@@ -732,7 +732,6 @@ class Test:
                                 "default_role_map"))
 
                         if script.jinja:
-                            print("temp")
                             from jinja2 import Environment, BaseLoader
                             env = Environment(loader=BaseLoader)
                             template = env.from_string(param.commands)
