@@ -55,7 +55,7 @@ def prepare_notebook_export(datasets: List[tuple], all_results_df: pd.DataFrame,
                                    result_type=result_type,
                                    ndyn=len(x_vars), isubplot=0)
 
-    print("Graph type:", graph_type)
+    print("> Notebook graph type:", graph_type)
 
     # read template notebook
     with open(TEMPLATE_PATH) as f:
@@ -64,7 +64,7 @@ def prepare_notebook_export(datasets: List[tuple], all_results_df: pd.DataFrame,
     # keep only cells with the specified tag
     nb.cells = [cell for cell in nb.cells if has_tag(cell, graph_type)]
 
-    # replace variables in loaded template nb using jinja2
+    # render cells by replacing variables in the template using jinja2
     for cell in nb.cells:
         cell_template = Template(cell.source)
         cell.source = cell_template.render(variables)

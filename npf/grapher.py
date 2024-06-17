@@ -23,12 +23,13 @@ import numpy as np
 from pygtrie import Trie
 from math import log,pow
 
-from npf.types import dataset
-from npf.types.dataset import Run, XYEB, AllXYEB, group_val
+from npf.types.dataset import Run, XYEB, AllXYEB, group_val, var_divider
 from npf.variable import is_log, is_numeric, get_numeric, numericable, get_bool, is_bool
 from npf.section import SectionVariable
 from npf.build import Build
 from npf.graph_choice import decide_graph_type
+from npf.variable_to_series import extract_variable_to_series
+from npf.series_to_graph import series_to_graph
 from npf import npf, variable
 
 import matplotlib
@@ -43,8 +44,7 @@ matplotlib.use('Agg')
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 import matplotlib.pyplot as plt
-from matplotlib.ticker import LinearLocator, ScalarFormatter, Formatter, MultipleLocator, NullLocator
-from matplotlib.lines import Line2D
+from matplotlib.ticker import Formatter, NullLocator
 from matplotlib.ticker import FuncFormatter, FormatStrFormatter, EngFormatter
 import matplotlib.transforms as mtransforms
 
@@ -53,8 +53,6 @@ import itertools
 import math
 import os
 import webcolors
-
-from scipy.ndimage import gaussian_filter1d
 
 import pandas as pd
 
@@ -171,7 +169,7 @@ def guess_type(d):
     return d
 
 
-def broken_axes_ratio (values):
+def broken_axes_ratio(values):
     if len(values) == 3:
         _, _, ratio = values
         if ratio is not None:
@@ -181,91 +179,6 @@ def broken_axes_ratio (values):
         if vmin is not None and vmax is not None:
             return vmax-vmin
     return 1
-
-
-class Graph:
-    """
-    This is a structure holder for data to build a graph
-    """
-    def __init__(self, grapher:'Grapher'):
-        self.grapher = grapher
-        self.subtitle = None
-        self.data_types = None
-
-    def statics(self):
-        return dict([(var,list(values)[0]) for var,values in self.vars_values.items() if len(values) == 1])
-
-    def dyns(self):
-        return [var for var,values in self.vars_values.items() if len(values) > 1]
-
-    #Convert the series into the XYEB format (see types.dataset)
-    def dataset(self,kind=None):
-        if not self.data_types:
-
-            self.data_types = dataset.convert_to_xyeb(
-                datasets = self.series,
-                run_list = self.vars_all,
-                key = self.key,
-                max_series=self.grapher.config('graph_max_series'),
-                do_x_sort=self.do_sort,
-                series_sort=self.grapher.config('graph_series_sort'),
-                options=self.grapher.options,
-                statics=self.statics(),
-                y_group=self.grapher.configdict('graph_y_group'),
-                color=[get_numeric(v) for v in self.grapher.configlist('graph_color')],
-                kind=kind
-                )
-
-        return self.data_types
-
-    def split_for_series(self):
-        '''Make a sub-graph per serie'''
-        sg = []
-        for script,build,all_results in self.series:
-            subgraph = self.grapher.series_to_graph([(script,build,all_results)], self.dyns(), self.vars_values.copy(), self.vars_all.copy())
-            subgraph.subtitle = ((self.title + " : ") if self.title else '') + build.pretty_name()
-            subgraph.title = self.title
-            sg.append(subgraph)
-        return sg
-
-    # Divide all series by the first one, making a percentage of difference
-    @staticmethod
-    def series_prop(series, prop, exclusions = []):
-            if len(series) == 1:
-                raise Exception("Cannot make proportional series with only one serie !")
-            newseries = []
-            if not is_numeric(prop):
-                prop=1
-            if len(series[0]) < 3:
-                raise Exception("Malformed serie !")
-            base_results=series[0][2]
-            for i, (script, build, all_results) in enumerate(series[1:]):
-                new_results={}
-                for run,run_results in all_results.items():
-                    if not run in base_results:
-                        print(run,"FIXME is not in base")
-                        continue
-
-                    for result_type, results in run_results.items():
-                        if not result_type in base_results[run]:
-                            run_results[result_type] = None
-                            print(result_type, "not in base for %s" % run)
-                            continue
-                        base = base_results[run][result_type]
-                        if len(base) > len(results):
-                            base = base[:len(results)]
-                        elif len(results) > len(base):
-                            results = results[:len(base)]
-                        base = np.array(base)
-                        results = np.array(results)
-                        if result_type not in exclusions:
-                            f = np.nonzero(base)
-                            results = (results[f] / base[f] * float(abs(prop)) + (prop if prop < 0 else 0))
-                        run_results[result_type] = results
-                    new_results[run] = run_results
-                build._pretty_name = build._pretty_name + " / " + series[0][1]._pretty_name
-                newseries.append((script, build, new_results))
-            return newseries
 
 
 class Grapher:
@@ -491,132 +404,6 @@ class Grapher:
             nseries.append((test,build,new_all_results))
         return nseries
 
-    # Extract the variable key so it becomes a serie
-    def extract_variable_to_series(self, key, vars_values, all_results, dyns, build, script) -> Graph:
-        if not key in dyns:
-            raise ValueError("Cannot extract %s because it is not a dynamic variable (%s are)" % (key, ', '.join(dyns)))
-        dyns.remove(key)
-        series = []
-        versions = []
-        values = list(vars_values[key])
-        del vars_values[key]
-        try:
-            #values.sort()
-            pass
-        except TypeError:
-            print("ERROR : Cannot sort the following values :", values)
-            return
-        new_varsall = OrderedSet()
-        for i, value in enumerate(values):
-            newserie = OrderedDict()
-            for run, run_results in all_results.items():
-                #                    if (graph_variables and not run in graph_variables):
-                #                        continue
-                if run.variables[key] == value:
-                    newrun = run.copy()
-                    del newrun.variables[key]
-                    newserie[newrun] = run_results
-                    new_varsall.add(newrun)
-
-            if type(value) is tuple:
-                value = value[1]
-            versions.append(value)
-            nb = build.copy()
-            nb._pretty_name = str(value)
-            if len(self.graphmarkers) > 0:
-                nb._marker = self.graphmarkers[i % len(self.graphmarkers)]
-            series.append((script, nb, newserie))
-            self.glob_legend_title = self.var_name(key)
-        vars_all = list(new_varsall)
-
-        if len(dyns) == 1:
-            key = dyns[0]
-            do_sort = True
-        elif len(dyns) == 0:
-            do_sort = True
-        else:
-            key = "Variables"
-            do_sort = False
-        do_sort = self.config_bool_or_in('graph_x_sort', key, default=do_sort)
-        if (do_sort):
-            vars_all.sort()
-        graph = Graph(self)
-        graph.do_sort = do_sort
-        graph.key = key
-        graph.vars_all = vars_all
-        graph.vars_values = vars_values
-        graph.series = series
-        return graph
-
-    # Convert a list of series to a graph object
-    #  if the list has a unique item and there are dynamic variables, one
-    #  dynamic variable will be extracted to make a list of serie
-    def series_to_graph(self, series, dyns, vars_values, vars_all):
-        nseries = len(series)
-
-        ndyn = len(dyns)
-        if self.options.do_transform and (nseries == 1 and ndyn > 0 and not self.options.graph_no_series and not (
-                            ndyn == 1 and npf.all_num(vars_values[dyns[0]]) and len(vars_values[dyns[0]]) > 2) and dyns[0] != "time"):
-            """Only one serie: expand one dynamic variable as serie, but not if it was plotable as a line"""
-            script, build, all_results = series[0]
-            if self.config("var_serie") and self.config("var_serie") in dyns:
-                key = self.config("var_serie")
-            else:
-                key = None
-                # First pass : use the non-numerical variable with the most points, but limited to 10
-                n_val = 0
-                nonums = []
-                for i in range(ndyn):
-                    k = dyns[i]
-                    if k == 'time':
-                        continue
-                    if not npf.all_num(vars_values[k]):
-                        nonums.append(k)
-                        if len(vars_values[k]) > n_val and len(vars_values[k]) < 10:
-                            key = k
-                            n_val = len(vars_values[k])
-                if key is None:
-                    # Second pass if that missed, use the numerical variable with the less point if dyn==2 (->lineplot) else the most points
-                    n_val = 0 if ndyn > 2 else 999
-                    for i in range(ndyn):
-                        k = dyns[i]
-                        if k == 'time':
-                            continue
-                        if (ndyn > 2 and len(vars_values[k]) > n_val) or (ndyn <= 2 and len(vars_values[k]) < n_val):
-                            key = k
-                            n_val = len(vars_values[k])
-
-            # Key is found, no the extraction itself
-            if not key:
-                key = 'time'
-            if key:
-                graph = self.extract_variable_to_series(
-                                key=key,
-                                vars_values=vars_values,
-                                all_results=all_results,
-                                dyns=dyns,
-                                build=build,
-                                script=script)
-
-        else:
-            self.glob_legend_title = None
-            if ndyn == 0:
-                key = "version"
-                do_sort = False
-            elif ndyn == 1:
-                key = dyns[0]
-                do_sort = True
-            else:
-                key = "Variables"
-                do_sort = False
-            graph = Graph(self)
-            graph.key = key
-            graph.do_sort = do_sort
-            graph.vars_all = vars_all
-            graph.vars_values = vars_values
-            graph.series = series
-        return graph
-
     def map_variables(self, map_k, fmap, series, vars_values):
             transformed_series = []
             for i, (test, build, all_results) in enumerate(series):
@@ -785,7 +572,7 @@ class Grapher:
                         if self.options.graph_select_max:
                             results = np.sort(results)[-self.options.graph_select_max:]
 
-                        ydiv = dataset.var_divider(test, "result", result_type)
+                        ydiv = var_divider(test, "result", result_type)
                         if not results.any():
                             results=np.asarray([0])
                         new_results.setdefault(run.copy(), OrderedDict())[result_type] = results / ydiv
@@ -1041,13 +828,12 @@ class Grapher:
 
         dyns = []
         for k, v in vars_values.items():
-            if len(v) > 1:
-                dyns.append(k)
+            if len(v) <= 0:
+                print("ERROR: Variable %s has no values" % k)
+            elif len(v) == 1:
+                statics[k] = list(v)[0]
             else:
-                if len(v) > 0:
-                    statics[k] = list(v)[0]
-                else:
-                    print("ERROR: Variable %s has no values" % k)
+                dyns.append(k)
 
         #Divide a serie by another
         prop = self.config('graph_series_prop')
@@ -1068,9 +854,9 @@ class Grapher:
             title=SectionVariable.replace_variables(v, title)
 
         if sv: #Only one supported for now
-            graphs = [ None for v in vars_values[sv] ]
+            graphs = [ None for _ in vars_values[sv] ]
             for j,(script, build, all_results) in enumerate(series):
-                graph = self.extract_variable_to_series(sv, vars_values.copy(), all_results, dyns.copy(), build, script)
+                graph = extract_variable_to_series(self, sv, vars_values.copy(), all_results, dyns.copy(), build, script)
 
                 self.glob_legend_title = title #This variable has been extracted, the legend should not be the variable name in this case
 
@@ -1099,7 +885,7 @@ class Grapher:
             del dyns
             del vars_values
         else:
-            graph = self.series_to_graph(series, dyns, vars_values, vars_all)
+            graph = series_to_graph(self, series, dyns, vars_values, vars_all)
             graph.title = title
             graphs.append(graph)
 
@@ -1392,6 +1178,7 @@ class Grapher:
                     default_add_legend = True
 
                     graph_type = decide_graph_type(self.config, n_values=len(VARS_ALL), data_for_key=vars_values[key], result_type=result_type, ndyn=NDYN, isubplot=ISUBPLOT)
+                    print("> Grapher graph type:", graph_type)
 
 
                     try:
