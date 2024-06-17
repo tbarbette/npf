@@ -3,7 +3,7 @@ Netperf test
 
 %config
 n_runs=5
-var_names={PARALLEL:Number of parallel connexions,KEEPALIVE:so_keepalive}
+var_names={PARALLEL:Number of parallel connexions,KEEPALIVE:so_keepalive,THROUGHPUT:Throughput}
 var_lim={result:0}
 
 %variables
@@ -14,16 +14,19 @@ TIME=2
 netperf:KEEPALIVE={-S:with}
 iperf:ZEROCOPY={-Z:with}
 
-%netperf:script
+%netperf:script@server
 netserver -D -4 &> /dev/null
 
-%netperf:script delay=1
-result=$(netperf -f kbits -l $TIME -n $PARALLEL $KEEPALIVE -v 0 -P 0)
-echo "NETPERF RESULT ${result}kbits"
+%netperf:script@client delay=1 jinja
+{% for P in range(PARALLEL) %}
+    result=$(netperf -f kbits -l $TIME $KEEPALIVE -v 0 -P 0 ${server:0:ip} )
+    echo "NETPERF RESULT-THROUGHPUT ${result}kbits"
+fi
 
-%iperf:script
-iperf3 -s &> /dev/null
+%iperf:script@server
+iperf -s &> /dev/null
 
-%iperf:script delay=1
-result=$(iperf3 -f k -t $TIME -P $PARALLEL $ZEROCOPY -c localhost | tail -n 3 | grep -ioE "[0-9.]+ [kmg]bits")
-echo "IPERF RESULT $result"
+%iperf:script@client delay=1
+iperf  -c ${server:0:ip} -w ${WINDOW}k -t $TIME -P $PARALLEL $NODELAY -Z $CONGESTION 2>&1 | tee iperf.log
+result=$(cat iperf.log | grep -ioE "[0-9.]+ [kmg]?bits" | tail -n 1)
+echo "IPERF RESULT-THROUGHPUT $result"
