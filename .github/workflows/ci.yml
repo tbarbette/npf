@@ -41,6 +41,9 @@ jobs:
     - name: Version
       run: |
         npf-run --version
+    - name: Compilation test
+      run: |
+        python -m compileall -q npf *.py
     - name: Unit test
       run: |
         python -m pytest integration/test_unittest.py
