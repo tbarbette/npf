@@ -40,7 +40,7 @@ class SectionFactory:
         "require|"
         "import(:?[@](?P<importRole>[a-zA-Z0-9]+)(:?[-](?P<importMulti>[*0-9]+))?)?[ \t]+(?P<importModule>" + Variable.VALUE_REGEX + ")(?P<importParams>([ \t]+" + varPattern + ")+)?|"
         "sendfile(:?[@](?P<sendfileRole>[a-zA-Z0-9]+))?[ \t]+(?P<sendfilePath>.*)|" +
-        "(:?script|init|exit)(:?[@](?P<scriptRole>[a-zA-Z0-9]+)(:?[-](?P<scriptMulti>[*0-9]+))?)?(?P<scriptParams>([ \t]+" + varPattern + ")*))$")
+        "(:?script|init|exit)(:?[@](?P<scriptRole>[a-zA-Z0-9]+)(:?[-](?P<scriptMulti>[*0-9]+))?)?(:? (?P<scriptJinja>jinja))?(?P<scriptParams>([ \t]+" + varPattern + ")*))$")
 
     @staticmethod
     def build(test, data):
@@ -52,7 +52,12 @@ class SectionFactory:
         """
         matcher = SectionFactory.namePattern.match(data)
         if not matcher:
-            raise Exception("Unknown section line '%s'. Did you mean %s ?" % (data,hu.suggest(data)))
+            s = hu.suggest(data)
+            if s:
+                raise Exception("Unknown section line '%s'. Did you mean %s ?" % (data,s))
+            else:
+                raise Exception("Unknown section line '%s'." % (data))
+
 
         if not SectionVariable.match_tags(matcher.group('tags'), test.tags):
             return SectionNull()
@@ -77,7 +82,8 @@ class SectionFactory:
                 sectionName.startswith('init') and not sectionName.startswith('init-file')):
             params = matcher.group('scriptParams')
             params = dict(re.findall(SectionFactory.varPattern, params)) if params else {}
-            s = SectionScript(matcher.group('scriptRole'), params)
+
+            s = SectionScript(matcher.group('scriptRole'), params, jinja=matcher.group('scriptJinja'))
             multi = matcher.group('scriptMulti')
             s.multi = multi
             if sectionName.startswith('init'):
@@ -169,7 +175,7 @@ class SectionScript(Section):
 
     num = 0
 
-    def __init__(self, role=None, params=None):
+    def __init__(self, role=None, params=None, jinja=False):
         super().__init__('script')
         if params is None:
             params = {}
@@ -178,6 +184,7 @@ class SectionScript(Section):
         self.type = self.TYPE_SCRIPT
         self.index = ++self.num
         self.multi = None
+        self.jinja = jinja
 
     def get_role(self):
         return self._role

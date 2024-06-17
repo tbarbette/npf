@@ -412,6 +412,7 @@ class Test:
                     env = Environment(loader=BaseLoader)
                     template = env.from_string(p)
                     p = template.render(**v)
+
             create_list.append((s.filename, p, role))
         return create_list
 
@@ -426,7 +427,7 @@ class Test:
             else:
                 unique_list[filename + (role if role else '')] = (filename, p, role)
 
-        for whatever, (filename, p, role) in unique_list.items():
+        for _, (filename, p, role) in unique_list.items():
             if self.options.show_files:
                 print("File %s:" % filename)
                 print(p.strip())
@@ -440,6 +441,11 @@ class Test:
         for require in self.requirements + list(itertools.chain.from_iterable([imp.test.requirements for imp in self.imports])):
             p = SectionVariable.replace_variables(v, require.content, require.role(),
                                                   self.config.get_dict("default_role_map"))
+            if require.jinja:
+                    from jinja2 import Environment, BaseLoader
+                    env = Environment(loader=BaseLoader)
+                    template = env.from_string(p)
+                    p = template.render(**v)
             pid, output, err, returncode = npf.executor(require.role(), self.config.get_dict("default_role_map")).exec(
                 cmd=p, bin_paths=[build.get_local_bin_folder()], options=self.options, event=None, testdir=None)
             if returncode != 0:
@@ -724,6 +730,13 @@ class Test:
                             self_role = srole, self_node=node,
                             default_role_map= self.config.get_dict(
                                 "default_role_map"))
+
+                        if script.jinja:
+                            print("temp")
+                            from jinja2 import Environment, BaseLoader
+                            env = Environment(loader=BaseLoader)
+                            template = env.from_string(param.commands)
+                            param.commands = template.render(**v)
                         param.options = self.options
                         param.queue = queue
                         param.stdin = t.stdin.content
