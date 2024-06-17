@@ -9,34 +9,27 @@ from .variable import *
 from collections import OrderedDict
 from random import shuffle
 
+from spellwise import Editex
+
 import re
 
 
 known_sections = ['info', 'config', 'variables', 'exit', 'pypost' , 'pyexit', 'late_variables', 'include', 'file', 'require', 'import', 'script', 'init', 'exit']
 
-class HunSpell:
-    dists = {}
+class SpellChecker:
+    def __init__(self) -> None:
+        self.algorithm = Editex()
 
-    def count(self, w):
-        t = 0
-        for l in w:
-            t = t + ord(l)
-        return t
-
-    def add(self, w):
-        if w not in self.dists.values():
-            self.dists.setdefault(self.count(w),  []).append(w)
+    def add_words(self, d):
+        self.algorithm.add_words(d)
 
     def suggest(self, w, max = None):
-        data = self.dists
-        num = self.count(w)
-        s =  data.get(num, data[min(data.keys(), key=lambda k: abs(k-num))])
-        return s[0]
+        suggestions = self.algorithm.get_suggestions(w)
+        if len(suggestions) > 1:
+            return suggestions[0]["word"]
 
-
-hu = HunSpell()
-for sect in known_sections:
-    hu.add(sect)
+hu = SpellChecker()
+hu.add_words(known_sections)
 
 class SectionFactory:
     varPattern = "([a-zA-Z0-9_:-]+)[=](" + Variable.VALUE_REGEX + ")?"
