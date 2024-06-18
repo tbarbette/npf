@@ -29,7 +29,8 @@ install_requires=[
     'packaging',
     'importlib_metadata',
     'npf-web-extension >= 0.6.4',
-    'jinja2'
+    'jinja2',
+    'spellwise'
         ]
 
 setuptools.setup(
