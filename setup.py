@@ -30,8 +30,9 @@ install_requires=[
     'importlib_metadata',
     'npf-web-extension >= 0.6.4',
     'jinja2',
-    'spellwise'
-        ]
+    'spellwise',
+    'seaborn'
+    ]
 
 setuptools.setup(
     name="npf",
