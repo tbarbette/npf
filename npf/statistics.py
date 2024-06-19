@@ -117,12 +117,16 @@ class Statistics:
             df = pd.DataFrame(np.concatenate((X,ys),axis=1),columns=list(vars_values.keys()) + [d[0] if d[0] else "y" for d in dataset])
             print("Correlation matrix:")
             corr = df.corr()
-            corr.style.background_gradient(cmap='viridis')
+
+            corr = corr.dropna(axis=0,how='all')
+
+            corr = corr.dropna(axis=1,how='all')
             print(corr)
             corr
             import seaborn as sn
             import matplotlib.pyplot as plt
-            sn.heatmap(corr, annot=True)
+            ax = sn.heatmap(corr, cmap="viridis", fmt=".2f", annot=True)
+            ax.figure.tight_layout()
             f = npf.build_filename(test, build, filename if not filename is True else None, {}, 'pdf', result_type, show_serie=False, suffix="correlation")
             plt.savefig(f)
             print(f"Graph of correlation matrix saved to {f}")
