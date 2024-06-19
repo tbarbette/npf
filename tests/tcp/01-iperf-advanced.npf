@@ -23,12 +23,17 @@ fastregression:TIME=2
 %script@server
 iperf -s
 
-%script@client delay=1
+%script@client jinja delay=1
 //Launch the program, copy the output to a log
+{% if CPU is not defined %}
 iperf  -c ${server:0:ip} -w ${WINDOW}k -t $TIME -P $PARALLEL $NODELAY -Z $CONGESTION 2>&1 | tee iperf.log
+{% else %}
+    taskset -c 0-{{ CPU - 1 }} iperf  -c ${server:0:ip} -w ${WINDOW}k -t $TIME -P $PARALLEL $NODELAY -Z $CONGESTION 2>&1 | tee iperf.log
+{% endif %}
+
 //Parse the log to find the throughput
 result=$(cat iperf.log | grep -ioE "[0-9.]+ [kmg]?bits" | tail -n 1)
 //Give the throughput to NPF through stdout
 echo "RESULT-THROUGHPUT $result"
 
-%import@server load
+%-noload:import@server load

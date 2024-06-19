@@ -17,11 +17,9 @@ iperf:ZEROCOPY={-Z:with}
 %netperf:script@server
 netserver -D -4 &> /dev/null
 
-%netperf:script@client delay=1 jinja
-{% for P in range(PARALLEL) %}
-    result=$(netperf -f kbits -l $TIME $KEEPALIVE -v 0 -P 0 ${server:0:ip} )
-    echo "NETPERF RESULT-THROUGHPUT ${result}kbits"
-fi
+%netperf:script@client delay=1
+result=$(netperf -f kbits -l $TIME -n $PARALLEL $KEEPALIVE -v 0 -P 0 ${server:0:ip} )
+echo "NETPERF RESULT-THROUGHPUT ${result}kbits"
 
 %iperf:script@server
 iperf -s &> /dev/null
@@ -30,3 +28,14 @@ iperf -s &> /dev/null
 iperf  -c ${server:0:ip} -w ${WINDOW}k -t $TIME -P $PARALLEL $NODELAY -Z $CONGESTION 2>&1 | tee iperf.log
 result=$(cat iperf.log | grep -ioE "[0-9.]+ [kmg]?bits" | tail -n 1)
 echo "IPERF RESULT-THROUGHPUT $result"
+
+%iperf3:script@server
+iperf3 -s &> /dev/null
+
+%iperf3:script@client delay=1
+iperf3  -c ${server:0:ip} -w ${WINDOW}k -t $TIME -P $PARALLEL $NODELAY -Z $CONGESTION 2>&1 | tee iperf.log
+result=$(cat iperf.log | grep -ioE "[0-9.]+ [kmg]?bits" | tail -n 1)
+echo "IPERF RESULT-THROUGHPUT $result"
+
+
+%import@server load
