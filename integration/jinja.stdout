@@ -1,4 +1,3 @@
-Starting tests
 Executing test jinja.npf
 Executing init scripts...
 [30m[0][0m RESULT 1
@@ -54,9 +53,5 @@ PARALLEL = 4 [run 3/3 for test 1/1]
 Result for R is 0 !
 Result for F is 0 !
 F: [6.0, 6.0, 6.0], R: [3.0, 3.0, 3.0]
-INFO: The label for a serie is 'Local' which is a default name when no serie is passed. Use a command like npf-run.py 'local:My Label' --test ... to set the label.
-INFO: Legend not shown as there is only one serie with a default name (local, version). Set --config graph_legend=1 to force printing a legend. See the documentation at https://npf.readthedocs.io/en/latest/graph.html to see how to change the legend.
-Graph of test written to results/local/local/jinja-F.pdf
-INFO: The label for a serie is 'Local' which is a default name when no serie is passed. Use a command like npf-run.py 'local:My Label' --test ... to set the label.
-INFO: Legend not shown as there is only one serie with a default name (local, version). Set --config graph_legend=1 to force printing a legend. See the documentation at https://npf.readthedocs.io/en/latest/graph.html to see how to change the legend.
-Graph of test written to results/local/local/jinja-R.pdf
+Graph of test written to results/click-2022/9197a59/jinja-F.pdf
+Graph of test written to results/click-2022/9197a59/jinja-R.pdf
