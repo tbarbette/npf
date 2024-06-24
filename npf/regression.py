@@ -10,7 +10,17 @@ class Regression:
     def __init__(self, repo: Repository):
         self.repo = repo
 
-    def accept_diff(self, test, result, old_result):
+    def accept_diff(self, test, result, old_result)->Tuple[bool,float]:
+        """Compare two sets of results and tells if they difference is between a margin
+
+        Args:
+            test (Test): The test object
+            result (_type_): The results of the last run
+            old_result (_type_): The previous results
+
+        Returns:
+            [bool,float]: If the test passes and the difference
+        """
         result = np.asarray(result)
         old_result = np.asarray(old_result)
         n = test.reject_outliers(result).mean()
@@ -23,7 +33,7 @@ class Regression:
     def compare(self, test:Test, variable_list, all_results: Dataset, build, old_all_results, last_build,
                 allow_supplementary=True,init_done=False) -> Tuple[int,int]:
         """
-        Compare two sets of results for the given list of variables and returns the amount of failing test
+        Compare two sets of results for the given list of variables and returns the amount of failing and passing test
         :param init_done: True if initialization for current test is already done (init sections for the test and its import)
         :param test: One test to get the config from
         :param variable_list:
@@ -52,6 +62,7 @@ class Regression:
                 continue
 
             need_supp = False
+            diff = None
             for result_type, result in results_types.items():
                 if run in old_all_results and not old_all_results[run] is None:
                     old_result = old_all_results[run].get(result_type, None)
@@ -108,8 +119,7 @@ class Regression:
                         ok = True
                 except ScriptInitException:
                     pass
-
-            if r and len(results_types) > 0:
+            if r and len(results_types) > 0 and diff is not None:
                 if not ok:
                     print(
                         "ERROR: Test %s is outside acceptable margin between %s and %s : difference of %.2f%% !" % (
@@ -144,7 +154,10 @@ class Regression:
         nok = 0
 
         for itest,test in enumerate(tests):
-            print("[%s] Running test %s on version %s..." % (repo.name, test.filename, build.version))
+            if build.version != "local":
+                print("[%s] Running test %s on version %s..." % (repo.name, test.filename, build.version))
+            else:
+                print("[%s] Running test %s..." % (repo.name, test.filename))
             regression = self
             if repo.last_build:
                 try:

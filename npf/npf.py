@@ -244,7 +244,7 @@ def set_args(args):
     sys.modules[__name__].options = args
     args.cwd = os.getcwd()
 
-def parse_nodes(args):
+def initialize(args):
     set_args(args)
 
     #other random stuffs to do
@@ -265,17 +265,23 @@ def parse_nodes(args):
     if not os.path.isabs(options.experiment_folder):
         options.experiment_folder = os.path.abspath(options.experiment_folder)
 
+
+    options.search_path = set(options.search_path)
+    for t in [options.test_files]:
+        options.search_path.add(os.path.dirname(t))
+
+def create_local():
     # Create the test file
     os.close(os.open(experiment_path() + ".access_test" , os.O_CREAT))
     local = Node.makeLocal(options)
     #Delete the test file
     os.unlink(experiment_path() + ".access_test")
-
     roles['default'] = [local]
+    return local
 
-    options.search_path = set(options.search_path)
-    for t in [options.test_files]:
-        options.search_path.add(os.path.dirname(t))
+def parse_nodes(args):
+    initialize(args)
+    local = create_local()
 
     for val in options.cluster:
 

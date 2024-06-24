@@ -1,6 +1,6 @@
 import re
 
-from npf import npf
+
 from colorama import Fore, Back, Style
 
 foreColors = [Fore.BLACK, Fore.RED, Fore.GREEN, Fore.YELLOW, Fore.BLUE, Fore.MAGENTA, Fore.CYAN, Fore.WHITE]
@@ -10,6 +10,7 @@ class Executor:
     index = 0
 
     def __init__(self):
+        from npf import npf
         if npf.options.color:
             self.color = foreColors[Executor.index % len(foreColors)]
         else:

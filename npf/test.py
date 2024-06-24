@@ -828,6 +828,7 @@ class Test:
                         os.chdir('..')
                         if not self.options.preserve_temp and f_mine:
                             shutil.rmtree(test_folder)
+                        print("Test failed, exiting...")
                         sys.exit(1)
                     if c != 0:
                         n_err = n_err + 1
