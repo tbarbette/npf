@@ -551,12 +551,19 @@ class Test:
                     if n != 0 or (self.config.match("accept_zero", result_type)) or kind_value is not None:
                         result_add = self.config.get_bool_or_in("result_add", result_type)
                         result_append = self.config.get_bool_or_in("result_append", result_type)
+                        result_overwrite = self.config.get_bool_or_in("result_overwrite", result_type)
                         if kind_value:
                             t = float(kind_value)
                             if result_type in new_kind_results.setdefault(kind,{}).setdefault(t, {}):
+                                #Result is already known
                                 if result_add:
                                     new_kind_results[kind][t][result_type] += n
+                                elif result_overwrite:
+                                    new_kind_results[kind][t][result_type] = n
                                 else:
+                                    if not result_append:
+                                        print(f"WARNING: There are multiple occurences of metric {result_type} for the same time {t}, please add the metric {result_type} in result_add, result_append or result_overwrite. result_appe d is selected by default, add `result_append={{{result_type}}}` to %config to silent this message.")
+
                                     if type(new_kind_results[kind][t][result_type]) is not list:
                                         new_kind_results[kind][t][result_type] = [new_kind_results[kind][t][result_type]]
 
@@ -566,8 +573,13 @@ class Test:
                         else:
                             if result_append:
                                 new_data_results.setdefault(result_type,[]).append(n)
-                            elif result_type in new_data_results and result_add:
-                                new_data_results[result_type] += n
+                            elif result_type in new_data_results:
+                                if result_add:
+                                    new_data_results[result_type] += n
+                                else:
+                                    if not result_overwrite:
+                                        print(f"WARNING: There are multiple occurences of metric {result_type}, please add it in result_add, result_append or result_overwrite. result_overwrite is selected by default, add `result_overwrite={{{result_type}}}` to %config to silent this message.")
+                                    new_data_results[result_type] = n
                             else:
                                 new_data_results[result_type] = n
                         has_values = True
@@ -780,6 +792,7 @@ class Test:
                 if n == 0:
                     break
                 try:
+                    ##### Actual execution ######
                     if self.options.allow_mp:
                         p = multiprocessing.pool.ThreadPool(n)
                         parallel_execs = p.map(_parallel_exec,
@@ -874,6 +887,8 @@ class Test:
                             exitscripts,self_role = role, default_role_map = role_map)
                         executor=node.executor
                         ncmd = "mkdir -p " + test_folder + " && cd " + test_folder + ";\n" + cmd
+
+                        # Execution of the %exit script
                         try:
                             pid, s_output, s_err, c = executor.exec(cmd=ncmd, options=self.options)
                         except Exception as e:
@@ -920,6 +935,7 @@ class Test:
                         print(e)
 
 
+                # Handling of time series
                 glob_sync = self.config.get_list("glob_sync")
                 glob_min = []
                 for g in glob_sync:
