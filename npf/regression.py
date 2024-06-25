@@ -6,7 +6,11 @@ from npf.test import Test, SectionScript, ScriptInitException
 from npf.types.dataset import Dataset
 
 
+"""Handles regression tests. That is, given an history of versions, execute tests for all previous versions
+and ensure the last version has performance on par with previous ones.
+"""
 class Regression:
+
     def __init__(self, repo: Repository):
         self.repo = repo
 

@@ -1032,6 +1032,8 @@ class Test:
         return data_results, all_kind_results, all_output, all_err, n_exec, n_err
 
     def ensure_time(self, event_t, result_type, update):
+        """Handles var_repeat's internal.
+        """
         if event_t in update:
             if result_type in update[event_t]:
                 return
@@ -1086,10 +1088,16 @@ class Test:
                     print("\n".join(err))
                 raise ScriptInitException()
 
-    def execute_all(self, build, options, prev_results: Dataset = None, do_test=True, on_finish=None,
-                    allowed_types=SectionScript.ALL_TYPES_SET, prev_kind_results: Dict[str, Dataset] = None, iserie=0,nseries=1) -> Tuple[
+    def execute_all(self, build, options, prev_results: Dataset = None,
+                    do_test=True, on_finish=None,
+                    allowed_types=SectionScript.ALL_TYPES_SET,
+                    prev_kind_results: Dict[str, Dataset] = None,
+                    iserie=0,
+                    nseries=1) -> Tuple[
         Dataset, bool]:
-        """Execute script for all variables combinations. All tools reliy on this function for execution of the test
+        """Execute script for all variables combinations for this specific build.
+        All tools rely on this function for execution of the tests.
+
         :param allowed_types:Tyeps of scripts allowed to run. Set with either init, scripts or both
         :param do_test: Actually run the tests
         :param options: NPF options object

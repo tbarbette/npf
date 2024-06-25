@@ -123,6 +123,7 @@ class Statistics:
             corr = corr.dropna(axis=1,how='all')
             print(corr)
             corr
+
             import seaborn as sn
             import matplotlib.pyplot as plt
             ax = sn.heatmap(corr, cmap="viridis", fmt=".2f", annot=True)

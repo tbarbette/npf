@@ -626,11 +626,6 @@ class SectionConfig(SectionVariable):
         self.__add_dict("env", {})  # Unimplemented yet
         self.__add("timeout", 30)
         self.__add("hardkill", 5000)
-        self.__add("time_precision", 1)
-        self.__add("time_sync", False)
-        self.__add_list("glob_sync", [])
-        self.__add_list("var_sync", ["time"])
-        self.__add_dict("var_shift", {})
 
         # Role related
         self.__add_dict("default_role_map", {})
@@ -689,7 +684,6 @@ class SectionConfig(SectionVariable):
 
         self.__add("graph_fillstyle", "full")
         self.__add_dict("graph_tick_params", {})
-        self.__add_list("test_time_sync", [])
         self.__add("var_serie",None)
         self.__add_dict("var_names", {"result-LATENCY":"Latency (µs)", "result-THROUGHPUT":"Throughput", "^THROUGHPUT$":"Throughput", "boxplot":"", "^PARALLEL$":"Number of parallel connections", "^ZEROCOPY$":"Zero-Copy", "CDFLATPC":"CDF", "CDFLATVAL":"Latency"})
         self.__add_dict("var_unit", {"result": "","result-LATENCY":"us","latency":"us","throughput":"bps"})
@@ -698,7 +692,6 @@ class SectionConfig(SectionVariable):
         self.__add_dict("graph_background", {})
         self.__add_dict("var_round", {})
         self.__add_dict("var_aggregate", {})
-        self.__add_dict("var_repeat", {})
         self.__add_dict("var_drawstyle", {})
         self.__add_list("graph_type", [])
         self.__add("title", None)
@@ -706,6 +699,14 @@ class SectionConfig(SectionVariable):
         self.__add_dict("graph_label_dir", {})
         self.__add("graph_force_diagonal_labels", False)
         self.__add("graph_smooth", 1)
+
+        # Time series
+        self.__add("time_precision", 1)
+        self.__add("time_sync", False)
+        self.__add_list("glob_sync", [])
+        self.__add_list("var_sync", ["time"])
+        self.__add_dict("var_shift", {})
+        self.__add_dict("var_repeat", {})
 
     def var_name(self, key):
         key = key.lower()
