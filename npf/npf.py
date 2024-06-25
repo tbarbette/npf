@@ -71,7 +71,7 @@ def add_graph_options(parser: ArgumentParser):
                    help='Output data to CSV files, one per result type. By default it prints the variable value as first column and the second column is the mean of all runs. Check --output-columns to change this behavior.', dest='output', type=str, nargs='?', const='graph', default=None)
     o.add_argument('--output-columns', dest='output_columns', type=str, nargs='+', default=['x', 'mean'],
                     help='Columns to print in each --output CSV files. By default x mean. Valid values are mean/average, min, max, perc[0-9]+, med/median/perc50, std, nres/n, first, last, all. Check the documentation for details.')
-    o.add_argument('--single-output', '--pandas', metavar='pandas_filename', type=str, default=None, dest='pandas_filename',
+    o.add_argument('--single-output', '--pandas', '--csv', metavar='pandas_filename', type=str, default=None, dest='pandas_filename',
                     help='Output a dataframe to CSV with all result types as columns, and one line per variables and per runs. This is a pandas dataframe, and can be read with pandas easily again. Time series are each outputed in a single different CSV.')
 
     g = parser.add_argument_group('Graph options')
