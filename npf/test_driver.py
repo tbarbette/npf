@@ -5,6 +5,8 @@ from npf.repository import Repository
 from npf.test import Test
 
 
+"""Runs all tests for a given list of tests (or a folder to expand), and a series of repositories.
+"""
 class Comparator():
     def __init__(self, repo_list: List[Repository]):
         self.repo_list = repo_list

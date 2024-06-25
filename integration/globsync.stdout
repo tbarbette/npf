@@ -1,0 +1,32 @@
+Starting tests
+Executing test globsync.npf
+Executing init scripts...
+[run 1/3 for test 1/1]
+[30m[0][0m A-100-RESULT-V 5
+[30m[0][0m A-105-RESULT-V 5
+[30m[0][0m B-105-RESULT-V 50
+[30m[0][0m A-110-RESULT-V 10
+[30m[0][0m B-110-RESULT-V 100
+[30m[0][0m A-115-RESULT-V 5
+[30m[0][0m B-115-RESULT-V 50
+[run 2/3 for test 1/1]
+[30m[0][0m A-100-RESULT-V 5
+[30m[0][0m A-105-RESULT-V 5
+[30m[0][0m B-105-RESULT-V 50
+[30m[0][0m A-110-RESULT-V 10
+[30m[0][0m B-110-RESULT-V 100
+[30m[0][0m A-115-RESULT-V 5
+[30m[0][0m B-115-RESULT-V 50
+[run 3/3 for test 1/1]
+[30m[0][0m A-100-RESULT-V 5
+[30m[0][0m A-105-RESULT-V 5
+[30m[0][0m B-105-RESULT-V 50
+[30m[0][0m A-110-RESULT-V 10
+[30m[0][0m B-110-RESULT-V 100
+[30m[0][0m A-115-RESULT-V 5
+[30m[0][0m B-115-RESULT-V 50
+No valid data for Build(repo = local, version = local)
+INFO: Legend not shown as there is only one serie with a default name (local, version). Set --config graph_legend=1 to force printing a legend. See the documentation at https://npf.readthedocs.io/en/latest/graph.html to see how to change the legend.
+Graph of test written to results/local/local/globsync-A-V.pdf
+INFO: Legend not shown as there is only one serie with a default name (local, version). Set --config graph_legend=1 to force printing a legend. See the documentation at https://npf.readthedocs.io/en/latest/graph.html to see how to change the legend.
+Graph of test written to results/local/local/globsync-B-V.pdf

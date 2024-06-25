@@ -1,9 +1,8 @@
 from npf import repository
 from npf.grapher import Grapher
-from npf.loop import Comparator
+from npf.test_driver import Comparator
 import npf.npf
 from npf.node import *
-import types
 import argparse
 from collections import OrderedDict
 

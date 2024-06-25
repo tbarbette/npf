@@ -10,7 +10,7 @@ supported in comparator.
 import argparse
 
 from npf import npf
-from npf.loop import Comparator
+from npf.test_driver import Comparator
 from npf.regression import *
 from pathlib import Path
 
