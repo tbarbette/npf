@@ -1,3 +1,6 @@
+%config
+result_overwrite={F,R}
+
 %variables
 PARALLEL=4
 
