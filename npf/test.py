@@ -164,11 +164,12 @@ class Test:
         self.imports = []
         self.requirements = []
         self.sendfile = {}
-        self.filename = os.path.basename(testie_path)
-        self.path = os.path.dirname(os.path.abspath(testie_path))
+        self.filename = os.path.basename(test_path)
+        self.path = os.path.dirname(os.path.abspath(test_path))
         self.options = options
         self.tags = tags if tags else []
         self.role = role
+        self.pyexits = []
 
         i = -1
         try:

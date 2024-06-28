@@ -1,6 +1,5 @@
 import ast
 
-import sre_constants
 from typing import List, Set
 from collections.abc import Mapping
 
@@ -102,7 +101,11 @@ class SectionFactory:
             return s
 
         if sectionName.startswith('pyexit'):
-            name = matcher.group("PyExitName").strip()
+            pg = matcher.group("PyExitName")
+            if pg:
+                name = pg.strip()
+            else:
+                name = ""
             s = SectionPyExit(name)
             return s
 
@@ -244,8 +247,8 @@ class SectionPyExit(Section):
         self.index = ++self.num
         self.name = name
 
-    def finish(self, testie):
-        testie.pyexits.append(self)
+    def finish(self, test):
+        test.pyexits.append(self)
 
     def get_name(self, full=False):
         if self.name != "":
@@ -838,7 +841,7 @@ class SectionConfig(SectionVariable):
             for match in self.get_list(key):
                 if re.match(match, val):
                     return True
-        except sre_constants.error:
+        except Exception:
             print("ERROR : Regex %s does not work" % key)
         return False
 
