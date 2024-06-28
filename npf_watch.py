@@ -104,7 +104,7 @@ class Watcher():
             body=body,
             bodytype='html', images=graphs)
 
-    def run(self,options):
+    def run(self, options):
         terminate = False
         while not terminate:
             for repo, tests in self.repo_list:

@@ -936,7 +936,9 @@ class Test:
                         all_pyexits_v.append(vlist)
 
                 if len(all_pyexits) >0 and allowed_types != set([SectionScript.TYPE_INIT]):
-                    vs = {'RESULTS': new_data_results, 'TIME_RESULTS': new_kind_results["time"], 'KIND_RESULTS':new_kind_results}
+                    vs = {'RESULTS': new_data_results,
+                          'TIME_RESULTS': new_kind_results["time"], #Deprecated
+                          'KIND_RESULTS': new_kind_results}
                     vs.update(v)
 
                     for late_variables in self.get_late_variables():
@@ -945,8 +947,8 @@ class Test:
                     try:
                         for p,v in zip(all_pyexits, all_pyexits_v):
                             print("Executing PyExit script", p.name)
-                            v.update(vs)
-                            exec(p.content, v)
+                            exec(p.content, vs)
+
                     except SystemExit as e:
                         if e.code != 0:
                             print("ERROR WHILE EXECUTING PYEXIT SCRIPT: returned code %d" % e.code)
