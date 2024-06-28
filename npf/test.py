@@ -946,7 +946,7 @@ class Test:
 
                     try:
                         for p,v in zip(all_pyexits, all_pyexits_v):
-                            print("Executing PyExit script", p.name)
+                            #print("Executing PyExit script", p.name)
                             exec(p.content, vs)
 
                     except SystemExit as e:
