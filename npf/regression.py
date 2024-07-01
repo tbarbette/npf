@@ -34,10 +34,17 @@ class Regression:
         accept += abs(result.std() * test.config["accept_variance"] / n)
         return diff <= accept, diff
 
-    def compare(self, test:Test, variable_list, all_results: Dataset, build, old_all_results, last_build,
-                allow_supplementary=True,init_done=False) -> Tuple[int,int]:
+    def compare(self,
+                test:Test,
+                variable_list,
+                all_results: Dataset,
+                build,
+                old_all_results,
+                last_build,
+                allow_supplementary=True,
+                init_done=False) -> Tuple[int,int]:
         """
-        Compare two sets of results for the given list of variables and returns the amount of failing and passing test
+        After the execution of all tests, compare two sets of results for the given list of variables and returns the amount of failing and passing test
         :param init_done: True if initialization for current test is already done (init sections for the test and its import)
         :param test: One test to get the config from
         :param variable_list:
@@ -137,7 +144,13 @@ class Regression:
             build.writeversion(test, all_results, allow_overwrite = True)
         return tests_passed, tests_total
 
-    def regress_all_tests(self, tests: List['Test'], options, history: int = 1, on_finish = None, iserie=0, nseries=1) -> Tuple[Build, List[Dataset]]:
+    def regress_all_tests(self,
+                          tests: List['Test'],
+                          options,
+                          history: int = 1,
+                          on_finish = None,
+                          do_compare:bool = True,
+                          iserie=0, nseries=1) -> Tuple[Build, List[Dataset]]:
         """
         Execute all tests passed in argument for the last build of the regressor associated repository
         :param history: Start regression at last build + 1 - history
@@ -179,8 +192,15 @@ class Regression:
                         on_finish(build,(data_datasets + [all_data_results]),(kind_datasets + [all_kind_results]))
                 else:
                     early_results = None
-                all_results,kind_results, init_done = test.execute_all(build, prev_results=build.load_results(test), prev_kind_results=build.load_results(test, kind=True), options=options,
-                                                 do_test=options.do_test, on_finish=early_results, iserie=iserie*len(tests) + itest,nseries=len(tests)*nseries)
+                all_results,kind_results, init_done = test.execute_all(
+                                                build,
+                                                prev_results=build.load_results(test),
+                                                prev_kind_results=build.load_results(test, kind=True),
+                                                options=options,
+                                                do_test=options.do_test,
+                                                on_finish=early_results,
+                                                iserie=iserie*len(tests) + itest,
+                                                nseries=len(tests)*nseries)
 
                 if all_results is None and kind_results is None:
                     return None, None, None

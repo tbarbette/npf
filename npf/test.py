@@ -601,6 +601,8 @@ class Test:
     def execute(self, build, run, v, n_runs=1, n_retry=0, allowed_types=SectionScript.ALL_TYPES_SET, do_imports=True,
                 test_folder=None, event=None, v_internals={}, before_test = None) \
             -> Tuple[Dict, Dict, str, str, int]:
+        """Executes all repetitions of an experiment for the given set of variables.
+        """
 
         # Get address definition for roles from scripts
         self.parse_script_roles()
