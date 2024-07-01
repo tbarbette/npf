@@ -208,16 +208,16 @@ def main():
 
             try:
                 prev_results = build.load_results(test)
-                prev_kind_results = build.load_results(test, kind=True)
+                prev_time_results = build.load_results(test, kind=True)
             except FileNotFoundError:
                 prev_results = None
-                prev_kind_results = None
+                prev_time_results = None
 
             all_results = None
             time_results = None
             try:
                 if all_results is None and time_results is None:
-                    all_results, time_results, init_done = test.execute_all(build, prev_results=prev_results, prev_kind_results=prev_kind_results, do_test=args.do_test, options=args)
+                    all_results, time_results, init_done = test.execute_all(build, prev_results=prev_results, prev_time_results=prev_time_results, do_test=args.do_test, options=args)
                 if not all_results and not time_results:
                     returncode+=1
                     continue
@@ -267,7 +267,7 @@ def main():
                           graph_variables=[Run(x) for x in test.variables],
                           options = args)
             if time_results:
-                for kind, results in time_results.items():
+                for ns, results in time_results.items():
                     if not results:
                         continue
                     series_with_history = [(test, build, results)]
@@ -275,7 +275,7 @@ def main():
                           title=test.get_title(),
                           filename=filename,
                           options = args,
-                          fileprefix=kind)
+                          fileprefix=ns)
         if last_build and args.graph_num > 0:
             graph_builds = [last_build] + graph_builds[:-1]
         last_build = build

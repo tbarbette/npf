@@ -514,7 +514,7 @@ class Test:
         if out_path:
             v_internals.update({'NPF_OUTPUT_PATH': os.path.relpath(out_path, abs_test_folder)})
 
-    def parse_results(self, regex_list: str, output: str, new_kind_results: dict, new_data_results: dict) -> Tuple[
+    def parse_results(self, regex_list: str, output: str, new_time_results: dict, new_data_results: dict) -> Tuple[
         bool, bool]:
         has_err = False
         has_values = False
@@ -526,7 +526,7 @@ class Test:
                     kind = nr.group("kind")
                     if kind is None:
                         kind = "time"
-                    kind_value = nr.group("kind_value")
+                    time_value = nr.group("time_value")
                     if result_type is None:
                         result_type = ''
                     n = float(nr.group("value"))
@@ -553,28 +553,28 @@ class Test:
                         n *= 1024 * 1024
                     elif mult == "G":
                         n *= 1024 * 1024 * 1024
-                    if n != 0 or (self.config.match("accept_zero", result_type)) or kind_value is not None:
+                    if n != 0 or (self.config.match("accept_zero", result_type)) or time_value is not None:
                         result_add = self.config.get_bool_or_in("result_add", result_type)
                         result_append = self.config.get_bool_or_in("result_append", result_type)
                         result_overwrite = self.config.get_bool_or_in("result_overwrite", result_type)
-                        if kind_value:
-                            t = float(kind_value)
-                            if result_type in new_kind_results.setdefault(kind,{}).setdefault(t, {}):
+                        if time_value:
+                            t = float(time_value)
+                            if result_type in new_time_results.setdefault(kind,{}).setdefault(t, {}):
                                 #Result is already known
                                 if result_add:
-                                    new_kind_results[kind][t][result_type] += n
+                                    new_time_results[kind][t][result_type] += n
                                 elif result_overwrite:
-                                    new_kind_results[kind][t][result_type] = n
+                                    new_time_results[kind][t][result_type] = n
                                 else:
                                     if not result_append:
                                         print(f"WARNING: There are multiple occurences of metric {result_type} for the same time {t}, please add the metric {result_type} in result_add, result_append or result_overwrite. result_appe d is selected by default, add `result_append={{{result_type}}}` to %config to silent this message.")
 
-                                    if type(new_kind_results[kind][t][result_type]) is not list:
-                                        new_kind_results[kind][t][result_type] = [new_kind_results[kind][t][result_type]]
+                                    if type(new_time_results[kind][t][result_type]) is not list:
+                                        new_time_results[kind][t][result_type] = [new_time_results[kind][t][result_type]]
 
-                                    new_kind_results[kind][t][result_type].append(n)
+                                    new_time_results[kind][t][result_type].append(n)
                             else:
-                                new_kind_results[kind][t][result_type] = n
+                                new_time_results[kind][t][result_type] = n
                         else:
                             if result_append:
                                 new_data_results.setdefault(result_type,[]).append(n)
@@ -663,7 +663,7 @@ class Test:
 
         # Launching the tests in itself
         data_results = OrderedDict()  # dict of result_name -> [val, val, val]
-        all_kind_results = {}  # dict of kind -> kind_value -> {result_name -> [val, val, val]}
+        all_time_results = {}  # dict of kind -> time_value -> {result_name -> [val, val, val]}
         m = multiprocessing.Manager()
         all_output = []
         all_err = []
@@ -917,11 +917,11 @@ class Test:
                 has_values = False
                 has_err = False
                 new_data_results = {}
-                new_kind_results = {}
-                new_kind_results.setdefault("time", {})
+                new_time_results = {}
+                new_time_results.setdefault("time", {})
                 regex_list = self.config.get_list("result_regex")
 
-                this_has_err, this_has_value = self.parse_results(regex_list, output, new_kind_results,
+                this_has_err, this_has_value = self.parse_results(regex_list, output, new_time_results,
                                                                   new_data_results)
 
                 if this_has_err:
@@ -964,18 +964,18 @@ class Test:
                 glob_sync = self.config.get_list("glob_sync")
                 glob_min = []
                 for g in glob_sync:
-                    for kind, kind_results in new_kind_results.items():
+                    for kind, time_results in new_time_results.items():
                         if kind in glob_sync:
-                            mg = min(kind_results.keys())
+                            mg = min(time_results.keys())
                             glob_min.append(mg)
 
-                for kind, kind_results in new_kind_results.items():
-                  if kind_results:
-                    all_kind_results.setdefault(kind,{})
+                for kind, time_results in new_time_results.items():
+                  if time_results:
+                    all_time_results.setdefault(kind,{})
                     if kind in glob_sync:
-                        min_kind_value = min(glob_min)
+                        min_time_value = min(glob_min)
                     else:
-                        min_kind_value = min(kind_results.keys())
+                        min_time_value = min(time_results.keys())
                     nonzero = set()
                     update = {}
                     all_result_types = set()
@@ -986,8 +986,8 @@ class Test:
 
                     last_val = {}
                     acc = self.config.get_list("time_sync")
-                    for kind_value, results in sorted(kind_results.items()):
-                        if not nz: #We still haven't found a non zero kind_value
+                    for time_value, results in sorted(time_results.items()):
+                        if not nz: #We still haven't found a non zero time_value
                             for result_type, result in results.items():
                                 if result_type in self.config.get_list("var_repeat"):
                                     last_val[result_type] = result
@@ -995,7 +995,7 @@ class Test:
                                 if result != 0:
                                     nz = True
                                     if (not acc or result_type in acc) and not kind in glob_sync:
-                                        min_kind_value = kind_value
+                                        min_time_value = time_value
                             if not nz:
                                 continue
                             else:
@@ -1009,13 +1009,13 @@ class Test:
                             nonzero.add(result_type)
                             all_result_types.add(result_type)
                             event_t = Decimal(
-                                ("%.0" + str(self.config['time_precision']) + "f") % round(float(kind_value - (min_kind_value if self.config.get_bool_or_in("time_sync", kind) else 0)), int(
+                                ("%.0" + str(self.config['time_precision']) + "f") % round(float(time_value - (min_time_value if self.config.get_bool_or_in("time_sync", kind) else 0)), int(
                                     self.config['time_precision'])))
                             update.setdefault(event_t, {}).setdefault(result_type, [])
                             update[event_t][result_type].extend(result if type(result) is list else [result])
                             if result_type in self.config.get_list("var_repeat"):
                                 # Replicate existing time series for all new incoming time points
-                                self.ensure_time(event_t, result_type, all_kind_results[kind])
+                                self.ensure_time(event_t, result_type, all_time_results[kind])
 
                     # Replicate new results for every time point
                     for event_t, results in update.items():
@@ -1023,12 +1023,12 @@ class Test:
                             if result_type in self.config.get_list("var_repeat"):
                                 self.ensure_time(event_t, result_type, update)
 
-                    for kind_value, results in update.items():
+                    for time_value, results in update.items():
                         for result_type, result in results.items():
-                            all_kind_results[kind].setdefault(kind_value, {}).setdefault(result_type, []).extend(result)
+                            all_time_results[kind].setdefault(time_value, {}).setdefault(result_type, []).extend(result)
 
                     last_v=0
-                    for kind_value, results in update.items():
+                    for time_value, results in update.items():
                         for result_type, result in results.items():
                             if not result:
                                 continue
@@ -1045,11 +1045,11 @@ class Test:
 
                 if script.type == SectionScript.TYPE_SCRIPT:
                   for result_type in self.config.get_list('results_expect'):
-                    if result_type not in data_results and not result_type in all_kind_results:
+                    if result_type not in data_results and not result_type in all_time_results:
                         print("Could not find expected result '%s' !" % result_type)
                         has_err = True
 
-                  if len(data_results) + sum([len(r) for k, r in all_kind_results.items()]) == 0:
+                  if len(data_results) + sum([len(r) for k, r in all_time_results.items()]) == 0:
                     print("Could not find any results ! Something probably went wrong, check the output :")
 
                     has_err = True
@@ -1070,7 +1070,7 @@ class Test:
                 shutil.rmtree(test_folder)
             except FileNotFoundError:
                 print("Could not delete folder %s..." % test_folder)
-        return data_results, all_kind_results, all_output, all_err, n_exec, n_err
+        return data_results, all_time_results, all_output, all_err, n_exec, n_err
 
     def ensure_time(self, event_t, result_type, update):
         """Handles var_repeat's internal.
@@ -1113,7 +1113,7 @@ class Test:
                 vs[k] = v.makeValues()[0]
             for late_variables in self.get_late_variables():
                 vs.update(late_variables.execute(vs, self, fail=False))
-            data_results, all_kind_results, output, err, num_exec, num_err = self.execute(build, Run(vs), v=vs, n_runs=1,
+            data_results, all_time_results, output, err, num_exec, num_err = self.execute(build, Run(vs), v=vs, n_runs=1,
                                                                                       n_retry=0,
                                                                                       allowed_types={"init"},
                                                                                       do_imports=True,
@@ -1132,7 +1132,7 @@ class Test:
     def execute_all(self, build, options, prev_results: Dataset = None,
                     do_test=True, on_finish=None,
                     allowed_types=SectionScript.ALL_TYPES_SET,
-                    prev_kind_results: Dict[str, Dataset] = None,
+                    prev_time_results: Dict[str, Dataset] = None,
                     iserie=0,
                     nseries=1) -> Tuple[
         Dataset, bool]:
@@ -1146,8 +1146,8 @@ class Test:
         :param prev_results: Previous set of result for the same build to update or retrieve
         :return: Dataset(Dict of variables as key and arrays of results as value)
         """
-        if not prev_kind_results:
-            prev_kind_results = {}
+        if not prev_time_results:
+            prev_time_results = {}
 
         init_done = False
         test_folder = self.make_test_folder()
@@ -1169,7 +1169,7 @@ class Test:
             return {}, True
 
         all_data_results = OrderedDict()
-        all_kind_results = OrderedDict()
+        all_time_results = OrderedDict()
         # If one first, we first ensure 1 result per variables then n_runs
         if options.onefirst:
             total_runs = [1, self.config["n_runs"]]
@@ -1228,23 +1228,23 @@ class Test:
                 else:
                     run_results = {}
 
-                kind_results = {} #kind->(run_with_time -> results))
-                kind_results["time"] = OrderedDict()
+                time_results = {} #kind->(run_with_time -> results))
+                time_results["time"] = OrderedDict()
                 config_time_kinds = self.config.get_list("time_kinds")
-                if prev_kind_results and not (options.force_test or options.force_retest):
-                    nprev_kind_results = {}
-                    for kind, prev_kresults in prev_kind_results.items():
+                if prev_time_results and not (options.force_test or options.force_retest):
+                    nprev_time_results = {}
+                    for kind, prev_kresults in prev_time_results.items():
                         if config_time_kinds and not kind in config_time_kinds:
                             continue
                         nprev_kresults = OrderedDict()
-                        kind_results.setdefault(kind,OrderedDict())
+                        time_results.setdefault(kind,OrderedDict())
                         for trun, results in prev_kresults.items():
                             if run.inside(trun):
-                                kind_results[kind][trun] = results
+                                time_results[kind][trun] = results
                             else:
                                 nprev_kresults[trun] = results
-                        nprev_kind_results[kind] = nprev_kresults
-                    prev_kind_results = nprev_kind_results
+                        nprev_time_results[kind] = nprev_kresults
+                    prev_time_results = nprev_time_results
                 if not run_results and options.use_last and build.repo.url:
                     for version in build.repo.method.get_history(build.version, limit=options.use_last):
                         oldb = Build(build.repo, version)
@@ -1252,17 +1252,17 @@ class Test:
                         if r and run in r:
                             run_results = r[run]
                             break
-                if not kind_results and options.use_last and build.repo.url:
+                if not time_results and options.use_last and build.repo.url:
                     for version in build.repo.method.get_history(build.version, limit=options.use_last):
                         oldb = Build(build.repo, version)
                         r = oldb.load_results(self, kind=True)
                         found = False
                         if r:
                             for kind, kr in r.items():
-                              kind_results.setdefault(kind, OrderedDict)
+                              time_results.setdefault(kind, OrderedDict)
                               for r_run, results in kr.items():
                                 if run in results:
-                                    kind_results[kind][r_run] = results[run]
+                                    time_results[kind][r_run] = results[run]
                                     found = True
                         if found:
                             break
@@ -1272,8 +1272,8 @@ class Test:
                         print("Could not find result :", self.config.get_list('results_expect'))
                         if result_type not in run_results:
                             found = False
-                            if prev_kind_results:
-                              for kind, kr in prev_kind_results.items():
+                            if prev_time_results:
+                              for kind, kr in prev_time_results.items():
                                 for run_kind, results in kr.items():
                                     if result_type in results:
                                         found = True
@@ -1281,7 +1281,7 @@ class Test:
                             if not found:
                                 print("Missing result type %s, re-doing the run" % result_type)
                                 run_results = {}
-                                prev_kind_results = {}
+                                prev_time_results = {}
 
 
                 have_new_results = False
@@ -1332,7 +1332,7 @@ class Test:
                                 print(
                                   ("[%srun %d/%d for test %d/%d"+(" of serie %d/%d" %(iserie+1,nseries) if nseries > 1 else "")+"]") % (  ("retrying %d/%d " % (i_try + 1,n_try)) if i_try > 0 else "", i+1, n_runs, n, n_tests))
 
-                    new_data_results, new_all_kind_results, output, err, n_exec, n_err = self.execute(build, run, variables,
+                    new_data_results, new_all_time_results, output, err, n_exec, n_err = self.execute(build, run, variables,
                                                                                                   n_runs,
                                                                                                   n_retry=self.config[
                                                                                                       "n_retry"],
@@ -1353,7 +1353,7 @@ class Test:
                                     run_results[result_type] = values
 
                             have_new_results = True
-                    if new_all_kind_results:
+                    if new_all_time_results:
                         have_new_results = True
                 else:
                     if not self.options.quiet:
@@ -1370,30 +1370,30 @@ class Test:
                 else:
                     all_data_results[run] = {}
 
-                if have_new_results and sum([len(r) for kind,r in new_all_kind_results.items()]) > 0:
-                    for kind, kresults in new_all_kind_results.items():
-                      kind_results.setdefault(kind, OrderedDict())
+                if have_new_results and sum([len(r) for kind,r in new_all_time_results.items()]) > 0:
+                    for kind, kresults in new_all_time_results.items():
+                      time_results.setdefault(kind, OrderedDict())
                       for time, results in sorted(kresults.items()):
                         time_run = Run(run.variables.copy())
                         time_run.variables[kind] = time
                         for result_type, result in results.items():
-                            rt = kind_results[kind].setdefault(time_run, {}).setdefault(result_type, [])
+                            rt = time_results[kind].setdefault(time_run, {}).setdefault(result_type, [])
                             if options.force_retest:
                                 rt.clear()
                             rt.extend(result)
-                for kind, kresults in kind_results.items():
-                  all_kind_results.setdefault(kind, OrderedDict())
+                for kind, kresults in time_results.items():
+                  all_time_results.setdefault(kind, OrderedDict())
                   for result_type, result in kresults.items():
-                    all_kind_results[kind][result_type] = result
+                    all_time_results[kind][result_type] = result
 
                 if self.options.print_time_results:
-                    for kind, kresults in all_kind_results.items():
+                    for kind, kresults in all_time_results.items():
                         print("%s:" % kind)
                         print(kresults)
 
                 if on_finish and have_new_results:
                     def call_finish():
-                        on_finish(all_data_results, all_kind_results)
+                        on_finish(all_data_results, all_time_results)
 
                     thread = threading.Thread(target=call_finish, args=())
                     thread.daemon = True
@@ -1401,19 +1401,19 @@ class Test:
 
                 # Save results
                 if all_data_results and have_new_results:
-                    if prev_results or prev_kind_results:
+                    if prev_results or prev_time_results:
                         if all_data_results[run]:
                             if prev_results is None:
                                 prev_results = {}
                             prev_results[run] = all_data_results[run]
                         build.writeversion(self, prev_results, allow_overwrite=True)
-                        for kind, kr in kind_results.items():
-                            prev_kind_results.setdefault(kind,OrderedDict())
-                            prev_kind_results[kind].update(kind_results[kind])
-                        build.writeversion(self, prev_kind_results, allow_overwrite=True, kind=True, reload=False)
+                        for kind, kr in time_results.items():
+                            prev_time_results.setdefault(kind,OrderedDict())
+                            prev_time_results[kind].update(time_results[kind])
+                        build.writeversion(self, prev_time_results, allow_overwrite=True, kind=True, reload=False)
                     else:
                         build.writeversion(self, all_data_results, allow_overwrite=True)
-                        build.writeversion(self, all_kind_results, allow_overwrite=True, kind=True)
+                        build.writeversion(self, all_time_results, allow_overwrite=True, kind=True)
 
         if not self.options.preserve_temp:
             try:
@@ -1425,7 +1425,7 @@ class Test:
         else:
             print("Test files have been kept in folder %s" % test_folder)
 
-        return all_data_results, all_kind_results, init_done
+        return all_data_results, all_time_results, init_done
 
     def get_title(self):
         if "title" in self.config and self.config["title"] is not None:

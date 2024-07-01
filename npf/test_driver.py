@@ -12,10 +12,10 @@ class Comparator():
     def __init__(self, repo_list: List[Repository]):
         self.repo_list = repo_list
         self.graphs_series = []
-        self.kind_graphs_series = []
+        self.time_graphs_series = []
 
-    def build_list(self, on_finish, test, build, data_datasets, kind_datasets):
-         on_finish(self.graphs_series + [(test,build,data_datasets[0])], self.kind_graphs_series + [(test,build,kind_datasets[0])])
+    def build_list(self, on_finish, test, build, data_datasets, time_datasets):
+         on_finish(self.graphs_series + [(test,build,data_datasets[0])], self.time_graphs_series + [(test,build,time_datasets[0])])
 
     def run(self, test_name, options, tags:List, on_finish=None, do_regress=True):
         for irepo,repo in enumerate(self.repo_list):
@@ -23,7 +23,7 @@ class Comparator():
             tests = Test.expand_folder(test_name, options=options, tags=repo.tags + tags)
             tests = npf.override(options, tests)
             for itest,test in enumerate(tests):
-                build, data_dataset, kind_dataset = regressor.regress_all_tests(
+                build, data_dataset, time_dataset = regressor.regress_all_tests(
                     tests=[test],
                     options=options,
                     do_compare=do_regress,
@@ -34,15 +34,15 @@ class Comparator():
             if len(tests) > 0 and not build is None:
                 build._pretty_name = repo.name
                 self.graphs_series.append((test, build, data_dataset[0]))
-                self.kind_graphs_series.append((test, build, kind_dataset[0]))
+                self.time_graphs_series.append((test, build, time_dataset[0]))
         if len(self.graphs_series) == 0:
             print("No valid tags/test/repo combination.")
             return None, None
 
-        return self.graphs_series, self.kind_graphs_series
+        return self.graphs_series, self.time_graphs_series
 
 
-def group_series(filename, args, series, kind_series, options):
+def group_series(filename, args, series, time_series, options):
 
     if series is None:
         return
@@ -128,15 +128,15 @@ def group_series(filename, args, series, kind_series, options):
 
     #Keep only the variables in Time Run that are usefull as defined above
     if options.do_time:
-      n_kind_series=OrderedDict()
-      for i, (test, build, kind_dataset) in enumerate(kind_series):
-        for kind, dataset in kind_dataset.items():
+      n_time_series=OrderedDict()
+      for i, (test, build, time_dataset) in enumerate(time_series):
+        for kind, dataset in time_dataset.items():
           ndataset = OrderedDict()
-          n_kind_series.setdefault(kind,[])
+          n_time_series.setdefault(kind,[])
           for run, results in dataset.items():
             ndataset[run.intersect(useful_variables + [kind])] = results
           if ndataset:
-            n_kind_series[kind].append((test, build, ndataset))
+            n_time_series[kind].append((test, build, ndataset))
 
     grapher = Grapher()
     print("Generating graphs...")
@@ -145,10 +145,11 @@ def group_series(filename, args, series, kind_series, options):
                       options=args,
                       title=args.graph_title)
     if options.do_time:
-        for kind,series in n_kind_series.items():
+        for kind,series in n_time_series.items():
             print("Generating graph for time serie '%s'..." % kind)
             g = grapher.graph(series=series,
                           filename=filename,
                           fileprefix=kind,
                           options=args,
                           title=args.graph_title)
+    return series, time_series
