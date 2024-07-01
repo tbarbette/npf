@@ -105,7 +105,7 @@ class Regression:
                     for late_variables in test.get_late_variables():
                         variables.update(late_variables.execute(variables, test))
 
-                    new_results_types, new_kind_results_types, output, err, n_exec, n_err = test.execute(build, run, variables,
+                    new_results_types, new_time_results_types, output, err, n_exec, n_err = test.execute(build, run, variables,
                                                                     n_runs=test.config["n_supplementary_runs"],
                                                                     allowed_types={SectionScript.TYPE_SCRIPT, SectionScript.TYPE_EXIT})
 
@@ -160,7 +160,7 @@ class Regression:
         """
         repo = self.repo
         data_datasets = []
-        kind_datasets = []
+        time_datasets = []
 
         if repo.url:
             build = repo.get_last_build(history=history)
@@ -179,30 +179,30 @@ class Regression:
             if repo.last_build:
                 try:
                     old_all_results = repo.last_build.load_results(test)
-                    old_kind_all_results = repo.last_build.load_results(test, kind=True)
+                    old_time_all_results = repo.last_build.load_results(test, kind=True)
                 except FileNotFoundError:
                     old_all_results = None
-                    old_kind_all_results = None
+                    old_time_all_results = None
             else:
                 old_all_results = None
-                old_kind_all_results = None
+                old_time_all_results = None
             try:
                 if on_finish:
-                    def early_results(all_data_results, all_kind_results):
-                        on_finish(build,(data_datasets + [all_data_results]),(kind_datasets + [all_kind_results]))
+                    def early_results(all_data_results, all_time_results):
+                        on_finish(build,(data_datasets + [all_data_results]),(time_datasets + [all_time_results]))
                 else:
                     early_results = None
-                all_results,kind_results, init_done = test.execute_all(
+                all_results,time_results, init_done = test.execute_all(
                                                 build,
                                                 prev_results=build.load_results(test),
-                                                prev_kind_results=build.load_results(test, kind=True),
+                                                prev_time_results=build.load_results(test, kind=True),
                                                 options=options,
                                                 do_test=options.do_test,
                                                 on_finish=early_results,
                                                 iserie=iserie*len(tests) + itest,
                                                 nseries=len(tests)*nseries)
 
-                if all_results is None and kind_results is None:
+                if all_results is None and time_results is None:
                     return None, None, None
             except ScriptInitException:
                 return None, None, None
@@ -214,7 +214,7 @@ class Regression:
             if variables_passed == variables_total:
                 nok += 1
             data_datasets.append(all_results)
-            kind_datasets.append(kind_results)
+            time_datasets.append(time_results)
             test.n_variables_passed = variables_passed
             test.n_variables = variables_total
 
@@ -224,4 +224,4 @@ class Regression:
         build.n_passed = nok
         build.n_tests = len(tests)
 
-        return build, data_datasets, kind_datasets
+        return build, data_datasets, time_datasets
