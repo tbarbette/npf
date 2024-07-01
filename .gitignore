@@ -1,4 +1,5 @@
 results/
+.DS_Store
 *.log
 *.pyc
 .vimhistory
