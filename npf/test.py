@@ -930,7 +930,7 @@ class Test:
 
                 all_pyexits = []
                 all_pyexits_v = []
-                for s,vlist in [(t.testie,t.imp_v) for t in self.imports] + [(self, v)]:
+                for s,vlist in [(t.test,t.imp_v) for t in self.imports] + [(self, v)]:
                     for p in s.get_pyexits():
                         all_pyexits.append(p)
                         all_pyexits_v.append(vlist)
