@@ -61,6 +61,7 @@ DODUMP?=0
 NRECORD=EXPAND( $(( int($LIMIT / $SAMPLE * $PKTGEN_REPLAY_COUNT  * 2) )) )
 BROADCAST_IGNORE= -> c :: Classifier(0/$mac,-) //Ignore broadcasts
 GEN_RX_THREADS?=EXPAND($GEN_THREADS)
+http:GEN_HTTP_SERVER?=1
 
 %promisc:late_variables
 BROADCAST_IGNORE= -> c :: Classifier(-, 0/ffffffffffff)
@@ -91,7 +92,7 @@ define($quick true)
 define($txverbose 99)
 define($rxverbose 99)
 
-HTTPServer
+$(( "HTTPServer" if $GEN_HTTP_SERVER else "" ))
 
 fdIN :: FromDump($trace, STOP false, TIMING false, START_AFTER $STARTAFTER)
 tdIN :: ToDPDKDevice($port, BLOCKING $GEN_BLOCKING, BURST $bout, VERBOSE $txverbose, IQUEUE $bout, NDESC $GEN_DESC)
