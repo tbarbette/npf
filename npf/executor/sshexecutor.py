@@ -47,7 +47,10 @@ class SSHExecutor(Executor):
         return ssh
 
 
-    def exec(self, cmd, bin_paths : List[str] = None, queue: Queue = None, options = None, stdin = None, timeout=None, sudo=False, testdir=None, event=None, title=None, env={}, virt = "", raw = False):
+    def exec(self, cmd, bin_paths : List[str] = None,
+             queue: Queue = None, options = None,
+             stdin = None, timeout=None, sudo=False, testdir=None,
+             event=None, title=None, env={}, virt = "", raw = False):
         if testdir:
             cmd = "mkdir -p " + testdir + " && cd " + testdir + ";\n" + cmd;
         if not title:
