@@ -150,7 +150,7 @@ class Regression:
                           history: int = 1,
                           on_finish = None,
                           do_compare:bool = True,
-                          iserie=0, nseries=1) -> Tuple[Build, List[Dataset]]:
+                          iserie=0, nseries=1) -> Tuple[Build, List[Dataset], List[Dataset]]:
         """
         Execute all tests passed in argument for the last build of the regressor associated repository
         :param history: Start regression at last build + 1 - history
@@ -171,6 +171,7 @@ class Regression:
         nok = 0
 
         for itest,test in enumerate(tests):
+            print(test)
             if build.version != "local":
                 print("[%s] Running test %s on version %s..." % (repo.name, test.filename, build.version))
             else:

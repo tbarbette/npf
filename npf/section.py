@@ -625,6 +625,8 @@ class SectionConfig(SectionVariable):
             'series_prop': 'graph_series_prop',
             'graph_legend_ncol': 'legend_ncol',
             'graph_legend_loc': 'legend_loc',
+            'graph_do_legend' : 'graph_legend',
+            'do_legend'     : 'graph_legend',
             'var_label_dir' : 'graph_label_dir',
             'graph_max_col' : 'graph_max_col',
 

@@ -8,15 +8,20 @@ common variables must be used. For this reason also one test only is
 supported in comparator.
 """
 import argparse
+from typing import Dict
+from npf.pipeline import pypost
 
 from npf import npf
 from npf.test_driver import Comparator
 from npf.regression import *
-from pathlib import Path
 
 from npf.test import Test
 
 import multiprocessing
+
+from npf import npf
+
+from npf.types.series import Series
 
 from npf.test_driver import group_series
 
@@ -33,6 +38,7 @@ def main():
     g = npf.add_graph_options(parser)
     args = parser.parse_args()
 
+    # Parse the cluster options
     npf.parse_nodes(args)
 
     # Parsing repo list and getting last_build
@@ -43,14 +49,10 @@ def main():
 
     comparator = Comparator(repo_list)
 
+    # Create a proper file name for the output
     filename = npf.build_output_filename(args, repo_list)
 
-    savedir = Path(os.path.dirname(filename))
-    if not savedir.exists():
-        os.makedirs(savedir.as_posix())
-
-    if not os.path.isabs(filename):
-        filename = os.getcwd() + os.sep + filename
+    filename = npf.ensure_folder_exists(filename)
 
     series, time_series = comparator.run(test_name=args.test_files,
                                          tags=args.tags,

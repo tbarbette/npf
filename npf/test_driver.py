@@ -1,9 +1,12 @@
 from typing import List
 from npf import npf
+from npf.build import Build
 from npf.regression import Grapher, OrderedDict, Regression, npf
 from npf.repository import Repository
 from npf.statistics import Statistics
 from npf.test import Test
+from npf.types.dataset import Dataset
+from npf.types.series import Series
 
 
 """Runs all tests for a given list of tests (or a folder to expand), and a series of repositories.
@@ -14,24 +17,27 @@ class Comparator():
         self.graphs_series = []
         self.time_graphs_series = []
 
-    def build_list(self, on_finish, test, build, data_datasets, time_datasets):
+    def build_list(self, on_finish, test, build:Build, data_datasets:Dataset, time_datasets):
          on_finish(self.graphs_series + [(test,build,data_datasets[0])], self.time_graphs_series + [(test,build,time_datasets[0])])
 
     def run(self, test_name, options, tags:List, on_finish=None, do_regress=True):
-        for irepo,repo in enumerate(self.repo_list):
+        for i_repo, repo in enumerate(self.repo_list):
+            build = None
             regressor = Regression(repo)
             tests = Test.expand_folder(test_name, options=options, tags=repo.tags + tags)
             tests = npf.override(options, tests)
-            for itest,test in enumerate(tests):
+            for test in tests:
                 build, data_dataset, time_dataset = regressor.regress_all_tests(
                     tests=[test],
                     options=options,
                     do_compare=do_regress,
-                    on_finish=lambda b,dd,td: self.build_list(on_finish,test,b,dd,td) if on_finish else None,iserie=irepo,nseries=len(self.repo_list)
+                    on_finish=lambda b,dd,td: self.build_list(on_finish,test,b,dd,td) if on_finish else None,
+                    iserie=i_repo,
+                    nseries=len(self.repo_list)
                     )
 
 
-            if len(tests) > 0 and not build is None:
+            if len(tests) > 0 and build is not None:
                 build._pretty_name = repo.name
                 self.graphs_series.append((test, build, data_dataset[0]))
                 self.time_graphs_series.append((test, build, time_dataset[0]))
@@ -42,8 +48,20 @@ class Comparator():
         return self.graphs_series, self.time_graphs_series
 
 
-def group_series(filename, args, series, time_series, options):
+def group_series(filename: str, series: Series , time_series:Series, options):
+    """
+    The function merge different series together, finding common variables
 
+    :param filename: The name of the file to which the output will be exported
+    :param series: The "series" parameter refers to the data series that you want to export. It could be
+    a list, array, or any other data structure that contains the data you want to export
+    :param kind_series: The `kind_series` parameter is used to specify the type of series to be
+    exported. It can take values such as "line", "bar", "scatter", etc., depending on the type of chart
+    or graph you want to export
+    :param options: The "options" parameter is a dictionary that contains various options for exporting
+    the output. These options can include things like the file format, the delimiter to use, whether or
+    not to include headers, etc
+    """
     if series is None:
         return
 
@@ -53,7 +71,7 @@ def group_series(filename, args, series, time_series, options):
         for i, (test, build, dataset) in enumerate(series):
             repo_series.setdefault(build.repo.reponame,(test,build,OrderedDict()))
             for run, run_results in dataset.items():
-                run.variables['SERIE'] = build.pretty_name()
+                run.write_variables()['SERIE'] = build.pretty_name()
                 repo_series[build.repo.reponame][2][run] = run_results
         series = []
         for reponame, (test, build, dataset) in repo_series.items():
@@ -69,7 +87,7 @@ def group_series(filename, args, series, time_series, options):
             merged_series.setdefault(build.pretty_name(), []).append((test, build, dataset))
 
         series = []
-        for sname,slist in merged_series.items():
+        for sname, slist in merged_series.items():
                 if len(slist) == 1:
                     series.append(slist[0])
                 else:
@@ -83,11 +101,11 @@ def group_series(filename, args, series, time_series, options):
     for test, build, dataset in series:
         v_list = set()
         for run, results in dataset.items():
-            v_list.update(run.variables.keys())
+            v_list.update(run.read_variables().keys())
         all_variables.append(v_list)
 
-        if args.statistics:
-            Statistics.run(build,dataset, test, max_depth=args.statistics_maxdepth, filename=args.statistics_filename if args.statistics_filename else npf.build_output_filename(args, [build.repo for t,build,d in series]))
+        if options.statistics:
+            Statistics.run(build,dataset, test, max_depth=options.statistics_maxdepth, filename=options.statistics_filename if options.statistics_filename else npf.build_output_filename(options, [build.repo for t,build,d in series]))
 
     common_variables = set.intersection(*map(set, all_variables))
 
@@ -101,15 +119,13 @@ def group_series(filename, args, series, time_series, options):
         for i, (test, build, dataset) in enumerate(series):
             serie_values = set()
             for run, result_types in dataset.items():
-                if variable in run.variables:
-                    val = run.variables[variable]
+                if variable in run.read_variables():
+                    val = run.read_variables()[variable]
                     serie_values.add(val)
             if len(serie_values) > 1:
                 all_alone = False
                 break
-        if all_alone:
-            pass
-        else:
+        if not all_alone:
             useful_variables.append(variable)
 
     if options.group_repo:
@@ -121,35 +137,45 @@ def group_series(filename, args, series, time_series, options):
 
     #Keep only the variables in Run that are usefull as defined above
     for i, (test, build, dataset) in enumerate(series):
-        ndataset = OrderedDict()
+        new_dataset: Dict[Run,List] = OrderedDict()
         for run, results in dataset.items():
-            ndataset[run.intersect(useful_variables)] = results
-        series[i] = (test, build, ndataset)
+            m = run.intersect(useful_variables)
+            if m in new_dataset:
+                print(f"WARNING: You are comparing series with different variables. Results of series '{build.pretty_name()}' are merged.")
+                for output, data in results.items():
+                    if output in new_dataset[m]:
+                        new_dataset[m][output].extend(data)
+                    else:
+                        new_dataset[m][output] = data
+            else:
+                new_dataset[m] = results
+        series[i] = (test, build, new_dataset)
 
     #Keep only the variables in Time Run that are usefull as defined above
     if options.do_time:
-      n_time_series=OrderedDict()
+      n_time_series = OrderedDict()
       for i, (test, build, time_dataset) in enumerate(time_series):
         for kind, dataset in time_dataset.items():
-          ndataset = OrderedDict()
+          new_dataset = OrderedDict()
           n_time_series.setdefault(kind,[])
           for run, results in dataset.items():
-            ndataset[run.intersect(useful_variables + [kind])] = results
-          if ndataset:
-            n_time_series[kind].append((test, build, ndataset))
+            new_dataset[run.intersect(useful_variables + [kind])] = results
+          if new_dataset:
+            n_time_series[kind].append((test, build, new_dataset))
 
     grapher = Grapher()
     print("Generating graphs...")
+
     g = grapher.graph(series=series,
                       filename=filename,
-                      options=args,
-                      title=args.graph_title)
+                      options=options,
+                      title=options.graph_title)
     if options.do_time:
         for kind,series in n_time_series.items():
             print("Generating graph for time serie '%s'..." % kind)
             g = grapher.graph(series=series,
                           filename=filename,
                           fileprefix=kind,
-                          options=args,
-                          title=args.graph_title)
+                          options=options,
+                          title=options.graph_title)
     return series, time_series

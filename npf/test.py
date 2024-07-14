@@ -481,7 +481,7 @@ class Test:
                 pass
 
             i = 0
-            while killer.is_alive() and i < 500:
+            while killer.is_alive() and i < 2000:
                 time.sleep(0.010)
                 i += 1
             try:
@@ -783,9 +783,12 @@ class Test:
                         param.name = script.get_name(True)
                         param.autokill = autokill
                         param.env = OrderedDict()
+                        if self.options.keep_env:
+                            param.env.update({key:os.environ[key] for key in self.options.keep_env})
                         param.env.update(v_internals)
                         param.env.update([(k, v.replace('$NPF_BUILD_PATH', build.repo.get_build_path())) for k, v in
                                           build.repo.env.items()])
+
 
                         if self.options.rand_env:
                             param.env['RANDENV'] = ''.join(random.choice(string.ascii_lowercase) for i in range(random.randint(0,self.options.rand_env)))
@@ -1136,11 +1139,11 @@ class Test:
                     prev_time_results: Dict[str, Dataset] = None,
                     iserie=0,
                     nseries=1) -> Tuple[
-        Dataset, bool]:
+        Dataset, Dataset, bool]:
         """Execute script for all variables combinations for this specific build.
         All tools rely on this function for execution of the tests.
 
-        :param allowed_types:Tyeps of scripts allowed to run. Set with either init, scripts or both
+        :param allowed_types:Type of scripts allowed to run. Set with either init, scripts or both
         :param do_test: Actually run the tests
         :param options: NPF options object
         :param build: A build object
@@ -1167,7 +1170,7 @@ class Test:
             self.do_init_all(build, options, do_test=do_test, allowed_types=allowed_types, v_internals=v_internals)
             if not self.options.preserve_temp:
                 shutil.rmtree(test_folder)
-            return {}, True
+            return {}, {}, True
 
         all_data_results = OrderedDict()
         all_time_results = OrderedDict()
@@ -1193,10 +1196,11 @@ class Test:
                     for k,v in imp.test.variables.statics().items():
                         variables[k] = v.makeValues()[0]
 
-                run = Run(variables)
                 variables.update(root_variables)
-                run.variables.update(build.repo.overriden_variables)
-                variables = run.variables.copy()
+                run = Run(variables)
+
+                run.write_variables().update(build.repo.overriden_variables)
+                variables = run.read_variables().copy()
 
                 if shadow_variables:
                     shadow_variables.update(root_variables)
@@ -1248,14 +1252,14 @@ class Test:
                     prev_time_results = nprev_time_results
                 if not run_results and options.use_last and build.repo.url:
                     for version in build.repo.method.get_history(build.version, limit=options.use_last):
-                        oldb = Build(build.repo, version)
+                        oldb = Build(build.repo, version, options.result_path)
                         r = oldb.load_results(self)
                         if r and run in r:
                             run_results = r[run]
                             break
                 if not time_results and options.use_last and build.repo.url:
                     for version in build.repo.method.get_history(build.version, limit=options.use_last):
-                        oldb = Build(build.repo, version)
+                        oldb = Build(build.repo, version, options.result_path)
                         r = oldb.load_results(self, kind=True)
                         found = False
                         if r:
@@ -1375,7 +1379,7 @@ class Test:
                     for kind, kresults in new_all_time_results.items():
                       time_results.setdefault(kind, OrderedDict())
                       for time, results in sorted(kresults.items()):
-                        time_run = Run(run.variables.copy())
+                        time_run = Run(run.read_variables().copy())
                         time_run.variables[kind] = time
                         for result_type, result in results.items():
                             rt = time_results[kind].setdefault(time_run, {}).setdefault(result_type, [])
