@@ -939,8 +939,9 @@ class Test:
 
                 if len(all_pyexits) >0 and allowed_types != set([SectionScript.TYPE_INIT]):
                     vs = {'RESULTS': new_data_results,
-                          'TIME_RESULTS': new_kind_results["time"], #Deprecated
-                          'KIND_RESULTS': new_kind_results}
+                          'TIME_RESULTS': new_time_results["time"], #Deprecated
+                          'KIND_RESULTS': new_time_results, #Deprecated
+                          'NS_RESULTS': new_time_results}
                     vs.update(v)
 
                     for late_variables in self.get_late_variables():

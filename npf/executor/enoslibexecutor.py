@@ -42,6 +42,8 @@ class EnoslibExecutor(Executor):
         Returns:
             [int, str, str, int]: pid, stdout, stderr, return code
         """
+        if testdir:
+            cmd = "mkdir -p " + testdir + " && cd " + testdir + ";\n" + cmd;
 
         if not title:
             title = self.machine.address

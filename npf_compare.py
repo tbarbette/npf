@@ -55,7 +55,10 @@ def main():
     series, time_series = comparator.run(test_name=args.test_files,
                                          tags=args.tags,
                                          options=args,
-                                         on_finish=lambda series,time_series:group_series(filename,args,series,time_series,options=args) if args.iterative else None)
+                                         on_finish=
+                                            lambda series,time_series:
+                                                group_series(filename,args,series,time_series,options=args) if args.iterative else None
+                                        )
 
     group_series(filename, args, series, time_series, options=args)
 
