@@ -43,6 +43,7 @@ def add_verbosity_options(parser: ArgumentParser):
                    dest='print_time_results', action='store_true',
                    default=False)
 
+    v.add_argument('--no-colors', help='Do not use terminal colors', dest='color', action='store_false', default=True)
     v.add_argument('--quiet', help='Quiet mode', dest='quiet', action='store_true', default=False)
     v.add_argument('--quiet-regression', help='Do not tell about the regression process', dest='quiet_regression',
                     action='store_true', default=False)
@@ -72,7 +73,7 @@ def add_graph_options(parser: ArgumentParser):
                    help='Output data to CSV files, one per result type. By default it prints the variable value as first column and the second column is the mean of all runs. Check --output-columns to change this behavior.', dest='output', type=str, nargs='?', const='graph', default=None)
     o.add_argument('--output-columns', dest='output_columns', type=str, nargs='+', default=['x', 'mean'],
                     help='Columns to print in each --output CSV files. By default x mean. Valid values are mean/average, min, max, perc[0-9]+, med/median/perc50, std, nres/n, first, last, all. Check the documentation for details.')
-    o.add_argument('--single-output', '--pandas', metavar='pandas_filename', type=str, default=None, dest='pandas_filename',
+    o.add_argument('--single-output', '--pandas', '--csv', metavar='pandas_filename', type=str, default=None, dest='pandas_filename',
                     help='Output a dataframe to CSV with all result types as columns, and one line per variables and per runs. This is a pandas dataframe, and can be read with pandas easily again. Time series are each outputed in a single different CSV.')
 
     g = parser.add_argument_group('Graph options')
@@ -245,7 +246,7 @@ def set_args(args):
     sys.modules[__name__].options = args
     args.cwd = os.getcwd()
 
-def parse_nodes(args):
+def initialize(args):
     set_args(args)
 
     #other random stuffs to do
@@ -266,17 +267,23 @@ def parse_nodes(args):
     if not os.path.isabs(options.experiment_folder):
         options.experiment_folder = os.path.abspath(options.experiment_folder)
 
+
+    options.search_path = set(options.search_path)
+    for t in [options.test_files]:
+        options.search_path.add(os.path.dirname(t))
+
+def create_local():
     # Create the test file
     os.close(os.open(experiment_path() + ".access_test" , os.O_CREAT))
     local = Node.makeLocal(options)
     #Delete the test file
     os.unlink(experiment_path() + ".access_test")
-
     roles['default'] = [local]
+    return local
 
-    options.search_path = set(options.search_path)
-    for t in [options.test_files]:
-        options.search_path.add(os.path.dirname(t))
+def parse_nodes(args):
+    initialize(args)
+    local = create_local()
 
     for val in options.cluster:
 

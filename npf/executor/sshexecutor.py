@@ -47,7 +47,10 @@ class SSHExecutor(Executor):
         return ssh
 
 
-    def exec(self, cmd, bin_paths : List[str] = None, queue: Queue = None, options = None, stdin = None, timeout=None, sudo=False, testdir=None, event=None, title=None, env={}, virt = "", raw = False):
+    def exec(self, cmd, bin_paths : List[str] = None,
+             queue: Queue = None, options = None,
+             stdin = None, timeout=None, sudo=False, testdir=None,
+             event=None, title=None, env={}, virt = "", raw = False):
         if testdir:
             cmd = "mkdir -p " + testdir + " && cd " + testdir + ";\n" + cmd;
         if not title:
@@ -154,7 +157,7 @@ class SSHExecutor(Executor):
                 except KeyboardInterrupt:
                     event.terminate()
                     ssh.close()
-                    return -1, out, err, -1
+                    return -1, output[0], output[1], 0
                 if timeout is not None:
                     if timeout < 0:
                         event.terminate()
@@ -178,6 +181,7 @@ class SSHExecutor(Executor):
                 ret = ssh_stdout.channel.recv_exit_status()
             ssh.close()
             ssh=None
+
 
 
             return pid,output[0], output[1],ret

@@ -1,0 +1,20 @@
+%variables
+N=[1-2]
+
+%late_variables
+V=42
+
+%require
+test $N -lt 2
+
+%init
+echo "RESULT-INIT 1"
+
+%script
+echo "RESULT-SCRIPT $V"
+
+%exit
+echo "RESULT-CLEANUP 1"
+
+%pyexit
+RESULTS["PY"] = 1

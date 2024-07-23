@@ -171,7 +171,7 @@ class Build:
                 for v_data in re.split(r'(?<!\\),', variables_data):
                     if v_data.strip():
                         k, v = re.split(r'(?<!\\):', v_data)
-                        variables[k] = variable.get_numeric(v) if test.variables.is_numeric(k) else str(v).replace('\:',':')
+                        variables[k] = variable.get_numeric(v) if test.variables.is_numeric(k) else str(v).replace('\\:',':')
                 results = {}
 
                 results_data = results_data.strip()[1:-1].split('},{')
@@ -189,7 +189,7 @@ class Build:
                         results[type_r] = type_results
                 all_results[Run(variables)] = results
         except:
-            print("Could not parse %s. The program will stop to avoid erasing data. Please correct or delete the file.\nLine %d : %s" % (filename,iline, line))
+            print("Could not parse %s. The program will stop to avoid erasing data. Please correct or delete the file.\nLine %d : %s\n" % (filename,iline, line))
             raise
         f.close()
         self.cache[filename] = all_results

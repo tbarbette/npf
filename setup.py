@@ -32,6 +32,8 @@ install_requires = [
     'nbformat',
     'nbconvert',
     'jinja2',
+    'spellwise',
+    'seaborn'
 ]
 
 setuptools.setup(

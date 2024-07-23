@@ -1,0 +1,23 @@
+%config
+result_overwrite={F,R}
+
+%variables
+PARALLEL=4
+
+%init jinja
+echo "RESULT {{ 1 }}"
+
+%exit jinja
+echo "RESULT {{1}}"
+
+%script jinja
+{% for P in range(PARALLEL) %}
+    echo "RESULT-R {{P}}"
+{% endfor %}
+cat config
+
+%file config jinja
+{% for P in range(PARALLEL) %}
+    echo "RESULT-F {{P * 2}}"
+{% endfor %}
+

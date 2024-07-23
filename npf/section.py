@@ -9,44 +9,44 @@ from .variable import *
 from collections import OrderedDict
 from random import shuffle
 
+from spellwise import Editex
+
 import re
 
 
 known_sections = ['info', 'config', 'variables', 'exit', 'pypost' , 'pyexit', 'late_variables', 'include', 'file', 'require', 'import', 'script', 'init', 'exit']
 
-class HunSpell:
-    dists = {}
+class SpellChecker:
+    def __init__(self) -> None:
+        self.algorithm = Editex()
 
-    def count(self, w):
-        t = 0
-        for l in w:
-            t = t + ord(l)
-        return t
-
-    def add(self, w):
-        if w not in self.dists.values():
-            self.dists.setdefault(self.count(w),  []).append(w)
+    def add_words(self, d):
+        self.algorithm.add_words(d)
 
     def suggest(self, w, max = None):
-        data = self.dists
-        num = self.count(w)
-        s =  data.get(num, data[min(data.keys(), key=lambda k: abs(k-num))])
-        return s[0]
+        suggestions = self.algorithm.get_suggestions(w)
+        if len(suggestions) > 1:
+            return suggestions[0]["word"]
 
-
-hu = HunSpell()
-for sect in known_sections:
-    hu.add(sect)
+hu = SpellChecker()
+hu.add_words(known_sections)
 
 class SectionFactory:
     varPattern = "([a-zA-Z0-9_:-]+)[=](" + Variable.VALUE_REGEX + ")?"
     namePattern = re.compile(
-        "^(?P<tags>" + Variable.TAGS_REGEX + "[:])?(?P<name>info|config|variables|exit|pypost|pyexit|late_variables|include (?P<includeName>[a-zA-Z0-9_./-]+)(?P<includeParams>([ \t]+" +
-        varPattern + ")+)?|(init-)?file(:?[@](?P<fileRole>[a-zA-Z0-9]+))? (?P<fileName>[a-zA-Z0-9_.${}-]+)(:? (?P<fileNoparse>noparse))?|require|"
-                                             "import(:?[@](?P<importRole>[a-zA-Z0-9]+)(:?[-](?P<importMulti>[*0-9]+))?)?[ \t]+(?P<importModule>" + Variable.VALUE_REGEX + ")(?P<importParams>([ \t]+" +
-        varPattern + ")+)?|" +
-                     "sendfile(:?[@](?P<sendfileRole>[a-zA-Z0-9]+))?[ \t]+(?P<sendfilePath>.*)|" +
-                     "(:?script|init|exit)(:?[@](?P<scriptRole>[a-zA-Z0-9]+)(:?[-](?P<scriptMulti>[*0-9]+))?)?(?P<scriptParams>([ \t]+" + varPattern + ")*))$")
+        "^(?P<tags>" + Variable.TAGS_REGEX + "[:])?(?P<name>info|"
+        "config|"
+        "variables|"
+        "exit|"
+        "pypost|"
+        "pyexit(:?\\s+(?P<PyExitName>.*))?|"
+        "late_variables|"
+        "include\\s+(?P<includeName>[a-zA-Z0-9_./-]+)(?P<includeParams>([ \t]+" + varPattern + ")+)?|"
+        "(init-)?file(:?[@](?P<fileRole>[a-zA-Z0-9]+))?\\s+(?P<fileName>[a-zA-Z0-9_.${}-]+)(:? (?P<fileNoparse>noparse))?(:? (?P<fileJinja>jinja))?|"
+        "require(:?\\s+(?P<requireJinja>jinja))?|"
+        "import(:?[@](?P<importRole>[a-zA-Z0-9]+)(:?[-](?P<importMulti>[*0-9]+))?)?[ \t]+(?P<importModule>" + Variable.VALUE_REGEX + ")(?P<importParams>([ \t]+" + varPattern + ")+)?|"
+        "sendfile(:?[@](?P<sendfileRole>[a-zA-Z0-9]+))?\\s+(?P<sendfilePath>.*)|" +
+        "(:?script|init|exit)(:?[@](?P<scriptRole>[a-zA-Z0-9]+)(:?[-](?P<scriptMulti>[*0-9]+))?)?(:? (?P<scriptJinja>jinja))?(?P<scriptParams>([ \t]+" + varPattern + ")*))$")
 
     @staticmethod
     def build(test, data):
@@ -58,7 +58,12 @@ class SectionFactory:
         """
         matcher = SectionFactory.namePattern.match(data)
         if not matcher:
-            raise Exception("Unknown section line '%s'. Did you mean %s ?" % (data,hu.suggest(data)))
+            s = hu.suggest(data)
+            if s:
+                raise Exception("Unknown section line '%s'. Did you mean %s ?" % (data,s))
+            else:
+                raise Exception("Unknown section line '%s'." % (data))
+
 
         if not SectionVariable.match_tags(matcher.group('tags'), test.tags):
             return SectionNull()
@@ -83,7 +88,8 @@ class SectionFactory:
                 sectionName.startswith('init') and not sectionName.startswith('init-file')):
             params = matcher.group('scriptParams')
             params = dict(re.findall(SectionFactory.varPattern, params)) if params else {}
-            s = SectionScript(matcher.group('scriptRole'), params)
+
+            s = SectionScript(matcher.group('scriptRole'), params, jinja=matcher.group('scriptJinja'))
             multi = matcher.group('scriptMulti')
             s.multi = multi
             if sectionName.startswith('init'):
@@ -94,13 +100,22 @@ class SectionFactory:
 
             return s
 
+        if sectionName.startswith('pyexit'):
+            pg = matcher.group("PyExitName")
+            if pg:
+                name = pg.strip()
+            else:
+                name = ""
+            s = SectionPyExit(name)
+            return s
+
         if matcher.group('scriptParams') is not None:
             raise Exception("Only script sections takes arguments (" + sectionName + " has argument " +
                             matcher.groups("params") + ")")
 
         if sectionName.startswith('file'):
             s = SectionFile(matcher.group('fileName').strip(), role=matcher.group('fileRole'),
-                            noparse=matcher.group('fileNoparse'))
+                            noparse=matcher.group('fileNoparse'), jinja=matcher.group('fileJinja'))
             return s
         if sectionName.startswith('init-file'):
             s = SectionInitFile(matcher.group('fileName').strip(), role=matcher.group('fileRole'),
@@ -112,7 +127,7 @@ class SectionFactory:
             s = SectionImport(None, matcher.group('includeName').strip(), params, is_include=True)
             return s
         elif sectionName == 'require':
-            s = SectionRequire()
+            s = SectionRequire(jinja=matcher.group('requireJinja'))
             return s
         elif sectionName == 'late_variables':
             s = SectionLateVariable()
@@ -122,8 +137,6 @@ class SectionFactory:
 
         if sectionName == 'variables':
             s = SectionVariable()
-        elif sectionName == 'pyexit':
-            s = Section('pyexit')
         elif sectionName == 'pypost':
             s = Section('pypost')
         elif sectionName == 'exit':
@@ -175,7 +188,7 @@ class SectionScript(Section):
 
     num = 0
 
-    def __init__(self, role=None, params=None):
+    def __init__(self, role=None, params=None, jinja=False):
         super().__init__('script')
         if params is None:
             params = {}
@@ -184,6 +197,7 @@ class SectionScript(Section):
         self.type = self.TYPE_SCRIPT
         self.index = ++self.num
         self.multi = None
+        self.jinja = jinja
 
     def get_role(self):
         return self._role
@@ -225,6 +239,24 @@ class SectionScript(Section):
             deps.add(dep)
         return deps
 
+class SectionPyExit(Section):
+    num = 0
+
+    def __init__(self, name = ""):
+        super().__init__('pyexit')
+        self.index = ++self.num
+        self.name = name
+
+    def finish(self, test):
+        test.pyexits.append(self)
+
+    def get_name(self, full=False):
+        if self.name != "":
+            return "pyexit_"+str(self.index)
+        else:
+            return "pyexit_"+self.name
+
+
 
 class SectionImport(Section):
     def __init__(self, role=None, module=None, params=None, is_include=False):
@@ -257,12 +289,13 @@ class SectionImport(Section):
 
 
 class SectionFile(Section):
-    def __init__(self, filename, role=None, noparse=False):
+    def __init__(self, filename, role=None, noparse=False, jinja=False):
         super().__init__('file')
         self.content = ''
         self.filename = filename
         self._role = role
         self.noparse = noparse
+        self.jinja = jinja
 
     def get_role(self):
         return self._role
@@ -280,9 +313,10 @@ class SectionInitFile(SectionFile):
 
 
 class SectionRequire(Section):
-    def __init__(self):
+    def __init__(self, jinja=False):
         super().__init__('require')
         self.content = ''
+        self.jinja = jinja
 
     def role(self):
         # For now, require is only on one node, the default one
@@ -615,19 +649,15 @@ class SectionConfig(SectionVariable):
         self.__add_dict("var_markers", {}) #Do not set CDF here, small CDF may want them, and then scatterplot would not work
         self.__add("result_add", False)
         self.__add("result_append", False)
+        self.__add("result_overwrite", False)
         self.__add_list("result_regex", [
-            r"(:?(:?(?P<kind>[A-Z0-9_]+)-)?(?P<kind_value>[0-9.]+)-)?RESULT(:?-(?P<type>[A-Z0-9_:~.@()-]+))?[ \t]+(?P<value>[0-9.]+(e[+-][0-9]+)?)[ ]*(?P<multiplier>[nµugmkKGT]?)(?P<unit>s|sec|b|byte|bits)?"])
+            r"(:?(:?(?P<kind>[A-Z0-9_]+)-)?(?P<time_value>[0-9.]+)-)?RESULT(:?-(?P<type>[A-Z0-9_:~.@()-]+))?[ \t]+(?P<value>[0-9.]+(e[+-][0-9]+)?)[ ]*(?P<multiplier>[nµugmkKGT]?)(?P<unit>s|sec|b|byte|bits)?"])
         self.__add_list("results_expect", [])
         self.__add("autokill", True)
         self.__add("critical", False)
         self.__add_dict("env", {})  # Unimplemented yet
         self.__add("timeout", 30)
         self.__add("hardkill", 5000)
-        self.__add("time_precision", 1)
-        self.__add("time_sync", False)
-        self.__add_list("glob_sync", [])
-        self.__add_list("var_sync", ["time"])
-        self.__add_dict("var_shift", {})
 
         # Role related
         self.__add_dict("default_role_map", {})
@@ -686,7 +716,6 @@ class SectionConfig(SectionVariable):
 
         self.__add("graph_fillstyle", "full")
         self.__add_dict("graph_tick_params", {})
-        self.__add_list("test_time_sync", [])
         self.__add("var_serie",None)
         self.__add_dict("var_names", {"result-LATENCY":"Latency (µs)", "result-THROUGHPUT":"Throughput", "^THROUGHPUT$":"Throughput", "boxplot":"", "^PARALLEL$":"Number of parallel connections", "^ZEROCOPY$":"Zero-Copy", "CDFLATPC":"CDF", "CDFLATVAL":"Latency"})
         self.__add_dict("var_unit", {"result": "","result-LATENCY":"us","latency":"us","throughput":"bps"})
@@ -695,7 +724,6 @@ class SectionConfig(SectionVariable):
         self.__add_dict("graph_background", {})
         self.__add_dict("var_round", {})
         self.__add_dict("var_aggregate", {})
-        self.__add_dict("var_repeat", {})
         self.__add_dict("var_drawstyle", {})
         self.__add_list("graph_type", [])
         self.__add("title", None)
@@ -703,6 +731,14 @@ class SectionConfig(SectionVariable):
         self.__add_dict("graph_label_dir", {})
         self.__add("graph_force_diagonal_labels", False)
         self.__add("graph_smooth", 1)
+
+        # Time series
+        self.__add("time_precision", 1)
+        self.__add("time_sync", False)
+        self.__add_list("glob_sync", [])
+        self.__add_list("var_sync", ["time"])
+        self.__add_dict("var_shift", {})
+        self.__add_dict("var_repeat", {})
 
     def var_name(self, key):
         key = key.lower()
@@ -805,7 +841,7 @@ class SectionConfig(SectionVariable):
             for match in self.get_list(key):
                 if re.match(match, val):
                     return True
-        except sre_constants.error:
+        except Exception:
             print("ERROR : Regex %s does not work" % key)
         return False
 

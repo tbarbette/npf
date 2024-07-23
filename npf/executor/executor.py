@@ -1,5 +1,6 @@
 import re
 
+
 from colorama import Fore, Back, Style
 
 foreColors = [Fore.BLACK, Fore.RED, Fore.GREEN, Fore.YELLOW, Fore.BLUE, Fore.MAGENTA, Fore.CYAN, Fore.WHITE]
@@ -9,7 +10,11 @@ class Executor:
     index = 0
 
     def __init__(self):
-        self.color = foreColors[Executor.index % len(foreColors)]
+        from npf import npf
+        if npf.options.color:
+            self.color = foreColors[Executor.index % len(foreColors)]
+        else:
+            self.color = ""
         Executor.index = Executor.index + 1
         self.path = None
 
@@ -20,7 +25,7 @@ class Executor:
 
     def _print(self, title, line, nl = True):
         try:
-            print(self.color + title + Style.RESET_ALL + ' ' + line, end=None if nl else '')
+            print(self.color + title + (Style.RESET_ALL if self.color else '') + ' ' + line, end=None if nl else '')
         except UnicodeEncodeError:
             print("Line ignored due to invalid encoding")
 

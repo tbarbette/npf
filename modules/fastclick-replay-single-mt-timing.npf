@@ -18,6 +18,7 @@ default_role_map={server:dut}
 PKTGEN_BURST_OUT=32
 PKTGEN_REPLAY_COUNT=1
 PKTGEN_REPLAY_TIME=0
+OFFSET=42
 NIC=0
 CLIENT_NIC=0
 RCV_NIC=0
@@ -60,6 +61,7 @@ DODUMP?=0
 NRECORD=EXPAND( $(( int($LIMIT / $SAMPLE * $PKTGEN_REPLAY_COUNT  * 2) )) )
 BROADCAST_IGNORE= -> c :: Classifier(0/$mac,-) //Ignore broadcasts
 GEN_RX_THREADS?=EXPAND($GEN_THREADS)
+http:GEN_HTTP_SERVER?=1
 
 %promisc:late_variables
 BROADCAST_IGNORE= -> c :: Classifier(-, 0/ffffffffffff)
@@ -68,7 +70,7 @@ BROADCAST_IGNORE= -> c :: Classifier(-, 0/ffffffffffff)
 click --dpdk -l 0-15  --socket-mem $DPDKMEM --huge-dir /mnt/hugepages  -- PKTGEN_CONFIG
 
 %-largemem:script deps=fastclick sudo=true
-click --dpdk -l 0-15  -- PKTGEN_CONFIG
+click --dpdk -l 0-15 --file-prefix=gen  -- PKTGEN_CONFIG
 //cat PKTGEN_CONFIG
 //gdb -ex run -ex "signal 2" -ex "bt" -batch -args click --dpdk -l 0-15  -- PKTGEN_CONFIG
 
@@ -90,14 +92,14 @@ define($quick true)
 define($txverbose 99)
 define($rxverbose 99)
 
-HTTPServer
+$(( "HTTPServer" if $GEN_HTTP_SERVER else "" ))
 
 fdIN :: FromDump($trace, STOP false, TIMING false, START_AFTER $STARTAFTER)
 tdIN :: ToDPDKDevice($port, BLOCKING $GEN_BLOCKING, BURST $bout, VERBOSE $txverbose, IQUEUE $bout, NDESC $GEN_DESC)
 
 
 elementclass Numberise { $magic |
-    input-> Strip(14) -> check :: CheckIPHeader(CHECKSUM false) -> nPacket :: NumberPacket(42) -> StoreData(40, $magic) -> ResetIPChecksum(L4 true) -> Unstrip(14) -> output
+    input-> Strip(14) -> check :: MarkIPHeader -> nPacket :: NumberPacket($OFFSET) -> StoreData(40, $magic) -> ResetIPChecksum(L4 true) -> Unstrip(14) -> output
 }
 
 fdIN
@@ -112,7 +114,7 @@ input
   $GEN_HOOK
   -> replay :: ReplayUnqueue(STOP 0,STOP_TIME $PKTGEN_REPLAY_TIME, QUICK_CLONE $quick, VERBOSE true, ACTIVE true, LIMIT $LIMIT, TIMING $TIMING, BURST $PKTGEN_BURST_OUT, TIMING_FNT "$TIMING_FNT")
     $LATEENSURE
-  -> rt :: RecordTimestamp(N $LIMIT, OFFSET 56)
+  -> rt :: RecordTimestamp(N $LIMIT, OFFSET $(( $OFFSET + 14 )) )
   -> avgSIN :: AverageCounter(IGNORE $ignore)
   -> avgSIN2 :: AverageCounter(IGNORE $ignore)
   -> output;
@@ -134,7 +136,7 @@ elementclass Receiver { $mac, $dir |
     input[0]
 $BROADCAST_IGNORE
     -> Strip(14)
-    -> CheckIPHeader(CHECKSUM false)
+    -> MarkIPHeader()
     -> magic :: Classifier( 40/5601,
                             40/5602,
                             40/5603,
@@ -145,28 +147,28 @@ $BROADCAST_IGNORE
     -> Discard;
 
     magic[0]
-    -> tsdA :: TimestampDiff(gen0/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE )
+    -> tsdA :: TimestampDiff(gen0/rt, OFFSET $OFFSET, N $NRECORD, SAMPLE $SAMPLE )
     -> Unstrip(14)
     -> avgA :: AverageCounterMP(IGNORE $ignore)
     -> avgA2 :: AverageCounterMP(IGNORE $ignore)
     -> Discard;
 
     magic[1]
-    -> tsdB :: TimestampDiff(gen1/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE )
+    -> tsdB :: TimestampDiff(gen1/rt, OFFSET $OFFSET, N $NRECORD, SAMPLE $SAMPLE )
     -> Unstrip(14)
     -> avgB :: AverageCounterMP(IGNORE $ignore)
     -> avgB2 :: AverageCounterMP(IGNORE $ignore)
     -> Discard;
 
     magic[2]
-    -> tsdC :: TimestampDiff(gen2/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE )
+    -> tsdC :: TimestampDiff(gen2/rt, OFFSET $OFFSET, N $NRECORD, SAMPLE $SAMPLE )
     -> Unstrip(14)
     -> avgC :: AverageCounterMP(IGNORE $ignore)
     -> avgC2 :: AverageCounterMP(IGNORE $ignore)
     -> Discard;
 
     magic[3]
-    -> tsdD :: TimestampDiff(gen3/rt, OFFSET 42, N $NRECORD, SAMPLE $SAMPLE )
+    -> tsdD :: TimestampDiff(gen3/rt, OFFSET $OFFSET, N $NRECORD, SAMPLE $SAMPLE )
     -> Unstrip(14)
     -> avgD :: AverageCounterMP(IGNORE $ignore)
     -> avgD2 :: AverageCounterMP(IGNORE $ignore)

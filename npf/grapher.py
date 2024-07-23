@@ -1273,7 +1273,8 @@ class Grapher:
                         axis.yaxis.label.set_color(legendcolors[sl])
                         axis.tick_params(axis='y',colors=legendcolors[sl])
 
-                    if ibrokenX == 0:
+                    try:
+                      if ibrokenX == 0:
                         xunit = self.scriptconfig("var_unit", key, default="n,")
                         xformat = self.scriptconfig("var_format", key, default="")
                         isLog = self.config_bool_or_in('var_log', key, default=False)
@@ -1345,7 +1346,9 @@ class Grapher:
                             else:
                                 plt.xscale('symlog')
                             plt.gca().xaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%d'))
-
+                    except Exception as e:
+                        print("Could not set log axis!")
+                        print(e)
                     if not barplot:
                         formatterSet, unithandled = self.set_axis_formatter(plt.gca().xaxis, xformat, xunit.strip(), isLog, True)
 
@@ -1432,7 +1435,7 @@ class Grapher:
                         if print_xlabel and (not barplot or xname!= "version" or (barplot and len(data) > 1)):
                             if xname == "version":
                                 print("WARNING: The label of an axis is the default value 'version'. Change it with '--config var_names+={version:My Label}'")
-                                
+
                             if horizontal:
                                 axis.set_ylabel(xname)
                             else:

@@ -215,6 +215,7 @@ class Repository:
         self.bin_name = self.reponame  # Wild guess that may work some times...
         self.build_info = None
         self.configure = ''
+        self.last_build = None
         self._last_100 = None
 
         if self.reponame == 'None':
