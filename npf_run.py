@@ -272,13 +272,14 @@ def main():
                           graph_variables=[Run(x) for x in test.variables],
                           options = args)
             if time_results:
-                for find, results in time_results.items():
+                for time_ns, results in time_results.items():
                     if not results:
                         continue
                     series_with_history = [(test, build, results)]
                     grapher.graph(series=series_with_history,
                           title=test.get_title(),
-                          filename=filename,
+                          filename = filename,
+                          fileprefix = time_ns,
                           options = args)
         if last_build and args.graph_num > 0:
             graph_builds = [last_build] + graph_builds[:-1]
