@@ -62,7 +62,7 @@ def main():
                                                 group_series(filename,args,series,time_series,options=args) if args.iterative else None
                                         )
 
-    group_series(filename, args, series, time_series, options=args)
+    group_series(filename, series, time_series, options=args)
 
 if __name__ == "__main__":
     multiprocessing.set_start_method('forkserver')

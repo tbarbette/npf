@@ -1581,7 +1581,6 @@ class Grapher:
                                 if not xmin or ma==0:
                                     xmin = mal - (d * plt.margins()[0])
                                     if (xmin <= 1):
-                                        print(xmin)
                                         plt.xlim(xmin=xmin)
                                     else:
                                         plt.xlim(xmin=pow(base,xmin))
