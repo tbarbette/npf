@@ -10,7 +10,7 @@ from npf.repository import Repository
 from npf.test import Test
 from npf.build import Build
 from npf.variable import dtype, numeric_dict
-from npf.types.dataset import Run, ImmutableRun
+from npf.types.dataset import Run
 
 import numpy as np
 
@@ -95,11 +95,13 @@ def test_runequality():
     rb["A"] = 1
     b = Run(rb)
     assert a == b
-    assert ImmutableRun(ra) == ImmutableRun(rb)
-    assert ImmutableRun(ra) == b
     assert a.inside(b)
     assert b.inside(a)
     assert a.__hash__() == b.__hash__()
+    h = a.__hash__()
+    a.write_variables()["A"] = 3
+    assert a.__hash__() != h
+    assert a != b
 
 def test_local_executor():
     l = LocalExecutor()
