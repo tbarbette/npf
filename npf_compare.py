@@ -30,7 +30,7 @@ def main():
 
     npf.add_verbosity_options(parser)
 
-    parser.add_argument('repos', metavar='repo', type=str, nargs='+', help='names of the repositories to compares. Use a format such as repo+VAR=VAL:Title to overwrite variables and serie name.')
+    parser.add_argument('repos', metavar='repo', type=str, nargs='+', help='names of the repositories to compare. Use a format such as repo+VAR=VAL:Title to overwrite variables and serie name.')
     parser.add_argument('--graph-title', type=str, nargs='?', help='Graph title')
 
     b = npf.add_building_options(parser)
@@ -62,7 +62,7 @@ def main():
                                                 group_series(filename,args,series,time_series,options=args) if args.iterative else None
                                         )
 
-    group_series(filename, series, time_series, options=args)
+    do_graph(filename, args, series, time_series, options=args)
 
 if __name__ == "__main__":
     multiprocessing.set_start_method('forkserver')
