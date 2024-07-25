@@ -48,11 +48,12 @@ def prepare_notebook_export(datasets: List[tuple], all_results_df: pd.DataFrame,
 
     n_values = len(all_results_df[x_vars].value_counts())
 
-    # graph type
+    # TODO: when there are multiple series, we should select one that is in the legend (the other is in the y-axis)
+    # graph type is decided based on the configuration and the data
     graph_type = decide_graph_type(config,
                                    n_values,
-                                   data_for_key=all_results_df[key].unique(),
-                                   result_type=result_type,
+                                   data_for_key=sorted(all_results_df[key].unique().tolist()),
+                                   result_type=result_type.lstrip("y_"),
                                    ndyn=len(x_vars), isubplot=0)
 
     print("> Notebook graph type:", graph_type)
