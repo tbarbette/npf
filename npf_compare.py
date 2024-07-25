@@ -26,6 +26,9 @@ from npf.types.series import Series
 from npf.test_driver import group_series
 
 def main():
+    """
+    The main function for running the NPF cross-repository comparator.
+    """
     parser = argparse.ArgumentParser(description='NPF cross-repository comparator')
 
     npf.add_verbosity_options(parser)
@@ -55,14 +58,14 @@ def main():
     filename = npf.ensure_folder_exists(filename)
 
     series, time_series = comparator.run(test_name=args.test_files,
-                                         tags=args.tags,
-                                         options=args,
-                                         on_finish=
+                                        tags=args.tags,
+                                        options=args,
+                                        on_finish=
                                             lambda series,time_series:
                                                 group_series(filename,args,series,time_series,options=args) if args.iterative else None
                                         )
 
-    do_graph(filename, args, series, time_series, options=args)
+    group_series(filename, series, time_series, options=args)
 
 if __name__ == "__main__":
     multiprocessing.set_start_method('forkserver')

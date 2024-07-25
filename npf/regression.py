@@ -144,7 +144,13 @@ class Regression:
             build.writeversion(test, all_results, allow_overwrite = True)
         return tests_passed, tests_total
 
-    def regress_all_tests(self, tests: List['Test'], options, history: int = 1, on_finish = None, iserie=0, nseries=1) -> Tuple[Build, List[Dataset]]:
+    def regress_all_tests(  self,
+                            tests: List['Test'],
+                            options,
+                            history: int = 1,
+                            on_finish = None,
+                            do_compare:bool = True,
+                            iserie=0, nseries=1) -> Tuple[Build, List[Dataset], List[Dataset]]:
         """
         Execute all tests passed in argument for the last build of the regressor associated repository
         :param history: Start regression at last build + 1 - history
@@ -167,9 +173,11 @@ class Regression:
         for itest,test in enumerate(tests):
             print(test)
             if build.version != "local":
-                print("[%s] Running test %s on version %s..." % (repo.name, test.filename, build.version))
+                print(
+                    f"[{repo.name}] Running test {test.filename} on version {build.version}..."
+                )
             else:
-                print("[%s] Running test %s..." % (repo.name, test.filename))
+                print(f"[{repo.name}] Running test {test.filename}...")
             regression = self
             if repo.last_build:
                 try:
@@ -202,10 +210,10 @@ class Regression:
             except ScriptInitException:
                 return None, None, None
 
-            variables_passed, variables_total = regression.compare(test, test.variables, all_results, build,
-                                                                   old_all_results,
-                                                                   repo.last_build,
-                                                                   init_done=init_done, allow_supplementary=options.allow_supplementary)
+            variables_passed, variables_total = regression.compare( test, test.variables, all_results, build,
+                                                                    old_all_results,
+                                                                    repo.last_build,
+                                                                    init_done=init_done, allow_supplementary=options.allow_supplementary)
             if variables_passed == variables_total:
                 nok += 1
             data_datasets.append(all_results)

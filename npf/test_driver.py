@@ -1,11 +1,11 @@
-from typing import List
+from typing import Dict, List, Tuple
 from npf import npf
 from npf.build import Build
 from npf.regression import Grapher, OrderedDict, Regression, npf
 from npf.repository import Repository
 from npf.statistics import Statistics
 from npf.test import Test
-from npf.types.dataset import Dataset
+from npf.types.dataset import Dataset, Run
 from npf.types.series import Series
 
 
@@ -48,7 +48,7 @@ class Comparator():
         return self.graphs_series, self.time_graphs_series
 
 
-def group_series(filename: str, series: Series , time_series:Series, options):
+def group_series(filename: str, series: Series , time_series:Series, options) -> Tuple[Dataset,Dict]:
     """
     The function merge different series together, finding common variables
 
@@ -68,7 +68,7 @@ def group_series(filename: str, series: Series , time_series:Series, options):
     #Group repo if asked to do so
     if options.group_repo:
         repo_series=OrderedDict()
-        for i, (test, build, dataset) in enumerate(series):
+        for test, build, dataset in series:
             repo_series.setdefault(build.repo.reponame,(test,build,OrderedDict()))
             for run, run_results in dataset.items():
                 run.write_variables()['SERIE'] = build.pretty_name()
@@ -105,7 +105,11 @@ def group_series(filename: str, series: Series , time_series:Series, options):
         all_variables.append(v_list)
 
         if options.statistics:
-            Statistics.run(build,dataset, test, max_depth=options.statistics_maxdepth, filename=options.statistics_filename if options.statistics_filename else npf.build_output_filename(options, [build.repo for t,build,d in series]))
+            Statistics.run(build,
+                           dataset,
+                           test,
+                           max_depth=options.statistics_maxdepth,
+                           filename=options.statistics_filename or npf.build_output_filename(options, [build.repo for t,build,d in series]))
 
     common_variables = set.intersection(*map(set, all_variables))
 
@@ -116,7 +120,7 @@ def group_series(filename: str, series: Series , time_series:Series, options):
     for variable in common_variables:
         all_values = set()
         all_alone=True
-        for i, (test, build, dataset) in enumerate(series):
+        for test, build, dataset in series:
             serie_values = set()
             for run, result_types in dataset.items():
                 if variable in run.read_variables():
@@ -153,15 +157,15 @@ def group_series(filename: str, series: Series , time_series:Series, options):
 
     #Keep only the variables in Time Run that are usefull as defined above
     if options.do_time:
-      n_time_series = OrderedDict()
-      for i, (test, build, time_dataset) in enumerate(time_series):
-        for kind, dataset in time_dataset.items():
-          new_dataset = OrderedDict()
-          n_time_series.setdefault(kind,[])
-          for run, results in dataset.items():
-            new_dataset[run.intersect(useful_variables + [kind])] = results
-          if new_dataset:
-            n_time_series[kind].append((test, build, new_dataset))
+        n_time_series = OrderedDict()
+        for test, build, time_dataset in time_series:
+            for kind, dataset in time_dataset.items():
+              new_dataset = OrderedDict()
+              n_time_series.setdefault(kind,[])
+              for run, results in dataset.items():
+                new_dataset[run.intersect(useful_variables + [kind])] = results
+              if new_dataset:
+                n_time_series[kind].append((test, build, new_dataset))
 
     grapher = Grapher()
     print("Generating graphs...")
@@ -171,11 +175,11 @@ def group_series(filename: str, series: Series , time_series:Series, options):
                       options=options,
                       title=options.graph_title)
     if options.do_time:
-        for kind,series in n_time_series.items():
-            print("Generating graph for time serie '%s'..." % kind)
-            g = grapher.graph(series=series,
-                          filename=filename,
-                          fileprefix=kind,
-                          options=options,
-                          title=options.graph_title)
+        for time_ns,series in n_time_series.items():
+            print(f"Generating graph for time serie '{time_ns}'...")
+            g = grapher.graph(  series=series,
+                                filename=filename,
+                                fileprefix=time_ns,
+                                options=options,
+                                title=options.graph_title)
     return series, time_series
