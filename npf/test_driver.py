@@ -32,7 +32,7 @@ class Comparator():
                     options=options,
                     do_compare=do_regress,
                     on_finish=lambda b,dd,td: self.build_list(on_finish,test,b,dd,td) if on_finish else None,
-                    iserie=i_repo,
+                    i_serie=i_repo,
                     nseries=len(self.repo_list)
                     )
 
