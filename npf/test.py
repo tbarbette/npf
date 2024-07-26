@@ -17,6 +17,7 @@ from npf.build import Build
 from npf.node import NIC
 from npf.section import *
 from npf.npf import get_valid_filename
+from npf.sections import Section, SectionNull
 from npf.types.dataset import Run, Dataset
 from npf.eventbus import EventBus
 from .variable import get_bool
@@ -1192,7 +1193,7 @@ class Test:
         for runs_this_pass in total_runs:  # Number of results to ensure for this run
             n = 0
             overriden = set(build.repo.overriden_variables.keys())
-            all_variables = list(self.variables.expand(method=options.expand, overriden=overriden))
+            all_variables = self.variables.expand(method=options.design, overriden=overriden, results=all_data_results)
             n_tests = len(all_variables)
             for root_variables in all_variables:
                 n += 1
@@ -1344,7 +1345,7 @@ class Test:
                                 if desc:
                                     print(desc, end=' ')
                                 print(
-                                  ("[%srun %d/%d for test %d/%d"+(" of serie %d/%d" %(iserie+1,nseries) if nseries > 1 else "")+"]") % (  ("retrying %d/%d " % (i_try + 1,n_try)) if i_try > 0 else "", i+1, n_runs, n, n_tests))
+                                  ("[%srun %d/%d for test %d/%d"+(" of serie %d/%d" %(iserie+1,nseries) if nseries > 1 else "")+"]") % (  ("retrying %d/%d " % (i_try + 1,n_try)) if i_try > 0 else "", i+1, n_runs, n, len(all_variables)))
 
                     new_data_results, new_all_time_results, output, err, n_exec, n_err = self.execute(build, run, variables,
                                                                                                   n_runs,

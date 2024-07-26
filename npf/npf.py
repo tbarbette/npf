@@ -172,9 +172,9 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
     t.add_argument('--no-mp', dest='allow_mp', action='store_false',
                    default=True, help='Run tests in the same thread. If there is multiple script, they will run '
                                       'one after the other, hence breaking most of the tests.')
-    t.add_argument('--expand', type=str, default=None, dest="expand")
-    t.add_argument('--rand-env', type=int, default=65536, dest="rand_env")
-    t.add_argument('--experimental-design', type=str, default="matrix.csv", help="The path towards the experimental design point selection file")
+    t.add_argument('--exp-design', type=str, default="full", dest="design", help="Experimental design method")
+    t.add_argument('--spacefill', type=str, default="matrix.csv", dest="spacefill", help="The path towards the space filling values matrix")
+    t.add_argument('--rand-env', type=int, default=65536, dest="rand_env", help="Add an environmental variable of a random size to prevent bias")
 
     c = parser.add_argument_group('Cluster options')
     c.add_argument('--cluster', metavar='role=user@address:path [...]', type=str, nargs='*', default=[],

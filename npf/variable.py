@@ -267,7 +267,7 @@ class ExperimentalDesign:
 
     @classmethod
     def load(cls):
-        path = npf.find_local(sys.modules["npf.npf"].options.experimental_design)
+        path = npf.find_local(sys.modules["npf.npf"].options.spacefill)
         assert path is not None
 
         with open(path) as fd:
