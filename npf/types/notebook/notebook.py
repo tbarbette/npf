@@ -65,6 +65,10 @@ def prepare_notebook_export(datasets: List[tuple], all_results_df: pd.DataFrame,
     # keep only cells with the specified tag
     nb.cells = [cell for cell in nb.cells if has_tag(cell, graph_type)]
 
+    # remove cell tags
+    for cell in nb.cells:
+        cell.metadata.pop("tags", None)
+
     # render cells by replacing variables in the template using jinja2
     for cell in nb.cells:
         cell_template = Template(cell.source)
@@ -93,9 +97,10 @@ def prepare_notebook_export(datasets: List[tuple], all_results_df: pd.DataFrame,
             print("Notebook exported to", path)
 
 
-def has_tag(cell, tag):
-    """Returns True if the cell has the specified tag."""
-    return tag in cell.metadata.get("tags", [])
+def has_tag(cell, tag) -> bool:
+    """Returns True if the cell has the specified tag or "all"."""
+    tags = cell.metadata.get("tags", [])
+    return tag in tags or "all" in tags
 
 
 def get_name(var: str | list[str], var_names: dict[str, str]) -> str | list[str]:
