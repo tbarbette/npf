@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from math import ceil, log2
 from typing import Dict
 
 import numpy as np
@@ -20,24 +21,32 @@ class ZLTVariableExpander(FullVariableExpander):
         del vlist[input]
         self.current = None
         self.output = output
-        self.passed = 0
+        self.n_done = 0
+        self.n_it = 0
+        self.n_tot_done = 0
         self.margin = margin
         self.all = all
         super().__init__(vlist, overriden)
         
     def __iter__(self):
         self.it = self.expanded.__iter__()
-        self.passed = 0
+        self.current = None
+        self.n_it = 0
+        self.n_tot_done = 0
         return self
     
     def __len__(self):
-        return len(self.expanded) * len(self.input_values) - self.passed
+        return int(len(self.expanded) * ceil(log2(len(self.input_values)) if (self.n_it <= 1) else self.n_tot_done/(self.n_it - 1)))
 
     def __next__(self):
 
         if self.current == None:
             self.current = self.it.__next__()
-            
+            self.n_it += 1
+            self.n_tot_done += self.n_done
+            self.n_done = 0
+
+
         # get all outputs for all inputs
         vals_for_current = {}
         acceptable_rates = []
@@ -64,7 +73,6 @@ class ZLTVariableExpander(FullVariableExpander):
             
             if len(acceptable_rates) == 1 and not self.all:
                     self.current = None
-                    self.passed += len(self.input_values) - 1
                     return self.__next__()
                 
             #Step 2 : go for the rate below the max output
@@ -90,7 +98,6 @@ class ZLTVariableExpander(FullVariableExpander):
                 if len(left_to_try_over_acceptable) == 0:
                             #Found!
                             self.current = None
-                            self.passed += len(self.input_values) - len(vals_for_current)
                             return self.__next__()
                 #Binary search
                 if self.all:
@@ -101,6 +108,7 @@ class ZLTVariableExpander(FullVariableExpander):
             
         copy = self.current.copy()
         copy.update({self.input : next_val})
+        self.n_done += 1
         return copy
         
         
