@@ -200,7 +200,7 @@ class SectionVariable(Section):
             values.append(SectionVariable.replace_variables(v, value))
         return values
 
-    def expand(self, results, method=None, overriden=set()):
+    def expand(self, results={}, method="full", overriden=set()):
         if method == "shuffle" or method == "rand" or method == "random":
             return RandomVariableExpander(self.vlist)
         elif method.lower().startswith("zlt"):
