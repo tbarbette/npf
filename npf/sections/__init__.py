@@ -205,7 +205,11 @@ class SectionVariable(Section):
             return RandomVariableExpander(self.vlist)
         elif method.lower().startswith("zlt"):
             params = method[4:-1].split(",")
-            return ZLTVariableExpander(self.vlist, overriden=overriden, results=results, input=params[0], output=params[1])
+            return ZLTVariableExpander(self.vlist, overriden=overriden, results=results, input=params[0], output=params[1], margin=1.01 if len(params) == 2 else float(params[2]))
+        elif method.lower().startswith("allzlt"):
+            params = method[7:-1].split(",")
+            return ZLTVariableExpander(self.vlist, overriden=overriden, results=results, input=params[0], output=params[1], margin=1.01 if len(params) == 2 else float(params[2]), all=True)
+
         else:
             return FullVariableExpander(self.vlist, overriden)
 

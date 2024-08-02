@@ -9,7 +9,7 @@ from npf.variable import Variable
 
 class ZLTVariableExpander(FullVariableExpander):
 
-    def __init__(self, vlist:Dict[str,Variable], results, overriden, input, output):
+    def __init__(self, vlist:Dict[str,Variable], results, overriden, input, output, margin, all=False):
         
         
         if not input in vlist:
@@ -21,6 +21,8 @@ class ZLTVariableExpander(FullVariableExpander):
         self.current = None
         self.output = output
         self.passed = 0
+        self.margin = margin
+        self.all = all
         super().__init__(vlist, overriden)
         
     def __iter__(self):
@@ -32,7 +34,7 @@ class ZLTVariableExpander(FullVariableExpander):
         return len(self.expanded) * len(self.input_values) - self.passed
 
     def __next__(self):
-        margin=1.01
+
         if self.current == None:
             self.current = self.it.__next__()
             
@@ -47,7 +49,7 @@ class ZLTVariableExpander(FullVariableExpander):
                         r_out = np.mean(vals[self.output])
                         r_in = r.variables[self.input]
                         vals_for_current[r_in] = r_out
-                        if r_out >= r_in/margin:
+                        if r_out >= r_in/self.margin:
                             acceptable_rates.append(r_in)
                         else:
                             max_r = min(max_r, r_out)
@@ -60,7 +62,7 @@ class ZLTVariableExpander(FullVariableExpander):
         elif len(vals_for_current) == 1:
             #If we're lucky, the max rate is doable
             
-            if len(acceptable_rates) == 1:
+            if len(acceptable_rates) == 1 and not self.all:
                     self.current = None
                     self.passed += len(self.input_values) - 1
                     return self.__next__()
@@ -70,7 +72,7 @@ class ZLTVariableExpander(FullVariableExpander):
             next_val = max(maybe_achievable_inputs)
         else:
             
-            maybe_achievable_inputs = list(filter(lambda x : x <= max_r*margin, self.input_values))
+            maybe_achievable_inputs = list(filter(lambda x : x <= max_r*self.margin, self.input_values))
             left_to_try = set(maybe_achievable_inputs).difference(vals_for_current.keys())
             
             #Step 3...K : try to get an acceptable rate. This step might be skiped if we got an acceptable rate already
@@ -82,7 +84,7 @@ class ZLTVariableExpander(FullVariableExpander):
                 next_val = max(filter(lambda x : x < target,left_to_try))
             else:
                 #Step K... n : we do a binary search between the maximum acceptable rate and the minimal rate observed
-                max_acceptable = max(acceptable_rates)
+                max_acceptable = -1 if self.all else max(acceptable_rates)
                 #Consider we tried 100->95 (max_r=95), 90->90 (acceptable) we have to try values between 90..95
                 left_to_try_over_acceptable = list(filter(lambda x: x > max_acceptable, left_to_try))
                 if len(left_to_try_over_acceptable) == 0:
@@ -91,7 +93,10 @@ class ZLTVariableExpander(FullVariableExpander):
                             self.passed += len(self.input_values) - len(vals_for_current)
                             return self.__next__()
                 #Binary search
-                next_val = left_to_try_over_acceptable[int(len(left_to_try_over_acceptable) / 2)]
+                if self.all:
+                    next_val=max(left_to_try_over_acceptable)
+                else:
+                    next_val = left_to_try_over_acceptable[int(len(left_to_try_over_acceptable) / 2)]
 
             
         copy = self.current.copy()
