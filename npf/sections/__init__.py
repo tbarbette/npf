@@ -203,12 +203,16 @@ class SectionVariable(Section):
     def expand(self, results={}, method="full", overriden=set()):
         if method == "shuffle" or method == "rand" or method == "random":
             return RandomVariableExpander(self.vlist)
-        elif method.lower().startswith("zlt"):
-            params = method[4:-1].split(",")
-            return ZLTVariableExpander(self.vlist, overriden=overriden, results=results, input=params[0], output=params[1], margin=1.01 if len(params) == 2 else float(params[2]))
-        elif method.lower().startswith("allzlt"):
-            params = method[7:-1].split(",")
-            return ZLTVariableExpander(self.vlist, overriden=overriden, results=results, input=params[0], output=params[1], margin=1.01 if len(params) == 2 else float(params[2]), all=True)
+        elif "zl" in method.lower():
+            if method.lower().startswith("allzl"):
+                params = method[7:-1].split(",")
+                all = True
+                perc = method.lower()[5] == 'p'
+            else:
+                params = method[4:-1].split(",")
+                all = False
+                perc = method.lower()[2] == 'p'
+            return ZLTVariableExpander(self.vlist, overriden=overriden, results=results, input=params[0], output=params[1], margin=1.01 if len(params) == 2 else float(params[2]), all=all, perc=perc)
 
         else:
             return FullVariableExpander(self.vlist, overriden)

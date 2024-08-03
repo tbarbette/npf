@@ -17,5 +17,7 @@ else
 fi
 
 t=$(echo "$RATE*(100-$d)/100" | bc)
+p=$(echo "$t * 100 / $RATE" | bc)
 echo "RESULT-DROPPEDPC $d"
+echo "RESULT-GOODPC $p"
 echo "RESULT-THROUGHPUT $t"
