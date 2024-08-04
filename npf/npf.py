@@ -1,6 +1,8 @@
 import sys
 import argparse
 import os
+
+from pathlib import Path
 from argparse import ArgumentParser
 from typing import Dict, List
 
@@ -9,7 +11,6 @@ import re
 from decimal import Decimal
 
 from npf.node import Node
-from .variable import VariableFactory
 
 import numpy as np
 
@@ -158,6 +159,8 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
                    help='list of variables values to override', default=[])
     t.add_argument('--config', metavar='config=value', type=str, nargs='+', action=ExtendAction,
                    help='list of config values to override', default=[])
+
+    t.add_argument('--env', metavar='list of variables', dest='keep_env', type=str, nargs='+', help='list of environment variables to pass in scripts', default=[], action=ExtendAction)
 
     t.add_argument('--test', '--test', '--npf', dest='test_files', metavar='path or test', type=str, nargs='?', default='tests',
                    help='script or script folder. Default is tests')
@@ -512,3 +515,13 @@ def all_num(l):
         if type(x) is not int and type(x) is not Decimal and not isinstance(x, (np.floating, float)):
             return False
     return True
+
+
+def ensure_folder_exists(filename):
+    savedir = Path(os.path.dirname(filename))
+    if not savedir.exists():
+        os.makedirs(savedir.as_posix())
+
+    if not os.path.isabs(filename):
+        filename = os.getcwd() + os.sep + filename
+    return filename

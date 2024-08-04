@@ -76,7 +76,7 @@ def _parallel_exec(param: RemoteParameters):
         if wf[0].isdigit():
             n=int(wf[0])
             wf=wf[1:]
-        for i in range(n):
+        for _ in range(n):
             param.event.listen(wf)
 
     param.event.wait_for_termination(param.delay)
@@ -167,7 +167,7 @@ class Test:
         self.filename = os.path.basename(test_path)
         self.path = os.path.dirname(os.path.abspath(test_path))
         self.options = options
-        self.tags = tags if tags else []
+        self.tags = tags or []
         self.role = role
         self.pyexits = []
 
@@ -401,11 +401,20 @@ class Test:
         return missings
 
     def build_file_list(self, v, self_role=None, files=None) -> List[Tuple[str, str, str]]:
+        """
+        Builds a list of files based on the provided variables and role.
+
+        :param v: A dictionary of variables to be used for file creation
+        :param self_role: The role associated with the current instance
+        :param files: A list of files to process
+        :returns: A list of tuples containing the filename, content, and role for each file
+        """
         create_list = []
         if files is None:
             files = self.files
+
         for s in files:
-            role = s.get_role() if s.get_role() else self_role
+            role = s.get_role() or self_role
             v["NPF_NODE_MAX"] = len(npf.nodes_for_role(role))
             if not s.noparse:
                 s.filename = SectionVariable.replace_variables(v, s.filename, role, default_role_map = self.config.get_dict("default_role_map"))
@@ -425,12 +434,12 @@ class Test:
         unique_list = {}
         for filename, p, role in file_list:
             if filename in unique_list:
-                if unique_list[filename + (role if role else '')][1] != p:
+                if unique_list[filename + (role or '')][1] != p:
                     raise Exception(
                         "File name conflict ! Some of your scripts try to create some file with the same name but "
                         "different content (%s) !" % filename)
             else:
-                unique_list[filename + (role if role else '')] = (filename, p, role)
+                unique_list[filename + (role or '')] = (filename, p, role)
 
         for _, (filename, p, role) in unique_list.items():
             if self.options.show_files:
@@ -481,7 +490,7 @@ class Test:
                 pass
 
             i = 0
-            while killer.is_alive() and i < 500:
+            while killer.is_alive() and i < 2000:
                 time.sleep(0.010)
                 i += 1
             try:
@@ -498,8 +507,8 @@ class Test:
         tp = os.path.relpath(self.path,abs_test_folder)
 
         if node and node.executor.path:
-            bp = os.path.relpath(bp, npf.experiment_path() + '/testfolder/')
-            rp = os.path.relpath(rp, npf.experiment_path() + '/testfolder/')
+            bp = os.path.relpath(bp, f'{npf.experiment_path()}/testfolder/')
+            rp = os.path.relpath(rp, f'{npf.experiment_path()}/testfolder/')
         v_internals.update({
                         'NPF_REPO':get_valid_filename(build.repo.name),
                         'NPF_REPO_PATH': rp,
@@ -523,9 +532,9 @@ class Test:
                 for nr in re.finditer(result_regex, output.strip(), re.IGNORECASE):
                     result_type = nr.group("type")
 
-                    kind = nr.group("kind")
-                    if kind is None:
-                        kind = "time"
+                    time_ns = nr.group("kind")
+                    if time_ns is None:
+                        time_ns = "time"
                     time_value = nr.group("time_value")
                     if result_type is None:
                         result_type = ''
@@ -559,22 +568,22 @@ class Test:
                         result_overwrite = self.config.get_bool_or_in("result_overwrite", result_type)
                         if time_value:
                             t = float(time_value)
-                            if result_type in new_time_results.setdefault(kind,{}).setdefault(t, {}):
+                            if result_type in new_time_results.setdefault(time_ns,{}).setdefault(t, {}):
                                 #Result is already known
                                 if result_add:
-                                    new_time_results[kind][t][result_type] += n
+                                    new_time_results[time_ns][t][result_type] += n
                                 elif result_overwrite:
-                                    new_time_results[kind][t][result_type] = n
+                                    new_time_results[time_ns][t][result_type] = n
                                 else:
                                     if not result_append:
                                         print(f"WARNING: There are multiple occurences of metric {result_type} for the same time {t}, please add the metric {result_type} in result_add, result_append or result_overwrite. result_appe d is selected by default, add `result_append={{{result_type}}}` to %config to silent this message.")
 
-                                    if type(new_time_results[kind][t][result_type]) is not list:
-                                        new_time_results[kind][t][result_type] = [new_time_results[kind][t][result_type]]
+                                    if type(new_time_results[time_ns][t][result_type]) is not list:
+                                        new_time_results[time_ns][t][result_type] = [new_time_results[time_ns][t][result_type]]
 
-                                    new_time_results[kind][t][result_type].append(n)
+                                    new_time_results[time_ns][t][result_type].append(n)
                             else:
-                                new_time_results[kind][t][result_type] = n
+                                new_time_results[time_ns][t][result_type] = n
                         else:
                             if result_append:
                                 new_data_results.setdefault(result_type,[]).append(n)
@@ -689,7 +698,7 @@ class Test:
 
                   v["NPF_ROLE"] = role
                   for script in t.scripts:
-                    srole = role if role else script.get_role()
+                    srole = role or script.get_role()
                     nodes = npf.nodes_for_role(srole)
 
                     autokill = m.Value('i', 0) if npf.parseBool(script.params.get("autokill", t.config["autokill"])) else None
@@ -783,9 +792,12 @@ class Test:
                         param.name = script.get_name(True)
                         param.autokill = autokill
                         param.env = OrderedDict()
+                        if self.options.keep_env:
+                            param.env.update({key:os.environ[key] for key in self.options.keep_env})
                         param.env.update(v_internals)
                         param.env.update([(k, v.replace('$NPF_BUILD_PATH', build.repo.get_build_path())) for k, v in
                                           build.repo.env.items()])
+
 
                         if self.options.rand_env:
                             param.env['RANDENV'] = ''.join(random.choice(string.ascii_lowercase) for i in range(random.randint(0,self.options.rand_env)))
@@ -1136,11 +1148,11 @@ class Test:
                     prev_time_results: Dict[str, Dataset] = None,
                     iserie=0,
                     nseries=1) -> Tuple[
-        Dataset, bool]:
+        Dataset, Dataset, bool]:
         """Execute script for all variables combinations for this specific build.
         All tools rely on this function for execution of the tests.
 
-        :param allowed_types:Tyeps of scripts allowed to run. Set with either init, scripts or both
+        :param allowed_types:Type of scripts allowed to run. Set with either init, scripts or both
         :param do_test: Actually run the tests
         :param options: NPF options object
         :param build: A build object
@@ -1167,7 +1179,7 @@ class Test:
             self.do_init_all(build, options, do_test=do_test, allowed_types=allowed_types, v_internals=v_internals)
             if not self.options.preserve_temp:
                 shutil.rmtree(test_folder)
-            return {}, True
+            return {}, {}, True
 
         all_data_results = OrderedDict()
         all_time_results = OrderedDict()
@@ -1193,10 +1205,11 @@ class Test:
                     for k,v in imp.test.variables.statics().items():
                         variables[k] = v.makeValues()[0]
 
-                run = Run(variables)
                 variables.update(root_variables)
-                run.variables.update(build.repo.overriden_variables)
-                variables = run.variables.copy()
+                run = Run(variables)
+
+                run.write_variables().update(build.repo.overriden_variables)
+                variables = run.read_variables().copy()
 
                 if shadow_variables:
                     shadow_variables.update(root_variables)
@@ -1248,14 +1261,14 @@ class Test:
                     prev_time_results = nprev_time_results
                 if not run_results and options.use_last and build.repo.url:
                     for version in build.repo.method.get_history(build.version, limit=options.use_last):
-                        oldb = Build(build.repo, version)
+                        oldb = Build(build.repo, version, options.result_path)
                         r = oldb.load_results(self)
                         if r and run in r:
                             run_results = r[run]
                             break
                 if not time_results and options.use_last and build.repo.url:
                     for version in build.repo.method.get_history(build.version, limit=options.use_last):
-                        oldb = Build(build.repo, version)
+                        oldb = Build(build.repo, version, options.result_path)
                         r = oldb.load_results(self, kind=True)
                         found = False
                         if r:
@@ -1375,7 +1388,7 @@ class Test:
                     for kind, kresults in new_all_time_results.items():
                       time_results.setdefault(kind, OrderedDict())
                       for time, results in sorted(kresults.items()):
-                        time_run = Run(run.variables.copy())
+                        time_run = Run(run.read_variables().copy())
                         time_run.variables[kind] = time
                         for result_type, result in results.items():
                             rt = time_results[kind].setdefault(time_run, {}).setdefault(result_type, [])
