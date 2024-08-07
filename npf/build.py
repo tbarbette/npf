@@ -115,7 +115,7 @@ class Build:
         f.seek(0)
         for run, results in all_results.items():
             v = []
-            for key, val in sorted(run.variables.items()):
+            for key, val in sorted(run.read_variables().items()):
                 if type(val) is tuple:
                     val = val[1]
                 v.append((key + ":" + str(val).replace('\\:', ':').replace(':','\\:')).replace('\\,', ',').replace(',','\\,'))
@@ -145,14 +145,27 @@ class Build:
                 if os.path.basename(filename) in f:
                     kind = f[f.rfind("-") + 1 :]
                     f = filename + kind
-                    kr[kind] = self._load_results(test, f, cache)
+                    kr[kind] = self._load_results(f, cache)
             return kr
 
         else:
             filename = self.__resultFilename(test)
-            return self._load_results(test, filename, cache)
+            return self._load_results(filename, cache)
 
-    def _load_results(self, test, filename, cache):
+    def _load_results(self, filename, cache):
+        """
+        The function `_load_results` reads data from a file, parses it, and returns the results in a
+        dictionary format.
+
+        :param filename: The `filename` parameter is a string that represents the name of the file from
+        which the results will be loaded
+        :param cache: The `cache` parameter is a boolean value that determines whether or not to use a
+        cache to store and retrieve previously loaded results. If `cache` is `True`, the function will
+        check if the `filename` is already in the cache and return the cached results if available. If
+        `cache`
+        :return: the variable "all_results", which is a dictionary containing the parsed results from
+        the file.
+        """
         if not Path(filename).exists():
             return None
         if cache:
@@ -171,7 +184,7 @@ class Build:
                 for v_data in re.split(r'(?<!\\),', variables_data):
                     if v_data.strip():
                         k, v = re.split(r'(?<!\\):', v_data)
-                        variables[k] = variable.get_numeric(v) if test.variables.is_numeric(k) else str(v).replace('\:',':')
+                        variables[k] = variable.get_numeric(v) if variable.is_numeric(k) else str(v).replace('\\:',':')
                 results = {}
 
                 results_data = results_data.strip()[1:-1].split('},{')
@@ -189,7 +202,7 @@ class Build:
                         results[type_r] = type_results
                 all_results[Run(variables)] = results
         except:
-            print("Could not parse %s. The program will stop to avoid erasing data. Please correct or delete the file.\nLine %d : %s" % (filename,iline, line))
+            print("Could not parse %s. The program will stop to avoid erasing data. Please correct or delete the file.\nLine %d : %s\n" % (filename,iline, line))
             raise
         f.close()
         self.cache[filename] = all_results

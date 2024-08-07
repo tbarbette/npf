@@ -24,12 +24,15 @@ from pygtrie import Trie
 from math import log,pow
 
 from npf.types import dataset
-from npf.types.dataset import Run, XYEB, AllXYEB, group_val
+from npf.types.series import Series
+from npf.types.dataset import Run, XYEB, AllXYEB, group_val, var_divider
 from npf.variable import is_log, is_numeric, get_numeric, numericable, get_bool, is_bool
 from npf.section import SectionVariable
 from npf.build import Build
 from npf.graph_choice import decide_graph_type
-from npf import npf, variable
+from npf.variable_to_series import extract_variable_to_series
+from npf.series_to_graph import series_to_graph
+from npf import npf, variable, Graph
 
 import matplotlib
 # There is a matplotlib bug which causes CI failures
@@ -43,8 +46,7 @@ matplotlib.use('Agg')
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 import matplotlib.pyplot as plt
-from matplotlib.ticker import LinearLocator, ScalarFormatter, Formatter, MultipleLocator, NullLocator
-from matplotlib.lines import Line2D
+from matplotlib.ticker import Formatter, NullLocator
 from matplotlib.ticker import FuncFormatter, FormatStrFormatter, EngFormatter
 import matplotlib.transforms as mtransforms
 
@@ -53,8 +55,6 @@ import itertools
 import math
 import os
 import webcolors
-
-from scipy.ndimage import gaussian_filter1d
 
 import pandas as pd
 
@@ -95,19 +95,16 @@ def buildLight(c,m=4):
     return l
 
 graphcolorseries = [graphcolor]
-#graphcolorseries.append(hexToList("#144c73 #185a88 #1b699e #1f77b4 #2385ca #2b93db #419ede"))
-#graphcolorseries.append(hexToList("#1c641c #217821 #278c27 #2ca02c #32b432 #37c837 #4bce4b"))
-#graphcolorseries.append(hexToList("#c15a00 #da6600 #f47200 #ff7f0e #ff8d28 #ff9a41 #ffa85b"))
-#graphcolorseries.append(hexToList("#951b1c #ab1f20 #c02324 #d62728 #db3b3c #df5152 #e36667"))
-#graphcolorseries.append(hexToList("#6e4196 #7b49a8 #8755b5 #9467bd #a179c5 #ad8bcc #ba9cd4"))
+
 for i in range((int)(len(graphcolor) / 2)):
     graphcolorseries.append(buildLight([(graphcolor[i * 2][c] + graphcolor[i * 2 + 1][c]) / 2 for c in range(3)]))
 
 gridcolors = [ (0.7,0.7,0.7) ]
 legendcolors = [ None ]
+
 for clist in graphcolorseries[1:]:
-    gridcolors.append(lighter(clist[(int)(len(clist) / 2)], 0.25, 200))
-    legendcolors.append(lighter(clist[(int)(len(clist) / 2)], 0.45, 25))
+    gridcolors.append(lighter(clist[len(clist) // 2], 0.25, 200))
+    legendcolors.append(lighter(clist[len(clist) // 2], 0.45, 25))
 
 def find_base(ax):
     if ax[0] == 0 and len(ax) > 2:
@@ -158,10 +155,7 @@ class Map(OrderedDict):
                 self[re.compile(k)] = v
 
     def search(self, map_v):
-        for k,v in self.items():
-            if re.search(k,str(map_v)):
-                return v
-        return None
+        return next((v for k, v in self.items() if re.search(k,str(map_v))), None)
 
 
 def guess_type(d):
@@ -171,7 +165,7 @@ def guess_type(d):
     return d
 
 
-def broken_axes_ratio (values):
+def broken_axes_ratio(values):
     if len(values) == 3:
         _, _, ratio = values
         if ratio is not None:
@@ -181,91 +175,6 @@ def broken_axes_ratio (values):
         if vmin is not None and vmax is not None:
             return vmax-vmin
     return 1
-
-
-class Graph:
-    """
-    This is a structure holder for data to build a graph
-    """
-    def __init__(self, grapher:'Grapher'):
-        self.grapher = grapher
-        self.subtitle = None
-        self.data_types = None
-
-    def statics(self):
-        return dict([(var,list(values)[0]) for var,values in self.vars_values.items() if len(values) == 1])
-
-    def dyns(self):
-        return [var for var,values in self.vars_values.items() if len(values) > 1]
-
-    #Convert the series into the XYEB format (see types.dataset)
-    def dataset(self,kind=None):
-        if not self.data_types:
-
-            self.data_types = dataset.convert_to_xyeb(
-                datasets = self.series,
-                run_list = self.vars_all,
-                key = self.key,
-                max_series=self.grapher.config('graph_max_series'),
-                do_x_sort=self.do_sort,
-                series_sort=self.grapher.config('graph_series_sort'),
-                options=self.grapher.options,
-                statics=self.statics(),
-                y_group=self.grapher.configdict('graph_y_group'),
-                color=[get_numeric(v) for v in self.grapher.configlist('graph_color')],
-                kind=kind
-                )
-
-        return self.data_types
-
-    def split_for_series(self):
-        '''Make a sub-graph per serie'''
-        sg = []
-        for script,build,all_results in self.series:
-            subgraph = self.grapher.series_to_graph([(script,build,all_results)], self.dyns(), self.vars_values.copy(), self.vars_all.copy())
-            subgraph.subtitle = ((self.title + " : ") if self.title else '') + build.pretty_name()
-            subgraph.title = self.title
-            sg.append(subgraph)
-        return sg
-
-    # Divide all series by the first one, making a percentage of difference
-    @staticmethod
-    def series_prop(series, prop, exclusions = []):
-            if len(series) == 1:
-                raise Exception("Cannot make proportional series with only one serie !")
-            newseries = []
-            if not is_numeric(prop):
-                prop=1
-            if len(series[0]) < 3:
-                raise Exception("Malformed serie !")
-            base_results=series[0][2]
-            for i, (script, build, all_results) in enumerate(series[1:]):
-                new_results={}
-                for run,run_results in all_results.items():
-                    if not run in base_results:
-                        print(run,"FIXME is not in base")
-                        continue
-
-                    for result_type, results in run_results.items():
-                        if not result_type in base_results[run]:
-                            run_results[result_type] = None
-                            print(result_type, "not in base for %s" % run)
-                            continue
-                        base = base_results[run][result_type]
-                        if len(base) > len(results):
-                            base = base[:len(results)]
-                        elif len(results) > len(base):
-                            results = results[:len(base)]
-                        base = np.array(base)
-                        results = np.array(results)
-                        if result_type not in exclusions:
-                            f = np.nonzero(base)
-                            results = (results[f] / base[f] * float(abs(prop)) + (prop if prop < 0 else 0))
-                        run_results[result_type] = results
-                    new_results[run] = run_results
-                build._pretty_name = build._pretty_name + " / " + series[0][1]._pretty_name
-                newseries.append((script, build, new_results))
-            return newseries
 
 
 class Grapher:
@@ -421,7 +330,7 @@ class Grapher:
         if len(variables_to_merge) == 1:
             for run in run_list:
                 s = []
-                for k, v in run.variables.items():
+                for k, v in run.read_variables().items():
                     if k in variables_to_merge:
                         s.append("%s" % str(v[1] if type(v) is tuple else v))
                 ss.append(','.join(s))
@@ -431,7 +340,7 @@ class Grapher:
             for run in run_list:
                 s = []
                 short_s = {}
-                for k, v in run.variables.items():
+                for k, v in run.read_variables().items():
                     if k in variables_to_merge:
                         v = str(v[1] if type(v) is tuple else v)
                         s.append("%s = %s" % (self.var_name(k), v))
@@ -462,10 +371,10 @@ class Grapher:
                     #                        continue
                 newrun = run.copy()
                 for k in key.split("+"):
-                    if k in newrun.variables:
-                        del newrun.variables[k]
+                    if k in newrun.write_variables():
+                        del newrun.write_variables()[k]
 
-                newrun.variables[key] = 'AGG'
+                newrun.write_variables()[key] = 'AGG'
 
                 aggregates.setdefault(newrun,[]).append(run_results)
 
@@ -512,9 +421,9 @@ class Grapher:
             for run, run_results in all_results.items():
                 #                    if (graph_variables and not run in graph_variables):
                 #                        continue
-                if run.variables[key] == value:
+                if run.read_variables()[key] == value:
                     newrun = run.copy()
-                    del newrun.variables[key]
+                    del newrun.write_variables()[key]
                     newserie[newrun] = run_results
                     new_varsall.add(newrun)
 
@@ -528,7 +437,6 @@ class Grapher:
             series.append((script, nb, newserie))
             self.glob_legend_title = self.var_name(key)
         vars_all = list(new_varsall)
-
         if len(dyns) == 1:
             key = dyns[0]
             do_sort = True
@@ -645,14 +553,41 @@ class Grapher:
                 transformed_series.append((test, build, new_results))
             return transformed_series
 
-    def graph(self, filename, options, fileprefix=None, graph_variables: List[Run] = None, title=False, series=None):
-        """series is a list of triplet (script,build,results) where
-        result is the output of a script.execute_all()"""
+    def graph(self, filename, options, fileprefix=None, graph_variables: List[Run] = None, title=False, series:Series=None):
+        """
+        The function "graph" is used to create a graph based on the given parameters and save it to a
+        file.
+
+        :param filename: The filename parameter is a string that represents the name of the file where
+        the graph will be saved
+        :param options: The "options" parameter is a dictionary that contains various options for
+        customizing the graph. It is the result of the parsing of the arguments, equal to npf.options.
+        It is passed for legacy reasons.
+        :param fileprefix: The `fileprefix` parameter is an optional prefix that can be added to the
+        filename of the graph. It is useful when you want to differentiate between multiple graphs that
+        are being generated. If `fileprefix` is provided, it will be added to the beginning of the
+        filename followed by an underscore
+        :param graph_variables: The `graph_variables` parameter is a list of `Run` objects. Each `Run`
+        object represents a set of data points that will be plotted on the graph. If none, all observations
+        will be shown.
+        :type graph_variables: List[Run]
+        :param title: The `title` parameter is a boolean value that determines whether or not to display
+        a title for the graph. If `title` is set to `True`, a title will be displayed on the graph. If
+        `title` is set to `False`, no title will be displayed, defaults to False (optional)
+        :param series: The "series" parameter is used to specify the data series that will be plotted on
+        the graph. It is typically a list of values or a list of lists, where each value or sublist
+        represents a data series. Each data series will be plotted as a separate line or bar on the
+        graph
+        """
         self.options = options
         if self.options.graph_size is None:
             self.options.graph_size = plt.rcParams["figure.figsize"]
         if series is None:
             series = []
+
+
+        for test, _, _ in series:
+                self.scripts.add(test)
 
         # If no graph variables, use the first serie
         if graph_variables is None:
@@ -660,26 +595,6 @@ class Grapher:
             for serie in series:
                 for run, results in serie[2].items():
                     graph_variables.add(run)
-
-        # Get all scripts, and execute pypost
-        for i, (test, build, all_results) in enumerate(series):
-            self.scripts.add(test)
-
-            if hasattr(test, 'pypost'):
-                def common_divide(a,b):
-                    m = min(len(a),len(b))
-                    return np.array(a)[:m] / np.array(b)[:m]
-                def results_divide(res,a,b):
-                    for RUN, RESULTS in all_results.items():
-                        if a in RESULTS and b in RESULTS:
-                            all_results[RUN][res] = common_divide(RESULTS[a], RESULTS[b])
-                vs = {'ALL_RESULTS': all_results, 'common_divide': common_divide, 'results_divide': results_divide}
-                try:
-                    exec(test.pypost.content, vs)
-                except Exception as e:
-                    print("ERROR WHILE EXECUTING PYPOST SCRIPT:")
-                    print(e)
-
 
         if not series:
             print("No data...")
@@ -729,6 +644,8 @@ class Grapher:
         self.graphlines = self.configlist("graph_lines")
 
         # Combine variables as per the graph_combine_variables config parameter
+        # for instance if A has [1,2] values and B has [yes,no], graph_combine_variables={A+B:Unique}
+        # will remove A and B, and create a new Unique variables with ["1, yes", "1, no", "2, yes", "2, no"]
         for tocombine in self.configlist('graph_combine_variables', []):
             if type(tocombine) is tuple:
                 toname = tocombine[1]
@@ -785,12 +702,12 @@ class Grapher:
                         if self.options.graph_select_max:
                             results = np.sort(results)[-self.options.graph_select_max:]
 
-                        ydiv = dataset.var_divider(test, "result", result_type)
+                        ydiv = var_divider(test, "result", result_type)
                         if not results.any():
                             results=np.asarray([0])
                         new_results.setdefault(run.copy(), OrderedDict())[result_type] = results / ydiv
 
-                    for k, v in run.variables.items():
+                    for k, v in run.read_variables().items():
                         vars_values.setdefault(k, OrderedSet()).add(v)
 
             if new_results:
@@ -1041,13 +958,12 @@ class Grapher:
 
         dyns = []
         for k, v in vars_values.items():
-            if len(v) > 1:
-                dyns.append(k)
+            if len(v) <= 0:
+                print("ERROR: Variable %s has no values" % k)
+            elif len(v) == 1:
+                statics[k] = list(v)[0]
             else:
-                if len(v) > 0:
-                    statics[k] = list(v)[0]
-                else:
-                    print("ERROR: Variable %s has no values" % k)
+                dyns.append(k)
 
         #Divide a serie by another
         prop = self.config('graph_series_prop')
@@ -1068,9 +984,9 @@ class Grapher:
             title=SectionVariable.replace_variables(v, title)
 
         if sv: #Only one supported for now
-            graphs = [ None for v in vars_values[sv] ]
+            graphs = [ None for _ in vars_values[sv] ]
             for j,(script, build, all_results) in enumerate(series):
-                graph = self.extract_variable_to_series(sv, vars_values.copy(), all_results, dyns.copy(), build, script)
+                graph = extract_variable_to_series(self, sv, vars_values.copy(), all_results, dyns.copy(), build, script)
 
                 self.glob_legend_title = title #This variable has been extracted, the legend should not be the variable name in this case
 
@@ -1099,7 +1015,7 @@ class Grapher:
             del dyns
             del vars_values
         else:
-            graph = self.series_to_graph(series, dyns, vars_values, vars_all)
+            graph = series_to_graph(self, series, dyns, vars_values, vars_all)
             graph.title = title
             graphs.append(graph)
 
@@ -1392,6 +1308,7 @@ class Grapher:
                     default_add_legend = True
 
                     graph_type = decide_graph_type(self.config, n_values=len(VARS_ALL), data_for_key=vars_values[key], result_type=result_type, ndyn=NDYN, isubplot=ISUBPLOT)
+                    print("> Grapher graph type:", graph_type)
 
 
                     try:
@@ -1425,12 +1342,12 @@ class Grapher:
                             barplot = True
 
                         elif graph_type == "barh" or graph_type=="horizontal_bar":
-                            r, ndata= self.do_barplot(axis,VARS_ALL, dyns, result_type, data, shift, ibrokenY==0, horizontal=True)
+                            r, ndata= self.do_barplot(axis,VARS_ALL, dyns, result_type, data, shift, ibrokenY==0, horizontal=True, data_types=data_types)
                             barplot = True
                             horizontal = True
                         else:
                             """Barplot. X is all seen variables combination, series are version"""
-                            r, ndata= self.do_barplot(axis,VARS_ALL, dyns, result_type, data, shift, ibrokenY==0)
+                            r, ndata= self.do_barplot(axis,VARS_ALL, dyns, result_type, data, shift, ibrokenY==0, data_types=data_types)
                             barplot = True
                     except Exception as e:
                         print("ERROR : could not graph %s" % result_type)
@@ -1486,7 +1403,8 @@ class Grapher:
                         axis.yaxis.label.set_color(legendcolors[sl])
                         axis.tick_params(axis='y',colors=legendcolors[sl])
 
-                    if ibrokenX == 0:
+                    try:
+                      if ibrokenX == 0:
                         xunit = self.scriptconfig("var_unit", key, default="n,")
                         xformat = self.scriptconfig("var_format", key, default="")
                         isLog = self.config_bool_or_in('var_log', key, default=False)
@@ -1546,19 +1464,25 @@ class Grapher:
                                     xticks = np.delete(xticks,np.delete(np.array(range(len(xticks))),index))
 
                                 plt.xticks(xticks)
-
-                                d = log(max(ax),base) - log(min(ax),base)
+                                ma = min(ax)
+                                mal = (log(ma,base) if ma > 0 else 0)
+                                d = log(max(ax),base) - mal
                                 #Force recomputation of xmin
-                                if not xmin:
-                                    xmin = log(min(ax),base) - (d * plt.margins()[0])
-                                    plt.xlim(xmin=pow(base,xmin))
+                                if not xmin or ma==0:
+                                    xmin = mal - (d * plt.margins()[0])
+                                    if (xmin <= 1):
+                                        plt.xlim(xmin=xmin)
+                                    else:
+                                        plt.xlim(xmin=pow(base,xmin))
                                 if not xmax:
                                     xmax = log(max(ax),base) + (d * plt.margins()[0])
                                     plt.xlim(xmax=pow(base,xmax))
                             else:
                                 plt.xscale('symlog')
                             plt.gca().xaxis.set_major_formatter(matplotlib.ticker.FormatStrFormatter('%d'))
-
+                    except Exception as e:
+                        print("Could not set log axis!")
+                        print(e)
                     if not barplot:
                         formatterSet, unithandled = self.set_axis_formatter(plt.gca().xaxis, xformat, xunit.strip(), isLog, True)
 
@@ -1645,7 +1569,7 @@ class Grapher:
                         if print_xlabel and (not barplot or xname!= "version" or (barplot and len(data) > 1)):
                             if xname == "version":
                                 print("WARNING: The label of an axis is the default value 'version'. Change it with '--config var_names+={version:My Label}'")
-                                
+
                             if horizontal:
                                 axis.set_ylabel(xname)
                             else:
@@ -1798,6 +1722,40 @@ class Grapher:
                             ('%0.'+str(prec - 1)+'f') % height, color=color, fontweight='bold',
                              ha='center', va='bottom')
             autolabel(rects, plt)
+
+
+    def mask_from_filter(self, fl, data_types, build, ax, y):
+                        #The result type to filter on
+                        fl_min=1
+                        fl_op = '>'
+                        flm = re.match("(.*)([><=])(.*)", fl)
+                        if flm:
+                            fl = flm.group(1)
+                            fl_min=float(flm.group(3))
+                            fl_op=flm.group(2)
+                        if not fl in data_types:
+                            print("ERROR: graph_filter_by's %s not found" % fl)
+                            return
+                        fl_data = data_types[fl]
+                        fl_y = None
+                        for fl_xyeb in fl_data:
+                            if fl_xyeb[3] ==  build:
+                                fl_y = np.array(fl_xyeb[1])
+                                break
+                        if fl_op == '>':
+                            mask = fl_y > fl_min
+                        elif fl_op == '<':
+                            mask = fl_y < fl_min
+                        elif fl_op == '=':
+                            mask = fl_y == fl_min
+                        else:
+                            raise Exception("Unknown operator in filter_by : " + fl_op )
+
+
+                        if len(mask) != len(ax) or len(mask) != len(y):
+                            print("ERROR: graph_filter_by cannot be applied, because length of X is %d, length of Y is %d but length of mask is %d" % (len(ax), len(y), len(mask)))
+                            return None
+                        return mask
 
     def do_simple_barplot(self,axis, result_type, data,shift=0,isubplot=0):
         i = 0
@@ -2090,36 +2048,9 @@ class Grapher:
                 rects = axis.scatter(ax, y, label=lab, color=c,  marker=marker, facecolors=fillstyle)
             else:
                 if result_type in filters:
-                    #The result type to filter on
-                    fl = filters[result_type]
-                    fl_min=1
-                    fl_op = '>'
-                    flm = re.match("(.*)([><=])(.*)", fl)
-                    if flm:
-                        fl = flm.group(1)
-                        fl_min=float(flm.group(3))
-                        fl_op=flm.group(2)
-                    if not fl in data_types:
-                        print("ERROR: graph_filter_by's %s not found" % fl)
-                        return
-                    fl_data = data_types[fl]
-                    fl_y = None
-                    for fl_xyeb in fl_data:
-                        if fl_xyeb[3] ==  build:
-                            fl_y = np.array(fl_xyeb[1])
-                            break
-                    if fl_op == '>':
-                        mask = fl_y > fl_min
-                    elif fl_op == '<':
-                        mask = fl_y < fl_min
-                    elif fl_op == '=':
-                        mask = fl_y == fl_min
-                    else:
-                        raise Exception("Unknown operator in filter_by : " + fl_op )
 
-
-                    if len(mask) != len(ax) or len(mask) != len(y):
-                        print("ERROR: graph_filter_by cannot be applied, because length of X is %d, length of Y is %d but length of mask is %d" % (len(ax), len(y), len(mask)))
+                    mask=self.mask_from_filter(filters[result_type],data_types,build,ax,y)
+                    if mask is None:
                         continue
 
                     rects = axis.plot(ax[~mask], y[~mask], label=lab, color=c, linestyle=build._line, marker=marker,markevery=(1 if len(ax) < 20 else math.ceil(len(ax) / 20)),drawstyle=drawstyle, fillstyle=fillstyle, **line_params)
@@ -2248,7 +2179,7 @@ class Grapher:
             ticks = [variable.get_numeric(npf.parseUnit(y)) for y in yticks.split('+')]
             plt.yticks(ticks)
 
-    def do_barplot(self, axis,vars_all, dyns, result_type, data, shift, show_vals, horizontal=False):
+    def do_barplot(self, axis,vars_all, dyns, result_type, data, shift, show_vals, horizontal=False, data_types=None):
         nseries = len(data)
 
         self.format_figure(axis,result_type,shift)
@@ -2262,6 +2193,9 @@ class Grapher:
         else:
             edgecolor = None
             interbar = 0.1
+
+        #Filters allow to hatch bars where a value of another variable is higher than something. Stack not implemented yet.
+        filters = self.configdict("graph_filter_by", default={})
 
         interbar = self.config('graph_bar_inter', default=interbar)
         stack = self.config_bool('graph_bar_stack')
@@ -2278,6 +2212,27 @@ class Grapher:
             func=axis.bar
             ticks = plt.xticks
 
+        def common_args(build):
+            return {
+                'label':str(build.pretty_name()),
+                'yerr':std if not horizontal else None,
+                'xerr':std if horizontal else None,
+                }
+
+        def hatch_args(build):
+            return {
+                'color':lighter(build._color, 0.6, 255),
+                'edgecolor':lighter(build._color, 0.6, 0),
+                'hatch':patterns[i]
+                }
+
+        def nohatch_args(build):
+            return {
+                'color':build._color,
+                'edgecolor':edgecolor,
+                'hatch':None
+                }
+
         if stack:
             last = 0
             for i, (x, y, e, build) in enumerate(data):
@@ -2288,18 +2243,38 @@ class Grapher:
                 y = np.asarray([0.0 if np.isnan(x) else x for x in y])
                 std = np.asarray([std for mean,std,raw in e])
                 rects = func(ind, last, width,
-                    label=str(build.pretty_name()), color=build._color,
-                    yerr=std if not horizontal else None, xerr=std if horizontal else None,
-                    edgecolor=edgecolor)
+                    **common_args(build),
+                    **(hatch_args(build) if do_hatch else nohatch_args(build))
+                    )
                 last = last - y
         else:
             for i, (x, y, e, build) in enumerate(data):
                 std = np.asarray([std for mean,std,raw in e])
                 fx = interbar + ind + (i * width)
-                rects = func(fx, y, width,
-                    label=str(build.pretty_name()), color=lighter(build._color, 0.6, 255) if do_hatch else build._color,
-                    yerr=std if not horizontal else None, xerr=std if horizontal else None,
-                    edgecolor=lighter(build._color, 0.6, 0) if do_hatch else edgecolor, hatch=patterns[i] if do_hatch else None)
+                if result_type in filters:
+                    mask=self.mask_from_filter(filters[result_type],data_types,build,ax=x,y=y)
+
+                    args = common_args(build)
+                    nargs = {'label':args['label']}
+                    if mask is None:
+                        continue
+                    from itertools import compress
+                    rects = func(list(compress(fx, ~mask)), list(compress(y,~mask)), width,
+                            **nargs,
+                            yerr = list(compress(args['yerr'], ~mask)) if args['yerr'] is not None else None,
+                            **hatch_args(build)
+                    )
+
+                    func(list(compress(fx,mask)), list(compress(y,mask)), width,
+                        **nargs,
+                        yerr = list(compress(args['yerr'], mask)) if args['yerr'] is not None else None,
+                        **nohatch_args(build)
+                    )
+                else:
+                    rects = func(fx, y, width,
+                        **common_args(build),
+                        **(hatch_args(build) if do_hatch else nohatch_args(build))
+                    )
                 if show_vals:
                     self.write_labels(rects, plt, build._color)
 

@@ -1,0 +1,7 @@
+%variables
+TEST={A,B,C}
+
+
+%script
+echo "RESULT-TEST 78"
+echo "RESULT-TEST 40"

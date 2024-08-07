@@ -1,0 +1,43 @@
+Starting tests
+Executing test warnmultiple.npf
+Executing init scripts...
+TEST = A [run 1/3 for test 1/3]
+[30m[0][0m RESULT-TEST 78
+[30m[0][0m RESULT-TEST 40
+WARNING: There are multiple occurences of metric TEST, please add it in result_add, result_append or result_overwrite. result_overwrite is selected by default, add `result_overwrite={TEST}` to %config to silent this message.
+TEST = A [run 2/3 for test 1/3]
+[30m[0][0m RESULT-TEST 78
+[30m[0][0m RESULT-TEST 40
+WARNING: There are multiple occurences of metric TEST, please add it in result_add, result_append or result_overwrite. result_overwrite is selected by default, add `result_overwrite={TEST}` to %config to silent this message.
+TEST = A [run 3/3 for test 1/3]
+[30m[0][0m RESULT-TEST 78
+[30m[0][0m RESULT-TEST 40
+WARNING: There are multiple occurences of metric TEST, please add it in result_add, result_append or result_overwrite. result_overwrite is selected by default, add `result_overwrite={TEST}` to %config to silent this message.
+[40.0, 40.0, 40.0]
+TEST = B [run 1/3 for test 2/3]
+[30m[0][0m RESULT-TEST 78
+[30m[0][0m RESULT-TEST 40
+WARNING: There are multiple occurences of metric TEST, please add it in result_add, result_append or result_overwrite. result_overwrite is selected by default, add `result_overwrite={TEST}` to %config to silent this message.
+TEST = B [run 2/3 for test 2/3]
+[30m[0][0m RESULT-TEST 78
+[30m[0][0m RESULT-TEST 40
+WARNING: There are multiple occurences of metric TEST, please add it in result_add, result_append or result_overwrite. result_overwrite is selected by default, add `result_overwrite={TEST}` to %config to silent this message.
+TEST = B [run 3/3 for test 2/3]
+[30m[0][0m RESULT-TEST 78
+[30m[0][0m RESULT-TEST 40
+WARNING: There are multiple occurences of metric TEST, please add it in result_add, result_append or result_overwrite. result_overwrite is selected by default, add `result_overwrite={TEST}` to %config to silent this message.
+[40.0, 40.0, 40.0]
+TEST = C [run 1/3 for test 3/3]
+[30m[0][0m RESULT-TEST 78
+[30m[0][0m RESULT-TEST 40
+WARNING: There are multiple occurences of metric TEST, please add it in result_add, result_append or result_overwrite. result_overwrite is selected by default, add `result_overwrite={TEST}` to %config to silent this message.
+TEST = C [run 2/3 for test 3/3]
+[30m[0][0m RESULT-TEST 78
+[30m[0][0m RESULT-TEST 40
+WARNING: There are multiple occurences of metric TEST, please add it in result_add, result_append or result_overwrite. result_overwrite is selected by default, add `result_overwrite={TEST}` to %config to silent this message.
+TEST = C [run 3/3 for test 3/3]
+[30m[0][0m RESULT-TEST 78
+[30m[0][0m RESULT-TEST 40
+WARNING: There are multiple occurences of metric TEST, please add it in result_add, result_append or result_overwrite. result_overwrite is selected by default, add `result_overwrite={TEST}` to %config to silent this message.
+[40.0, 40.0, 40.0]
+Graph of test written to results/local/local/warnmultiple-TEST.pdf

@@ -1,5 +1,6 @@
 %config
-glob_sync={A,B}
+time_sync={A,B}
+-noglob:glob_sync={A,B}
 
 %script
 echo "A-100-RESULT-V 5"

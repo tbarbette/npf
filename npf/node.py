@@ -39,7 +39,7 @@ class Node:
             f = open(clusterFilePath, 'r')
             for i, line in enumerate(f):
                 line = line.strip()
-                if not line or line.startswith("#") or line.startswith("//"):
+                if not line or re.match("^\\s*(#|//)", line):
                     continue
                 match = re.match(r'((?P<tag>[a-zA-Z]+[a-zA-Z0-9]*):)?(?P<nic_idx>[0-9]+):(?P<type>' + NIC.TYPES + ')=(?P<val>[a-z0-9:_.-]*)', line,
                                  re.IGNORECASE)
@@ -118,13 +118,17 @@ class Node:
             if len(words) < 3:
                 continue
 
-            pid, out, err, ret = self.executor.exec(cmd="( sudo ethtool %s | grep Speed | grep -oE '[0-9]+' ) || echo '0'\ncat /sys/class/net/%s/address\n( /sbin/ifconfig %s | grep 'inet addr:' | cut -d: -f2| cut -d' ' -f1 ) || echo ''" % (words[1], words[1], words[1]), title="Getting device %s info" % words[1])
+            pid, out, err, ret = self.executor.exec(cmd="echo \"SPEED=$( sudo ethtool %s | grep Speed | grep -oE '[0-9]+' )\"\necho \"MAC=$(cat /sys/class/net/%s/address)\"\necho \"IP=$( /sbin/ifconfig %s | grep 'inet addr:' | cut -d: -f2| cut -d' ' -f1 )\"" % (words[1], words[1], words[1]), title="Getting device %s info" % words[1])
 
-            res = out.split("\n")
+            res = re.findall("(SPEED|MAC|IP)=(.*)",out)
+            vals={}
+            for r in res:
+                vals[r[0]] = r[1].strip()
+
             try:
-                ip = res[-1].strip()
-                mac = res[-2].strip()
-                speed = int(res[-3].strip())
+                ip = vals['IP'] or  self._addr_gen()[1]
+                mac = vals['MAC']
+                speed = int(vals['SPEED'])
             except IndexError:
                 print("Cannot find speed of %s" % words[1])
                 print(out)
@@ -151,7 +155,7 @@ class Node:
                     conf += "%d:ip=%s" % (i, n.ip) + nl
                 i = i + 1
         print(conf)
-        if npf.options.cluster_autosave:
+        if npf.options.cluster_autosave and len(conf) > 0:
             os.makedirs("cluster", exist_ok=True)
             open("cluster/%s.node" % self.name, 'w').write(conf)
 

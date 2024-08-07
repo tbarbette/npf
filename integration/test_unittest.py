@@ -1,6 +1,8 @@
+from npf import repository
+from npf.grapher import Grapher
+from npf.test_driver import Comparator
 import npf.npf
 from npf.node import *
-import types
 import argparse
 from collections import OrderedDict
 
@@ -8,7 +10,9 @@ from npf.repository import Repository
 from npf.test import Test
 from npf.build import Build
 from npf.variable import dtype, numeric_dict
-from npf.types.dataset import Run, ImmutableRun
+from npf.types.dataset import Run
+
+import numpy as np
 
 def get_args():
     parser = argparse.ArgumentParser(description='NPF Tester')
@@ -91,11 +95,13 @@ def test_runequality():
     rb["A"] = 1
     b = Run(rb)
     assert a == b
-    assert ImmutableRun(ra) == ImmutableRun(rb)
-    assert ImmutableRun(ra) == b
     assert a.inside(b)
     assert b.inside(a)
     assert a.__hash__() == b.__hash__()
+    h = a.__hash__()
+    a.write_variables()["A"] = 3
+    assert a.__hash__() != h
+    assert a != b
 
 def test_local_executor():
     l = LocalExecutor()
@@ -122,3 +128,43 @@ def test_local_executor():
     assert stdout == ""
     assert stderr == ""
     assert ret == 1
+
+
+def test_core():
+        parser = argparse.ArgumentParser(description='NPF test')
+        v = npf.add_verbosity_options(parser)
+        b = npf.add_building_options(parser)
+        t = npf.add_testing_options(parser, regression=False)
+        a = npf.add_graph_options(parser)
+        parser.add_argument('repo', metavar='repo name', type=str, nargs='?', help='name of the repo/group of builds', default=None)
+
+        full_args = ["--test", "integration/sections.npf",'--force-retest']
+        args = parser.parse_args(full_args)
+        npf.initialize(args)
+        npf.create_local()
+
+        repo_list = [repository.Repository.get_instance("local", options=args)]
+
+        comparator = Comparator(repo_list)
+
+        series, time_series = comparator.run(test_name=args.test_files,
+                                             tags=args.tags,
+                                             options=args)
+        assert len(series) == 1
+        r = series[0][2]
+        assert len(r.items()) == 1
+        run,results = list(r.items())[0]
+        assert run.variables["N"] == 1
+        assert np.all(np.array(results["SCRIPT"]) == 42)
+        assert np.all(np.array(results["CLEANUP"]) == 1)
+        assert np.all(np.array(results["PY"]) == 1)
+
+
+        filename = npf.build_output_filename(args, repo_list)
+        grapher = Grapher()
+
+        print("Generating graphs...")
+        g = grapher.graph(series=series,
+                          filename=filename,
+                          options=args
+                          )

@@ -8,6 +8,7 @@ import errno
 import sys
 
 from npf import npf
+from npf.pipeline import pypost
 from npf.regression import *
 from npf.statistics import Statistics
 from npf.test import Test, ScriptInitException
@@ -48,14 +49,14 @@ def main():
     g.add_argument('--branch', help='Branch', type=str, nargs='?', default=None)
     g.add_argument('--compare-version', dest='compare_version', metavar='version', type=str, nargs='?',
                    help='A version to compare against the last version. Default is the first parent of the last version containing some results.')
+    af = g.add_mutually_exclusive_group()
+    af.add_argument('--regress-version', '--graph-version', dest='graph_version', metavar='version', type=str, nargs='*',
+                    help='Versions to compare against. Alternative to --regress-history to identify versions to compare against.')
+    af.add_argument('--regress-history', '--graph-num', dest='graph_num', metavar='N', type=int, nargs='?', default=-1,
+                    help='Number of olds versions to graph after --compare-version, unused if --graph-version is given. Default is 0 or 8 if --regress is given.')
 
 
     a = npf.add_graph_options(parser)
-    af = a.add_mutually_exclusive_group()
-    af.add_argument('--graph-version', metavar='version', type=str, nargs='*',
-                    help='versions to simply graph')
-    af.add_argument('--graph-num', metavar='N', type=int, nargs='?', default=-1,
-                    help='Number of olds versions to graph after --compare-version, unused if --graph-version is given. Default is 0 or 8 if --regress is given.')
     # a.add_argument('--graph-allvariables', help='Graph only the latest variables (usefull when you restrict variables '
     #                                             'with tags)', dest='graph_newonly', action='store_true', default=False)
     # a.add_argument('--graph-serie', dest='graph_serie', metavar='variable', type=str, nargs=1, default=[None],
@@ -109,7 +110,7 @@ def main():
     builds : List[Build] = []
 
     for version in versions:
-        builds.append(Build(repo, version))
+        builds.append(Build(repo, version, args.result_path))
 
     last_rebuilds = []
 
@@ -208,16 +209,16 @@ def main():
 
             try:
                 prev_results = build.load_results(test)
-                prev_kind_results = build.load_results(test, kind=True)
+                prev_time_results = build.load_results(test, kind=True)
             except FileNotFoundError:
                 prev_results = None
-                prev_kind_results = None
+                prev_time_results = None
 
             all_results = None
             time_results = None
             try:
                 if all_results is None and time_results is None:
-                    all_results, time_results, init_done = test.execute_all(build, prev_results=prev_results, prev_kind_results=prev_kind_results, do_test=args.do_test, options=args)
+                    all_results, time_results, init_done = test.execute_all(build, prev_results=prev_results, prev_time_results=prev_time_results, do_test=args.do_test, options=args)
                 if not all_results and not time_results:
                     returncode+=1
                     continue
@@ -259,20 +260,26 @@ def main():
                 except FileNotFoundError:
                     print("Previous build %s could not be found, we will not graph it !" % g_build.version)
 
-            filename = args.graph_filename if args.graph_filename else build.result_path(test.filename, 'pdf')
 
-            grapher.graph(series=[(test, build, all_results)] + g_series,
+
+
+            filename = args.graph_filename or build.result_path(test.filename, 'pdf')
+            series_with_history = [(test, build, all_results)] + g_series
+            pypost.execute_pypost(series=series_with_history)
+            grapher.graph(series=series_with_history,
                           title=test.get_title(),
                           filename=filename,
                           graph_variables=[Run(x) for x in test.variables],
                           options = args)
             if time_results:
-                for find, results in time_results.items():
+                for time_ns, results in time_results.items():
                     if not results:
                         continue
-                    grapher.graph(series=[(test, build, results)],
+                    series_with_history = [(test, build, results)]
+                    grapher.graph(series=series_with_history,
                           title=test.get_title(),
-                          filename=filename,
+                          filename = filename,
+                          fileprefix = time_ns,
                           options = args)
         if last_build and args.graph_num > 0:
             graph_builds = [last_build] + graph_builds[:-1]

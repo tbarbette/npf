@@ -1,8 +1,10 @@
 from npf import npf
 
+# types of graphs: bar, line, boxplot, simple_bar
+
 
 def decide_graph_type(config, n_values, data_for_key, result_type, ndyn, isubplot):
-    graph_type = False
+    graph_type = "bar"
     if ndyn == 0:
         graph_type = "boxplot" if n_values == 1 else "simple_bar"
     elif ndyn == 1 and n_values > 2 and npf.all_num(data_for_key):
@@ -35,4 +37,4 @@ def decide_graph_type(config, n_values, data_for_key, result_type, ndyn, isubplo
               "as a line without dynamic variables")
         graph_type = "simple_bar"
 
-    return graph_type if graph_type else "bar"
+    return graph_type

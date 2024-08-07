@@ -30,6 +30,7 @@ RCV_NIC=0
 LIMIT=50000000
 LIMIT_TIME=10
 GEN_THREADS=4
+GEN_RX_THREADS=4
 GEN_PIPELINE=1
 udpgen:GEN_PIPELINE=0
 GEN_TX_PIPELINE=0
@@ -38,7 +39,7 @@ GEN_BURST=32
 PROMISC=false
 promisc:PROMISC=true
 IGNORE?=0
-PAUSE=none
+GEN_PAUSE=none
 GEN_DESC=0
 END_AFTER=0
 GEN_PROGRESSIVE=0
@@ -68,20 +69,23 @@ GEN_NGEN=EXPAND( $((1 if $GEN_PIPELINE else $GEN_THREADS)) )
 GEN_IPV6?=0
 GEN_NANO?=0
 GEN_PREFIX?=
-
+GEN_FNT?=
+DISTRIB?=Rated
 UNQUEUE=
 udpgen:UNQUEUE=Unqueue()
-rate:UNQUEUE=EXPAND( BandwidthRatedUnqueue( $(( int($GEN_RATE / $GEN_NGEN) )), EXTRA_LENGTH true, LINK_RATE true, BURST_DURATION 1, BURST $GEN_BURST) )
-prate:UNQUEUE=EXPAND( RatedUnqueue($(( int($GEN_RATE / $GEN_NGEN)  )), BURST $GEN_BURST, ACTIVE $(( "false" if $GEN_PROGRESSIVE else "true" )) ) )
+rate:UNQUEUE=EXPAND( Bandwidth${DISTRIB}Unqueue( $(( int($GEN_RATE / $GEN_NGEN) )), EXTRA_LENGTH true, LINK_RATE true, BURST_DURATION 1, BURST $GEN_BURST) )
+prate:UNQUEUE=EXPAND( ${DISTRIB}Unqueue($(( int($GEN_RATE / $GEN_NGEN)  )), BURST $GEN_BURST, ACTIVE $(( "false" if $GEN_PROGRESSIVE else "true" )) ) )
+prate:HAVE_PRATE=1
 HAVE_UNQUEUE?=0
-udpgen|prate|rate|replay:HAVE_UNQUEUE=1
+udpgen,-prate|prate,-udpgen|rate|replay:HAVE_UNQUEUE=1
+SAMPLE?=100
 NRECORD=EXPAND( $(( int($LIMIT / $SAMPLE + 1024) * 2 )) )
 BROADCAST_IGNORE= -> c :: Classifier(0/$mac,-) //Ignore broadcasts
 GEN_NOREWRITE_ETHER?=0
 TIMING?=false
 GEN_BLOCKING=true
+GEN_FLOWSIZE?=EXPAND($GEN_BURST)
 TIMING_FNT?=
-SAMPLE?=10
 DODUMP?=0
 dump:DODUMP=1
 DOLATVAL=0
@@ -149,11 +153,14 @@ define($rxverbose 99)
 elementclass MyNull { [0-$(( $GEN_NGEN - 1 ))]=>[0- $(($GEN_NGEN - 1)) ]; };
 
 //JiffieClock()
-$(( "\n".join( [ ( "fdIN%d :: FastUDPFlowsIP6(RATE 0, LIMIT -1, LENGTH $GEN_LENGTH, SRCETH $INsrcmac, DSTETH $INdstmac, SRCIP6 ${client:0:ip6}, DSTIP6 ${server:0:ip6}, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST, SEQUENTIAL $GEN_SEQUENTIAL)" if $GEN_IPV6 else "fdIN%d :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH $GEN_LENGTH, SRCETH $INsrcmac, DSTETH $INdstmac, SRCIP ${client:0:ip}, DSTIP ${server:0:ip}, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST, SEQUENTIAL $GEN_SEQUENTIAL)" ) % t if $GEN_DUMP==-1 else (  "fdIN%d :: FromDump(%s, STOP true, TIMING $TIMING, TIMING_FNT \"$TIMING_FNT\", END_AFTER $END_AFTER, ACTIVE true, BURST 1);" if $GEN_DUMP == 0 else "fdIN%d :: FromIPSummaryDump(%s, TIMES $replay_count, TIMING $TIMING, TIMESTAMP $TIMING, ZERO false, BURST $GEN_BURST, STOP true);" if $GEN_DUMP==1 else "fdIN%d :: FromMinDump(%s, TIMES $replay_count,  BURST $GEN_BURST, STOP , DPDK true);") % (t, ("${trace}-"+str(t+1) ) if $GEN_MULTI_TRACE else "$trace") for t in range( $GEN_NGEN )  ] ) ))
+$(( "\n".join( [ ( "fdIN%d :: FastUDPFlowsIP6(RATE 0, LIMIT -1, LENGTH $GEN_LENGTH, SRCETH $INsrcmac, DSTETH $INdstmac, SRCIP6 ${client:0:ip6}, DSTIP6 ${server:0:ip6}, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST, SEQUENTIAL $GEN_SEQUENTIAL)" if $GEN_IPV6 else ( "fdIN%d :: FastUDPFlows(RATE " + ( str(int($GEN_RATE / $GEN_NGEN) ) if "$HAVE_PRATE" else "0") +  ", LIMIT " + str(int($LIMIT / $GEN_NGEN) if "$HAVE_PRATE" else "-1" ) + " , LENGTH $GEN_LENGTH, SRCETH $INsrcmac, DSTETH $INdstmac, SRCIP ${client:0:ip}, DSTIP ${server:0:ip}, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_FLOWSIZE, SEQUENTIAL $GEN_SEQUENTIAL, BURST $GEN_BURST)" ) ) % t if $GEN_DUMP==-1 else (  "fdIN%d :: FromDump(%s, STOP true, TIMING $TIMING, TIMING_FNT \"$TIMING_FNT\", END_AFTER $END_AFTER, ACTIVE true, BURST 1);" if $GEN_DUMP == 0 else "fdIN%d :: FromIPSummaryDump(%s, TIMES $replay_count, TIMING $TIMING, TIMESTAMP $TIMING, ZERO false, BURST $GEN_BURST, STOP true);" if $GEN_DUMP==1 else "fdIN%d :: FromMinDump(%s, TIMES $replay_count,  BURST $GEN_BURST, STOP , DPDK true);") % (t, ("${trace}-"+str(t+1) ) if $GEN_MULTI_TRACE else "$trace") for t in range( $GEN_NGEN )  ] ) ))
 
 tdIN ::
- $(( " Pipeliner(CAPACITY 1024, ALWAYS_UP true) -> " if $GEN_TX_PIPELINE == 1 else "PathSpinlock -> " if $GEN_TX_PIPELINE == 2 else "" ))
-    ToDPDKDevice($port, BLOCKING $GEN_BLOCKING, BURST $bout, VERBOSE $txverbose, IQUEUE $bout, NDESC $GEN_TX_DESC, IPCO true )
+ $(( " Pipeliner(CAPACITY 1024, ALWAYS_UP true) -> " if $GEN_TX_PIPELINE == 1 else "PathSpinlock -> " if $GEN_TX_PIPELINE == 2 else "{[0] -> [0]} ->" ))
+
+     realTD :: ToDPDKDevice($port, BLOCKING $GEN_BLOCKING, BURST $bout, VERBOSE $txverbose, IQUEUE $bout, NDESC $GEN_TX_DESC, IPCO true )
+
+
 
 elementclass NoTimestampDiff { $a, $b, $c, $d, $e |
 input -> output;
@@ -163,6 +170,7 @@ Idle->[1]output;
 elementclass Numberise { $magic |
     input-> Strip(14)
     $GEN_NUMBER
+    $GEN_FNT
 $(( "" if $GEN_IPV6 else " -> ResetIPChecksum()  " ))
     -> Unstrip(14) -> output
 }
@@ -173,9 +181,9 @@ ender :: Script(TYPE PASSIVE,
                 stop);
 $FDDISPATCH
 
-$(( "\n".join([ ( "fdIN%d" % (t) + (  ("-> limit%d   :: Counter(COUNT_CALL "+str(int($LIMIT / $GEN_NGEN) ) +" ender.run)") % (t) if $LIMIT > 0 else "" ) + ( ( "-> unqueue%d :: " % t + str( "$UNQUEUE") ) if $HAVE_UNQUEUE else "" ) + " -> [%d]rr" % (t) ) for t in range($GEN_NGEN) ] ) ))
+$(( "\n".join([ ( "fdIN%d" % (t) + (  ("-> limit%d   :: Counter(COUNT_CALL "+str(int($LIMIT / $GEN_NGEN) ) +" ender.run)") % (t) if ($LIMIT > 0 and not "$HAVE_PRATE") else "" ) + ( ( "-> unqueue%d :: " % t + str( "$UNQUEUE") ) if $HAVE_UNQUEUE else "" ) + " -> [%d]rr" % (t) ) for t in range($GEN_NGEN) ] ) ))
 
-elementclass Generator { $magic |
+elementclass Generator { $magic, $t |
 input
  $(( " -> replay :: Pipeliner(BLOCKING "+("true" if $GEN_THREADS == 1 else "false")+", CAPACITY 1024, ALWAYS_UP true)" if $GEN_PIPELINE else ""))
   -> MarkMACHeader
@@ -188,14 +196,14 @@ $(( "-> Pad " if $GEN_DUMP < 2 and $GEN_DUMP > -1 else "" ))
   -> output;
 }
 
-$(( "\n".join( [ ( "rr[%d] -> gen%d :: Generator(\<57%02x>) -> tdIN;" +  ("StaticThreadSched(gen%d/replay ${GEN_SOCKET}/%d);" if $GEN_PIPELINE else "StaticThreadSched(fdIN%d ${GEN_SOCKET}/%d " +(", unqueue%d ${GEN_SOCKET}/%d" % (t,t+1) if $HAVE_UNQUEUE else "" ) + ")" ) ) % (t,t,t,t,t  + 1) for t in range($GEN_THREADS) ] ) ))
+$(( "\n".join( [ ( "rr[%d] -> gen%d :: Generator(\<57%02x>, "+str(t)+") -> tdIN;" +  ("StaticThreadSched(gen%d/replay ${GEN_SOCKET}/%d);" if $GEN_PIPELINE else "StaticThreadSched(fdIN%d ${GEN_SOCKET}/%d " +(", unqueue%d ${GEN_SOCKET}/%d" % (t,t+1) if $HAVE_UNQUEUE else "" ) + ")" ) ) % (t,t,t,t,t  + 1) for t in range($GEN_THREADS) ] ) ))
 
 
 $(( " StaticThreadSched(fdIN0 0/0, unqueue0 0/0);" if $GEN_PIPELINE else "" ))
 
 $(( " StaticThreadSched(tdIN 0/%d);" % ($GEN_THREADS + 1) if $GEN_TX_PIPELINE else "" ))
 
-receiveIN :: FromDPDKDevice($port, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, PAUSE $PAUSE, NDESC $GEN_DESC, MAXTHREADS $GEN_THREADS, NUMA false, ACTIVE $GEN_RX)
+receiveIN :: FromDPDKDevice($port, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, PAUSE $GEN_PAUSE, NDESC $GEN_DESC, MAXTHREADS $GEN_RX_THREADS, NUMA false, ACTIVE $GEN_RX)
 
 elementclass Receiver { $mac, $dir |
     input[0]
@@ -208,7 +216,7 @@ $GEN_MAGIC
     c[1] //Not for this computer or broadcasts
     -> Discard;
 
-$((  "\n".join([ "magic[%d] -> tsd%d :: $GEN_TSDIFF(gen%d/rt, OFFSET %d, N $NRECORD, SAMPLE $SAMPLE, NANO $GEN_NANO ) -> Unstrip(14) ->  avg%d :: AverageCounterMP(IGNORE $ignore) -> Discard;  tsd%d[1] -> Print('WARNING: Untimestamped packet on thread %d', 64) -> Discard;" % (t,t,t,${NUMBEROFFSET} + 2,t,t,t) for t in range($GEN_THREADS) ]) ))
+$((  "\n".join([ "magic[%d] -> tsd%d :: $GEN_TSDIFF(gen%d/rt, OFFSET %d, N $NRECORD, SAMPLE $SAMPLE, NANO $GEN_NANO ) -> Unstrip(14) ->  avg%d :: AverageCounterIMP(IGNORE $ignore) -> Discard;  tsd%d[1] -> Print('WARNING: Untimestamped packet on thread %d', 64) -> Discard;" % (t,t,t,${NUMBEROFFSET} + 2,t,t,t) for t in range($GEN_THREADS) ]) ))
 
 
 $(( (  "avg :: HandlerAggregate( " + ",".join(["ELEMENT avg%d" % (i) for i in range($GEN_THREADS) ]) + " );" ) if 1 else "" ))

@@ -31,10 +31,11 @@ echo "RESULT-THROUGHPUT $result"
 When launching NPF with:
 
 ```bash
-npf-run --test tests/tcp/01-iperf.npf --cluster client=machine01.cluster.com server=machine02.cluster.com
+npf-run --test tests/tcp/01-iperf.npf \
+        --cluster client=machine01.cluster.com server=machine02.cluster.com
 ```
 
-NPF will automatically produce the following graph. Configuration options enables to change the graph type, and many other options easily, [check the wiki](https://npf.readthedocs.io/en/latest/) to see different graphs displaying the same data.
+NPF will automatically produce the following graph. Configuration options enable you to change the graph type and many other options easily. [check the wiki](https://npf.readthedocs.io/en/latest/) to see different graphs displaying the same data.
 
 ![sample picture](https://github.com/tbarbette/npf/raw/master/tests/tcp/iperf2-THROUGHPUT-wide.svg "Result for tests/tcp/01-iperf.npf")
 
@@ -43,15 +44,15 @@ Test files allow to define a matrix of parameters to try many combinations of
 variables (see [here](https://npf.readthedocs.io/en/latest/variables.html) for a description of the possible definitions such as values, ranges, ...) for each test and report performance results and evolution for each combination of variables.
 
 Finally, a graph will be built and statistical results may be computed for each test 
-showing the difference between variables values, different softwares, or the evolution of
+showing the difference between variable values, different software, or the evolution of
 performances through commits.
 
 Test files are simple to write, and easy to share, as such we encourage
 users to share their ".npf" scripts with their code to allow other users to reproduce
-their results, and graphs.
+their results and graphs.
 
-NPF supports running the given test across a custer, allowing to try your tests
-in multiple different configuration very quickly and on serious hardware.
+NPF supports running the given test across a cluster, allowing to try your tests
+in multiple different configurations very quickly and on serious hardware.
 
 ### Documentation ###
 The documentation is available on [read the docs](https://npf.readthedocs.io/en/latest/)!
@@ -75,14 +76,14 @@ docker run -it npf npf-compare ...
 ```
 
 ### Big picture ###
-Your *.npf* test file is composed of a serie of sections, as in the example given above. The sections describe the scripts to run, where to run them, what variables should be tested, what are their ranges, configuration parameters such as timeout or graph colors, etc. Each section is described in more details in [the "writing test script" documentation](https://npf.readthedocs.io/en/latest/tests.html).
+Your *.npf* test file is composed of a series of sections, as in the example given above. The sections describe the scripts to run, where to run them, what variables should be tested, what are their ranges, configuration parameters such as timeout or graph colors, etc. Each section is described in more detail in [the "writing test script" documentation](https://npf.readthedocs.io/en/latest/tests.html).
 
-When launching NPF, you will also give the name of one or more *repositories*, which are files located in the `repo` folder describing software to download, install and compile so everything is in place when your experiment is launched. They follow a format descrived in [repo/README.md](repo/README.md). It can also be ignored using the `local` fake repository.
+When launching NPF, you will also give the name of one or more *repositories*, which are files located in the `repo` folder describing software to download, install and compile so everything is in place when your experiment is launched. They follow a format described in [repo/README.md](repo/README.md). It can also be ignored using the `local` fake repository.
 
-Your test script will also define a few script *roles*, such as `client` or `server` as in the example above. When you actually launch your experiment, you must tell which machine (physical or virtual) will take the role. For simple cases, passing the address of a machine with the `--cluster role=machine` will be enough. When you'd like to define parameters such as IPs and MAC addresses, you can define a *cluster* file that will describe details about each machines. See the [cluster documentation](https://npf.readthedocs.io/en/latest/cluster.html) for more details.
+Your test script will also define a few script *roles*, such as `client` or `server` as in the example above. When you actually launch your experiment, you must tell which machine (physical or virtual) will take the role. For simple cases, passing the address of a machine with the `--cluster role=machine` will be enough. When you'd like to define parameters such as IPs and MAC addresses, you can define a *cluster* file that will describe details about each machine. See the [cluster documentation](https://npf.readthedocs.io/en/latest/cluster.html) for more details.
 
 ### Where to continue from here?
 Have you read the [writing tests documentation](https://npf.readthedocs.io/en/latest/tests.html)? Then, inspire yourself from the test script files in `tests/`, and write your own!
 
 ### How to distribute your test scripts, modules and repo files?
-We welcome merge requests for generic stuffs! But you can keep your files in your "experimentation" folder. Indeed, NPF will always look for a file first in "./repo" for repo files, "./modules" for modules and "./cluster" for machines definition.
+We welcome merge requests for generic stuffs! But you can keep your files in your "experimentation" folder. Indeed, NPF will always look for a file first in "./repo" for repo files, "./modules" for modules, and "./cluster" for machine definition.

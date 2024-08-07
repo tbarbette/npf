@@ -47,7 +47,10 @@ class SSHExecutor(Executor):
         return ssh
 
 
-    def exec(self, cmd, bin_paths : List[str] = None, queue: Queue = None, options = None, stdin = None, timeout=None, sudo=False, testdir=None, event=None, title=None, env={}, virt = "", raw = False):
+    def exec(self, cmd, bin_paths : List[str] = None,
+             queue: Queue = None, options = None,
+             stdin = None, timeout=None, sudo=False, testdir=None,
+             event=None, title=None, env={}, virt = "", raw = False):
         if testdir:
             cmd = "mkdir -p " + testdir + " && cd " + testdir + ";\n" + cmd;
         if not title:
@@ -63,17 +66,17 @@ class SSHExecutor(Executor):
             print("Executing on %s%s (PATH+=%s) :\n%s" % (self.addr,(' with sudo' if sudo and self.user != "root" else ''),':'.join(path_list) + (("NS:"  + virt) if virt else ""), cmd.strip()))
 
         # The pre-command goes into the test folder
-        pre = 'cd '+ self.path + ';'
+        pre = 'cd '+ self.path + ';\n'
 
         if self.path:
             env['NPF_ROOT'] = self.path
             env['NPF_CWD_PATH'] = os.path.relpath(npf.cwd_path(options),self.path)
             env['NPF_EXPERIMENT_PATH'] = '../' + os.path.relpath(npf.experiment_path(), self.path)
             env['NPF_ROOT_PATH'] = '../' + os.path.relpath(npf.npf_root_path(), self.path)
-
+        env_str=""
         for k,v in env.items():
             if v is not None:
-                pre += 'export ' + k + '='+v+'\n'
+                env_str += 'export ' + k + '='+v+'\n'
         if path_list:
             path_cmd = 'export PATH="%s:$PATH"\n' % (':'.join(path_list))
         else:
@@ -86,6 +89,7 @@ class SSHExecutor(Executor):
             if stdin is not None:
                 unbuffer = unbuffer + " -p"
 
+        cmd = env_str + cmd
         if sudo and self.user != "root":
             cmd = "sudo -E  mkdir -p "+testdir+" && sudo -E " + virt +" "+unbuffer+" bash -c '"+path_cmd + cmd.replace("'", "'\"'\"'") + "'";
         else:
@@ -154,7 +158,7 @@ class SSHExecutor(Executor):
                 except KeyboardInterrupt:
                     event.terminate()
                     ssh.close()
-                    return -1, out, err, -1
+                    return -1, output[0], output[1], 0
                 if timeout is not None:
                     if timeout < 0:
                         event.terminate()
@@ -178,6 +182,7 @@ class SSHExecutor(Executor):
                 ret = ssh_stdout.channel.recv_exit_status()
             ssh.close()
             ssh=None
+
 
 
             return pid,output[0], output[1],ret
