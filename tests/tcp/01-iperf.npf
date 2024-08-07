@@ -12,7 +12,7 @@ graph_background=7
 
 %variables
 PARALLEL=[1-8]
-WINDOW={16,512}
+WINDOW={64,512}
 TIME=2
 
 %script@server
