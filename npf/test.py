@@ -1283,18 +1283,18 @@ class Test:
                             break
 
                 if run_results:
-                    for result_type in self.config.get_list('results_expect'):
-                        print("Could not find result :", self.config.get_list('results_expect'))
+                    expected_results = self.config.get_list('results_expect')
+                    for result_type in expected_results:
                         if result_type not in run_results:
                             found = False
                             if prev_time_results:
-                              for kind, kr in prev_time_results.items():
-                                for run_kind, results in kr.items():
-                                    if result_type in results:
-                                        found = True
-                                        continue
+                                for _, kr in prev_time_results.items():
+                                    for _, results in kr.items():
+                                        if result_type in results:
+                                            found = True
+                                            continue
                             if not found:
-                                print("Missing result type %s, re-doing the run" % result_type)
+                                print(f"Missing result type {result_type}, re-doing the run")
                                 run_results = {}
                                 prev_time_results = {}
 

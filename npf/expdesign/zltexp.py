@@ -50,15 +50,22 @@ class ZLTVariableExpander(OptVariableExpander):
 
         if self.current == None:
             self.current = self.it.__next__()
+            if self.current is None:
+                return None
             self.n_it += 1
             self.n_tot_done += self.n_done
             self.n_done = 0
+            self.next_val = None
+            self.executable_values = self.input_values.copy()
+        elif not self.executable_values:
+            self.current = None
+            return self.__next__()
 
 
         # get all outputs for all inputs
         vals_for_current = {}
         acceptable_rates = []
-        max_r = max(self.input_values)
+        max_r = max(self.executable_values)
         for r, vals in self.results.items():
             if Run(self.current).inside(r):
                 try:
@@ -72,28 +79,30 @@ class ZLTVariableExpander(OptVariableExpander):
                             acceptable_rates.append(r_in)
                         else:
                             max_r = min(max_r, r_out)
-                except KeyError:
-                    raise Exception(f"{self.output} is not in the results. Sample of last result : {vals}")
-        
+                except KeyError as e:
+                    raise Exception(
+                        f"{self.output} is not in the results. Sample of last result : {vals}"
+                    ) from e
+
         #Step 1 : try the max input rate first
-        if len(vals_for_current) == 0:
+        if not vals_for_current:
             next_val = max_r
         elif len(vals_for_current) == 1:
             #If we're lucky, the max rate is doable
-            
+
             if len(acceptable_rates) == 1 and not self.all:
                     self.current = None
                     return self.__next__()
                 
             #Step 2 : go for the rate below the output of the max input
-            maybe_achievable_inputs = list(filter(lambda x : x <= max_r, self.input_values))
+            maybe_achievable_inputs = list(filter(lambda x : x <= max_r, self.executable_values))
             next_val = max(maybe_achievable_inputs)
         else:
-            
-            maybe_achievable_inputs = list(filter(lambda x : x <= max_r*self.margin, self.input_values))
+
+            maybe_achievable_inputs = list(filter(lambda x : x <= max_r*self.margin, self.executable_values))
             left_to_try = set(maybe_achievable_inputs).difference(vals_for_current.keys())
-            
-            #Step 3...K : try to get an acceptable rate. This step might be skiped if we got an acceptable rate already
+
+            #Step 3...K : try to get an acceptable rate. This step might be skipped if we got an acceptable rate already
             if len(acceptable_rates) == 0:
                 #Try the rate below the min already tried rate - its drop count. For instance if we tried 70 last run but got 67 of throughput, try the rate below 64
                 min_input = min(vals_for_current.keys())
@@ -111,11 +120,16 @@ class ZLTVariableExpander(OptVariableExpander):
                             return self.__next__()
                 #Binary search
                 if self.all:
-                    next_val=max(left_to_try_over_acceptable)
+                    next_val = max(left_to_try_over_acceptable)
                 else:
                     next_val = left_to_try_over_acceptable[int(len(left_to_try_over_acceptable) / 2)]
 
-            
+        if next_val == self.next_val:
+            self.executable_values.remove(next_val)
+            #Loop : this value is not running for some reasons
+            return self.__next__()
+
+        self.next_val = next_val
         copy = self.current.copy()
         copy.update({self.input : next_val})
         self.n_done += 1
