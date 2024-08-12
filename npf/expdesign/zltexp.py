@@ -8,8 +8,8 @@ from npf.types.dataset import Run
 from npf.variable import Variable
 
 class OptVariableExpander(FullVariableExpander):
-    def __init__(self, vlist:Dict[str,Variable], results, overriden, input, margin, all=False):
-        if not input in vlist:
+    def __init__(self, vlist:Dict[str,Variable], results, overriden, input, margin, all=False, monotonic=False):
+        if input not in vlist:
             raise Exception(f"{input} is not in the variables, please define a variable in the %variable section.")
 
         self.results = results
@@ -25,6 +25,7 @@ class OptVariableExpander(FullVariableExpander):
         self.n_tot_done = 0
         self.margin = margin
         self.all = all
+        self.monotonic = monotonic
         super().__init__(vlist, overriden)
 
     def __iter__(self):
@@ -45,10 +46,27 @@ class ZLTVariableExpander(OptVariableExpander):
         self.perc = perc
         super().__init__(vlist, results, overriden, input, margin, all)
 
+    def need_run_for(self, next_val):
+        self.next_val = next_val
+        copy = self.current.copy()
+        copy.update({self.input : next_val})
+        self.n_done += 1
+        return copy
+
+    def ensure_monotonic(self, max_r, vals_for_current):
+
+        if not self.monotonic:
+            # If the function is not monotonic, we now have to try rates between the max acceptable and the first dropping rate
+            after_max = next(iter(filter(lambda x : x > max_r, self.executable_values)))
+            if after_max not in vals_for_current:
+                return self.need_run_for(after_max)
+
+        #Else we're finished
+        self.current = None
+        return self.__next__()
 
     def __next__(self):
-
-        if self.current == None:
+        if self.current is None:
             self.current = self.it.__next__()
             if self.current is None:
                 return None
@@ -91,9 +109,9 @@ class ZLTVariableExpander(OptVariableExpander):
             #If we're lucky, the max rate is doable
 
             if len(acceptable_rates) == 1 and not self.all:
-                    self.current = None
-                    return self.__next__()
-                
+                    return self.ensure_monotonic(max(acceptable_rates), vals_for_current)
+
+
             #Step 2 : go for the rate below the output of the max input
             maybe_achievable_inputs = list(filter(lambda x : x <= max_r, self.executable_values))
             next_val = max(maybe_achievable_inputs)
@@ -115,9 +133,7 @@ class ZLTVariableExpander(OptVariableExpander):
                 #Consider we tried 100->95 (max_r=95), 90->90 (acceptable) we have to try values between 90..95
                 left_to_try_over_acceptable = list(filter(lambda x: x > max_acceptable, left_to_try))
                 if len(left_to_try_over_acceptable) == 0:
-                            #Found!
-                            self.current = None
-                            return self.__next__()
+                    return self.ensure_monotonic(max(acceptable_rates), vals_for_current)
                 #Binary search
                 if self.all:
                     next_val = max(left_to_try_over_acceptable)
@@ -129,10 +145,6 @@ class ZLTVariableExpander(OptVariableExpander):
             #Loop : this value is not running for some reasons
             return self.__next__()
 
-        self.next_val = next_val
-        copy = self.current.copy()
-        copy.update({self.input : next_val})
-        self.n_done += 1
-        return copy
+        return self.need_run_for(next_val)
         
         
