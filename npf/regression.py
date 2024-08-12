@@ -171,7 +171,6 @@ class Regression:
         nok = 0
 
         for i_test, test in enumerate(tests):
-            print(test)
             if build.version != "local":
                 print(
                     f"[{repo.name}] Running test {test.filename} on version {build.version}..."

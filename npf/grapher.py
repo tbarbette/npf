@@ -768,7 +768,7 @@ class Grapher:
                 newseries.append((test, build, new_all_results))
             series = newseries
 
-        # Data transformation : reject outliers, transform list to arrays, filter according to graph_variables
+        # Data transformation : reject outliers if option is given, transform list to arrays, filter according to graph_variables
         #   and divide results as per the var_divider
         filtered_series = []
         vars_values = OrderedDict()
@@ -799,14 +799,16 @@ class Grapher:
             else:
                 print("No valid data for %s" % build)
         series = filtered_series
+
         if len(series) == 0:
             return
+
 
         #If graph_series_as_variables, take the series and make them as variables
         if self.config_bool('graph_series_as_variables',False):
             new_results = {}
             vars_values['serie'] = set()
-            for i, (test, build, all_results) in enumerate(series):
+            for test, build, all_results in series:
                 for run, run_results in all_results.items():
                     run.variables['serie'] = build.pretty_name()
                     vars_values['serie'].add(build.pretty_name())
@@ -855,8 +857,7 @@ class Grapher:
                     for result_type, results in run_results.items():
                         match = False
                         for stripout in result_to_variable_map:
-                            m = re.match(stripout, result_type)
-                            if m:
+                            if m := re.match(stripout, result_type):
                                 match = m.group(1) if len(m.groups()) > 0 else result_type
                                 break
                         if match:
@@ -872,26 +873,25 @@ class Grapher:
                             new_run_results_exp = OrderedDict(sorted(nn.items()))
 
                         u = self.scriptconfig("var_unit", var_name, default="")
-                        mult = u == 'percent' or u == '%'
+                        mult = u in ['percent', '%']
                         if mult:
                             tot = 0
                             for result_type, results in new_run_results_exp.items():
                                 tot += np.mean(results)
-                        if True:
-                            for extracted_val, results in new_run_results_exp.items(): #result-type
-                                variables = run.variables.copy()
-                                variables[var_name] = extracted_val
-                                vvalues.add(extracted_val)
-                                #nr = new_run_results.copy()
-                                nr = {}
-                                #If unit is percent, we multiply the value per the result
-                                if mult:
-                                    m = np.mean(results)
-                                    tot += m
-                                    for result_type in nr:
-                                        nr[result_type] = nr[result_type].copy() * m / 100
-                                nr.update({result_name: results})
-                                exploded_results[Run(variables)] = nr
+                        for extracted_val, results in new_run_results_exp.items(): #result-type
+                            variables = run.variables.copy()
+                            variables[var_name] = extracted_val
+                            vvalues.add(extracted_val)
+                            #nr = new_run_results.copy()
+                            nr = {}
+                            #If unit is percent, we multiply the value per the result
+                            if mult:
+                                m = np.mean(results)
+                                tot += m
+                                for result_type in nr:
+                                    nr[result_type] = nr[result_type].copy() * m / 100
+                            nr[result_name] = results
+                            exploded_results[Run(variables)] = nr
 
 
                     untouched_results[run] = untouched_run_results
