@@ -90,6 +90,7 @@ compare event $python
 compare math $python
 compare jinja $python
 compare globsync $python
+compare zlt $python
 try integration/cdf.npf $python "--config n_runs=20"
 try integration/heatmap.npf $python
 try tests/tcp/01-iperf.npf $python "--variables TIME=1"

@@ -1,4 +1,6 @@
+import unittest
 from npf import repository
+from npf.expdesign.zltexp import ZLTVariableExpander
 from npf.grapher import Grapher
 from npf.test_driver import Comparator
 import npf.npf
@@ -9,10 +11,18 @@ from collections import OrderedDict
 from npf.repository import Repository
 from npf.test import Test
 from npf.build import Build
-from npf.variable import dtype, numeric_dict
+from npf.variable import RangeVariable, SimpleVariable, dtype, numeric_dict
 from npf.types.dataset import Run
 
 import numpy as np
+import logging
+
+
+logger = logging.getLogger()
+logger.level = logging.DEBUG
+stream_handler = logging.StreamHandler(sys.stdout)
+logger.addHandler(stream_handler)
+
 
 def get_args():
     parser = argparse.ArgumentParser(description='NPF Tester')
@@ -168,3 +178,60 @@ def test_core():
                           filename=filename,
                           options=args
                           )
+
+def test_zlt():
+    vlist = {'RATE' : RangeVariable("RATE",1,10,log=False)}
+    results = OrderedDict()
+    zlt = ZLTVariableExpander(vlist, results, {}, "RATE", "PPS", 1.01)
+    it = iter(zlt)
+    run = next(it)
+    assert run["RATE"] == 10
+    results[Run({'RATE' : 10})] = {'PPS':[3.0]}
+    run = next(it)
+    assert run["RATE"] == 3
+    results[Run({'RATE' : 3})] = {'PPS':[1.5]}
+    run = next(it)
+    assert run["RATE"] == 1
+    results[Run({'RATE' : 1})] = {'PPS':[1]}
+    run = next(it)
+    assert run["RATE"] == 2
+    results[Run({'RATE' : 2})] = {'PPS':[1.5]}
+    try:
+        next(it)
+        assert False
+    except StopIteration:
+        pass
+    logger.error(run)
+
+
+def _test_allzlt(monotonic):
+    vlist = {'RATE' : RangeVariable("RATE",1,10,log=False)}
+    results = OrderedDict()
+    zlt = ZLTVariableExpander(vlist, results, {}, "RATE", "PPS", 1.01,all=True,monotonic=monotonic)
+    it = iter(zlt)
+    run = next(it)
+    assert run["RATE"] == 10
+    results[Run({'RATE' : 10})] = {'PPS':[3.0]}
+    run = next(it)
+    assert run["RATE"] == 3
+    results[Run({'RATE' : 3})] = {'PPS':[3]}
+    run = next(it)
+    assert run["RATE"] == 2
+    results[Run({'RATE' : 2})] = {'PPS':[2]}
+    run = next(it)
+    assert run["RATE"] == 1
+    results[Run({'RATE' : 1})] = {'PPS':[1]}
+    if not monotonic:
+        run = next(it)
+        assert run["RATE"] == 4
+        results[Run({'RATE' : 4})] = {'PPS':[3.1]}
+    try:
+        next(it)
+        assert False
+    except StopIteration:
+        pass
+    logger.error(run)
+
+def test_allzlt():
+    _test_allzlt(monotonic=True)
+    _test_allzlt(monotonic=False)

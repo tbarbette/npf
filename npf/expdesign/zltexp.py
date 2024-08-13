@@ -8,7 +8,7 @@ from npf.types.dataset import Run
 from npf.variable import Variable
 
 class OptVariableExpander(FullVariableExpander):
-    def __init__(self, vlist:Dict[str,Variable], results, overriden, input, margin, all=False, monotonic=False):
+    def __init__(self, vlist:Dict[str,Variable], results, overriden, input, margin, all=False):
         if input not in vlist:
             raise Exception(f"{input} is not in the variables, please define a variable in the %variable section.")
 
@@ -25,7 +25,6 @@ class OptVariableExpander(FullVariableExpander):
         self.n_tot_done = 0
         self.margin = margin
         self.all = all
-        self.monotonic = monotonic
         super().__init__(vlist, overriden)
 
     def __iter__(self):
@@ -40,10 +39,11 @@ class OptVariableExpander(FullVariableExpander):
 
 class ZLTVariableExpander(OptVariableExpander):
 
-    def __init__(self, vlist:Dict[str,Variable], results, overriden, input, output, margin, all=False, perc=False):
+    def __init__(self, vlist:Dict[str,Variable], results, overriden, input, output, margin, all=False, perc=False, monotonic=False):
 
         self.output = output
         self.perc = perc
+        self.monotonic = monotonic
         super().__init__(vlist, results, overriden, input, margin, all)
 
     def need_run_for(self, next_val):
@@ -121,18 +121,24 @@ class ZLTVariableExpander(OptVariableExpander):
             left_to_try = set(maybe_achievable_inputs).difference(vals_for_current.keys())
 
             #Step 3...K : try to get an acceptable rate. This step might be skipped if we got an acceptable rate already
-            if len(acceptable_rates) == 0:
+            if not acceptable_rates:
                 #Try the rate below the min already tried rate - its drop count. For instance if we tried 70 last run but got 67 of throughput, try the rate below 64
                 min_input = min(vals_for_current.keys())
                 min_output = vals_for_current[min_input]
                 target = min_output - (min_input - min_output)
-                next_val = max(filter(lambda x : x < target,left_to_try))
+                #We look for the rate below the target
+                next_vals = filter(lambda x : x < target,left_to_try)
+                #Maybe there's no rate as low as that so next_vals might be empty. In that case we take the minimal rate
+                if len(list(next_vals)) > 0:
+                    next_val = max(next_vals)
+                else:
+                    next_val = min(left_to_try)
             else:
                 #Step K... n : we do a binary search between the maximum acceptable rate and the minimal rate observed
                 max_acceptable = -1 if self.all else max(acceptable_rates)
                 #Consider we tried 100->95 (max_r=95), 90->90 (acceptable) we have to try values between 90..95
                 left_to_try_over_acceptable = list(filter(lambda x: x > max_acceptable, left_to_try))
-                if len(left_to_try_over_acceptable) == 0:
+                if not left_to_try_over_acceptable:
                     return self.ensure_monotonic(max(acceptable_rates), vals_for_current)
                 #Binary search
                 if self.all:

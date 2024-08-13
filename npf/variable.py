@@ -478,7 +478,7 @@ class DictVariable(Variable):
         return self
 
 class RangeVariable(Variable):
-    def __init__(self, name, valuestart, valueend, log, step = None, force_int = False):
+    def __init__(self, name, valuestart, valueend, log = False, step = None, force_int = False):
         super().__init__(name)
 
         if is_integer(valuestart) and is_integer(valueend):
