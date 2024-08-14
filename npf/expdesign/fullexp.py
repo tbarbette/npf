@@ -33,3 +33,6 @@ class FullVariableExpander:
     
     def __len__(self):
         return len(self.expanded)
+
+    def strlen(self):
+        return len(self)

@@ -1344,8 +1344,8 @@ class Test:
                                 desc = run.format_variables(self.config["var_hide"])
                                 if desc:
                                     print(desc, end=' ')
-                                print(
-                                  ("[%srun %d/%d for test %d/%d"+(" of serie %d/%d" %(iserie+1,nseries) if nseries > 1 else "")+"]") % (  ("retrying %d/%d " % (i_try + 1,n_try)) if i_try > 0 else "", i+1, n_runs, n, len(all_variables)))
+                                str_retry = f"retrying {i_try+1}/{n_try} " if i_try > 0 else ""
+                                print(f"[{str_retry}run {i+1}/{n_runs} for test {n}/{all_variables.strlen()}"+(f" of serie {iserie+1}/{nseries}" if nseries > 1 else "")+"]")
 
                     new_data_results, new_all_time_results, output, err, n_exec, n_err = self.execute(build, run, variables,
                                                                                                   n_runs,

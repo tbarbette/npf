@@ -1,3 +1,4 @@
+import re
 import numpy as np
 from typing import Dict, Final, List, Tuple
 from collections import OrderedDict
@@ -170,32 +171,88 @@ def var_divider(test: 'Test', key: str, result_type = None):
         return 1024
     return 1
 
-def group_val(result, t):
-                           if t == 'mean':
-                               return np.mean(result)
-                           elif t == 'avg':
-                               return np.average(result)
-                           elif t == 'min':
-                               return np.min(result)
-                           elif t == 'max':
-                               return np.max(result)
-                           elif t[:4] == 'perc':
-                               return np.percentile(result, int(t[4:]))
-                           elif t == 'median' or t == 'med':
-                               return np.median(result)
-                           elif t == 'std':
-                               return np.std(result)
-                           elif t == 'nres' or t == 'n':
-                               return len(result)
-                           elif t == 'first':
-                                return result[0]
-                           elif t == 'last':
-                                return result[-1]
-                           elif t == 'all':
-                               return result
-                           else:
-                               print("WARNING : Unknown format %s" % t)
-                               return np.nan
+def mask_from_filter(fl, data_types, build, ax, y):
+        #The result type to filter on
+        fl_min=1
+        fl_op = '>'
+        flm = re.match("(.*)([><=])(.*)", fl)
+        if flm:
+            fl = flm.group(1)
+            fl_min=float(flm.group(3))
+            fl_op=flm.group(2)
+
+        fl_y = None
+
+        if build: #Raw results are given, we need to search for the right build
+            if not fl in data_types:
+                print(f"ERROR: {fl} not found in results")
+                return None
+
+            fl_data = data_types[fl]
+            for fl_xyeb in fl_data:
+                if fl_xyeb[3] == build:
+                    fl_x = np.array(fl_xyeb[0])
+                    fl_y = np.array(fl_xyeb[1])
+                    break
+            fl_y = np.array([fl_y[fl_x == r_y][0] if r_y in fl_x else np.NaN for r_y in ax])
+        else:
+            fl_y = np.array(data_types(fl))
+        if fl_op == '>':
+            mask = fl_y > fl_min
+        elif fl_op == '<':
+            mask = fl_y < fl_min
+        elif fl_op == '=':
+            mask = fl_y == fl_min
+        else:
+            raise Exception("Unknown operator in filter_by : " + fl_op )
+
+        if (ax is not None and (len(mask) != len(ax))) or len(mask) != len(y):
+            print("ERROR: graph_filter_by cannot be applied, because length of X is %d, length of Y is %d but length of mask is %d" % (len(ax) if ax else -1, len(y), len(mask)))
+            return None
+        return mask
+
+def group_val(result, t, other_result_getter, build=None):
+    left_paren = t.find('(')
+    if left_paren >= 0:
+        inner = t[left_paren+1:t.rfind(')')]
+        if t.startswith("where"):
+            mask = mask_from_filter(inner, other_result_getter, build=None, ax=None, y = result)
+            if mask is None:
+                return []
+            result = result[mask]
+            return result
+
+        else:
+            result = group_val(result, inner, other_result_getter)
+
+            if len(result) == 0:
+                return np.nan
+            t = t[0:left_paren]
+    if t == 'mean':
+        return np.mean(result)
+    elif t == 'avg':
+        return np.average(result)
+    elif t == 'min':
+        return np.min(result)
+    elif t == 'max':
+        return np.max(result)
+    elif t[:4] == 'perc':
+        return np.percentile(result, int(t[4:]))
+    elif t == 'median' or t == 'med':
+        return np.median(result)
+    elif t == 'std':
+        return np.std(result)
+    elif t == 'nres' or t == 'n':
+        return len(result)
+    elif t == 'first':
+        return result[0]
+    elif t == 'last':
+        return result[-1]
+    elif t == 'all':
+        return result
+    else:
+        print("WARNING : Unknown format %s" % t)
+        return np.nan
 
 def prepare_result_types(datasets):
     all_result_types = OrderedSet()
@@ -242,7 +299,7 @@ def prepare_csvs(all_result_types, datasets, statics, run_list, options, kind=No
                            elif t == 'raw':
                                row.extend(result)
                            else:
-                               yval = group_val(result,t)
+                               yval = group_val(result,t,all_results=results_types)
                                if yval is not None:
                                    try:
                                        it = iter(yval)
@@ -311,7 +368,9 @@ def convert_to_xyeb(datasets: List[Tuple['Test', 'Build' , Dataset]], run_list, 
                     x.setdefault(result_type, []).append(xval)
 
                 if result is not None:
-                    yval = group_val(result, y_group[result_type] if result_type in y_group else ( y_group['result'] if 'result' in y_group else 'mean'))
+                    yval = group_val(result,
+                                     y_group[result_type] if result_type in y_group else ( y_group['result'] if 'result' in y_group else 'mean'),
+                                     other_result_getter=lambda x: results_types[x])
                     y.setdefault(result_type, []).append(yval)
 
                     std = np.std(result)

@@ -33,10 +33,11 @@ class OptVariableExpander(FullVariableExpander):
         self.n_it = 0
         self.n_tot_done = 0
         return self
-    
-    def __len__(self):
-        return int(len(self.expanded) * ceil(log2(len(self.input_values)) if (self.n_it <= 1) else self.n_tot_done/(self.n_it - 1)))
 
+    def strlen(self):
+        approx = int(len(self.expanded) * ceil(log2(len(self.input_values)) if (self.n_it <= 1) else self.n_tot_done/(self.n_it - 1)))
+        max = len(self.expanded) * len(self.input_values)
+        return f"~{approx}(max {max})"
 class ZLTVariableExpander(OptVariableExpander):
 
     def __init__(self, vlist:Dict[str,Variable], results, overriden, input, output, margin, all=False, perc=False, monotonic=False):
@@ -127,9 +128,9 @@ class ZLTVariableExpander(OptVariableExpander):
                 min_output = vals_for_current[min_input]
                 target = min_output - (min_input - min_output)
                 #We look for the rate below the target
-                next_vals = filter(lambda x : x < target,left_to_try)
+                next_vals = list(filter(lambda x : x < target,left_to_try))
                 #Maybe there's no rate as low as that so next_vals might be empty. In that case we take the minimal rate
-                if len(list(next_vals)) > 0:
+                if len(next_vals) > 0:
                     next_val = max(next_vals)
                 else:
                     next_val = min(left_to_try)

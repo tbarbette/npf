@@ -1,9 +1,11 @@
 %config
-graph_filter_by={THROUGHPUT:DROPPEDPC>10}
+graph_fillstyle=full
+graph_filter_by={THROUGHPUT:DROPPEDPC>1}
 var_format={THROUGHPUT:%d}
-var_names={RATE:Input rate (Gbps),THROUGHPUT:Throughput (Gbps)}
-graph_legend=0
+var_names={RATE:Input rate (Gbps),THROUGHPUT:Throughput (Gbps),THRESH:System capacity (Gbps)}
+graph_legend=1
 var_lim={result:0-100}
+agg:var_aggregate={RATE:max(where(DROPPEDPC<1))}
 
 %variables
 RATE=[10-100#5]
@@ -21,3 +23,6 @@ p=$(echo "$t * 100 / $RATE" | bc)
 echo "RESULT-DROPPEDPC $d"
 echo "RESULT-GOODPC $p"
 echo "RESULT-THROUGHPUT $t"
+
+
+%import graph-beautiful

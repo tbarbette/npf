@@ -466,7 +466,7 @@ class SectionConfig(SectionVariable):
         self.__add("default_repo", "local")
 
         # Regression related
-        self.__add_list("accept_zero", ["time","DROP", "DROPPED"])
+        self.__add_list("accept_zero", ["time", "DROP", "DROPPED", "DROPPEDPC", "LOST"])
         self.__add("n_supplementary_runs", 3)
         self.__add("acceptable", 0.01)
         self.__add("accept_outliers_mult", 1)
@@ -519,6 +519,8 @@ class SectionConfig(SectionVariable):
         self.__add("graph_series_sort", None)
         self.__add("graph_series_label", None)
         self.__add_dict("graph_filter_by", {})
+        self.__add("graph_filter_linestyle", "--")
+        self.__add("graph_filter_fillstyle", "none")
         self.__add("graph_bar_stack", False)
         self.__add("graph_text",'')
         self.__add("graph_legend", None), #the default behavior depends upon the type of graph
