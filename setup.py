@@ -32,7 +32,7 @@ install_requires=[
     'jinja2',
     'spellwise',
     'seaborn',
-    'statsmodel'
+    'statsmodels'
     ]
 
 setuptools.setup(
