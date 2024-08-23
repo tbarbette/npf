@@ -91,6 +91,7 @@ cpulist=$(lscpu | grep "NUMA node${SOCKET}" | rev | cut -d ' ' -f 1 | rev)
 //cpulist=0-15 //Bug to be fixed
 echo "Launching generator with $cpulist CPU cores..."
 $GDB click --dpdk -l $cpulist -- PKTGEN_CONFIG
+echo "EVENT TX_FINISHED"
 
 %file PKTGEN_CONFIG
 d :: DPDKInfo(NB_SOCKET_MBUF $NBBUF, NB_SOCKET_MBUF 8192)
