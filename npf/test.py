@@ -425,8 +425,14 @@ class Test:
             if s.jinja:
                     from jinja2 import Environment, BaseLoader
                     env = Environment(loader=BaseLoader)
-                    template = env.from_string(p)
-                    p = template.render(**v)
+                    try:
+                        template = env.from_string(p)
+                        p = template.render(**v)
+                    except Exception as e:
+                        print(f"In {s.filename}")
+                        if hasattr(e, "lineno"):
+                            print(p.splitlines()[e.lineno])
+                        raise e
 
             create_list.append((s.filename, p, role))
         return create_list
