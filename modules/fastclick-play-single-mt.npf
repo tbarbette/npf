@@ -42,6 +42,7 @@ promisc:PROMISC=true
 IGNORE?=0
 GEN_PAUSE=none
 GEN_DESC=0
+GEN_CSUM=true
 END_AFTER=0
 GEN_PROGRESSIVE=0
 progressive:GEN_PROGRESSIVE=1
@@ -187,7 +188,7 @@ tdIN ::
 {% else %}
     {[0] -> [0]} ->
 {% endif %}
-     realTD :: ToDPDKDevice($port, BLOCKING $GEN_BLOCKING, BURST $bout, VERBOSE $txverbose, IQUEUE $bout, NDESC $GEN_TX_DESC, IPCO true )
+     realTD :: ToDPDKDevice($port, BLOCKING $GEN_BLOCKING, BURST $bout, VERBOSE $txverbose, IQUEUE $bout, NDESC $GEN_TX_DESC, IPCO $GEN_CSUM )
 
 
 
@@ -200,7 +201,7 @@ elementclass Numberise { $magic |
     input-> Strip(14)
     $GEN_NUMBER
     $GEN_FNT
-$(( "" if $GEN_IPV6 else " -> ResetIPChecksum()  " ))
+$(( "" if $GEN_IPV6 and $GEN_CSUM else " -> ResetIPChecksum()  " ))
     -> Unstrip(14) -> output
 }
 
