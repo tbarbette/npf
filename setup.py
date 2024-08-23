@@ -31,7 +31,8 @@ install_requires=[
     'npf-web-extension >= 0.6.4',
     'jinja2',
     'spellwise',
-    'seaborn'
+    'seaborn',
+    'statsmodel'
     ]
 
 setuptools.setup(
