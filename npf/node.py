@@ -14,6 +14,9 @@ from npf import npf
 
 
 class Node:
+    """
+    Class representing a node (a host that will run experiments)
+    """
     _nodes = {}
 
     def __init__(self, name, executor : Executor, tags):
@@ -32,7 +35,9 @@ class Node:
         # Always fill 32 random nics address that will be overwriten by config eventually
         self._gen_random_nics()
 
-        clusterFileName = 'cluster/' + name + ('.node' if not name.endswith(".node") else "")
+        clusterFileName = f'cluster/{name}' + (
+            '.node' if not name.endswith(".node") else ""
+        )
         try:
             clusterFilePath = npf.find_local(clusterFileName, critical=False)
             self.path = clusterFilePath
@@ -58,7 +63,9 @@ class Node:
                 raise Exception("%s:%d : Unknown node config line %s" % (clusterFilePath, i, line))
             self.parsed = True
         except FileNotFoundError as e:
-            print("%s could not be found, we will connect to %s with SSH using default parameters" % (clusterFilePath,name))
+            print(
+                f"{clusterFilePath} could not be found, we will connect to {name} with SSH using default parameters"
+            )
             self.parsed = False
 
 
@@ -99,10 +106,14 @@ class Node:
             return
         print("Looking for NICs on %s..." % self.name)
         if not npf.options.cluster_autosave:
-            print("To avoid this message write down the configuration in cluster/%s.node or run again NPF with --cluster-autosave to create the file automatically." % (self.name))
+            print(
+                f"To avoid this message write down the configuration in cluster/{self.name}.node or run again NPF with --cluster-autosave to create the file automatically."
+            )
         pid, out, err, ret = self.executor.exec(cmd="sudo lshw -class network -businfo -quiet", title="Listing network devices")
         if ret != 0 or out == "" or out.isspace():
-            print("WARNING: %s has no configuration file and the NICs could not be found automatically. Please refer to the cluster documentation in NPF to define NIC order and addresses." % self.name)
+            print(
+                f"WARNING: {self.name} has no configuration file and the NICs could not be found automatically. Please refer to the cluster documentation in NPF to define NIC order and addresses."
+            )
             print(out)
             return
         eqpos = out.find('====')
@@ -191,9 +202,9 @@ class Node:
             try:
                 node.ip = socket.gethostbyname(node.executor.addr)
             except Exception as e:
-                print("Could not resolve hostname '%s'" % node.executor.addr)
+                print(f"Could not resolve hostname '{node.executor.addr}'")
                 raise(e)
-            print("Testing connection to %s..." % node.executor.addr)
+            print(f"Testing connection to {node.executor.addr}...")
             time.sleep(0.01)
             if not node.nfs:
                 print("Remote is not shared through nfs... Sending .access_test")
@@ -202,19 +213,29 @@ class Node:
 
                     node.executor.sendFolder(".access_test", local=npf.experiment_path())
                 except FileNotFoundError as e:
-                    print("While checking if file .access_test can be sent from local path %s to remote %s" % (npf.experiment_path(),node.executor.addr))
+                    print(
+                        f"While checking if file .access_test can be sent from local path {npf.experiment_path()} to remote {node.executor.addr}"
+                    )
                     raise e
 
             pid, out, err, ret = sshex.exec(cmd="pwd;test -e " + ".access_test" + " && echo 'access_ok' &&  if sudo whoami ; then echo 'sudo_ok' ; else echo 'sudo_fail' ; fi ; if ! type 'unbuffer' ; then echo \"installing expect...\" && ( ( sudo apt-get update && sudo apt-get install -y expect ) || sudo yum install -y expect ) fi ; ( ( type 'unbuffer' && echo 'unbuffer_ok' )  || echo 'unbuffer_fail' ) ; echo 'test'", raw=True, title="SSH dependencies installation")
             out = out.strip()
             if not node.nfs:
                 node.executor.deleteFolder(".access_test")
-            if ret != 0 or not "access_ok" in out:
+            if ret != 0 or "access_ok" not in out:
                 #Something was wrong, try first with a more basic test to help the user pinpoint the problem
                 pidT, outT, errT, retT = sshex.exec(cmd="echo -n 'test'", raw=True, title="SSH echo test")
                 if retT != 0 or outT.strip().split("\n")[-1] != "test":
-                    raise Exception("Could not communicate with%s node %s, got return code %d : %s" %  (" user "+ sshex.user if sshex.user else "", sshex.addr, retT, outT + errT))
-            if not "access_ok" in out:
+                    raise Exception(
+                        "Could not communicate with%s node %s, got return code %d : %s"
+                        % (
+                            f" user {sshex.user}" if sshex.user else "",
+                            sshex.addr,
+                            retT,
+                            outT + errT,
+                        )
+                    )
+            if "access_ok" not in out:
                 raise Exception(("Could not find the access test file at %s on %s. Verify the path= paramater in the cluster file and that this directory already exists. It must match --experiment-folder on the remote equivalent when nfs is active. If the path is not shared accross clusters, ensure you set nfs=0 in the cluster file.\n\nIf you think the above is not correct, please paste the output of the test script below to the github issues:\n" % (sshex.path, sshex.addr)) + "\n---" + out + err + "\n---")
             if not "sudo_ok" in out:
                 print("WARNING : node %s does not seem tu support passwordless sudo." % sshex.addr)

@@ -1,6 +1,7 @@
 from typing import Dict, List, Tuple
 from npf import npf
 from npf.build import Build
+from npf.pipeline import pypost
 from npf.regression import Grapher, OrderedDict, Regression, npf
 from npf.repository import Repository
 from npf.statistics import Statistics
@@ -170,6 +171,7 @@ def group_series(filename: str, series: Series , time_series:Series, options) ->
     grapher = Grapher()
     print("Generating graphs...")
 
+    pypost.execute_pypost(series=series)
     g = grapher.graph(series=series,
                       filename=filename,
                       options=options,

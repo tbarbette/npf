@@ -132,6 +132,47 @@ class Statistics:
             plt.savefig(f)
             print(f"Graph of correlation matrix saved to {f}")
 
+            plt.clf()
+
+            import statsmodels.api as sm
+
+            from statsmodels.formula.api import ols
+            variables = [k for k,v in vars_values.items() if len(v) > 1]
+
+            m = result_type + ' ~ ' +' * '.join( [f"{v}" for v in variables])
+
+            pd.set_option("display.max_rows", None)
+
+            dfn = df[variables + [result_type]].replace([np.inf, -np.inf], np.nan).dropna(axis=1)
+            dfn = dfn.replace([np.inf, -np.inf], np.nan).dropna(axis=0)
+
+            model =  ols(m, data=dfn).fit()
+
+            anova_table = sm.stats.anova_lm(model, typ=2)
+
+            interaction_pvalues = anova_table.loc[anova_table.index.str.count(':') <= 1, 'PR(>F)']
+
+            interaction_matrix = pd.DataFrame(np.nan, index=variables, columns=variables + [result_type])
+
+            for interaction in interaction_pvalues.index:
+                if interaction == "Residual":
+                    continue
+                factors = interaction.split(':')
+
+                if len(factors) > 1:
+                    interaction_matrix.loc[factors[0], factors[1]] = interaction_pvalues[interaction]
+                    #interaction_matrix.loc[factors[1], factors[0]] = interaction_pvalues[interaction]
+                else:
+                    interaction_matrix.loc[factors[0],result_type] = interaction_pvalues[interaction]
+
+            print("P-value of ANOVA (low p-value indicates a probable interaction):")
+            print(interaction_matrix)
+            ax = sn.heatmap(interaction_matrix, cmap="viridis", fmt=".2f", annot=True)
+            ax.figure.tight_layout()
+            f = npf.build_filename(test, build, filename if not filename is True else None, {}, 'pdf', result_type, show_serie=False, suffix="anova")
+            plt.savefig(f)
+            print(f"Graph of a ANOVA matrix saved to {f}")
+
     @classmethod
     def buildDataset(cls, all_results: Dataset, test: Test) -> List[tuple]:
         #map of every <variable name, format>

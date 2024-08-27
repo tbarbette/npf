@@ -11,8 +11,9 @@ default_repo=iperf
 
 %variables
 PARALLEL=[1-8]
+cpu:CPU=[1-8]
 WINDOW=[1*32768]
-CONGESTION={bbr,cubic,vegas,newreno}
+CONGESTION={bbr,cubic,reno}
 NODELAY={-N:Nagle disabled,:Nagle enabled}
 TIME={2,10}
 

@@ -9,7 +9,6 @@ supported in comparator.
 """
 import argparse
 from typing import Dict
-from npf.pipeline import pypost
 
 from npf import npf
 from npf.test_driver import Comparator

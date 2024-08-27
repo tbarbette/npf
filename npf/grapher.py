@@ -25,7 +25,7 @@ from math import log,pow
 
 from npf.types import dataset
 from npf.types.series import Series
-from npf.types.dataset import Run, XYEB, AllXYEB, group_val, var_divider
+from npf.types.dataset import Run, XYEB, AllXYEB, group_val, var_divider, mask_from_filter
 from npf.variable import is_log, is_numeric, get_numeric, numericable, get_bool, is_bool
 from npf.section import SectionVariable
 from npf.build import Build
@@ -371,32 +371,36 @@ class Grapher:
                     #                    if (graph_variables and not run in graph_variables):
                     #                        continue
                 newrun = run.copy()
+                #Remove all aggregated variables from run's variables
                 for k in key.split("+"):
                     if k in newrun.write_variables():
                         del newrun.write_variables()[k]
 
                 newrun.write_variables()[key] = 'AGG'
 
+                #Add all run_results as a list for the common variables (merging the aggregated ones)
                 aggregates.setdefault(newrun,[]).append(run_results)
 
             new_all_results = OrderedDict()
+
+            #Now we have to actually aggregate the results from all merge list
             for run, multiple_run_results in aggregates.items():
+                    #multiple_run_results is a list of results for each run
                     new_run_results = OrderedDict()
+                    #agg becomes a dict of result_type (for this run) to all the results for this run
                     agg = {}
                     all_result_types = set()
                     for run_results in multiple_run_results:
                         for result_type, results in run_results.items():
                             agg.setdefault(result_type,{})
                             all_result_types.add(result_type)
-                            for i,result in enumerate(results):
+                            for i, result in enumerate(results):
                                 agg[result_type].setdefault(i,[]).append(result)
-
                     for result_type in all_result_types:
                         if method == 'all':
                             new_run_results[result_type] = list(itertools.chain.from_iterable([ag for i,ag in agg[result_type].items()]))
-                            #print (run, result_type, new_run_results[result_type])
                         else:
-                            new_run_results[result_type] = [group_val(np.asarray(ag),method) for i,ag in agg[result_type].items()]
+                            new_run_results[result_type] = list(filter(lambda x:  not np.isnan(x), [group_val(np.asarray(ag), method, lambda fl: agg[fl][i]) for i,ag in agg[result_type].items()]))
                     new_all_results[run] = new_run_results
             nseries.append((test,build,new_all_results))
         return nseries
@@ -597,6 +601,9 @@ class Grapher:
                 for run, results in serie[2].items():
                     graph_variables.add(run)
 
+
+
+
         if not series:
             print("No data...")
             return
@@ -687,7 +694,7 @@ class Grapher:
                 newseries.append((test, build, new_all_results))
             series = newseries
 
-        # Data transformation : reject outliers, transform list to arrays, filter according to graph_variables
+        # Data transformation : reject outliers if option is given, transform list to arrays, filter according to graph_variables
         #   and divide results as per the var_divider
         filtered_series = []
         vars_values = OrderedDict()
@@ -700,11 +707,12 @@ class Grapher:
                             results = self.reject_outliers(np.asarray(results), test)
                         else:
                             results = np.asarray(results)
+
                         if self.options.graph_select_max:
                             results = np.sort(results)[-self.options.graph_select_max:]
 
                         ydiv = var_divider(test, "result", result_type)
-                        if not results.any():
+                        if np.all(np.isnan(results)):
                             results=np.asarray([0])
                         new_results.setdefault(run.copy(), OrderedDict())[result_type] = results / ydiv
 
@@ -718,14 +726,16 @@ class Grapher:
             else:
                 print("No valid data for %s" % build)
         series = filtered_series
+
         if len(series) == 0:
             return
+
 
         #If graph_series_as_variables, take the series and make them as variables
         if self.config_bool('graph_series_as_variables',False):
             new_results = {}
             vars_values['serie'] = set()
-            for i, (test, build, all_results) in enumerate(series):
+            for test, build, all_results in series:
                 for run, run_results in all_results.items():
                     run.variables['serie'] = build.pretty_name()
                     vars_values['serie'].add(build.pretty_name())
@@ -774,8 +784,7 @@ class Grapher:
                     for result_type, results in run_results.items():
                         match = False
                         for stripout in result_to_variable_map:
-                            m = re.match(stripout, result_type)
-                            if m:
+                            if m := re.match(stripout, result_type):
                                 match = m.group(1) if len(m.groups()) > 0 else result_type
                                 break
                         if match:
@@ -791,26 +800,25 @@ class Grapher:
                             new_run_results_exp = OrderedDict(sorted(nn.items()))
 
                         u = self.scriptconfig("var_unit", var_name, default="")
-                        mult = u == 'percent' or u == '%'
+                        mult = u in ['percent', '%']
                         if mult:
                             tot = 0
                             for result_type, results in new_run_results_exp.items():
                                 tot += np.mean(results)
-                        if True:
-                            for extracted_val, results in new_run_results_exp.items(): #result-type
-                                variables = run.variables.copy()
-                                variables[var_name] = extracted_val
-                                vvalues.add(extracted_val)
-                                #nr = new_run_results.copy()
-                                nr = {}
-                                #If unit is percent, we multiply the value per the result
-                                if mult:
-                                    m = np.mean(results)
-                                    tot += m
-                                    for result_type in nr:
-                                        nr[result_type] = nr[result_type].copy() * m / 100
-                                nr.update({result_name: results})
-                                exploded_results[Run(variables)] = nr
+                        for extracted_val, results in new_run_results_exp.items(): #result-type
+                            variables = run.variables.copy()
+                            variables[var_name] = extracted_val
+                            vvalues.add(extracted_val)
+                            #nr = new_run_results.copy()
+                            nr = {}
+                            #If unit is percent, we multiply the value per the result
+                            if mult:
+                                m = np.mean(results)
+                                tot += m
+                                for result_type in nr:
+                                    nr[result_type] = nr[result_type].copy() * m / 100
+                            nr[result_name] = results
+                            exploded_results[Run(variables)] = nr
 
 
                     untouched_results[run] = untouched_run_results
@@ -937,7 +945,6 @@ class Grapher:
                     new_all_results[run] = run_results
                 transformed_series.append((test, build, new_all_results))
             series = transformed_series
-
 
         for key,method in self.configdict('var_aggregate').items():
             series = self.aggregate_variable(key=key,series=series,method=method)
@@ -1724,40 +1731,6 @@ class Grapher:
                              ha='center', va='bottom')
             autolabel(rects, plt)
 
-
-    def mask_from_filter(self, fl, data_types, build, ax, y):
-                        #The result type to filter on
-                        fl_min=1
-                        fl_op = '>'
-                        flm = re.match("(.*)([><=])(.*)", fl)
-                        if flm:
-                            fl = flm.group(1)
-                            fl_min=float(flm.group(3))
-                            fl_op=flm.group(2)
-                        if not fl in data_types:
-                            print("ERROR: graph_filter_by's %s not found" % fl)
-                            return
-                        fl_data = data_types[fl]
-                        fl_y = None
-                        for fl_xyeb in fl_data:
-                            if fl_xyeb[3] ==  build:
-                                fl_y = np.array(fl_xyeb[1])
-                                break
-                        if fl_op == '>':
-                            mask = fl_y > fl_min
-                        elif fl_op == '<':
-                            mask = fl_y < fl_min
-                        elif fl_op == '=':
-                            mask = fl_y == fl_min
-                        else:
-                            raise Exception("Unknown operator in filter_by : " + fl_op )
-
-
-                        if len(mask) != len(ax) or len(mask) != len(y):
-                            print("ERROR: graph_filter_by cannot be applied, because length of X is %d, length of Y is %d but length of mask is %d" % (len(ax), len(y), len(mask)))
-                            return None
-                        return mask
-
     def do_simple_barplot(self,axis, result_type, data,shift=0,isubplot=0):
         i = 0
         interbar = 0.1
@@ -2050,14 +2023,23 @@ class Grapher:
             else:
                 if result_type in filters:
 
-                    mask=self.mask_from_filter(filters[result_type],data_types,build,ax,y)
+                    mask = mask_from_filter(filters[result_type],data_types,build,ax,y)
+
                     if mask is None:
                         continue
 
                     rects = axis.plot(ax[~mask], y[~mask], label=lab, color=c, linestyle=build._line, marker=marker,markevery=(1 if len(ax) < 20 else math.ceil(len(ax) / 20)),drawstyle=drawstyle, fillstyle=fillstyle, **line_params)
                     mask = ndimage.binary_dilation(mask)
-                    filter_linestyle = self.config('graph_filter_linestyle', default='--')
-                    axis.plot(ax[mask], y[mask], label=None, color=lighter(c,0.9,255), linestyle=filter_linestyle, marker=marker,markevery=(1 if len(ax) < 20 else math.ceil(len(ax) / 20)),drawstyle=drawstyle, fillstyle=fillstyle, **line_params)
+
+                    filter_linestyle = self.config('graph_filter_linestyle')
+                    filter_fillstyle = self.config('graph_filter_fillstyle')
+                    axis.plot(ax[mask], y[mask], label=None, color=lighter(c,0.9,255),
+                              linestyle=filter_linestyle,
+                              marker=marker,
+                              markevery=(1 if len(ax) < 20 else math.ceil(len(ax) / 20)),
+                              drawstyle=drawstyle,
+                              fillstyle=filter_fillstyle,
+                              **line_params)
                 else:
                     rects = axis.plot(ax, y, label=lab, color=c, linestyle=build._line, marker=marker,markevery=(1 if len(ax) < 20 else math.ceil(len(ax) / 20)),drawstyle=drawstyle, fillstyle=fillstyle,  **line_params)
             error_type = self.scriptconfig('graph_error', 'result', result_type=result_type, default = "bar").lower()
@@ -2253,7 +2235,7 @@ class Grapher:
                 std = np.asarray([std for mean,std,raw in e])
                 fx = interbar + ind + (i * width)
                 if result_type in filters:
-                    mask=self.mask_from_filter(filters[result_type],data_types,build,ax=x,y=y)
+                    mask = mask_from_filter(filters[result_type],data_types,build,ax=x,y=y)
 
                     args = common_args(build)
                     nargs = {'label':args['label']}

@@ -29,6 +29,7 @@ CLIENT_NIC=0
 RCV_NIC=0
 LIMIT=50000000
 LIMIT_TIME=10
+GEN_THRESHOLD=0
 GEN_THREADS=4
 GEN_RX_THREADS=4
 GEN_PIPELINE=1
@@ -41,6 +42,7 @@ promisc:PROMISC=true
 IGNORE?=0
 GEN_PAUSE=none
 GEN_DESC=0
+GEN_CSUM=true
 END_AFTER=0
 GEN_PROGRESSIVE=0
 progressive:GEN_PROGRESSIVE=1
@@ -55,6 +57,7 @@ trace_is_ip:GEN_FORCE_ETHER=1
 GEN_DUMP=0
 gen_dump:GEN_DUMP=1
 gen_mindump:GEN_DUMP=2
+udpgen:GEN_LENGTH=64
 udpgen:GEN_DUMP=-1
 GEN_SEQUENTIAL=1
 GEN_RX=1
@@ -62,6 +65,7 @@ NUMBEROFFSET=40
 gen_norx:GEN_RX=0
 timing:TIMING=1
 timing:TIMING_FNT=100
+GEN_START_DELAY=2
 
 %late_variables
 GEN_TX_DESC?=EXPAND($GEN_DESC)
@@ -133,7 +137,7 @@ $GEN_GDB click --dpdk -l $GEN_CPUS --file-prefix gen-$RCV_NIC -a ${self:$RCV_NIC
 echo "EVENT TX_FINISHED"
 echo "Generator stopped..."
 
-%file PKTGEN_CONFIG_${RCV_NIC}
+%file PKTGEN_CONFIG_${RCV_NIC} jinja
 d :: DPDKInfo($NBBUF)
 
 define($bout $PKTGEN_BURST_OUT)
@@ -153,12 +157,38 @@ define($rxverbose 99)
 elementclass MyNull { [0-$(( $GEN_NGEN - 1 ))]=>[0- $(($GEN_NGEN - 1)) ]; };
 
 //JiffieClock()
-$(( "\n".join( [ ( "fdIN%d :: FastUDPFlowsIP6(RATE 0, LIMIT -1, LENGTH $GEN_LENGTH, SRCETH $INsrcmac, DSTETH $INdstmac, SRCIP6 ${client:0:ip6}, DSTIP6 ${server:0:ip6}, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST, SEQUENTIAL $GEN_SEQUENTIAL)" if $GEN_IPV6 else ( "fdIN%d :: FastUDPFlows(RATE " + ( str(int($GEN_RATE / $GEN_NGEN) ) if "$HAVE_PRATE" else "0") +  ", LIMIT " + str(int($LIMIT / $GEN_NGEN) if "$HAVE_PRATE" else "-1" ) + " , LENGTH $GEN_LENGTH, SRCETH $INsrcmac, DSTETH $INdstmac, SRCIP ${client:0:ip}, DSTIP ${server:0:ip}, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_FLOWSIZE, SEQUENTIAL $GEN_SEQUENTIAL, BURST $GEN_BURST)" ) ) % t if $GEN_DUMP==-1 else (  "fdIN%d :: FromDump(%s, STOP true, TIMING $TIMING, TIMING_FNT \"$TIMING_FNT\", END_AFTER $END_AFTER, ACTIVE true, BURST 1);" if $GEN_DUMP == 0 else "fdIN%d :: FromIPSummaryDump(%s, TIMES $replay_count, TIMING $TIMING, TIMESTAMP $TIMING, ZERO false, BURST $GEN_BURST, STOP true);" if $GEN_DUMP==1 else "fdIN%d :: FromMinDump(%s, TIMES $replay_count,  BURST $GEN_BURST, STOP , DPDK true);") % (t, ("${trace}-"+str(t+1) ) if $GEN_MULTI_TRACE else "$trace") for t in range( $GEN_NGEN )  ] ) ))
+
+{% for t in range(GEN_NGEN|int) %}
+    {% if GEN_MULTI_TRACE %}
+    {% set t_path=trace ~ "-" ~ (t+1) %}
+    {% else %}
+        {% set t_path=trace %}
+    {% endif %}
+    {% if GEN_DUMP==-1 %}
+    //UDP-based
+        {% if GEN_IPV6 %}
+            fdIN{{ t }} :: FastUDPFlowsIP6(RATE 0, LIMIT -1, LENGTH $GEN_LENGTH, SRCETH $INsrcmac, DSTETH $INdstmac, SRCIP6 ${client:0:ip6}, DSTIP6 ${server:0:ip6}, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST, SEQUENTIAL $GEN_SEQUENTIAL)
+        {% else %}
+            fdIN{{ t }} :: $(( " FastUDPFlows(RATE " + ( str(int($GEN_RATE / $GEN_NGEN) ) if "$HAVE_PRATE" else "0") +  ", LIMIT " + str(int($LIMIT / $GEN_NGEN) if "$HAVE_PRATE" else "-1" ) + " , LENGTH $GEN_LENGTH, SRCETH $INsrcmac, DSTETH $INdstmac, SRCIP ${client:0:ip}, DSTIP ${server:0:ip}, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_FLOWSIZE, SEQUENTIAL $GEN_SEQUENTIAL, BURST $GEN_BURST, ACTIVE false)" ))
+        {% endif %}
+    {% elif GEN_DUMP == 0 %}
+        fdIN{{t}} :: FromDump({{t_path}}, STOP true, TIMING $TIMING, TIMING_FNT "$TIMING_FNT", END_AFTER $END_AFTER, ACTIVE false, BURST 1);
+    {% elif GEN_DUMP == 1 %}
+        fdIN{{t}} :: FromIPSummaryDump({{t_path}}, TIMES $replay_count, TIMING $TIMING, TIMESTAMP $TIMING, ZERO false, BURST $GEN_BURST, STOP true);
+    {% else %}
+        fdIN{{t}} :: FromMinDump({{t_path}}, TIMES $replay_count,  BURST $GEN_BURST, STOP , DPDK true);
+    {% endif %}
+{% endfor %}
 
 tdIN ::
- $(( " Pipeliner(CAPACITY 1024, ALWAYS_UP true) -> " if $GEN_TX_PIPELINE == 1 else "PathSpinlock -> " if $GEN_TX_PIPELINE == 2 else "{[0] -> [0]} ->" ))
-
-     realTD :: ToDPDKDevice($port, BLOCKING $GEN_BLOCKING, BURST $bout, VERBOSE $txverbose, IQUEUE $bout, NDESC $GEN_TX_DESC, IPCO true )
+{% if GEN_TX_PIPELINE == 1 %}
+    Pipeliner(CAPACITY 1024, ALWAYS_UP true) ->
+{% elif GEN_TX_PIPELINE==2 %}
+    PathSpinlock ->
+{% else %}
+    {[0] -> [0]} ->
+{% endif %}
+     realTD :: ToDPDKDevice($port, BLOCKING $GEN_BLOCKING, BURST $bout, VERBOSE $txverbose, IQUEUE $bout, NDESC $GEN_TX_DESC, IPCO $GEN_CSUM )
 
 
 
@@ -171,7 +201,7 @@ elementclass Numberise { $magic |
     input-> Strip(14)
     $GEN_NUMBER
     $GEN_FNT
-$(( "" if $GEN_IPV6 else " -> ResetIPChecksum()  " ))
+$(( "" if $GEN_IPV6 and $GEN_CSUM else " -> ResetIPChecksum()  " ))
     -> Unstrip(14) -> output
 }
 
@@ -191,7 +221,7 @@ $(( "-> EnsureDPDKBuffer" if $GEN_DUMP < 2 else "" ))
   $(( "  -> doethRewrite :: { input[0] -> active::Switch(OUTPUT $GEN_NOREWRITE_ETHER)[0] -> rwIN :: EtherRewrite($INsrcmac,$INdstmac) -> [0]output;   active[1] -> [0]output}" if  $GEN_DUMP <= 0 and $GEN_FORCE_ETHER == 0 else "-> EtherEncap(0x0800, $INsrcmac, $INdstmac)" ))
 $(( "-> Pad " if $GEN_DUMP < 2 and $GEN_DUMP > -1 else "" ))
   -> Numberise($magic)
-  -> avgSIN :: AverageCounter(IGNORE $ignore)
+  -> avgSIN :: AverageCounterIMP(IGNORE $ignore, THRESHOLD $GEN_THRESHOLD)
   $GEN_RECORD
   -> output;
 }
@@ -293,12 +323,14 @@ $(( "avgSIN :: HandlerAggregate( " + ",".join(["ELEMENT gen%d/avgSIN" % (i) for 
 starter :: Script(TYPE PASSIVE,
 			$(( "\n".join([ "print 'Thread %d started', write unqueue%d.active true, wait 100ms," % (i,i) for i in range($GEN_THREADS) ])  )) 
 );
-dm :: DriverManager(  print "Waiting 2 seconds before launching generation...",
-                wait 2s,
+dm :: DriverManager(  print "Waiting ${GEN_START_DELAY} seconds before launching generation...",
+                wait ${GEN_START_DELAY}s,
 
                 print "EVENT GEN_BEGIN",
                 print "Starting gen...",
-//                write fdIN.active true,
+        {% for t in range($GEN_NGEN) %}
+                 write fdIN{{ t }}.active true,
+        {% endfor %}
 		$(( "write starter.run," if $GEN_PROGRESSIVE else "" ))
                 print "Starting timer wait...",
                 set starttime $(now),

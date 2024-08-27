@@ -269,7 +269,7 @@ def main():
             grapher.graph(series=series_with_history,
                           title=test.get_title(),
                           filename=filename,
-                          graph_variables=[Run(x) for x in test.variables],
+                          #graph_variables=[Run(x) for x in test.variables],
                           options = args)
             if time_results:
                 for time_ns, results in time_results.items():

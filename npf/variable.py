@@ -267,7 +267,7 @@ class ExperimentalDesign:
 
     @classmethod
     def load(cls):
-        path = npf.find_local(sys.modules["npf.npf"].options.experimental_design)
+        path = npf.find_local(sys.modules["npf.npf"].options.spacefill)
         assert path is not None
 
         with open(path) as fd:
@@ -478,7 +478,7 @@ class DictVariable(Variable):
         return self
 
 class RangeVariable(Variable):
-    def __init__(self, name, valuestart, valueend, log, step = None, force_int = False):
+    def __init__(self, name, valuestart, valueend, log = False, step = None, force_int = False):
         super().__init__(name)
 
         if is_integer(valuestart) and is_integer(valueend):

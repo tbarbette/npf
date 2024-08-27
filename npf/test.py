@@ -17,6 +17,7 @@ from npf.build import Build
 from npf.node import NIC
 from npf.section import *
 from npf.npf import get_valid_filename
+from npf.sections import Section, SectionNull
 from npf.types.dataset import Run, Dataset
 from npf.eventbus import EventBus
 from .variable import get_bool
@@ -424,8 +425,14 @@ class Test:
             if s.jinja:
                     from jinja2 import Environment, BaseLoader
                     env = Environment(loader=BaseLoader)
-                    template = env.from_string(p)
-                    p = template.render(**v)
+                    try:
+                        template = env.from_string(p)
+                        p = template.render(**v)
+                    except Exception as e:
+                        print(f"In {s.filename}")
+                        if hasattr(e, "lineno"):
+                            print(p.splitlines()[e.lineno])
+                        raise e
 
             create_list.append((s.filename, p, role))
         return create_list
@@ -1192,7 +1199,7 @@ class Test:
         for runs_this_pass in total_runs:  # Number of results to ensure for this run
             n = 0
             overriden = set(build.repo.overriden_variables.keys())
-            all_variables = list(self.variables.expand(method=options.expand, overriden=overriden))
+            all_variables = self.variables.expand(method=options.design, overriden=overriden, results=all_data_results)
             n_tests = len(all_variables)
             for root_variables in all_variables:
                 n += 1
@@ -1282,18 +1289,18 @@ class Test:
                             break
 
                 if run_results:
-                    for result_type in self.config.get_list('results_expect'):
-                        print("Could not find result :", self.config.get_list('results_expect'))
+                    expected_results = self.config.get_list('results_expect')
+                    for result_type in expected_results:
                         if result_type not in run_results:
                             found = False
                             if prev_time_results:
-                              for kind, kr in prev_time_results.items():
-                                for run_kind, results in kr.items():
-                                    if result_type in results:
-                                        found = True
-                                        continue
+                                for _, kr in prev_time_results.items():
+                                    for _, results in kr.items():
+                                        if result_type in results:
+                                            found = True
+                                            continue
                             if not found:
-                                print("Missing result type %s, re-doing the run" % result_type)
+                                print(f"Missing result type {result_type}, re-doing the run")
                                 run_results = {}
                                 prev_time_results = {}
 
@@ -1343,8 +1350,8 @@ class Test:
                                 desc = run.format_variables(self.config["var_hide"])
                                 if desc:
                                     print(desc, end=' ')
-                                print(
-                                  ("[%srun %d/%d for test %d/%d"+(" of serie %d/%d" %(iserie+1,nseries) if nseries > 1 else "")+"]") % (  ("retrying %d/%d " % (i_try + 1,n_try)) if i_try > 0 else "", i+1, n_runs, n, n_tests))
+                                str_retry = f"retrying {i_try+1}/{n_try} " if i_try > 0 else ""
+                                print(f"[{str_retry}run {i+1}/{n_runs} for test {n}/{all_variables.strlen()}"+(f" of serie {iserie+1}/{nseries}" if nseries > 1 else "")+"]")
 
                     new_data_results, new_all_time_results, output, err, n_exec, n_err = self.execute(build, run, variables,
                                                                                                   n_runs,

@@ -33,8 +33,9 @@ install_requires = [
     'nbconvert',
     'jinja2',
     'spellwise',
-    'seaborn'
-]
+    'seaborn',
+    'statsmodels'
+    ]
 
 setuptools.setup(
     name="npf",
