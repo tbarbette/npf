@@ -602,7 +602,7 @@ class Grapher:
             return
 
         # Add series to a pandas dataframe
-        if options.pandas_filename is not None or options.web is not None or options.notebook is not None:
+        if options.pandas_filename is not None or options.web is not None or options.notebook_path is not None:
             all_results_df=pd.DataFrame() # Empty dataframe
             for test, build, all_results in series:
                 for i, (x) in enumerate(all_results):
@@ -833,8 +833,8 @@ class Grapher:
             prepare_web_export(series, all_results_df, options.web)
 
         # Export to Jupyter notebook
-        if options.notebook is not None:
-            prepare_notebook_export(series, all_results_df, options.notebook, self.config)
+        if options.notebook_path is not None:
+            prepare_notebook_export(series, all_results_df, self.options, self.config)
 
 
     def graph_group(self, series, vars_values, filename, fileprefix, title):
