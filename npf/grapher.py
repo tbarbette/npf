@@ -32,7 +32,8 @@ from npf.build import Build
 from npf.graph_choice import decide_graph_type
 from npf.variable_to_series import extract_variable_to_series
 from npf.series_to_graph import series_to_graph
-from npf import npf, variable, Graph
+from npf import npf, variable
+from npf.graph import Graph
 
 import matplotlib
 # There is a matplotlib bug which causes CI failures

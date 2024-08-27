@@ -24,7 +24,10 @@ def prepare_notebook_export(datasets: List[tuple], all_results_df: pd.DataFrame,
     var_names = dict(test.config["var_names"])
 
     x_vars = list(test.variables.dynamics().keys())
+
     y_vars = list(filter(lambda x: x.startswith("y_"), all_results_df.columns))
+    y_vars = [y.lstrip('y_') for y in y_vars]
+    data = all_results_df.rename(columns=lambda c: c.lstrip("y_"))
 
     # variables that get replaced in the template notebook
     variables = {
@@ -33,10 +36,10 @@ def prepare_notebook_export(datasets: List[tuple], all_results_df: pd.DataFrame,
         "x_vars": x_vars,
         "x_names": get_name(x_vars, var_names),
         "y_vars": y_vars,
-        "y_names": get_name([y.lstrip('y_') for y in y_vars], var_names),
-        "data": dumps(all_results_df.to_dict(orient="records"), indent=4 if INDENT_DATA else None),
+        "y_names": get_name(y_vars, var_names),
+        "data": dumps(data.to_dict(orient="records"), indent=4 if INDENT_DATA else None),
         "dir_name": os.path.dirname(path),
-        "file_path": ".".join(path.split(".")[:-1]),  # remove extension
+        "file_path": ".".join(path.split(".")[:-1]),  # drops the extension
         "file_name": ".".join(path.split("/")[-1].split(".")[:-1]),
     }
 
@@ -53,7 +56,7 @@ def prepare_notebook_export(datasets: List[tuple], all_results_df: pd.DataFrame,
     graph_type = decide_graph_type(config,
                                    n_values,
                                    data_for_key=sorted(all_results_df[key].unique().tolist()),
-                                   result_type=result_type.lstrip("y_"),
+                                   result_type=result_type,
                                    ndyn=len(x_vars), isubplot=0)
 
     print("> Notebook graph type:", graph_type)
@@ -103,7 +106,7 @@ def has_tag(cell, tag) -> bool:
     return tag in tags or "all" in tags
 
 
-def get_name(var: str | list[str], var_names: dict[str, str]) -> str | list[str]:
+def get_name(var, var_names: dict[str, str]):
     """Returns the name associated with a variable or a list of variables."""
     if isinstance(var, list):
         return [get_name(v, var_names) for v in var]
