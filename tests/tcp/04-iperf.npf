@@ -1,6 +1,8 @@
 %info
 IPerf 2 Throughput & Transfer Experiment
 
+This version extracts the number of transferred bytes, and not only the throughput.
+
 %config
 n_runs=5
 var_names={PARALLEL:Number of parallel connections,WINDOW:Window size (kB),THROUGHPUT:Throughput,TRANSFER:Transfer}
