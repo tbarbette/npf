@@ -70,6 +70,12 @@ def add_graph_options(parser: ArgumentParser):
                    help='Generate interactive graphs in a *.html file format')
     o.add_argument('--notebook', '--nb', dest='notebook_path',
                    help='Generate a Jupyter Notebook that plots the data (*.ipynb file format).')
+    o.add_argument('--template-nb', dest='template_nb_path',
+                   help='Use a custom Jupyter Notebook as template.',
+                   default="npf/types/notebook/template.ipynb")
+    o.add_argument('--nb-kernel', dest='nb_kernel',
+                   help='Specify which kernel to use for executing the Jupyter Notebook.',
+                   default="python3")
     o.add_argument('--update-nb',
                    help='If the notebook already exists, try to update the experiment data (cell containing "data = ").', action='store_true',
                    default=False)

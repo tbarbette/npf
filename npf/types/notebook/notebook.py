@@ -12,10 +12,8 @@ import time
 import pandas as pd
 from npf.graph_choice import decide_graph_type
 
-TEMPLATE_PATH = "npf/types/notebook/template.ipynb"
 INDENT_DATA = False
 TIMEOUT = 60  # seconds
-KERNEL = "python3"
 
 
 def prepare_notebook_export(datasets: List[tuple], all_results_df: pd.DataFrame, options, config):
@@ -78,7 +76,7 @@ def prepare_notebook_export(datasets: List[tuple], all_results_df: pd.DataFrame,
     graph_type = decide_graph_type(config, n_values, all_results_df, key, result_type, ndyn, isubplot=0)
 
     # read template notebook
-    with open(TEMPLATE_PATH) as f:
+    with open(options.template_nb_path) as f:
         nb = nbf.read(f, as_version=4)
 
     # keep only cells with the specified tag
@@ -111,7 +109,7 @@ def export_nb(nb, path: str):
 
 def exec_and_export_nb(nb, path: str):
     try:
-        ep = ExecutePreprocessor(timeout=TIMEOUT, kernel_name=KERNEL)
+        ep = ExecutePreprocessor(timeout=TIMEOUT, kernel_name=options.nb_kernel)
         start_time = time.time()
         ep.preprocess(nb, {'metadata': {'path': os.path.dirname(path)}})
         print("Notebook executed in %.2f seconds." %
