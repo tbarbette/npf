@@ -95,7 +95,7 @@ def prepare_notebook_export(datasets: List[tuple], all_results_df: pd.DataFrame,
         cell.source = cell_template.render(variables)
 
     if options.execute_nb:
-        exec_and_export_nb(nb, path)
+        exec_and_export_nb(nb, path, options)
     else:
         export_nb(nb, path)
 
@@ -107,7 +107,7 @@ def export_nb(nb, path: str):
         print("Notebook exported to", path)
 
 
-def exec_and_export_nb(nb, path: str):
+def exec_and_export_nb(nb, path: str, options):
     try:
         ep = ExecutePreprocessor(timeout=TIMEOUT, kernel_name=options.nb_kernel)
         start_time = time.time()
@@ -145,7 +145,7 @@ def update_notebook(path: str, new_data: str, options):
             print("No cell with the 'data' tag found in the notebook.")
 
         if options.execute_nb:
-            exec_and_export_nb(nb, path)
+            exec_and_export_nb(nb, path, options)
 
 
 def has_tag(cell, tag: str) -> bool:
