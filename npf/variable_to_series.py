@@ -1,5 +1,5 @@
 import sys
-from npf.Graph import Graph
+from npf.graph import Graph
 if sys.version_info < (3, 7):
     from orderedset import OrderedSet
 else:

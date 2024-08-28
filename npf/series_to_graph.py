@@ -1,5 +1,5 @@
 from npf import npf
-from npf.Graph import Graph
+from npf.graph import Graph
 from npf.variable_to_series import extract_variable_to_series
 
 # Convert a list of series to a graph object
