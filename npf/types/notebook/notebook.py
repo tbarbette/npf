@@ -71,14 +71,11 @@ def prepare_notebook_export(datasets: List[tuple], all_results_df: pd.DataFrame,
     result_type = y_vars[0]
 
     n_values = len(all_results_df[x_vars].value_counts())
+    ndyn = len(x_vars)
+    if ndyn > 1:
+        ndyn -= 1
 
-    graph_type = decide_graph_type(config,
-                                   n_values,
-                                   data_for_key=sorted(all_results_df[key].unique().tolist()),
-                                   result_type=result_type,
-                                   ndyn=len(x_vars), isubplot=0)
-
-    print("> Notebook graph type:", graph_type)
+    graph_type = decide_graph_type(config, n_values, all_results_df, key, result_type, ndyn, isubplot=0)
 
     # read template notebook
     with open(TEMPLATE_PATH) as f:

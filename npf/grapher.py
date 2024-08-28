@@ -1316,7 +1316,6 @@ class Grapher:
                     default_add_legend = True
 
                     graph_type = decide_graph_type(self.config, len(VARS_ALL), vars_values, key, result_type, NDYN, ISUBPLOT)
-                    print("> Grapher graph type:", graph_type)
 
 
                     try:

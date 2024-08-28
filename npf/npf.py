@@ -70,15 +70,15 @@ def add_graph_options(parser: ArgumentParser):
                    help='Generate interactive graphs in a *.html file format')
     o.add_argument('--notebook', '--nb', dest='notebook_path',
                    help='Generate a Jupyter Notebook that plots the data (*.ipynb file format).')
+    o.add_argument('--update-nb',
+                   help='If the notebook already exists, try to update the experiment data (cell containing "data = ").', action='store_true',
+                   default=False)
     o.add_argument('--force-nb',
                    help='If the notebook already exists, overwrite it (the previous data and code will be lost).', action='store_true',
                    default=False)
     o.add_argument('--disable-nb-exec', dest='execute_nb',
                    help='By default the output notebook is executed, this option disables that feature.', action='store_false',
                    default=True)
-    o.add_argument('--update-nb',
-                   help='If the notebook already exists, try to update the experiment data (cell containing "data = ").', action='store_true',
-                   default=False)
     o.add_argument('--output',
                    help='Output data to CSV files, one per result type. By default it prints the variable value as first column and the second column is the mean of all runs. Check --output-columns to change this behavior.', dest='output', type=str, nargs='?', const='graph', default=None)
     o.add_argument('--output-columns', dest='output_columns', type=str, nargs='+', default=['x', 'mean'],
