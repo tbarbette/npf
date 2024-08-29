@@ -6,6 +6,8 @@ import copy
 import traceback
 import sys
 
+from npf.types.notebook.notebook import prepare_notebook_export
+
 from npf.types.web.web import prepare_web_export
 if sys.version_info < (3, 7):
     from orderedset import OrderedSet
@@ -23,11 +25,15 @@ from math import log,pow
 
 from npf.types import dataset
 from npf.types.series import Series
-from npf.types.dataset import Run, XYEB, AllXYEB, group_val, mask_from_filter
+from npf.types.dataset import Run, XYEB, AllXYEB, group_val, var_divider, mask_from_filter
 from npf.variable import is_log, is_numeric, get_numeric, numericable, get_bool, is_bool
 from npf.section import SectionVariable
 from npf.build import Build
+from npf.graph_choice import decide_graph_type
+from npf.variable_to_series import extract_variable_to_series
+from npf.series_to_graph import series_to_graph
 from npf import npf, variable
+from npf.graph import Graph
 
 import matplotlib
 # There is a matplotlib bug which causes CI failures
@@ -41,8 +47,7 @@ matplotlib.use('Agg')
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 import matplotlib.pyplot as plt
-from matplotlib.ticker import LinearLocator, ScalarFormatter, Formatter, MultipleLocator, NullLocator
-from matplotlib.lines import Line2D
+from matplotlib.ticker import Formatter, NullLocator
 from matplotlib.ticker import FuncFormatter, FormatStrFormatter, EngFormatter
 import matplotlib.transforms as mtransforms
 
@@ -51,8 +56,6 @@ import itertools
 import math
 import os
 import webcolors
-
-from scipy.ndimage import gaussian_filter1d
 
 import pandas as pd
 
@@ -163,7 +166,7 @@ def guess_type(d):
     return d
 
 
-def broken_axes_ratio (values):
+def broken_axes_ratio(values):
     if len(values) == 3:
         _, _, ratio = values
         if ratio is not None:
@@ -173,91 +176,6 @@ def broken_axes_ratio (values):
         if vmin is not None and vmax is not None:
             return vmax-vmin
     return 1
-
-
-class Graph:
-    """
-    This is a structure holder for data to build a graph
-    """
-    def __init__(self, grapher:'Grapher'):
-        self.grapher = grapher
-        self.subtitle = None
-        self.data_types = None
-
-    def statics(self):
-        return dict([(var,list(values)[0]) for var,values in self.vars_values.items() if len(values) == 1])
-
-    def dyns(self):
-        return [var for var,values in self.vars_values.items() if len(values) > 1]
-
-    #Convert the series into the XYEB format (see types.dataset)
-    def dataset(self,kind=None):
-        if not self.data_types:
-
-            self.data_types = dataset.convert_to_xyeb(
-                datasets = self.series,
-                run_list = self.vars_all,
-                key = self.key,
-                max_series=self.grapher.config('graph_max_series'),
-                do_x_sort=self.do_sort,
-                series_sort=self.grapher.config('graph_series_sort'),
-                options=self.grapher.options,
-                statics=self.statics(),
-                y_group=self.grapher.configdict('graph_y_group'),
-                color=[get_numeric(v) for v in self.grapher.configlist('graph_color')],
-                kind=kind
-                )
-
-        return self.data_types
-
-    def split_for_series(self):
-        '''Make a sub-graph per serie'''
-        sg = []
-        for script,build,all_results in self.series:
-            subgraph = self.grapher.series_to_graph([(script,build,all_results)], self.dyns(), self.vars_values.copy(), self.vars_all.copy())
-            subgraph.subtitle = ((self.title + " : ") if self.title else '') + build.pretty_name()
-            subgraph.title = self.title
-            sg.append(subgraph)
-        return sg
-
-    # Divide all series by the first one, making a percentage of difference
-    @staticmethod
-    def series_prop(series, prop, exclusions = []):
-            if len(series) == 1:
-                raise Exception("Cannot make proportional series with only one serie !")
-            newseries = []
-            if not is_numeric(prop):
-                prop=1
-            if len(series[0]) < 3:
-                raise Exception("Malformed serie !")
-            base_results=series[0][2]
-            for i, (script, build, all_results) in enumerate(series[1:]):
-                new_results={}
-                for run,run_results in all_results.items():
-                    if not run in base_results:
-                        print(run,"FIXME is not in base")
-                        continue
-
-                    for result_type, results in run_results.items():
-                        if not result_type in base_results[run]:
-                            run_results[result_type] = None
-                            print(result_type, "not in base for %s" % run)
-                            continue
-                        base = base_results[run][result_type]
-                        if len(base) > len(results):
-                            base = base[:len(results)]
-                        elif len(results) > len(base):
-                            results = results[:len(base)]
-                        base = np.array(base)
-                        results = np.array(results)
-                        if result_type not in exclusions:
-                            f = np.nonzero(base)
-                            results = (results[f] / base[f] * float(abs(prop)) + (prop if prop < 0 else 0))
-                        run_results[result_type] = results
-                    new_results[run] = run_results
-                build._pretty_name = build._pretty_name + " / " + series[0][1]._pretty_name
-                newseries.append((script, build, new_results))
-            return newseries
 
 
 class Grapher:
@@ -691,7 +609,7 @@ class Grapher:
             return
 
         # Add series to a pandas dataframe
-        if options.pandas_filename is not None or options.web is not None:
+        if options.pandas_filename is not None or options.web is not None or options.notebook_path is not None:
             all_results_df=pd.DataFrame() # Empty dataframe
             for test, build, all_results in series:
                 for i, (x) in enumerate(all_results):
@@ -700,13 +618,14 @@ class Grapher:
                     try:
 
                         labels = [k[1] if type(k) is tuple else k for k,v in x.variables.items()]
-                        x_vars = [[v[1] if type(v) is tuple else v for k,v in x.variables.items()]]
+                        x_vars = [[(v[1] if type(v) is tuple else v) for k,v in x.variables.items()]]
                         x_vars=pd.DataFrame(x_vars,index=[0],columns=labels)
                         x_vars=pd.concat([pd.DataFrame({'build' :build.pretty_name()},index=[0]), pd.DataFrame({'test_index' :i},index=[0]), x_vars],axis=1)
+
                         vals = all_results[x]
                         if not vals:
                             continue
-                        x_data=pd.DataFrame.from_dict(vals,orient='index').transpose() #Use orient='index' to handle lists with different lengths
+                        x_data=pd.DataFrame.from_dict( {"y_"+k: v for k, v in vals.items()},orient='index').transpose() #Use orient='index' to handle lists with different lengths
                         if len(x_data) == 0:
                             continue
                         x_data['run_index']=x_data.index
@@ -792,7 +711,7 @@ class Grapher:
                         if self.options.graph_select_max:
                             results = np.sort(results)[-self.options.graph_select_max:]
 
-                        ydiv = dataset.var_divider(test, "result", result_type)
+                        ydiv = var_divider(test, "result", result_type)
                         if np.all(np.isnan(results)):
                             results=np.asarray([0])
                         new_results.setdefault(run.copy(), OrderedDict())[result_type] = results / ydiv
@@ -921,6 +840,10 @@ class Grapher:
         if options.web is not None:
             prepare_web_export(series, all_results_df, options.web)
 
+        # Export to Jupyter notebook
+        if options.notebook_path is not None:
+            prepare_notebook_export(series, all_results_df, self.options, self.config)
+
 
     def graph_group(self, series, vars_values, filename, fileprefix, title):
         if len(series) == 0:
@@ -1030,6 +953,9 @@ class Grapher:
 
 
         versions = []
+        """Vars_all is the set of all variable combination that have some value. Taking the iperf case, it will be
+        [ZERO_COPY=0, PARALLEL=1], [ZERO_COPY=0, PARALLEL=2], ... [ZERO_COPY=1, PARALLEL=8],
+        """
         vars_all = OrderedSet()
         for i, (test, build, all_results) in enumerate(series):
             versions.append(build.pretty_name())
@@ -1040,13 +966,12 @@ class Grapher:
 
         dyns = []
         for k, v in vars_values.items():
-            if len(v) > 1:
-                dyns.append(k)
+            if len(v) <= 0:
+                print("ERROR: Variable %s has no values" % k)
+            elif len(v) == 1:
+                statics[k] = list(v)[0]
             else:
-                if len(v) > 0:
-                    statics[k] = list(v)[0]
-                else:
-                    print("ERROR: Variable %s has no values" % k)
+                dyns.append(k)
 
         #Divide a serie by another
         prop = self.config('graph_series_prop')
@@ -1067,9 +992,9 @@ class Grapher:
             title=SectionVariable.replace_variables(v, title)
 
         if sv: #Only one supported for now
-            graphs = [ None for v in vars_values[sv] ]
+            graphs = [ None for _ in vars_values[sv] ]
             for j,(script, build, all_results) in enumerate(series):
-                graph = self.extract_variable_to_series(sv, vars_values.copy(), all_results, dyns.copy(), build, script)
+                graph = extract_variable_to_series(self, sv, vars_values.copy(), all_results, dyns.copy(), build, script)
 
                 self.glob_legend_title = title #This variable has been extracted, the legend should not be the variable name in this case
 
@@ -1098,7 +1023,7 @@ class Grapher:
             del dyns
             del vars_values
         else:
-            graph = self.series_to_graph(series, dyns, vars_values, vars_all)
+            graph = series_to_graph(self, series, dyns, vars_values, vars_all)
             graph.title = title
             graphs.append(graph)
 
@@ -1239,11 +1164,9 @@ class Grapher:
         return ret
 
 
-
-
     #Generate the plot of data_types at the given i/i_subplot position over n_cols/n_lines
-    def generate_plot_for_graph(self, i, i_subplot, figure, n_cols, n_lines, vars_values, data_types, dyns, vars_all, key, title, ret, subplot_legend_titles):
-            ndyn=len(dyns)
+    def generate_plot_for_graph(self, i, i_subplot, figure, n_cols, n_lines, vars_values, data_types, dyns, VARS_ALL, key, title, ret, subplot_legend_titles):
+            NDYN=len(dyns)
             subplot_type=self.config("graph_subplot_type")
             subplot_handles=[]
             axiseis = []
@@ -1273,7 +1196,7 @@ class Grapher:
                 brokenaxesY = [ b if len(b) == 3 else b + [None] for b in brokenaxesY ]
                 brokenaxesX = [ b if len(b) == 3 else b + [None] for b in brokenaxesX ]
 
-                isubplot = int(i_subplot * len(figure) + i_s_subplot)
+                ISUBPLOT = int(i_subplot * len(figure) + i_s_subplot)
 
                 if result_type in cross_reference:
                     cross_key = cross_reference[result_type]
@@ -1323,23 +1246,23 @@ class Grapher:
                             #    plt.setp(axiseis[0].get_xticklabels(), visible=False)
                             #axiseis[0].set_xlabel("")
                             axis = plt.subplot(n_lines * nbrokenY, n_cols * nbrokenX,
-                                    isubplot + 1 + ibrokenY,
+                                    ISUBPLOT + 1 + ibrokenY,
                                     sharex = axiseis[0] if ibrokenY > 0 and nbrokenY > 1 else None,
                                     sharey = axiseis[0] if ibrokenX > 0 and nbrokenX > 1 else None)
                             ihandle = 0
                             shift = 0
                         else: #subplot_type=="axis" for dual axis
-                            if isubplot == 0:
+                            if ISUBPLOT == 0:
                                 fix,axis=plt.subplots(nbrokenY * nbrokenX)
                                 ihandle = 0
-                            elif isubplot == len(figure) - 1:
+                            elif ISUBPLOT == len(figure) - 1:
                                 axis=axis.twinx()
                                 ihandle = 1
                             else:
                                 axis=axiseis[0]
                                 ihandle = 0
                             if len(figure) > 1:
-                                shift = isubplot + 1
+                                shift = ISUBPLOT + 1
                             else:
                                 shift = 0
 
@@ -1358,7 +1281,7 @@ class Grapher:
                                 s = build._color_index
                                 tot = [build._color_index for x,y,e,build in data].count(s)
                             elif gcolor:
-                                s=gcolor[(i + isubplot*len(data)) % len(gcolor)]
+                                s=gcolor[(i + ISUBPLOT*len(data)) % len(gcolor)]
                                 tot = gcolor.count(s)
                             else:
                                 s=shift
@@ -1384,87 +1307,54 @@ class Grapher:
                                 build._color=cserie[f % len(cserie)]
                             gi[s]+=1
 
-
                     axis.tick_params(**tick_params)
 
 
                     #This is the heart of the logic to find which kind of graph to use for the data
-
-                    graph_type = False
-                    default_doleg = True
-                    if ndyn == 0:
-                        default_doleg = False
-                        if len(vars_all) == 1:
-                            graph_type = "boxplot"
-                        else:
-                            graph_type = "simple_bar"
-                    elif ndyn == 1 and len(vars_all) > 2 and npf.all_num(vars_values[key]):
-                        graph_type = "line"
-                    graph_types = self.config("graph_type",[])
-
-
-                    if len(graph_types) > 0 and (type(graph_types[0]) is tuple or type(graph_types) is tuple):
-                        if type(graph_types) is tuple:
-                            graph_types = dict([graph_types])
-                        else:
-                            graph_types = dict(graph_types)
-                        if result_type in graph_types:
-                            graph_type = graph_types[result_type]
-                        elif "default" in graph_types:
-                            graph_type = graph_types["default"]
-                        elif "result" in graph_types:
-                            graph_type = graph_types["result"]
-                        else:
-                            graph_type = "line"
-
-                    else:
-                        if type(graph_types) is str:
-                            graph_types = [graph_types]
-                        graph_types.extend([graph_type, "line"])
-                        graph_type = graph_types[isubplot if isubplot < len(graph_types) else len(graph_types) - 1]
-                    if ndyn == 0 and graph_type == "line":
-                        print("WARNING: Cannot graph %s as a line without dynamic variables" % graph_type)
-                        graph_type = "simple_bar"
                     barplot = False
                     horizontal = False
+                    default_add_legend = True
+
+                    graph_type = decide_graph_type(self.config, len(VARS_ALL), vars_values, key, result_type, NDYN, ISUBPLOT)
+
 
                     try:
                         if graph_type == "simple_bar":
                             """No dynamic variables : do a barplot X=version"""
-                            r, ndata = self.do_simple_barplot(axis, result_type, data, shift, isubplot)
+                            r, ndata = self.do_simple_barplot(axis, result_type, data, shift, ISUBPLOT)
                             barplot = True
                         elif graph_type == "line" or graph_type == "lines":
                             """One dynamic variable used as X, series are version line plots"""
-                            r, ndata = self.do_line_plot(axis, key, result_type, data, data_types, shift, isubplot, xmin, xmax, xdata)
+                            r, ndata = self.do_line_plot(axis, key, result_type, data, data_types, shift, ISUBPLOT, xmin, xmax, xdata)
                         elif graph_type == "boxplot":
                             """A box plot, with multiple X values and series in color"""
-                            r, ndata = self.do_box_plot(axis, key, result_type, data, xdata, shift, isubplot)
+                            r, ndata = self.do_box_plot(axis, key, result_type, data, xdata, shift, ISUBPLOT)
                             barplot = True #It's like a barplot, no formatting
                         elif graph_type == "cdf":
                             """CDF"""
-                            r, ndata = self.do_cdf(axis, key, result_type, data, xdata, shift, isubplot)
-                            default_doleg = True
+                            r, ndata = self.do_cdf(axis, key, result_type, data, xdata, shift, ISUBPLOT)
+                            default_add_legend = True
                             ymin = 0
                             ymax = 100
                             xname=self.var_name(result_type)
                         elif graph_type == "heatmap":
                             """Heatmap"""
-                            r, ndata = self.do_heatmap(axis, key, result_type, data, xdata, vars_values, shift, isubplot, sparse = False)
-                            default_doleg = False
+                            r, ndata = self.do_heatmap(axis, key, result_type, data, xdata, vars_values, shift, ISUBPLOT, sparse = False)
+                            default_add_legend = False
                             barplot = True
                         elif graph_type == "sparse_heatmap":
                             """sparse Heatmap"""
-                            r, ndata = self.do_heatmap(axis, key, result_type, data, xdata, vars_values, shift, isubplot, sparse = True)
-                            default_doleg = False
+                            r, ndata = self.do_heatmap(axis, key, result_type, data, xdata, vars_values, shift, ISUBPLOT, sparse = True)
+                            default_add_legend = False
                             barplot = True
 
                         elif graph_type == "barh" or graph_type=="horizontal_bar":
-                            r, ndata= self.do_barplot(axis,vars_all, dyns, result_type, data, shift, ibrokenY==0, horizontal=True, data_types=data_types)
+                            r, ndata= self.do_barplot(axis,VARS_ALL, dyns, result_type, data, shift, ibrokenY==0, horizontal=True, data_types=data_types)
                             barplot = True
                             horizontal = True
                         else:
                             """Barplot. X is all seen variables combination, series are version"""
-                            r, ndata= self.do_barplot(axis,vars_all, dyns, result_type, data, shift, ibrokenY==0, data_types=data_types)
+                            r, ndata= self.do_barplot(axis,VARS_ALL, dyns, result_type, data, shift, ibrokenY==0, data_types=data_types)
                             barplot = True
                     except Exception as e:
                         print("ERROR : could not graph %s" % result_type)
@@ -1512,7 +1402,7 @@ class Grapher:
                     if len(figure) == 1 or subplot_type=="subplot":
                         sl = 0
                     elif gcolor:
-                        sl = gcolor[(isubplot * len(data)) % len(gcolor)] % len(legendcolors)
+                        sl = gcolor[(ISUBPLOT * len(data)) % len(gcolor)] % len(legendcolors)
                     else:
                         sl = shift % len(legendcolors)
 
@@ -1740,7 +1630,7 @@ class Grapher:
                         print("INFO: Legend not shown as there is only one serie with a default name (local, version). Set --config graph_legend=1 to force printing a legend. See the documentation at https://npf.readthedocs.io/en/latest/graph.html to see how to change the legend.")
                     else:
                         doleg = True
-                if (default_doleg or doleg) and doleg is not False:
+                if (default_add_legend or doleg) and doleg is not False:
                     loc = self.config("legend_loc")
                     if type(loc) is dict or type(loc) is list:
                         loc = self.scriptconfig("legend_loc",key="result",result_type=result_type)
@@ -1761,10 +1651,7 @@ class Grapher:
                             if self.configlist("subplot_legend_loc"):
                                 loc=self.configlist("subplot_legend_loc")[ilegend]
                             else:
-                                if ilegend == 0:
-                                    loc = 'upper left'
-                                else:
-                                    loc = 'lower right'
+                                loc = 'upper left' if ilegend == 0 else 'lower right'
 
                         else:
                             if ilegend > 0:
