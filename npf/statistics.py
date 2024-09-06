@@ -115,14 +115,16 @@ class Statistics:
                 ys[:,i] = d[2]
             import pandas as pd
             df = pd.DataFrame(np.concatenate((X,ys),axis=1),columns=list(vars_values.keys()) + [d[0] if d[0] else "y" for d in dataset])
+            pd.options.display.float_format = "{:,.2f}".format
             print("Correlation matrix:")
-            corr = df.corr()
 
+            corr = df.corr()
             corr = corr.dropna(axis=0,how='all')
 
             corr = corr.dropna(axis=1,how='all')
-            print(corr)
-            corr
+            keep = np.triu(np.ones(corr.shape)).astype(bool)
+            corr = corr.where(keep==True, np.nan)
+            print(corr.fillna(""))
 
             import seaborn as sn
             import matplotlib.pyplot as plt
@@ -166,12 +168,14 @@ class Statistics:
                     interaction_matrix.loc[factors[0],result_type] = interaction_pvalues[interaction]
 
             print("P-value of ANOVA (low p-value indicates a probable interaction):")
-            print(interaction_matrix)
+            print(interaction_matrix.fillna(""))
             ax = sn.heatmap(interaction_matrix, cmap="viridis", fmt=".2f", annot=True)
             ax.figure.tight_layout()
             f = npf.build_filename(test, build, filename if not filename is True else None, {}, 'pdf', result_type, show_serie=False, suffix="anova")
             plt.savefig(f)
             print(f"Graph of a ANOVA matrix saved to {f}")
+
+            pd.reset_option("display.float_format")
 
     @classmethod
     def buildDataset(cls, all_results: Dataset, test: Test) -> List[tuple]:
