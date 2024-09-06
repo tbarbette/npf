@@ -1,7 +1,9 @@
 from collections import OrderedDict
 import re
+import time
 from typing import List, Set
 from npf.expdesign.fullexp import FullVariableExpander
+from npf.expdesign.lhsexp import LHSVariableExpander
 from npf.expdesign.randomexp import RandomVariableExpander
 from npf.expdesign.zltexp import ZLTVariableExpander
 from npf.repository import Repository
@@ -200,19 +202,52 @@ class SectionVariable(Section):
             values.append(SectionVariable.replace_variables(v, value))
         return values
 
-    def expand(self, results={}, method="full", overriden=set()):
-        if method == "shuffle" or method == "rand" or method == "random":
-            return RandomVariableExpander(self.vlist)
+    def expand(self, results=None, method="full", overriden=set()):
+        """Expands variables based on the specified method.
+
+        This method determines how to expand the variables in the list based on the provided method.
+        It can return different types of variable expanders depending on the method specified, including
+        random shuffling or specific ZLT expansions.
+
+        Args:
+            results (dict, optional): A dictionary of previous results for iterative methods. Defaults to an empty dictionary.
+            method (str, optional): The method to use for expansion. Can be "full", "shuffle", "rand", "random", or variations of "zl". Defaults to "full".
+            overriden (set, optional): A set of overridden variables. Defaults to an empty set.
+
+        Returns:
+            VariableExpander: An instance of the appropriate variable expander based on the method specified.
+
+        """
+
+        if results is None:
+            results = {}
+        a = method.find("(")
+        params = []
+
+        if a > 0:
+            params = method[a + 1:-1].split(",")
+        if method == "shuffle" or method.startswith("rand"):
+            if len(params) >= 1:
+                seed = int(params[0])
+            else:
+                print("WARNING: Using a time-based seed. Please set the seed with --exp-design random(42)")
+                seed = time.time()
+            return RandomVariableExpander(self.vlist, overriden, seed = seed, n_iter = int(params[1]) if len(params) >= 2 else -1)
+        elif method.startswith("lhs"):
+            if len(params) >= 1:
+                seed = int(params[0])
+            else:
+                print("WARNING: Using a time-based seed. Please set the seed with --exp-design lhs(42)")
+                seed = time.time()
+            return LHSVariableExpander(self.vlist, overriden, seed = seed, n_iter = int(params[1]) if len(params) >= 2 else -1)
         elif "zl" in method.lower():
             if method.lower().startswith("allzl"):
-                params = method[7:-1].split(",")
-                all = True
+                all_lower = True
                 perc = method.lower()[5] == 'p'
             else:
-                params = method[4:-1].split(",")
-                all = False
+                all_lower = False
                 perc = method.lower()[2] == 'p'
-            return ZLTVariableExpander(self.vlist, overriden=overriden, results=results, input=params[0], output=params[1], margin=1.01 if len(params) == 2 else float(params[2]), all=all, perc=perc)
+            return ZLTVariableExpander(self.vlist, overriden=overriden, results=results, input=params[0], output=params[1], margin=1.01 if len(params) == 2 else float(params[2]), all=all_lower, perc=perc)
 
         else:
             return FullVariableExpander(self.vlist, overriden)

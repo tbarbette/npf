@@ -34,7 +34,8 @@ install_requires = [
     'jinja2',
     'spellwise',
     'seaborn',
-    'statsmodels'
+    'statsmodels',
+    'scikit-optimize'
     ]
 
 setuptools.setup(

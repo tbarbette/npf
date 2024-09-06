@@ -167,6 +167,7 @@ class Statistics:
                 else:
                     interaction_matrix.loc[factors[0],result_type] = interaction_pvalues[interaction]
 
+            print("")
             print("P-value of ANOVA (low p-value indicates a probable interaction):")
             print(interaction_matrix.fillna(""))
             ax = sn.heatmap(interaction_matrix, cmap="viridis", fmt=".2f", annot=True)

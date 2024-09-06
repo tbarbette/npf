@@ -16,6 +16,7 @@ class FullVariableExpander:
             newList = []
             l = v.makeValues()
 
+            # For every of those new values we duplicate all existing runs
             for nvalue in l:
                 for ovalue in self.expanded:
                     z = ovalue.copy()
