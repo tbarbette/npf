@@ -6,6 +6,8 @@ n_runs=5
 var_names+={PARALLEL:Number of parallel connections,WINDOW:Window size (kB),NODELAY:No delay option,CONGESTION:Congestion control}
 timeout=25
 default_repo=iperf
+accept_zero+={*MISSES,*LLC-LOADS}
+-nostat:results_expect+={TOTAL-cycles}
 
 %import graph-beautiful
 
@@ -20,6 +22,10 @@ TIME={2,10}
 fastregression:PARALLEL={1,8}
 fastregression:CONGESTION=cubic
 fastregression:TIME=2
+
+%init@server
+killall iperf &> /dev/null
+exit 0
 
 %script@server
 iperf -s
@@ -37,4 +43,5 @@ result=$(cat iperf.log | grep -ioE "[0-9.]+ [kmg]?bits" | tail -n 1)
 //Give the throughput to NPF through stdout
 echo "RESULT-THROUGHPUT $result"
 
-%-noload:import@server load
+%-nostat:import@server perf-stat delay=2 autokill=false
+%-noload:import@server cpuload

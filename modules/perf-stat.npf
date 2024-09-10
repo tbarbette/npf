@@ -3,7 +3,8 @@
 %variables
 N_CORES=1
 PERF_TIME=1
-PERF_EVENTS=dTLB-loads,instructions,cycles,iTLB-loads,cache-misses,cache-references,dTLB-load-misses,iTLB-load-misses,mem-loads,l2_rqsts.references,l2_rqsts.miss,cycle_activity.stalls_l3_miss,cycle_activity.stalls_total,cycle_activity.stalls_mem_any,cycle_activity.stalls_l2_miss,cycle_activity.stalls_l1d_miss,L1-icache-load-misses,L1-icache-loads,L1-dcache-stores,l1d.replacement,l2_rqsts.all_pf,mem_load_retired.l1_hit,mem_load_retired.l1_miss
+PERF_EVENTS=instructions,cycles,cache-misses,cache-references
+perf_all:PERF_EVENTS=dTLB-loads,instructions,cycles,iTLB-loads,cache-misses,cache-references,dTLB-load-misses,iTLB-load-misses,mem-loads,l2_rqsts.references,l2_rqsts.miss,cycle_activity.stalls_l3_miss,cycle_activity.stalls_total,cycle_activity.stalls_mem_any,cycle_activity.stalls_l2_miss,cycle_activity.stalls_l1d_miss,L1-icache-load-misses,L1-icache-loads,L1-dcache-stores,l1d.replacement,l2_rqsts.all_pf,mem_load_retired.l1_hit,mem_load_retired.l1_miss
 
 %script sudo=true autokill=false
 echo "Starting perf..."
@@ -32,7 +33,7 @@ echo "EVENT PERF_PARSED"
 FILE=$1
 
 kill_current_running_perfs () {
-    perf_pids="$(ps -A | grep perf | awk '{print $1}')"
+    perf_pids="$(ps -A | grep -E \"\sperf$\" | awk '{print $1}')"
     for pid in $perf_pids; do
         kill -9 $pid
     done
@@ -47,6 +48,8 @@ calculate_and_print_stats () {
     events+=("LLC-loads;LLC-LOADS")
     events+=("L1-icache-load-misses;L1I-MISSES")
     events+=("branch-misses;BRANCH-MISSES")
+    events+=("L1-dcache-loads;L1-LOADS")
+    events+=("L1-dcache-load-misses;L1-LOAD-MISSES")
     $(( "\n".join([ 'events+=("%s;%s")' % (ev,ev) for ev in "${PERF_EVENTS}".split(",") ]) ))
 
     for event in "${events[@]}"
@@ -67,40 +70,24 @@ calculate_and_print_stats () {
         totals[$ev]=$total_ev
     done
 
+    if [[ ${totals[L1-dcache-load-misses]} -gt 0 ]] ; then
+        l1missratio=`echo ${totals[L1-dcache-load-misses]} / ${totals[L1-dcache-loads]} | bc -l`
+        echo "RESULT-L1-RATIO $l1missratio"
+    fi
 
-    ############################################
-
-    l1loads=$(perl -pe 's/(?<=\d),(?=\d)//g' $FILE | awk '$3 == "L1-dcache-loads" {print $2}')
-    total_l1loads=0
-
-    for l1load in $l1loads; do
-        num=$(echo $l1load | tr -dc '0-9')
-        total_l1loads=`expr $total_l1loads + $num`
-    done
-    echo "RESULT-TOTAL-L1-LOADS $total_l1loads"
-
-    ###########################################
-
-    l1load_misses=$(perl -pe 's/(?<=\d),(?=\d)//g' $FILE | awk '$3 == "L1-dcache-load-misses" {print $2}')
-    total_l1misses=0
-
-    for l1miss in $l1load_misses; do
-        num=$(echo $l1miss | tr -dc '0-9')
-        total_l1misses=`expr $total_l1misses + $num`
-    done
-    echo "RESULT-TOTAL-L1-MISSES $total_l1misses"
-
-    ###########################################
-
-    l1missratio=`echo $total_l1misses / $total_l1loads | bc -l`
-    echo "RESULT-L1-RATIO $l1missratio"
-    llcmissratio=`echo ${totals[LLC-load-misses]} / ${totals[LLC-loads]} | bc -l`
-    echo "RESULT-LLC-RATIO $llcmissratio"
+    if [[ ${totals[LLC-loads]} -gt 0 ]] ; then
+        llcmissratio=`echo ${totals[LLC-load-misses]} / ${totals[LLC-loads]} | bc -l`
+        echo "RESULT-LLC-RATIO $llcmissratio"
+    fi
 
     echo "RESULT-IPC `echo ${totals[instructions]} / ${totals[cycles]} | bc -l`"
-    echo "RESULT-iTLB-RATIO `echo ${totals[iTLB-load-misses]} / ${totals[iTLB-loads]} | bc -l`"
+    if [[ ${totals[iTLB-loads]} -gt 0 ]] ; then
+        echo "RESULT-iTLB-RATIO `echo ${totals[iTLB-load-misses]} / ${totals[iTLB-loads]} | bc -l`"
+    fi
 
-    echo "RESULT-dTLB-RATIO `echo ${totals[dTLB-load-misses]} / ${totals[dTLB-loads]} | bc -l`"
+    if [[ ${totals[dTLB-loads]} -gt 0 ]] ; then
+        echo "RESULT-dTLB-RATIO `echo ${totals[dTLB-load-misses]} / ${totals[dTLB-loads]} | bc -l`"
+    fi
 
 }
 
