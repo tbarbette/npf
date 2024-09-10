@@ -5,12 +5,14 @@ from multiprocessing import Queue
 from typing import List
 import warnings
 from cryptography.utils import CryptographyDeprecationWarning
+
+import npf.globals
+from npf.tests.eventbus import EventBus
 with warnings.catch_warnings():
     warnings.filterwarnings('ignore', category=CryptographyDeprecationWarning)
     import paramiko
 from .executor import Executor
-from ..eventbus import EventBus
-from .. import npf
+
 from paramiko.buffered_pipe import PipeTimeout
 import socket
 import stat
@@ -70,9 +72,9 @@ class SSHExecutor(Executor):
 
         if self.path:
             env['NPF_ROOT'] = self.path
-            env['NPF_CWD_PATH'] = os.path.relpath(npf.cwd_path(options),self.path)
-            env['NPF_EXPERIMENT_PATH'] = '../' + os.path.relpath(npf.experiment_path(), self.path)
-            env['NPF_ROOT_PATH'] = '../' + os.path.relpath(npf.npf_root_path(), self.path)
+            env['NPF_CWD_PATH'] = os.path.relpath(npf.globals.cwd_path(options),self.path)
+            env['NPF_EXPERIMENT_PATH'] = '../' + os.path.relpath(npf.globals.experiment_path(), self.path)
+            env['NPF_ROOT_PATH'] = '../' + os.path.relpath(npf.globals.npf_root_path(), self.path)
         env_str=""
         for k,v in env.items():
             if v is not None:

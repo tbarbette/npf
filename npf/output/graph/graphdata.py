@@ -1,8 +1,9 @@
+from ordered_set import OrderedSet
 from npf.types.dataset import convert_to_xyeb
-from npf.variable import is_numeric, get_numeric
+from npf.tests.variable import is_numeric, get_numeric
 import numpy as np
 
-class Graph:
+class GraphData:
     """
     This is a structure holder for data to build a graph
     """
@@ -16,6 +17,18 @@ class Graph:
 
     def dyns(self):
         return [var for var,values in self.vars_values.items() if len(values) > 1]
+    
+    def vars_all(self):
+        """Vars_all is the set of all variable combination that have some value. Taking the iperf case, it will be
+        [ZERO_COPY=0, PARALLEL=1], [ZERO_COPY=0, PARALLEL=2], ... [ZERO_COPY=1, PARALLEL=8],
+        """
+        vars_all = OrderedSet()
+        for _, build, all_results in self.series:
+            #versions.append(build.pretty_name())
+            for run, _ in all_results.items():
+                vars_all.add(run)
+        vars_all = sorted(vars_all)
+        return vars_all
 
     #Convert the series into the XYEB format (see types.dataset)
     def dataset(self, kind=None):
@@ -23,7 +36,7 @@ class Graph:
 
             self.data_types = convert_to_xyeb(
                 datasets = self.series,
-                run_list = self.vars_all,
+                run_list = self.vars_all(),
                 key = self.key,
                 max_series=self.grapher.config('graph_max_series'),
                 do_x_sort=self.do_sort,
@@ -36,6 +49,19 @@ class Graph:
                 )
 
         return self.data_types
+    
+    def set_series(self, series, vars_values):
+        """Set the series and variable values for the instance.
+
+        This function assigns the provided series and variable values to the instance attributes.
+
+        Args:
+            series: The series data to be set.
+            vars_values: The variables in the dataset and their values. It could be re-computed, but usually this data is already available
+        """
+        self.series = series
+        self.vars_values = vars_values
+        
 
     # Divide all series by the first one, making a percentage of difference
     @staticmethod

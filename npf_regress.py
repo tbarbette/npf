@@ -7,19 +7,20 @@ import errno
 
 import sys
 
-from npf import npf
-from npf.pipeline import pypost
-from npf.regression import *
-from npf.statistics import Statistics
-from npf.test import Test, ScriptInitException
+import npf
+import npf.cmdline
+from npf.tests import pypost
+from npf.tests.regression import *
+from npf.output.statistics import Statistics
+from npf.tests.test import Test, ScriptInitException
 
 import multiprocessing
 
 def main():
     parser = argparse.ArgumentParser(description='NPF Test runner')
-    v = npf.add_verbosity_options(parser)
+    v = npf.cmdline.add_verbosity_options(parser)
 
-    b = npf.add_building_options(parser)
+    b = npf.cmdline.add_building_options(parser)
     b.add_argument('--allow-old-build',
                    help='Re-build and run test for old versions (compare-version and graph-version) without results. '
                         'By default, only building for the regression versions (see --history or --version) is done',
@@ -28,7 +29,7 @@ def main():
                    help='Force to rebuild the old versions. Ignored if allow-old-build is not set', dest='force_oldbuild',
                    action='store_true', default=False)
 
-    t = npf.add_testing_options(parser, True)
+    t = npf.cmdline.add_testing_options(parser, True)
 
     g = parser.add_argument_group('Versioning options')
     g.add_argument('--regress',
@@ -56,7 +57,7 @@ def main():
                     help='Number of olds versions to graph after --compare-version, unused if --graph-version is given. Default is 0 or 8 if --regress is given.')
 
 
-    a = npf.add_graph_options(parser)
+    a = npf.cmdline.add_graph_options(parser)
     # a.add_argument('--graph-allvariables', help='Graph only the latest variables (usefull when you restrict variables '
     #                                             'with tags)', dest='graph_newonly', action='store_true', default=False)
     # a.add_argument('--graph-serie', dest='graph_serie', metavar='variable', type=str, nargs=1, default=[None],
@@ -244,7 +245,7 @@ def main():
                     filtered_results[run] = all_results[run]
 
             if args.statistics:
-                Statistics.run(build,filtered_results, test, max_depth=args.statistics_maxdepth, filename=args.statistics_filename)
+                Statistics.run(build, filtered_results, test, max_depth=args.statistics_maxdepth, filename=args.statistics_filename)
 
             grapher = Grapher()
 

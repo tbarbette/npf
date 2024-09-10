@@ -1,5 +1,4 @@
-from npf.test import Test
-
+from npf.tests.test import Test
 
 class Module(Test):
     def __init__(self, test_path, options, parent, section, tags=None, role=None):

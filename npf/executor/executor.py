@@ -9,8 +9,8 @@ class Executor:
     index = 0
 
     def __init__(self):
-        from npf import npf
-        if npf.options.color:
+        from npf import globals
+        if globals.options.color:
             self.color = foreColors[Executor.index % len(foreColors)]
         else:
             self.color = ""

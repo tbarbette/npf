@@ -13,13 +13,17 @@ from pathlib import Path
 from queue import Empty
 from typing import Tuple, Dict
 import numpy as np
-from npf.build import Build
-from npf.node import NIC
-from npf.section import *
-from npf.npf import get_valid_filename
+from npf import osutils
+from npf.globals import cwd_path, get_build_path
+from npf.tests.build import Build
+from npf.components.nic import NIC
+from npf.tests.eventbus import EventBus
+from npf.tests.section import *
+from npf.osutils import get_valid_filename
 from npf.sections import Section, SectionNull
 from npf.types.dataset import Run, Dataset
-from npf.eventbus import EventBus
+
+from npf.types.units import parseBool
 from .variable import get_bool
 from decimal import *
 from functools import reduce
@@ -143,15 +147,15 @@ class Test:
         return self.pyexits
 
     def __init__(self, test_path, options, tags=None, role=None, inline=None):
-        loc_path = npf.find_local(test_path)
+        loc_path = osutils.find_local(test_path)
         if os.path.exists(loc_path):
             test_path = loc_path
         else:
-            loc_path = npf.find_local(test_path + '.npf')
+            loc_path = osutils.find_local(test_path + '.npf')
             if not os.path.exists(loc_path):
-                if os.path.exists(npf.find_local(test_path + '.test')):
+                if os.path.exists(osutils.find_local(test_path + '.test')):
                     print("WARNING: .test extension is deprecated, use .npf")
-                    test_path = npf.find_local(test_path + '.test')
+                    test_path = osutils.find_local(test_path + '.test')
                 else:
                     raise FileNotFoundError("Could not find test script %s (tried also with .npf and .test extensions, without success)" % test_path)
             else:
@@ -241,7 +245,7 @@ class Test:
 
         # Create imports tests
         for imp in self.imports:
-            from npf.module import Module
+            from npf.tests.module import Module
             imp.test = Module(imp.module, options, self, imp, self.tags, imp.get_role())
             if len(imp.test.variables.dynamics()) > 0:
                 raise Exception("Imports cannot have dynamic variables. Their parents decides what's dynamic.")
@@ -507,9 +511,9 @@ class Test:
 
     def update_constants(self, v_internals : dict, build : Build, full_test_folder : str, out_path : str = None, node = None):
 
-        bp = ('../' + npf.get_build_path()) if not os.path.isabs(npf.get_build_path()) else npf.get_build_path()
+        bp = ('../' + get_build_path()) if not os.path.isabs(get_build_path()) else get_build_path()
         rp = ('../' + build.build_path()) if not os.path.isabs(build.build_path()) else build.build_path()
-        abs_test_folder = full_test_folder if os.path.isabs(full_test_folder) else npf.cwd_path() + os.sep + full_test_folder
+        abs_test_folder = full_test_folder if os.path.isabs(full_test_folder) else cwd_path() + os.sep + full_test_folder
 
         tp = os.path.relpath(self.path,abs_test_folder)
 
@@ -708,7 +712,7 @@ class Test:
                     srole = role or script.get_role()
                     nodes = npf.nodes_for_role(srole)
 
-                    autokill = m.Value('i', 0) if npf.parseBool(script.params.get("autokill", t.config["autokill"])) else None
+                    autokill = m.Value('i', 0) if parseBool(script.params.get("autokill", t.config["autokill"])) else None
                     v["NPF_NODE_MAX"] = len(nodes)
                     for i_node, node in enumerate(nodes):
                       v["NPF_NODE"] = node.get_name()
@@ -871,7 +875,7 @@ class Test:
                         sys.exit(1)
                     if c != 0:
                         n_err = n_err + 1
-                        if npf.parseBool(script.params.get("critical", t.config["critical"])):
+                        if parseBool(script.params.get("critical", t.config["critical"])):
                             critical_failed = True
                             print("[ERROR] A critical script failed ! Results will be ignored")
                         print("Bad return code (%d) for script %s on %s ! Something probably went wrong..." % (

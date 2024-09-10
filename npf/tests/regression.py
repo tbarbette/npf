@@ -1,8 +1,8 @@
 from typing import Tuple
 
-from npf.grapher import *
-from npf.repository import *
-from npf.test import Test, SectionScript, ScriptInitException
+from npf.output.grapher import *
+from npf.tests.repository import *
+from npf.tests.test import Test, SectionScript, ScriptInitException
 from npf.types.dataset import Dataset
 
 

@@ -5,13 +5,13 @@ import re
 import socket
 import time
 
+import npf
+from npf import osutils
+from npf.components.nic import NIC
 from npf.executor.localexecutor import LocalExecutor
 from npf.executor.sshexecutor import SSHExecutor
-from npf.variable import Variable,get_bool
-from npf.nic import NIC
 from npf.executor.executor import Executor
-from npf import npf
-
+from npf.tests.variable import Variable
 
 class Node:
     """
@@ -39,7 +39,7 @@ class Node:
             '.node' if not name.endswith(".node") else ""
         )
         try:
-            clusterFilePath = npf.find_local(clusterFileName, critical=False)
+            clusterFilePath = osutils.find_local(clusterFileName, critical=False)
             self.path = clusterFilePath
             f = open(clusterFilePath, 'r')
             for i, line in enumerate(f):
@@ -79,7 +79,7 @@ class Node:
         return self.name
 
     def experiment_path(self):
-        return (self.executor.path) if self.executor.path else npf.experiment_path()
+        return (self.executor.path) if self.executor.path else npf.globals.experiment_path()
 
     @staticmethod
     def _addr_gen():
@@ -105,7 +105,7 @@ class Node:
         if self.parsed:
             return
         print("Looking for NICs on %s..." % self.name)
-        if not npf.options.cluster_autosave:
+        if not npf.globals.options.cluster_autosave:
             print(
                 f"To avoid this message write down the configuration in cluster/{self.name}.node or run again NPF with --cluster-autosave to create the file automatically."
             )
@@ -166,13 +166,14 @@ class Node:
                     conf += "%d:ip=%s" % (i, n.ip) + nl
                 i = i + 1
         print(conf)
-        if npf.options.cluster_autosave and len(conf) > 0:
+        if npf.globals.options.cluster_autosave and len(conf) > 0:
             os.makedirs("cluster", exist_ok=True)
             open("cluster/%s.node" % self.name, 'w').write(conf)
 
 
     @classmethod
-    def makeLocal(cls, options, test_access = True):
+    def makeLocal(cls, test_access = True):
+        options = npf.globals.options
         node = cls._nodes.get('localhost', None)
         if node is None:
             node = Node('localhost', LocalExecutor(), options.tags)
@@ -185,9 +186,10 @@ class Node:
         return node
 
     @classmethod
-    def makeSSH(cls, user, addr, path, options, port=22, nfs=None):
+    def makeSSH(cls, user, addr, path, port=22, nfs=None):
+        options = npf.globals.options
         if path is None:
-            path = os.path.abspath(npf.experiment_path())
+            path = os.path.abspath(npf.globals.experiment_path())
         node = cls._nodes.get(addr, None)
         if node is not None:
             return node
@@ -211,10 +213,10 @@ class Node:
                 assert(isinstance(node.executor, SSHExecutor))
                 try:
 
-                    node.executor.sendFolder(".access_test", local=npf.experiment_path())
+                    node.executor.sendFolder(".access_test", local=npf.globals.experiment_path())
                 except FileNotFoundError as e:
                     print(
-                        f"While checking if file .access_test can be sent from local path {npf.experiment_path()} to remote {node.executor.addr}"
+                        f"While checking if file .access_test can be sent from local path {npf.globals.experiment_path()} to remote {node.executor.addr}"
                     )
                     raise e
 

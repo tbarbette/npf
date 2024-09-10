@@ -2,20 +2,23 @@ import logging
 from typing import Dict, List
 import enoslib as en
 
-from npf.grapher import Grapher
+import npf.cmdline
+import npf.globals
+from npf.output import generate_outputs
+from npf.output.grapher import Grapher
 from npf.test_driver import Comparator, group_series
 from npf.node import Node
-from npf import npf
+import npf
 import argparse
 from npf import repository
 
 def run(npf_script, roles:Dict[str,en.Host], argsv:List[str]=[]):
     logging.getLogger('fontTools.subset').level = logging.WARN
     parser = argparse.ArgumentParser(description='NPF Test runner through enoslib')
-    v = npf.add_verbosity_options(parser)
-    b = npf.add_building_options(parser)
-    t = npf.add_testing_options(parser, regression=False)
-    a = npf.add_graph_options(parser)
+    v = npf.cmdline.add_verbosity_options(parser)
+    b = npf.cmdline.add_building_options(parser)
+    t = npf.cmdline.add_testing_options(parser, regression=False)
+    a = npf.cmdline.add_graph_options(parser)
     parser.add_argument('repos', metavar='repo', type=str, nargs='+', help='names of the repositories to compares. Use a format such as repo+VAR=VAL:Title to overwrite variables and serie name.')
     parser.add_argument('--graph-title', type=str, nargs='?', help='Graph title')
 
@@ -32,10 +35,10 @@ def run(npf_script, roles:Dict[str,en.Host], argsv:List[str]=[]):
         ex = EnoslibExecutor(eno_obj)
         
         node = Node(eno_obj.address, executor=ex, tags=args.tags)
-        if r in npf.roles:
-            npf.roles[r].append(node)
+        if r in npf.globals.roles:
+            npf.globals.roles[r].append(node)
         else:
-            npf.roles[r] = [node]
+            npf.globals.roles[r] = [node]
     
     repo_list = []
     for repo_name in args.repos:
@@ -50,6 +53,6 @@ def run(npf_script, roles:Dict[str,en.Host], argsv:List[str]=[]):
                                          options=args,
                                          do_regress=False)
 
-    filename = npf.build_output_filename(args, repo_list)
+    filename = npf.build_output_filename(repo_list)
 
-    group_series(filename, args, series, time_series, options=args)
+    generate_outputs(filename, args, series, time_series, options=args)

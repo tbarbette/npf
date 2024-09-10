@@ -5,7 +5,7 @@ from typing import Dict
 import numpy as np
 from npf.expdesign.fullexp import FullVariableExpander
 from npf.types.dataset import Run
-from npf.variable import Variable
+from npf.tests.variable import Variable
 
 class OptVariableExpander(FullVariableExpander):
     def __init__(self, vlist:Dict[str,Variable], results, overriden, input, margin, all=False):
@@ -63,8 +63,14 @@ class ZLTVariableExpander(OptVariableExpander):
                 return self.need_run_for(after_max)
 
         #Else we're finished
-        self.current = None
+        self.validate_run()
         return self.__next__()
+
+    def validate_run(self):
+        """ Mark this run as the best ZLT one
+        """
+        #self.results[self.current][IS_ZLT] = 1
+        self.current = None
 
     def __next__(self):
         if self.current is None:
@@ -77,6 +83,7 @@ class ZLTVariableExpander(OptVariableExpander):
             self.next_val = None
             self.executable_values = self.input_values.copy()
         elif not self.executable_values:
+            #There's no more points to try, we could never find a ZLT
             self.current = None
             return self.__next__()
 

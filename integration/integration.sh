@@ -8,9 +8,9 @@ compare() {
     test=$1
     python=$2
     echo "Executing npf test $test..."
-    $python npf-run.py click-2022 --force-test --no-graph-time --test integration/$test.npf --quiet-build ${@:3} &> res$test
+    $python npf.py click-2022 --force-test --no-graph-time --test integration/$test.npf --quiet-build ${@:3} &> res$test
     if [ $? -ne 0 ] ; then
-        echo "npf-run.py returned an error for test $test !"
+        echo "npf.py returned an error for test $test !"
         cat res$test
         #exit 1
     fi
@@ -19,7 +19,7 @@ compare() {
         echo "$test passed !"
     else
         echo "Error for $test : expected output does not match !"
-        echo "Command : $python npf-run.py click-2022 --force-test --test integration/$test.npf --quiet-build ${@:3}"
+        echo "Command : $python npf.py click-2022 --force-test --test integration/$test.npf --quiet-build ${@:3}"
         diff res$test integration/$test.stdout
         ret=1
     fi
@@ -41,7 +41,7 @@ compare_watcher() {
         echo "$test passed !"
     else
         echo "Error for $test : expected output does not match !"
-        echo "Command : $python npf-run.py click-2022 --no-graph-time --force-test --test integration/$test.npf --quiet-build"
+        echo "Command : $python npf.py click-2022 --no-graph-time --force-test --test integration/$test.npf --quiet-build"
         diff int_res integration/$test.stdout
         ret=1
     fi
@@ -51,9 +51,9 @@ compare_watcher() {
 try() {
     test=$1
     python=$2
-    $python npf-run.py --force-test --no-graph-time --test $test --quiet --config n_runs=1 --tags fastregression ${@:3}
+    $python npf.py --force-test --no-graph-time --test $test --quiet --config n_runs=1 --tags fastregression ${@:3}
     if [ $? -ne 0 ] ; then
-        echo "npf-run.py returned an error for test $test !"
+        echo "npf.py returned an error for test $test !"
         exit 1
     fi
 }
@@ -66,7 +66,7 @@ tryweb() {
     if [ -f "$FILE" ]; then
         echo "integration with npf-web-extension PASSED"
     else
-        echo "error for npf-web-extension integration: no file generated through npf-run.py"
+        echo "error for npf-web-extension integration: no file generated through npf.py"
         exit 1
     fi
 }

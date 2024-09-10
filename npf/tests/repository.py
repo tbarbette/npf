@@ -8,14 +8,14 @@ import re
 from urllib.error import URLError
 import urllib.request
 import sys
-
 import shutil
-
 import gitdb
 
-from npf import npf
-from npf.build import Build
-from .variable import is_numeric, VariableFactory
+import npf
+from npf import osutils
+import npf.globals
+from npf.tests.build import Build
+from npf.tests.variable import is_numeric, VariableFactory
 
 import git
 
@@ -147,7 +147,7 @@ class MethodGet(UnversionedMethod):
     def checkout(self, branch=None):
         if branch is None:
             branch = self.repo.version
-        url = npf.replace_path(self.repo.url,Build(self.repo,branch,self.repo.options.result_path))
+        url = npf.tests.build.replace_path(self.repo.url,Build(self.repo,branch,self.repo.options.result_path))
         if not Path(self.repo.get_build_path()).exists():
             os.makedirs(self.repo.get_build_path())
         try:
@@ -221,7 +221,7 @@ class Repository:
         if self.reponame == 'None':
             self.url = None
         else:
-            repo_path = npf.find_local('repo/' + self.reponame + '.repo', critical=True)
+            repo_path = osutils.find_local('repo/' + self.reponame + '.repo', critical=True)
 
             f = open(repo_path, 'r')
             for line in f:
@@ -321,13 +321,13 @@ class Repository:
             path = overwrite_branch[1] if len(overwrite_branch) > 1 else self.url
             if path:
                 try:
-                    self._build_path = path if os.path.isabs(path) else npf.find_local(path, critical=True, suppl = [os.path.dirname(repo_path)] if repo_path else [])
+                    self._build_path = path if os.path.isabs(path) else osutils.find_local(path, critical=True, suppl = [os.path.dirname(repo_path)] if repo_path else [])
                 except FileNotFoundError:
                     raise Exception("The URL of the local repository '%s' is invalid. Maybe try an absolute path?" % path)
             else:
                 self._build_path = path
         else:
-            self._build_path = npf.get_build_path(self.options) + self.reponame
+            self._build_path = npf.globals.get_build_path(self.options) + self.reponame
         #Ensure trailing /
         self._build_path = os.path.join(self._build_path,'')
 
@@ -352,12 +352,12 @@ class Repository:
         if not bp:
             return ""
         #If the path is in the NPF build path, the remote
-        if os.path.abspath(bp).startswith(npf.get_build_path(self.options)):
-            return os.path.relpath(bp, os.path.dirname(os.path.normpath(npf.get_build_path(self.options))))
-        if os.path.abspath(bp).startswith(npf.experiment_path(self.options)):
-            return os.path.relpath(bp, npf.experiment_path(self.options))
-        if os.path.abspath(bp).startswith(npf.npf_root_path(self.options)):
-            return os.path.relpath(bp, npf.npf_root_path(self.options))
+        if os.path.abspath(bp).startswith(npf.globals.get_build_path(self.options)):
+            return os.path.relpath(bp, os.path.dirname(os.path.normpath(npf.globals.get_build_path(self.options))))
+        if os.path.abspath(bp).startswith(npf.globals.experiment_path(self.options)):
+            return os.path.relpath(bp, npf.globals.experiment_path(self.options))
+        if os.path.abspath(bp).startswith(npf.globals.npf_root_path(self.options)):
+            return os.path.relpath(bp, npf.globals.npf_root_path(self.options))
         return os.path.basename(bp)
 
 

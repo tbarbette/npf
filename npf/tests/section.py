@@ -1,6 +1,6 @@
-from npf import npf
+import npf
 from npf.sections import *
-from npf.variable import *
+from npf.tests.variable import *
 
 from spellwise import Editex
 

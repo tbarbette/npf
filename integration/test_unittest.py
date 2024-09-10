@@ -1,22 +1,25 @@
 import unittest
-from npf import repository
-from npf.expdesign.zltexp import ZLTVariableExpander
-from npf.grapher import Grapher
-from npf.test_driver import Comparator
-import npf.npf
-from npf.node import *
 import argparse
+
+
+from npf import cmdline
+
+from npf.expdesign.zltexp import ZLTVariableExpander
+from npf.output.grapher import Grapher
+from npf.tests import repository
+from npf.tests.build import Build
+from npf.tests.test_driver import Comparator
+from npf.components.node import *
+
 from collections import OrderedDict
 
-from npf.repository import Repository
-from npf.test import Test
-from npf.build import Build
-from npf.variable import RangeVariable, SimpleVariable, dtype, numeric_dict
+from npf.tests.repository import Repository
+from npf.tests.test import Test
+from npf.tests.variable import RangeVariable, SimpleVariable, dtype, numeric_dict
 from npf.types.dataset import Run
 
 import numpy as np
 import logging
-
 
 logger = logging.getLogger()
 logger.level = logging.DEBUG
@@ -26,13 +29,13 @@ logger.addHandler(stream_handler)
 
 def get_args():
     parser = argparse.ArgumentParser(description='NPF Tester')
-    npf.add_verbosity_options(parser)
-    npf.add_building_options(parser)
-    npf.add_graph_options(parser)
-    npf.add_testing_options(parser)
+    cmdline.add_verbosity_options(parser)
+    cmdline.add_building_options(parser)
+    cmdline.add_graph_options(parser)
+    cmdline.add_testing_options(parser)
     args = parser.parse_args(args = "")
     args.tags = {}
-    npf.set_args(args)
+    npf.globals.set_args(args)
     npf.parse_nodes(args)
     return args
 
@@ -51,8 +54,8 @@ def test_repo():
 def test_node():
     args = get_args()
     args.do_test = False
-    n1 = Node.makeSSH(addr="cluster01.sample.node", user=None, path=None, options=args)
-    n2 = Node.makeSSH(addr="cluster01.sample", user=None, path=None, options=args)
+    n1 = Node.makeSSH(addr="cluster01.sample.node", user=None, path=None)
+    n2 = Node.makeSSH(addr="cluster01.sample", user=None, path=None)
 
     assert n1.executor.addr == "cluster01.example.com" == n2.executor.addr
     assert n1.executor.user == "user01" == n2.executor.user
@@ -65,9 +68,9 @@ def test_paths():
     args.experiment_folder = "test_root"
 
 
-    local = Node.makeLocal(args,test_access=False)
-    ssh = Node.makeSSH(addr="cluster01.sample", user=None, path=None, options=args)
-    ssh2 = Node.makeSSH(addr="cluster01.sample", user=None, path=None, options=args)
+    local = Node.makeLocal(test_access=False)
+    ssh = Node.makeSSH(addr="cluster01.sample", user=None, path=None)
+    ssh2 = Node.makeSSH(addr="cluster01.sample", user=None, path=None)
     ssh.executor.path = "/different/path/to/root/"
     ssh2.executor.path = npf.experiment_path() + os.sep
 
@@ -142,10 +145,10 @@ def test_local_executor():
 
 def test_core():
         parser = argparse.ArgumentParser(description='NPF test')
-        v = npf.add_verbosity_options(parser)
-        b = npf.add_building_options(parser)
-        t = npf.add_testing_options(parser, regression=False)
-        a = npf.add_graph_options(parser)
+        v = cmdline.add_verbosity_options(parser)
+        b = cmdline.add_building_options(parser)
+        t = cmdline.add_testing_options(parser, regression=False)
+        a = cmdline.add_graph_options(parser)
         parser.add_argument('repo', metavar='repo name', type=str, nargs='?', help='name of the repo/group of builds', default=None)
 
         full_args = ["--test", "integration/sections.npf",'--force-retest']
@@ -170,7 +173,7 @@ def test_core():
         assert np.all(np.array(results["PY"]) == 1)
 
 
-        filename = npf.build_output_filename(args, repo_list)
+        filename = npf.build_output_filename(repo_list)
         grapher = Grapher()
 
         print("Generating graphs...")
@@ -235,3 +238,26 @@ def _test_allzlt(monotonic):
 def test_allzlt():
     _test_allzlt(monotonic=True)
     _test_allzlt(monotonic=False)
+
+def test_test_main():
+    t = Test("tests/tcp/01-iperf.npf", options = npf.globals.options)
+
+def test_web():
+    from npf.output import web
+
+def test_notebook():
+    from npf.output import notebook
+
+def test_enoslib():
+    try:
+        import enoslib
+        from npf.enoslib import run
+        run('integration/sections.npf', roles={"localhost":"127.0.0.1"}, argsv=[])
+
+    except ImportError as e:
+        pass  # module doesn't exist, deal with it.
+
+def test_import_mains():
+    import npf
+    import npf_regress
+    import npf_watch

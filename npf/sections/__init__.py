@@ -6,8 +6,8 @@ from npf.expdesign.fullexp import FullVariableExpander
 from npf.expdesign.lhsexp import LHSVariableExpander
 from npf.expdesign.randomexp import RandomVariableExpander
 from npf.expdesign.zltexp import ZLTVariableExpander
-from npf.repository import Repository
-from npf.variable import CoVariable, DictVariable, ListVariable, SimpleVariable, Variable, VariableFactory, get_bool, is_bool, replace_variables
+from npf.tests.repository import Repository
+from npf.tests.variable import CoVariable, DictVariable, ListVariable, SimpleVariable, Variable, VariableFactory, get_bool, is_bool, replace_variables
 
 
 class Section:

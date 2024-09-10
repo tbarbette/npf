@@ -1,16 +1,16 @@
-from npf import npf
-from npf.graph import Graph
-from npf.variable_to_series import extract_variable_to_series
+from npf.types import units
+from npf.output.graph.graphdata import GraphData
+from npf.output.graph.variable_to_series import extract_variable_to_series
 
 # Convert a list of series to a graph object
 #  if the list has a unique item and there are dynamic variables, one
 #  dynamic variable will be extracted to make a list of serie
-def series_to_graph(grapher, series, dyns, vars_values, vars_all):
+def series_to_graph(grapher, series, dyns, vars_values):
     nseries = len(series)
 
     ndyn = len(dyns)
     if grapher.options.do_transform and (nseries == 1 and ndyn > 0 and not grapher.options.graph_no_series and not (
-                        ndyn == 1 and npf.all_num(vars_values[dyns[0]]) and len(vars_values[dyns[0]]) > 2) and dyns[0] != "time"):
+                        ndyn == 1 and units.all_num(vars_values[dyns[0]]) and len(vars_values[dyns[0]]) > 2) and dyns[0] != "time"):
         """Only one serie: expand one dynamic variable as serie, but not if it was plotable as a line"""
         script, build, all_results = series[0]
         if grapher.config("var_serie") and grapher.config("var_serie") in dyns:
@@ -24,7 +24,7 @@ def series_to_graph(grapher, series, dyns, vars_values, vars_all):
                 k = dyns[i]
                 if k == 'time':
                     continue
-                if not npf.all_num(vars_values[k]):
+                if not units.all_num(vars_values[k]):
                     nonums.append(k)
                     if len(vars_values[k]) > n_val and len(vars_values[k]) < 10:
                         key = k
@@ -57,10 +57,9 @@ def series_to_graph(grapher, series, dyns, vars_values, vars_all):
         else:
             key = "Variables"
             do_sort = False
-        graph = Graph(grapher)
+        graph = GraphData(grapher)
         graph.key = key
         graph.do_sort = do_sort
-        graph.vars_all = vars_all
         graph.vars_values = vars_values
         graph.series = series
     return graph

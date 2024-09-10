@@ -6,9 +6,19 @@ import copy
 import traceback
 import sys
 
-from npf.types.notebook.notebook import prepare_notebook_export
+from sklearn import tree
 
-from npf.types.web.web import prepare_web_export
+from npf.output.graph.colors import lighter
+from npf.output.graph.plots.barplot import do_barplot
+from npf.output.graph.plots.heatmap import do_heatmap
+from npf.output.statistics import Statistics
+from npf.output.transform.pandas import to_pandas
+from npf.output.transform.combine_variables import combine_variables
+from npf.output.transform.result_as_variable import result_as_variable
+from npf.tests import variable
+from npf.output.notebook.notebook import prepare_notebook_export
+from npf.output.web.web import prepare_web_export
+from npf.types.units import *
 if sys.version_info < (3, 7):
     from orderedset import OrderedSet
 else:
@@ -20,20 +30,19 @@ from asteval import Interpreter
 from collections import OrderedDict
 from typing import List
 import numpy as np
-from pygtrie import Trie
 from math import log,pow
 
 from npf.types import dataset
 from npf.types.series import Series
 from npf.types.dataset import Run, XYEB, AllXYEB, group_val, var_divider, mask_from_filter
-from npf.variable import is_log, is_numeric, get_numeric, numericable, get_bool, is_bool
-from npf.section import SectionVariable
-from npf.build import Build
-from npf.graph_choice import decide_graph_type
-from npf.variable_to_series import extract_variable_to_series
-from npf.series_to_graph import series_to_graph
-from npf import npf, variable
-from npf.graph import Graph
+from npf.tests.variable import is_log, is_numeric, get_numeric, numericable, get_bool, is_bool
+from npf.tests.section import SectionVariable
+from npf.tests.build import Build
+from npf.output.graph.graph_choice import decide_graph_type
+from npf.output.graph.variable_to_series import extract_variable_to_series
+from npf.output.graph.series_to_graph import series_to_graph
+from npf.output.graph.graphdata import GraphData
+import npf
 
 import matplotlib
 # There is a matplotlib bug which causes CI failures
@@ -74,11 +83,6 @@ def hexToList(s):
     for c in s.split(' '):
         l.append(tuple(a / 255. for a in webcolors.hex_to_rgb(c)))
     return l
-
-def lighter(c, p, n):
-    n = n / 255.
-    return tuple(min(1,max(0,a * p + (1-p) * n)) for a in c)
-
 
 def buildLight(c,m=4):
     l = []
@@ -265,9 +269,9 @@ class Grapher:
             try:
               # Try to read the ratio, if given
               if len(n) == 3 and n[1] != "" and  n[2] != "":
-                ymin, ymax, ratio = (npf.parseUnit(x) for x in n)
+                ymin, ymax, ratio = (parseUnit(x) for x in n)
               if len(n) >= 2 and n[1] != "":
-                ymin, ymax = (npf.parseUnit(x) for x in n[:2])
+                ymin, ymax = (parseUnit(x) for x in n[:2])
               else:
                 f=float(n[0])
                 if f==0:
@@ -326,44 +330,17 @@ class Grapher:
             else:
                 return (pres+ "%s"+ps) % (x, unit)
 
-    def combine_variables(self, run_list, variables_to_merge):
-        ss = []
-        if len(variables_to_merge) == 1:
-            for run in run_list:
-                s = []
-                for k, v in run.read_variables().items():
-                    if k in variables_to_merge:
-                        s.append("%s" % str(v[1] if type(v) is tuple else v))
-                ss.append(','.join(s))
-        else:
-            use_short = False
-            short_ss = []
-            for run in run_list:
-                s = []
-                short_s = {}
-                for k, v in run.read_variables().items():
-                    if k in variables_to_merge:
-                        v = str(v[1] if type(v) is tuple else v)
-                        s.append("%s = %s" % (self.var_name(k), v))
-                        short_s[k] = v
-                vs = ','.join(s)
-                ss.append(vs)
-                if len(vs) > 30:
-                    use_short = True
-                l_short=[]
-                t_short_s=Trie(short_s)
-                for k,v in short_s.items():
-                    p=1
-                    while len(list(t_short_s.keys(k[:p]))) > 1:
-                        p+=1
-                    k = k[(p-1):]
-                    l_short.append("%s = %s" % (k if len(k) < 6 else k[:3], v))
-                short_ss.append(','.join(l_short))
-            if use_short:
-                ss = short_ss
-        return ss
+    def aggregate_variable(self, key:str, series:List[Series], method:str):
+        """Aggregate all values of a variables with some method
 
-    def aggregate_variable(self, key, series, method):
+        Args:
+            key: Key (variable name) to combine
+            series: The list of series
+            method: The method to use for merging variable (see group_val)
+
+        Returns:
+            The new list of series
+        """
         nseries = []
         for i,(test, build, all_results) in enumerate(series):
             aggregates = OrderedDict()
@@ -406,7 +383,7 @@ class Grapher:
         return nseries
 
     # Extract the variable key so it becomes a serie
-    def extract_variable_to_series(self, key, vars_values, all_results, dyns, build, script) -> Graph:
+    def extract_variable_to_series(self, key, vars_values, all_results, dyns, build, script) -> GraphData:
         if not key in dyns:
             raise ValueError("Cannot extract %s because it is not a dynamic variable (%s are)" % (key, ', '.join(dyns)))
         dyns.remove(key)
@@ -420,7 +397,7 @@ class Grapher:
         except TypeError:
             print("ERROR : Cannot sort the following values :", values)
             return
-        new_varsall = OrderedSet()
+
         for i, value in enumerate(values):
             newserie = OrderedDict()
             for run, run_results in all_results.items():
@@ -430,7 +407,6 @@ class Grapher:
                     newrun = run.copy()
                     del newrun.write_variables()[key]
                     newserie[newrun] = run_results
-                    new_varsall.add(newrun)
 
             if type(value) is tuple:
                 value = value[1]
@@ -441,7 +417,7 @@ class Grapher:
                 nb._marker = self.graphmarkers[i % len(self.graphmarkers)]
             series.append((script, nb, newserie))
             self.glob_legend_title = self.var_name(key)
-        vars_all = list(new_varsall)
+
         if len(dyns) == 1:
             key = dyns[0]
             do_sort = True
@@ -451,25 +427,23 @@ class Grapher:
             key = "Variables"
             do_sort = False
         do_sort = self.config_bool_or_in('graph_x_sort', key, default=do_sort)
-        if (do_sort):
-            vars_all.sort()
-        graph = Graph(self)
+
+        graph = GraphData(self)
         graph.do_sort = do_sort
         graph.key = key
-        graph.vars_all = vars_all
-        graph.vars_values = vars_values
-        graph.series = series
+
+        graph.set_series(series, vars_values)
         return graph
 
     # Convert a list of series to a graph object
     #  if the list has a unique item and there are dynamic variables, one
     #  dynamic variable will be extracted to make a list of serie
-    def series_to_graph(self, series, dyns, vars_values, vars_all):
+    def series_to_graph(self, series, dyns, vars_values):
         nseries = len(series)
 
         ndyn = len(dyns)
         if self.options.do_transform and (nseries == 1 and ndyn > 0 and not self.options.graph_no_series and not (
-                            ndyn == 1 and npf.all_num(vars_values[dyns[0]]) and len(vars_values[dyns[0]]) > 2) and dyns[0] != "time"):
+                            ndyn == 1 and all_num(vars_values[dyns[0]]) and len(vars_values[dyns[0]]) > 2) and dyns[0] != "time"):
             """Only one serie: expand one dynamic variable as serie, but not if it was plotable as a line"""
             script, build, all_results = series[0]
             if self.config("var_serie") and self.config("var_serie") in dyns:
@@ -483,7 +457,7 @@ class Grapher:
                     k = dyns[i]
                     if k == 'time':
                         continue
-                    if not npf.all_num(vars_values[k]):
+                    if not all_num(vars_values[k]):
                         nonums.append(k)
                         if len(vars_values[k]) > n_val and len(vars_values[k]) < 10:
                             key = k
@@ -522,12 +496,10 @@ class Grapher:
             else:
                 key = "Variables"
                 do_sort = False
-            graph = Graph(self)
+            graph = GraphData(self)
             graph.key = key
             graph.do_sort = do_sort
-            graph.vars_all = vars_all
-            graph.vars_values = vars_values
-            graph.series = series
+            graph.set_series(series, vars_values)
         return graph
 
     def map_variables(self, map_k, fmap, series, vars_values):
@@ -601,40 +573,13 @@ class Grapher:
                 for run, results in serie[2].items():
                     graph_variables.add(run)
 
-
-
-
         if not series:
             print("No data...")
             return
 
         # Add series to a pandas dataframe
         if options.pandas_filename is not None or options.web is not None or options.notebook_path is not None:
-            all_results_df=pd.DataFrame() # Empty dataframe
-            for test, build, all_results in series:
-                for i, (x) in enumerate(all_results):
-                    if len(x) == 0:
-                        continue
-                    try:
-
-                        labels = [k[1] if type(k) is tuple else k for k,v in x.variables.items()]
-                        x_vars = [[(v[1] if type(v) is tuple else v) for k,v in x.variables.items()]]
-                        x_vars=pd.DataFrame(x_vars,index=[0],columns=labels)
-                        x_vars=pd.concat([pd.DataFrame({'build' :build.pretty_name()},index=[0]), pd.DataFrame({'test_index' :i},index=[0]), x_vars],axis=1)
-
-                        vals = all_results[x]
-                        if not vals:
-                            continue
-                        x_data=pd.DataFrame.from_dict( {"y_"+k: v for k, v in vals.items()},orient='index').transpose() #Use orient='index' to handle lists with different lengths
-                        if len(x_data) == 0:
-                            continue
-                        x_data['run_index']=x_data.index
-                        x_vars = pd.concat([x_vars]*len(x_data), ignore_index=True)
-                        x_df = pd.concat([x_vars, x_data],axis=1)
-                        all_results_df = pd.concat([all_results_df,x_df],ignore_index = True, axis=0)
-                    except Exception as e:
-                        print("ERROR: When trying to export serie %s:" % build.pretty_name())
-
+            all_results_df = to_pandas(series)
 
             # Save the pandas dataframe into a csv
             if options.pandas_filename is not None:
@@ -655,44 +600,7 @@ class Grapher:
         # for instance if A has [1,2] values and B has [yes,no], graph_combine_variables={A+B:Unique}
         # will remove A and B, and create a new Unique variables with ["1, yes", "1, no", "2, yes", "2, no"]
         for tocombine in self.configlist('graph_combine_variables', []):
-            if type(tocombine) is tuple:
-                toname = tocombine[1]
-                tocombine = tocombine[0]
-            else:
-                toname = tocombine
-            tomerge = tocombine.split('+')
-            newgraph_variables = []
-            run_map = OrderedDict()
-            newnames = set()
-            for run in graph_variables:
-                newrun = run.copy()
-                vals = []
-                for var, val in run.variables.items():
-                    if var in tomerge:
-                        del newrun.variables[var]
-                        vals.append(str(val[1] if type(val) is tuple else val).strip())
-                combname = ', '.join(OrderedSet(vals))
-                newrun.variables[toname] = combname
-                newnames.add(combname)
-                newgraph_variables.append(newrun)
-                run_map[run] = newrun
-
-            if numericable(newnames):
-                for run in newgraph_variables:
-                    run.variables[toname] = get_numeric(run.variables[toname])
-            del newnames
-
-            graph_variables = newgraph_variables
-
-            newseries = []
-            for i, (test, build, all_results) in enumerate(series):
-                new_all_results = {}
-                for run, run_results in all_results.items():
-                    newrun = run_map.get(run, None)
-                    if newrun is not None:
-                        new_all_results[newrun] = run_results
-                newseries.append((test, build, new_all_results))
-            series = newseries
+            series = combine_variables(series, tocombine)
 
         # Data transformation : reject outliers if option is given, transform list to arrays, filter according to graph_variables
         #   and divide results as per the var_divider
@@ -730,7 +638,6 @@ class Grapher:
         if len(series) == 0:
             return
 
-
         #If graph_series_as_variables, take the series and make them as variables
         if self.config_bool('graph_series_as_variables',False):
             new_results = {}
@@ -758,81 +665,9 @@ class Grapher:
         # CPU=0 -> LOAD = 53
         # CPU=1 -> LOAD = 72
         for result_types, var_name in self.configdict('graph_result_as_variable', {}).items():
-            if len(var_name.split('-')) > 1:
-                result_name=var_name.split('-')[1]
-                var_name=var_name.split('-')[0]
-            else:
-                result_name="result-" + var_name
-            result_to_variable_map = []
-
-            for result_type in result_types.split('+'):
-                result_to_variable_map.append(result_type)
-
-            exploded_vars_values = vars_values.copy()
-            vvalues = OrderedSet()
-
-            untouched_series = []
-            exploded_series = []
-            for i, (test, build, all_results) in enumerate(series):
-                exploded_results = OrderedDict()
-                untouched_results = OrderedDict()
-
-                for run, run_results in all_results.items():
-                    new_run_results_exp = OrderedDict() #Results that matched, key is the matched value
-                    untouched_run_results = OrderedDict()
-
-                    for result_type, results in run_results.items():
-                        match = False
-                        for stripout in result_to_variable_map:
-                            if m := re.match(stripout, result_type):
-                                match = m.group(1) if len(m.groups()) > 0 else result_type
-                                break
-                        if match:
-                            new_run_results_exp[match] = results
-                        else:
-                            untouched_run_results[result_type] = results
-
-                    if len(new_run_results_exp) > 0:
-                        if numericable(new_run_results_exp.keys()):
-                            nn = {}
-                            for k, v in  new_run_results_exp.items():
-                                nn[get_numeric(k)] = v
-                            new_run_results_exp = OrderedDict(sorted(nn.items()))
-
-                        u = self.scriptconfig("var_unit", var_name, default="")
-                        mult = u in ['percent', '%']
-                        if mult:
-                            tot = 0
-                            for result_type, results in new_run_results_exp.items():
-                                tot += np.mean(results)
-                        for extracted_val, results in new_run_results_exp.items(): #result-type
-                            variables = run.variables.copy()
-                            variables[var_name] = extracted_val
-                            vvalues.add(extracted_val)
-                            #nr = new_run_results.copy()
-                            nr = {}
-                            #If unit is percent, we multiply the value per the result
-                            if mult:
-                                m = np.mean(results)
-                                tot += m
-                                for result_type in nr:
-                                    nr[result_type] = nr[result_type].copy() * m / 100
-                            nr[result_name] = results
-                            exploded_results[Run(variables)] = nr
-
-
-                    untouched_results[run] = untouched_run_results
-
-                if exploded_results:
-                    exploded_series.append((test, build, exploded_results))
-
-                if untouched_results:
-                    untouched_series.append((test, build, untouched_results))
-
-            exploded_vars_values[var_name] = vvalues
-
+            exploded_series, exploded_vars_values = result_as_variable(series, result_types, var_name, vars_values)
             self.graph_group(series=exploded_series, vars_values=exploded_vars_values, filename=filename, fileprefix = fileprefix, title=title)
-            series=untouched_series
+            
 
         self.graph_group(series, vars_values, filename=filename, fileprefix = fileprefix, title=title)
 
@@ -946,23 +781,10 @@ class Grapher:
                 transformed_series.append((test, build, new_all_results))
             series = transformed_series
 
-        for key,method in self.configdict('var_aggregate').items():
+        for key, method in self.configdict('var_aggregate').items():
             series = self.aggregate_variable(key=key,series=series,method=method)
             for k in key.split('+'):
                 vars_values[k] = ['AGG']
-
-
-        versions = []
-        """Vars_all is the set of all variable combination that have some value. Taking the iperf case, it will be
-        [ZERO_COPY=0, PARALLEL=1], [ZERO_COPY=0, PARALLEL=2], ... [ZERO_COPY=1, PARALLEL=8],
-        """
-        vars_all = OrderedSet()
-        for i, (test, build, all_results) in enumerate(series):
-            versions.append(build.pretty_name())
-            for run, run_results in all_results.items():
-                vars_all.add(run)
-        vars_all = list(vars_all)
-        vars_all.sort()
 
         dyns = []
         for k, v in vars_values.items():
@@ -972,12 +794,40 @@ class Grapher:
                 statics[k] = list(v)[0]
             else:
                 dyns.append(k)
+                
+
+        if len(dyns) > 2:
+
+            print("WARNIGN: Too many variables to plot !")
+            maxvar = 0
+            most_useless = list(reversed(dyns))
+            try:
+               
+                for i, (test, build, all_results) in enumerate(series):
+                        dataset = Statistics.buildDataset(all_results, test)
+                        clf = tree.DecisionTreeRegressor()
+                        _, X, y, dtype = dataset[0]
+                        clf = clf.fit(X, y)
+                        disp = np.var(y)/np.mean(y)
+                        if disp > maxvar:
+                            maxvar = disp
+                            most_useless = [dtype["names"][i] for i in np.argsort(clf.feature_importances_)]
+            except Exception as e:
+                    print("ERROR: Could not compute feature importance to ignore most meaningless variable...")
+                    print(e)
+            while len(dyns) > 2:
+                print(f"Variable {most_useless[0]} will be ignored. All points for its various levels will be displayed as variance of the other points.")
+                vars_values[most_useless[0]] = ['AGG']
+                dyns.remove(most_useless[0])
+                series = self.aggregate_variable(key=most_useless[0], series=series, method="all")
+                del most_useless[0]
+            print(dyns)
 
         #Divide a serie by another
         prop = self.config('graph_series_prop')
         if prop:
             if len(series) > 1:
-                series = Graph.series_prop(series, prop, self.configdict('graph_cross_reference').values())
+                series = GraphData.series_prop(series, prop, self.configdict('graph_cross_reference').values())
                 prop = False
 
         #Eventually overwrite label of series
@@ -1023,7 +873,7 @@ class Grapher:
             del dyns
             del vars_values
         else:
-            graph = series_to_graph(self, series, dyns, vars_values, vars_all)
+            graph = series_to_graph(self, series, dyns, vars_values)
             graph.title = title
             graphs.append(graph)
 
@@ -1033,7 +883,6 @@ class Grapher:
 
         if len(graphs) > 0:
             self.plot_graphs(graphs, filename, fileprefix)
-
 
     def plot_graphs(self, graphs, filename, fileprefix):
         """
@@ -1057,13 +906,14 @@ class Grapher:
         graph = graphs[0]
         if len(graph.series) == 0:
             return
+
         data_types : AllXYEB = graph.dataset(kind=fileprefix)
         one_test,one_build,whatever = graph.series[0]
 
         if self.options.no_graph:
             return
 
-        # Combine some results as subplots of a single plot. Expect a dictionary like THROUGHPUT+LATENCY:2 where the first list is the results to combine, and the second the number of columns to use for subplots, ignored for dual axis
+        # Combine multiple metrics as subplots. Expect a dictionary like THROUGHPUT+LATENCY:2 where the first list is the results to combine, and the second the number of columns to use for subplots, ignored for dual axis
         for i,(result_type_list, n_cols) in enumerate(self.configdict('graph_subplot_results', {}).items()):
             for result_type in re.split('[,]|[+]', result_type_list):
                 matched = False
@@ -1119,7 +969,7 @@ class Grapher:
 
                 result = self.generate_plot_for_graph(
                     result_type, i_subplot, figure, n_cols, n_lines, graph.vars_values,
-                    data_types, graph.dyns(), graph.vars_all, graph.key,
+                    data_types, graph.dyns(), graph.vars_all(), graph.key,
                     graph.subtitle if graph.subtitle else graph.title,
                     ret, subplot_legend_titles)
 
@@ -1165,8 +1015,8 @@ class Grapher:
 
 
     #Generate the plot of data_types at the given i/i_subplot position over n_cols/n_lines
-    def generate_plot_for_graph(self, i, i_subplot, figure, n_cols, n_lines, vars_values, data_types, dyns, VARS_ALL, key, title, ret, subplot_legend_titles):
-            NDYN=len(dyns)
+    def generate_plot_for_graph(self, i, i_subplot, figure, n_cols, n_lines, vars_values, data_types, dyns, vars_all, key, title, ret, subplot_legend_titles):
+
             subplot_type=self.config("graph_subplot_type")
             subplot_handles=[]
             axiseis = []
@@ -1314,9 +1164,8 @@ class Grapher:
                     barplot = False
                     horizontal = False
                     default_add_legend = True
-
-                    graph_type = decide_graph_type(self.config, len(VARS_ALL), vars_values, key, result_type, NDYN, ISUBPLOT)
-
+                            
+                    graph_type = decide_graph_type(self.config, len(vars_all), vars_values, key, result_type, len(dyns), ISUBPLOT)
 
                     try:
                         if graph_type == "simple_bar":
@@ -1339,22 +1188,22 @@ class Grapher:
                             xname=self.var_name(result_type)
                         elif graph_type == "heatmap":
                             """Heatmap"""
-                            r, ndata = self.do_heatmap(axis, key, result_type, data, xdata, vars_values, shift, ISUBPLOT, sparse = False)
+                            r, ndata = do_heatmap(self, axis, key, result_type, data, xdata, vars_values, shift, ISUBPLOT, sparse = False)
                             default_add_legend = False
                             barplot = True
                         elif graph_type == "sparse_heatmap":
                             """sparse Heatmap"""
-                            r, ndata = self.do_heatmap(axis, key, result_type, data, xdata, vars_values, shift, ISUBPLOT, sparse = True)
+                            r, ndata = do_heatmap(self, axis, key, result_type, data, xdata, vars_values, shift, ISUBPLOT, sparse = True)
                             default_add_legend = False
                             barplot = True
 
                         elif graph_type == "barh" or graph_type=="horizontal_bar":
-                            r, ndata= self.do_barplot(axis,VARS_ALL, dyns, result_type, data, shift, ibrokenY==0, horizontal=True, data_types=data_types)
+                            r, ndata= do_barplot(self, axis, vars_all, dyns, result_type, data, shift, ibrokenY==0, horizontal=True, data_types=data_types)
                             barplot = True
                             horizontal = True
                         else:
                             """Barplot. X is all seen variables combination, series are version"""
-                            r, ndata= self.do_barplot(axis,VARS_ALL, dyns, result_type, data, shift, ibrokenY==0, data_types=data_types)
+                            r, ndata= do_barplot(self, axis, vars_all, dyns, result_type, data, shift, ibrokenY==0, data_types=data_types)
                             barplot = True
                     except Exception as e:
                         print("ERROR : could not graph %s" % result_type)
@@ -1421,7 +1270,7 @@ class Grapher:
                             isLog = True
                         if not isLog:
                             ax = data[0][0]
-                            if npf.all_num(ax) and is_log(ax) is not False:
+                            if all_num(ax) and is_log(ax) is not False:
                                 isLog = True
                                 baseLog = is_log(ax)
                         thresh=1
@@ -1622,15 +1471,16 @@ class Grapher:
                 ncol = self.config("legend_ncol")
                 if type(ncol) == list:
                     ncol = ncol[ilegend % len(ncol)]
-                doleg = self.config_bool_or_in('graph_legend', result_type)
+                doleg = self.config_bool_or_in('graph_legend', result_type, default=None)
 
                 if doleg is None:
                     if len(labels) == 1 and labels[0].lower() in ('local','version'):
                         doleg = False
                         print("INFO: Legend not shown as there is only one serie with a default name (local, version). Set --config graph_legend=1 to force printing a legend. See the documentation at https://npf.readthedocs.io/en/latest/graph.html to see how to change the legend.")
                     else:
-                        doleg = True
-                if (default_add_legend or doleg) and doleg is not False:
+                        doleg = default_add_legend
+
+                if doleg:
                     loc = self.config("legend_loc")
                     if type(loc) is dict or type(loc) is list:
                         loc = self.scriptconfig("legend_loc",key="result",result_type=result_type)
@@ -1681,7 +1531,7 @@ class Grapher:
                     if loc == "none":
                         continue
                     if legend_title == ' ' or legend_title == '_':
-                        legend_title=None
+                        legend_title = None
                     if loc and loc.startswith("outer"):
                         loc = loc[5:].strip()
                         legend_bbox=self.configlist("legend_bbox")
@@ -1874,70 +1724,6 @@ class Grapher:
             print("Remember: CDF show the CDF of results for each point. Maybe you want to use var_aggregate={VAR1+VAR2+...+VARN:all}?")
         return True, nseries
 
-    def do_heatmap(self, axis, key, result_type, data : XYEB, xdata : XYEB, vars_values: dict, shift=0, idx=0, sparse=False):
-        self.format_figure(axis, result_type, shift, key=key)
-        nseries = 0
-        yvals = []
-        for x,y,e,build in data:
-            nseries = max(len(y),nseries)
-            y = get_numeric(build._pretty_name)
-            yvals.append(y)
-        if not key in vars_values:
-            print("WARNING: Heatmap with an axis of size 1")
-            xvals = [1]
-        else:
-            xvals = list(vars_values[key])
-        if sparse:
-            xmin=min(xvals)
-            xmax=max(xvals)
-            ymin=min(yvals)
-            ymax=max(yvals)
-        else:
-            xmin=0
-            xmax=len(xvals) - 1
-            ymin=0
-            ymax=len(yvals) - 1
-
-
-        matrix = np.empty(tuple((ymax-ymin + 1,xmax-xmin + 1)))
-        matrix[:] = np.NaN
-
-        if len(data) <= 1 or nseries <= 1:
-            print("WARNING: Heatmap needs two dynamic variables. The map will have a weird ratio")
-        for i, (x, ys, e, build) in enumerate(data):
-            assert(isinstance(build,Build))
-            for yi in range(nseries):
-                if sparse:
-                    matrix[ymax - yvals[i],xvals[yi] - xmin] = ys[yi]
-                else:
-                    matrix[ymax - i,yi] = ys[yi]
-
-        axis.yname = self.glob_legend_title
-
-        pos = axis.imshow(matrix)
-        axis.figure.colorbar(pos, ax=axis)
-
-        if sparse:
-            prop = xmax-xmin / ymax-ymin
-            if prop < 0:
-                ny = min(len(yvals),9)
-                nx = max(2,int(ny*prop))
-            else:
-                nx = min(len(xvals),9)
-                ny = max(2,int(nx/prop))
-
-            axis.set_yticks(np.linspace(0,ymax-ymin,num=ny))
-            axis.set_yticklabels(["%d" % f for f in reversed(np.linspace(ymin,ymax,num=ny))])
-            axis.set_xticks(np.linspace(0,xmax-xmin,num=nx))
-            axis.set_xticklabels(["%d" % f for f in np.linspace(xmin,xmax,num=nx)])
-        else:
-            axis.set_xticks(range(xmax+1))
-            axis.set_xticklabels(xvals)
-            axis.set_yticks(range(ymax+1))
-            axis.set_yticklabels(reversed(yvals))
-
-        return True, nseries
-
     def do_line_plot(self, axis, key, result_type, data : XYEB, data_types, shift,idx,xmin,xmax,xdata = None):
         allmin = float('inf')
         allmax = 0
@@ -1966,7 +1752,7 @@ class Grapher:
                 x = []
                 for yi in range(len(xdata[i][2])):
                     x.append(np.mean(xdata[i][2][yi][2]))
-            if not npf.all_num(x):
+            if not all_num(x):
                 if variable.numericable(x):
                     ax = [variable.get_numeric(v) for i, v in enumerate(x)]
                 else:
@@ -2158,113 +1944,6 @@ class Grapher:
         axis.yname = yname
 
         if yticks:
-            ticks = [variable.get_numeric(npf.parseUnit(y)) for y in yticks.split('+')]
+            ticks = [variable.get_numeric(parseUnit(y)) for y in yticks.split('+')]
             plt.yticks(ticks)
 
-    def do_barplot(self, axis,vars_all, dyns, result_type, data, shift, show_vals, horizontal=False, data_types=None):
-        nseries = len(data)
-
-        self.format_figure(axis,result_type,shift)
-
-        # If more than 20 bars, do not print bar edges
-        maxlen = max([len(serie_data[0]) for serie_data in data])
-
-        if nseries * maxlen > 20:
-            edgecolor = "none"
-            interbar = 0.05
-        else:
-            edgecolor = None
-            interbar = 0.1
-
-        #Filters allow to hatch bars where a value of another variable is higher than something. Stack not implemented yet.
-        filters = self.configdict("graph_filter_by", default={})
-
-        interbar = self.config('graph_bar_inter', default=interbar)
-        stack = self.config_bool('graph_bar_stack')
-        do_hatch = self.config_bool('graph_bar_hatch', default=False)
-        n_series = len(vars_all)
-        bars_per_serie = 1 if stack else len(data)
-        ind = np.arange(n_series)
-        patterns = ('-', '+', 'x', '\\', '*', 'o', 'O', '.')
-        width = (1 - (2 * interbar)) / bars_per_serie
-        if horizontal:
-            func=axis.barh
-            ticks = plt.yticks
-        else:
-            func=axis.bar
-            ticks = plt.xticks
-
-        def common_args(build):
-            return {
-                'label':str(build.pretty_name()),
-                'yerr':std if not horizontal else None,
-                'xerr':std if horizontal else None,
-                }
-
-        def hatch_args(build):
-            return {
-                'color':lighter(build._color, 0.6, 255),
-                'edgecolor':lighter(build._color, 0.6, 0),
-                'hatch':patterns[i]
-                }
-
-        def nohatch_args(build):
-            return {
-                'color':build._color,
-                'edgecolor':edgecolor,
-                'hatch':None
-                }
-
-        if stack:
-            last = 0
-            for i, (x, y, e, build) in enumerate(data):
-                y = np.asarray([0.0 if np.isnan(x) else x for x in y])
-                last = last + y
-
-            for i, (x, y, e, build) in enumerate(data):
-                y = np.asarray([0.0 if np.isnan(x) else x for x in y])
-                std = np.asarray([std for mean,std,raw in e])
-                rects = func(ind, last, width,
-                    **common_args(build),
-                    **(hatch_args(build) if do_hatch else nohatch_args(build))
-                    )
-                last = last - y
-        else:
-            for i, (x, y, e, build) in enumerate(data):
-                std = np.asarray([std for mean,std,raw in e])
-                fx = interbar + ind + (i * width)
-                if result_type in filters:
-                    mask = mask_from_filter(filters[result_type],data_types,build,ax=x,y=y)
-
-                    args = common_args(build)
-                    nargs = {'label':args['label']}
-                    if mask is None:
-                        continue
-                    from itertools import compress
-                    rects = func(list(compress(fx, ~mask)), list(compress(y,~mask)), width,
-                            **nargs,
-                            yerr = list(compress(args['yerr'], ~mask)) if args['yerr'] is not None else None,
-                            **hatch_args(build)
-                    )
-
-                    func(list(compress(fx,mask)), list(compress(y,mask)), width,
-                        **nargs,
-                        yerr = list(compress(args['yerr'], mask)) if args['yerr'] is not None else None,
-                        **nohatch_args(build)
-                    )
-                else:
-                    rects = func(fx, y, width,
-                        **common_args(build),
-                        **(hatch_args(build) if do_hatch else nohatch_args(build))
-                    )
-                if show_vals:
-                    self.write_labels(rects, plt, build._color)
-
-        ss = self.combine_variables(vars_all, dyns)
-
-        if not bool(self.config_bool('graph_x_label', True)):
-            ss = ["" for i in range(n_series)]
-
-        ticks(ind if stack else interbar + ind + (width * (len(data) - 1) / 2.0), ss,
-                   rotation='vertical' if (sum([len(s) for s in ss]) > 80) and not horizontal  else 'horizontal')
-        return True, len(data)

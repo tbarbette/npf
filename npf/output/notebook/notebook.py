@@ -10,7 +10,7 @@ import os
 import time
 
 import pandas as pd
-from npf.graph_choice import decide_graph_type
+from npf.output.graph.graph_choice import decide_graph_type
 
 INDENT_DATA = False
 TIMEOUT = 60  # seconds

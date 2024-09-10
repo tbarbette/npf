@@ -108,7 +108,7 @@ if test -f "$FILE"; then
     echo "starting cache analyze!"
     kill_current_running_perfs
     calculate_and_print_stats
-    rm -rf $FILE
+    #rm -rf $FILE
 fi
 
 exit 0

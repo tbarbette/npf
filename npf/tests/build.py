@@ -4,7 +4,7 @@ from collections import OrderedDict
 from subprocess import PIPE
 from pathlib import Path
 import re
-from npf import variable, npf
+from npf.tests import variable
 from npf.types.dataset import Run, Dataset
 import copy
 
@@ -25,6 +25,8 @@ def mapped_load_global(self):
     name = mapname(self.readline()[:-1])
     klass = self.find_class(module, name)
     self.append(klass)
+
+
 
 
 class Build:
@@ -242,7 +244,7 @@ class Build:
 
 
     def is_compile_needed(self):
-        bin_path=npf.replace_path(self.repo.get_local_bin_path(self.version),build=self)
+        bin_path=replace_path(self.repo.get_local_bin_path(self.version),build=self)
         if not os.path.exists(bin_path):
             return "could not find %s" % bin_path
         elif not Build.get_current_version(self.repo) == self.version:
@@ -263,9 +265,9 @@ class Build:
         if self.repo.build_info:
             print(self.repo.build_info)
 
-        for what,command in [("Configuring %s..." % self.version,npf.replace_path(self.repo.configure,build=self)),
-                             ("Cleaning %s..." % self.version,npf.replace_path(self.repo.clean,build=self)),
-                             ("Building %s..." % self.version,npf.replace_path(self.repo.make,build=self))]:
+        for what,command in [("Configuring %s..." % self.version,replace_path(self.repo.configure,build=self)),
+                             ("Cleaning %s..." % self.version,replace_path(self.repo.clean,build=self)),
+                             ("Building %s..." % self.version,replace_path(self.repo.make,build=self))]:
             if not command:
                 continue
             if not quiet:
@@ -334,3 +336,12 @@ class Build:
     @staticmethod
     def __get_build_version_path(repo):
         return repo.get_build_path() + '/.build_version'
+
+
+def replace_path(path, build:Build = None):
+    if build:
+        if build.version is not None:
+            path = path.replace('$version', build.version)
+        for var,val in build.repo.env.items():
+            path = path.replace('$'+var,val)
+    return path

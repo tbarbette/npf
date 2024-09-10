@@ -1,4 +1,4 @@
-from npf import npf
+from npf.types import units
 
 # types of graphs: bar, line, boxplot, simple_bar
 
@@ -7,7 +7,7 @@ def decide_graph_type(config, n_values, vars_values, key, result_type, ndyn, isu
     graph_type = "bar"
     if ndyn == 0:
         graph_type = "boxplot" if n_values == 1 else "simple_bar"
-    elif ndyn == 1 and n_values > 2 and npf.all_num(vars_values[key]):
+    elif ndyn == 1 and n_values > 2 and units.all_num(vars_values[key]):
         graph_type = "line"
     graph_types = config("graph_type", [])
 

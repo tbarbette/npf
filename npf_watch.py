@@ -15,9 +15,10 @@ from email.mime.text import MIMEText
 
 import sys
 
-from npf import npf
-from npf.regression import *
-from npf.test import Test
+import npf
+import npf.cmdline
+from npf.tests.regression import *
+from npf.tests.test import Test
 
 import multiprocessing
 
@@ -141,13 +142,13 @@ def main():
     parser.add_argument('--history', dest='history', metavar='N', type=int, default=1,
                         help='assume last N commits as untested (default 0)')
 
-    v = npf.add_verbosity_options(parser)
+    v = npf.cmdline.add_verbosity_options(parser)
 
-    t = npf.add_testing_options(parser)
+    t = npf.cmdline.add_testing_options(parser)
 
-    b = npf.add_building_options(parser)
+    b = npf.cmdline.add_building_options(parser)
 
-    a = npf.add_graph_options(parser)
+    a = npf.cmdline.add_graph_options(parser)
     a.add_argument('--graph-num', metavar='N', type=int, nargs='?', default=8,
                    help='Number of versions to graph')
 

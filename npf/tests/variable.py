@@ -3,8 +3,6 @@ from collections import OrderedDict
 
 import regex
 import random
-from npf import npf
-from npf.nic import NIC
 from asteval import Interpreter
 import itertools
 import numpy as np
@@ -12,6 +10,9 @@ import csv
 import sys
 
 import random
+
+from npf.components.nic import NIC
+import npf.osutils
 
 def is_numeric(s):
     try:
@@ -267,7 +268,7 @@ class ExperimentalDesign:
 
     @classmethod
     def load(cls):
-        path = npf.find_local(sys.modules["npf.npf"].options.spacefill)
+        path = npf.osutils.find_local(npf.globals.options.spacefill)
         assert path is not None
 
         with open(path) as fd:
