@@ -4,8 +4,9 @@ from typing import List
 
 from ordered_set import OrderedSet
 
-from npf.tests.variable import get_numeric, numericable
+from npf.types.units import numericable
 from npf.types.series import Series
+from npf.types.units import get_numeric
 
 
 def combine_variables(series: List[Series], tocombine):

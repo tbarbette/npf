@@ -2,7 +2,7 @@
 
 import numpy as np
 from npf.tests.build import Build
-from npf.tests.variable import get_numeric
+from npf.types.units import get_numeric
 from npf.types.dataset import XYEB
 
 

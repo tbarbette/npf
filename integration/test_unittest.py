@@ -9,17 +9,19 @@ from npf.output.grapher import Grapher
 from npf.tests import repository
 from npf.tests.build import Build
 from npf.tests.test_driver import Comparator
-from npf.components.node import *
+from npf.cluster.node import *
 
 from collections import OrderedDict
 
 from npf.tests.repository import Repository
 from npf.tests.test import Test
-from npf.tests.variable import RangeVariable, SimpleVariable, dtype, numeric_dict
+from npf.tests.variable import RangeVariable, SimpleVariable, dtype
 from npf.types.dataset import Run
 
 import numpy as np
 import logging
+
+from npf.types.units import numeric_dict
 
 logger = logging.getLogger()
 logger.level = logging.DEBUG

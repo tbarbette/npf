@@ -7,7 +7,7 @@ import time
 
 import npf
 from npf import osutils
-from npf.components.nic import NIC
+from npf.cluster.nic import NIC
 from npf.executor.localexecutor import LocalExecutor
 from npf.executor.sshexecutor import SSHExecutor
 from npf.executor.executor import Executor

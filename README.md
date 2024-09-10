@@ -1,7 +1,7 @@
 Network Performance Framework [![CI](https://github.com/tbarbette/npf/actions/workflows/ci.yml/badge.svg)](https://github.com/tbarbette/npf/actions/workflows/ci.yml) [![CodeQL](https://github.com/tbarbette/npf/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/tbarbette/npf/actions/workflows/codeql-analysis.yml)
 =============================
 
-Run reproducible networking and system experiments over a cluster
+Run reproducible networking and system experiments over a cluster 
 following a simple experiment definition file, yet automatically generating many outputs and greatly assisting in the exploration phase of research.
 For instance, the following test file describes an iperf 2 experiment:
 ```bash
@@ -42,7 +42,7 @@ NPF will automatically produce the following graph. The configuration options en
 
 Experiment description files allow to define a serie of parameters, factors and levels (see [here](https://npf.readthedocs.io/en/latest/variables.html) for a description of the possible definitions such as values, ranges, ...) for each experiment and report  multiple metrics, for single observation and time series.
 
-Finally, a graph will be built and statistical results may be computed for the experiment
+Finally, a graph will be built and statistical results may be computed for the experiment 
 showing the difference between parameters, different software, or different versions of the same software.
 
 Test files are simple to write, and easy to share, as such we encourage

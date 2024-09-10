@@ -15,8 +15,9 @@ from typing import Tuple, Dict
 import numpy as np
 from npf import osutils
 from npf.globals import cwd_path, get_build_path
+from npf.tests.RemoteParameters import RemoteParameters
 from npf.tests.build import Build
-from npf.components.nic import NIC
+from npf.cluster.nic import NIC
 from npf.tests.eventbus import EventBus
 from npf.tests.section import *
 from npf.osutils import get_valid_filename
@@ -24,50 +25,13 @@ from npf.sections import Section, SectionNull
 from npf.types.dataset import Run, Dataset
 
 from npf.types.units import parseBool
-from .variable import get_bool
+from ..types.units import get_bool
 from decimal import *
 from functools import reduce
 
 import logging
 
 from subprocess import PIPE, Popen, TimeoutExpired
-
-class RemoteParameters:
-    default_role_map: dict
-    role: str
-    role_id: str
-    script: object
-    name: str
-    delay: int
-    executor: object
-
-    def __init__(self):
-        self.default_role_map = None
-        self.role = None
-        self.role_id = None
-        self.script = None
-        self.name = None
-        self.delay = None
-        self.executor = None
-        self.bin_paths = None
-        self.queue = None
-        self.sudo = None
-        self.autokill = None
-        self.queue = None
-        self.timeout = None
-        self.options = None
-        self.stdin = None
-        self.commands = None
-        self.testdir = None
-        self.waitfor = None
-        self.event = None
-        self.title = None
-        self.env = None
-        self.virt = ""
-        self.options = None
-
-    pass
-
 
 def _parallel_exec(param: RemoteParameters):
     npf.options = param.options

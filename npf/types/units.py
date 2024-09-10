@@ -41,3 +41,74 @@ def parseBool(s):
        return bool(s)
 
 
+def is_numeric(s):
+    try:
+        val = float(s)
+        return True
+    except TypeError:
+        return False
+    except ValueError:
+        return False
+
+
+def is_integer(s):
+    try:
+        int(s)
+        return True
+    except ValueError:
+        return False
+
+
+def get_bool(val):
+    if isinstance(val, bool):
+        return val
+    if isinstance(val, int):
+        if val == 0: return False
+        if val == 1: return True
+        raise ValueError("Number %d is not a bool" % val)
+
+    if val == "0" or val.lower() == "f" or val.lower() == "false":
+        return False
+    if val == "1" or val.lower() == "t" or val.lower() == "true":
+        return True
+    raise ValueError("%s is not a bool" % val)
+
+
+def is_bool(s):
+    try:
+        if type(s) is list:
+            return False
+        get_bool(s)
+        return True
+    except ValueError:
+        return False
+
+
+def get_numeric(data):
+    if is_numeric(data):
+        v = float(data)
+        if v.is_integer():
+            v = int(v)
+        return v
+    else:
+        return data
+
+
+def numericable(l):
+    for x in l:
+        if not is_numeric(x):
+            return False
+    return True
+
+
+def numeric_dict(d):
+        for k, v in d.items():
+            if type(v) is tuple:
+                if is_numeric(v[1]):
+                    d[k] = tuple(v[0],get_numeric(v[1]))
+            else:
+                if is_numeric(v):
+                    d[k] = get_numeric(v)
+        return d
+
+

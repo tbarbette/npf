@@ -2,7 +2,7 @@ import os
 
 from typing import Dict
 
-from npf.components.node import Node
+from npf.cluster.node import Node
 from npf.globals import experiment_path, npf_root_path, roles, set_args, get_options
 from npf.osutils import get_valid_filename
 

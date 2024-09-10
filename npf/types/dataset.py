@@ -4,6 +4,8 @@ from typing import Dict, Final, List, Tuple
 from collections import OrderedDict
 import sys
 
+from npf.types.units import get_numeric, is_numeric
+
 if sys.version_info < (3, 7):
     from orderedset import OrderedSet
 else:
@@ -11,7 +13,7 @@ else:
 import natsort
 import csv
 
-from npf.tests.variable import is_numeric, get_numeric, numeric_dict
+from npf.types.units import numeric_dict
 from npf.output.web.web import prepare_web_export
 
 class Run:

@@ -11,62 +11,13 @@ import sys
 
 import random
 
-from npf.components.nic import NIC
+from npf.cluster.nic import NIC
 import npf.osutils
-
-def is_numeric(s):
-    try:
-        val = float(s)
-        return True
-    except TypeError:
-        return False
-    except ValueError:
-        return False
-
-def is_integer(s):
-    try:
-        int(s)
-        return True
-    except ValueError:
-        return False
-
-def get_bool(val):
-    if isinstance(val, bool):
-        return val
-    if isinstance(val, int):
-        if val == 0: return False
-        if val == 1: return True
-        raise ValueError("Number %d is not a bool" % val)
-
-    if val == "0" or val.lower() == "f" or val.lower() == "false":
-        return False
-    if val == "1" or val.lower() == "t" or val.lower() == "true":
-        return True
-    raise ValueError("%s is not a bool" % val)
-
-def is_bool(s):
-    try:
-        if type(s) is list:
-            return False
-        get_bool(s)
-        return True
-    except ValueError:
-        return False
-
-def get_numeric(data):
-    if is_numeric(data):
-        v = float(data)
-        if v.is_integer():
-            v = int(v)
-        return v
-    else:
-        return data
-
-def numericable(l):
-    for x in l:
-        if not is_numeric(x):
-            return False
-    return True
+from npf.types.units import is_numeric
+from npf.types.units import is_integer
+from npf.types.units import get_bool
+from npf.types.units import is_bool
+from npf.types.units import get_numeric
 
 def dtype(v):
     if is_numeric(v):
@@ -103,16 +54,6 @@ def is_log(l):
             return False
     return n
 
-
-def numeric_dict(d):
-        for k, v in d.items():
-            if type(v) is tuple:
-                if is_numeric(v[1]):
-                    d[k] = tuple(v[0],get_numeric(v[1]))
-            else:
-                if is_numeric(v):
-                    d[k] = get_numeric(v)
-        return d
 
 def ae_product_range(a,b):
     return itertools.product(range(a),range(b))
@@ -254,7 +195,9 @@ class Variable:
     NICREF_REGEX = r'(?P<role>[a-z0-9]+)[:](:?(?P<nic_idx>[0-9]+)[:](?P<type>' + NIC.TYPES + '+)|(?P<node>'+ALLOWED_NODE_VARS+'|ip|ip6|multi|mode|node))'
     VARIABLE_NICREF_REGEX = r'(?<!\\)[$][{]' + NICREF_REGEX + '[}]'
 
-class ExperimentalDesign:
+class FromFileVariable:
+    """Deprecated. Use the experimental design system instead of drawing from a file.
+    """
     matrix = None
     varmap = OrderedDict()
 
@@ -275,11 +218,18 @@ class ExperimentalDesign:
             csvreader = csv.reader(fd)
             data = [i for i in csvreader]
         
-        ExperimentalDesign.matrix = np.array([[float(j) for j in i] for i in data])
+        FromFileVariable.matrix = np.array([[float(j) for j in i] for i in data])
 
         # TODO: assert that the number of rows of the matrix is sufficient for all the values of the experimental design variables
 
 class CoVariable(Variable):
+    """A serie of variable that should advance together.
+    
+    A=[1-10]
+    B=[1-10]
+    
+    Normally that creates 100 combinations.
+    """
     def __init__(self, name = "covariable"):
         super().__init__(name)
         self.vlist = OrderedDict()
@@ -313,6 +263,8 @@ class CoVariable(Variable):
 
 # For each value N of nums, generate a variable with the first N element of values
 class HeadVariable(Variable):
+    """DEPRECATED, use jinja instead.
+    """
     def __init__(self, name, nums, values, join = None):
         super().__init__(name)
         self.values = values
@@ -342,8 +294,24 @@ class HeadVariable(Variable):
         return False
 
 class ExpandVariable(Variable):
-    """ Create a list wihich expands a string with all possible value for the variable
-        it contains like it would be in a script or file section"""
+    """ Create a list which expands a string with all possible value for the variable
+        it contains like it would be in a script or file section.
+        
+        This can be seen as a variable that will interpret all variables inside it. For instance
+        A=7
+        B=EXPAND(SYSTEM-$A)
+        
+        --> A=7, B=SYSTEM-7
+        
+        However if A has multiple values, it will also create multiple B.
+        
+        This should be avoided. The good practice is to use a jinja template in the test itself.
+        
+        A=7
+        
+        %script@dut jinja
+        echo "SYSTEM-{{A}}"
+        """
     def __init__(self, name, value, vsection):
         super().__init__(name)
         self.values = vsection.replace_all(value)
@@ -369,6 +337,8 @@ class ExpandVariable(Variable):
         return self
 
 class SimpleVariable(Variable):
+    """Variable with just a value
+    """
     def __init__(self, name, value):
         super().__init__(name)
         self.value = get_numeric(value)
@@ -397,6 +367,8 @@ class SimpleVariable(Variable):
 
 
 class ListVariable(Variable):
+    """A variable with a list of elements
+    """
     def __init__(self, name, l):
         super().__init__(name)
         all_num = True
@@ -445,6 +417,10 @@ class ListVariable(Variable):
 
 
 class DictVariable(Variable):
+    """A variable with a dictionnary of level:pretty name, where in the test "level" will be used but in display format "pretty name will be used"
+    for instance `ZC={1:Zero-copy,0:Copy}`
+
+    """
     def __init__(self, name, data):
         super().__init__(name)
         if type(data) is dict:
@@ -507,7 +483,7 @@ class RangeVariable(Variable):
     def count(self):
         """todo: think"""
         if self.step == "":
-            return len(ExperimentalDesign.getVals(self))
+            return len(FromFileVariable.getVals(self))
         else:
             if self.log:
                 return len(self.makeValues())
@@ -518,7 +494,7 @@ class RangeVariable(Variable):
     def makeValues(self):
             #Experimental design
             if self.step == "":
-                vs =  self.a + (self.b-self.a) * ExperimentalDesign.getVals(self)
+                vs =  self.a + (self.b-self.a) * FromFileVariable.getVals(self)
             else:
                 vs = []
                 i = self.a
@@ -547,6 +523,10 @@ class RangeVariable(Variable):
         return True
 
 class IfVariable(Variable):
+    """Condition variable.
+    
+    This is deprecated, prefer to use conditions in the test itself using a jinja template.
+    """
     def __init__(self, name, cond, a, b):
         super().__init__(name)
         self.cond = cond
@@ -570,6 +550,11 @@ class IfVariable(Variable):
         return False
 
 class RandomVariable(Variable):
+    """
+    Generate a random number between 2 integers.
+    
+    This should generally be avoided.
+    """
     def __init__(self, name, a, b):
         super().__init__(name)
         self.a = int(a.strip())

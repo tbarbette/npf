@@ -4,9 +4,10 @@ from collections import OrderedDict
 from subprocess import PIPE
 from pathlib import Path
 import re
-from npf.tests import variable
 from npf.types.dataset import Run, Dataset
 import copy
+
+import npf.types.units
 
 renametable = {
     'npf.script': 'npf.npf',
@@ -186,7 +187,7 @@ class Build:
                 for v_data in re.split(r'(?<!\\),', variables_data):
                     if v_data.strip():
                         k, v = re.split(r'(?<!\\):', v_data)
-                        variables[k] = variable.get_numeric(v) if variable.is_numeric(k) else str(v).replace('\\:',':')
+                        variables[k] = npf.types.units.get_numeric(v) if npf.types.units.is_numeric(k) else str(v).replace('\\:',':')
                 results = {}
 
                 results_data = results_data.strip()[1:-1].split('},{')
