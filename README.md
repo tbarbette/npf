@@ -1,8 +1,9 @@
 Network Performance Framework [![CI](https://github.com/tbarbette/npf/actions/workflows/ci.yml/badge.svg)](https://github.com/tbarbette/npf/actions/workflows/ci.yml) [![CodeQL](https://github.com/tbarbette/npf/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/tbarbette/npf/actions/workflows/codeql-analysis.yml)
 =============================
 
-Run performance tests on network and system software by running snippets of bash scripts on a cluster
-following a simple definition file. For instance, the following configuration to test iPerf2 performance:
+Run reproducible networking and system experiments over a cluster
+following a simple experiment definition file, yet automatically generating many outputs and greatly assisting in the exploration phase of research.
+For instance, the following test file describes an iperf 2 experiment:
 ```bash
 %info
 IPerf 2 Throughput Experiment
@@ -31,21 +32,18 @@ echo "RESULT-THROUGHPUT $result"
 When launching NPF with:
 
 ```bash
-npf-run --test tests/tcp/01-iperf.npf \
+npf --test tests/tcp/01-iperf.npf \
         --cluster client=machine01.cluster.com server=machine02.cluster.com
 ```
 
-NPF will automatically produce the following graph. Configuration options enable you to change the graph type and many other options easily. [check the wiki](https://npf.readthedocs.io/en/latest/) to see different graphs displaying the same data.
+NPF will automatically produce the following graph. The configuration options enable you to change the graph type and many other options easily. [check the wiki](https://npf.readthedocs.io/en/latest/) to see different graphs displaying the same data.
 
 ![sample picture](https://github.com/tbarbette/npf/raw/master/tests/tcp/iperf2-THROUGHPUT-wide.svg "Result for tests/tcp/01-iperf.npf")
 
+Experiment description files allow to define a serie of parameters, factors and levels (see [here](https://npf.readthedocs.io/en/latest/variables.html) for a description of the possible definitions such as values, ranges, ...) for each experiment and report  multiple metrics, for single observation and time series.
 
-Test files allow to define a matrix of parameters to try many combinations of
-variables (see [here](https://npf.readthedocs.io/en/latest/variables.html) for a description of the possible definitions such as values, ranges, ...) for each test and report performance results and evolution for each combination of variables.
-
-Finally, a graph will be built and statistical results may be computed for each test 
-showing the difference between variable values, different software, or the evolution of
-performances through commits.
+Finally, a graph will be built and statistical results may be computed for the experiment
+showing the difference between parameters, different software, or different versions of the same software.
 
 Test files are simple to write, and easy to share, as such we encourage
 users to share their ".npf" scripts with their code to allow other users to reproduce
@@ -54,10 +52,33 @@ their results and graphs.
 NPF supports running the given test across a cluster, allowing to try your tests
 in multiple different configurations very quickly and on serious hardware.
 
+### Features ###
+In addition to the basic features described above, NPF supports:
+
+ * Generate scripts and configuration files with jinja template and manage the experiment across a cluster
+   * Collect metrics
+   * Repeat runs of the experiment
+   * Assist in initialization and cleanup
+ * Assistance in the experimental design by:
+   * Using [a cache of the results](https://npf.readthedocs.io/en/latest/variables.html) to easily add more points to the experimental space.
+   * Using advanced space exploration techniques such as random sampling, space filling design, 2k or more
+   * Use online techniques such as zero-loss throughput search.
+   * Quickly find factors importance and interactions through automated statistics
+ * Build and deploy a software over a cluster
+ * Generates outputs of the experiment:
+   * CSV files
+   * Graphs of many types
+   * A jupyter notebook with the data and the code to generate a graph "ready to tweak"
+   * A one-page dynamic website allowing to play with the results or link from a paper
+   * Statistics such as the correlation matrix, feature importance or interaction of variables
+ * Running a [regression test](https://npf.readthedocs.io/en/latest/regress.html) through the history of commits for a git repository.
+ * Watch a git repository for changes and automatically re-run multiple experiments to verify the performance did not decrease.
+ * Integrate with enoslib to directly reserve and deploy an experiment over multiple shared infrastructures.
+
 ### Documentation ###
 The documentation is available on [read the docs](https://npf.readthedocs.io/en/latest/)!
 
-### Quick Installation
+### Quick Installation ###
 NPF is built using Python 3, and is published on pypi, so it can be installed
 with pip using:
 
@@ -72,7 +93,7 @@ We provide a Dockerfile to use npf.
 
 ```bash
 docker build --tag npf .
-docker run -it npf npf-compare ...
+docker run -it npf npf ...
 ```
 
 ### Big picture ###
