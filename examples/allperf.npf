@@ -1,0 +1,47 @@
+%info
+Netperf and IPerf (2 and 3) experiment
+
+Showcases a comparison between multiple software.
+
+Run with npf netperf iperf iperf3 --test examples/allperf.npf
+
+examples/results/allperf show the expected results for 100G machines
+
+%config
+n_runs=5
+var_names={PARALLEL:Number of parallel connexions,KEEPALIVE:so_keepalive,THROUGHPUT:Throughput}
+var_lim={result:0}
+
+%variables
+PARALLEL=[1*8]
+
+TIME=2
+
+netperf:KEEPALIVE={-S:with}
+iperf:ZEROCOPY={-Z:with}
+
+%netperf:script@server
+netserver -D -4 &> /dev/null
+
+%netperf:script@client delay=1
+result=$(netperf -f kbits -l $TIME -n $PARALLEL $KEEPALIVE -v 0 -P 0 ${server:0:ip} )
+echo "NETPERF RESULT-THROUGHPUT ${result}kbits"
+
+%iperf:script@server
+iperf -s &> /dev/null
+
+%iperf:script@client delay=1
+iperf  -c ${server:0:ip} -w ${WINDOW}k -t $TIME -P $PARALLEL $NODELAY -Z $CONGESTION 2>&1 | tee iperf.log
+result=$(cat iperf.log | grep -ioE "[0-9.]+ [kmg]?bits" | tail -n 1)
+echo "IPERF RESULT-THROUGHPUT $result"
+
+%iperf3:script@server
+iperf3 -s &> /dev/null
+
+%iperf3:script@client delay=1
+iperf3  -c ${server:0:ip} -w ${WINDOW}k -t $TIME -P $PARALLEL $NODELAY -Z $CONGESTION 2>&1 | tee iperf.log
+result=$(cat iperf.log | grep -ioE "[0-9.]+ [kmg]?bits" | tail -n 1)
+echo "IPERF RESULT-THROUGHPUT $result"
+
+
+%import@server load
