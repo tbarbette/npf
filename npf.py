@@ -22,7 +22,7 @@ def main():
     """
     The main function for running the NPF cross-repository comparator.
     """
-    
+
     # First, invoke cmdline parsing
     parser = argparse.ArgumentParser(description='NPF cross-repository comparator')
 

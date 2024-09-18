@@ -132,9 +132,12 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
                          'variables is already known, but append the new data to exesting one', dest='force_test', action='store_true',
                     default=False)
     tf.add_argument('--force-retest',
+                    action="store_true",
+                    default=True,
                     help='DEPRECATED. Now the default is to ignore the cache. Use --cache instead.')
     tf.add_argument('--cache',
-                    help='Use data from the previous experiments. If the same combination of variables was already tried, do not re-run the experiment but keep results. This allows fast exploration of the parameter space.', dest='force_retest', action='store_false',
+                    help='Use data from the previous experiments. If the same combination of variables was already tried, do not re-run the experiment but keep results. This allows fast exploration of the parameter space.',
+                    dest='force_retest', action='store_false',
                     default=True)
     t.add_argument('--no-init',
                    help='Do not run any init scripts', dest='do_init', action='store_false',

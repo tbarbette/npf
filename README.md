@@ -32,13 +32,13 @@ echo "RESULT-THROUGHPUT $result"
 When launching NPF with:
 
 ```bash
-npf --test tests/tcp/01-iperf.npf \
+npf --test examples/iperf.npf \
         --cluster client=machine01.cluster.com server=machine02.cluster.com
 ```
 
 NPF will automatically produce the following graph. The configuration options enable you to change the graph type and many other options easily. [check the wiki](https://npf.readthedocs.io/en/latest/) to see different graphs displaying the same data.
 
-![sample picture](https://github.com/tbarbette/npf/raw/master/tests/tcp/iperf2-THROUGHPUT-wide.svg "Result for tests/tcp/01-iperf.npf")
+![sample picture](https://github.com/tbarbette/npf/raw/master/examples/results/iperf/iperf2-THROUGHPUT-wide.svg "Result for examples/iperf.npf")
 
 Experiment description files allow to define a serie of parameters, factors and levels (see [here](https://npf.readthedocs.io/en/latest/variables.html) for a description of the possible definitions such as values, ranges, ...) for each experiment and report  multiple metrics, for single observation and time series.
 

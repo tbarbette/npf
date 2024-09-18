@@ -78,7 +78,7 @@ def test_paths():
 
     #Test the constants are correct
 
-    test = Test("tests/examples/math.npf", options=args, tags=args.tags)
+    test = Test("examples/math.npf", options=args, tags=args.tags)
     repo = get_repo()
     build = Build(repo, "version")
     v={}
@@ -90,7 +90,7 @@ def test_paths():
     for d in [vl,v,v2]:
         assert v['NPF_REPO'] == 'Click_2022'
         assert v['NPF_ROOT_PATH'] == '../..'
-        assert v['NPF_SCRIPT_PATH'] == '../../tests/examples'
+        assert v['NPF_SCRIPT_PATH'] == '../../examples'
         assert v['NPF_RESULT_PATH'] == '../../results/click-2022'
 
 def test_type():
@@ -242,7 +242,7 @@ def test_allzlt():
     _test_allzlt(monotonic=False)
 
 def test_test_main():
-    t = Test("tests/tcp/01-iperf.npf", options = npf.globals.options)
+    t = Test("examples/iperf.npf", options = npf.globals.options)
 
 def test_web():
     from npf.output import web

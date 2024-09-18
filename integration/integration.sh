@@ -61,7 +61,7 @@ try() {
 #Function to test integration with npf-web-extension
 tryweb() {
     FILE=results/index.html
-    try tests/examples/math.npf $python "--web $FILE"
+    try examples/math.npf $python "--web $FILE"
 
     if [ -f "$FILE" ]; then
         echo "integration with npf-web-extension PASSED"
@@ -92,7 +92,7 @@ compare globsync $python
 compare zlt $python --exp-design "zlt(RATE,THROUGHPUT)"
 try integration/cdf.npf $python "--config n_runs=20"
 try integration/heatmap.npf $python
-try tests/tcp/01-iperf.npf $python "--variables TIME=1"
+try examples/iperf.npf $python "--variables TIME=1"
 tryweb
 
 bash doc/build_graphs.sh || ret=1

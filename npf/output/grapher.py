@@ -15,6 +15,7 @@ from npf.output.statistics import Statistics
 from npf.output.transform.pandas import to_pandas
 from npf.output.transform.combine_variables import combine_variables
 from npf.output.transform.result_as_variable import result_as_variable
+from npf.tests.sections import SectionVariable
 from npf.types import units
 from npf.output.notebook.notebook import prepare_notebook_export
 from npf.output.web.web import prepare_web_export
@@ -43,7 +44,6 @@ from npf.types import dataset
 from npf.types.series import Series
 from npf.types.dataset import Run, XYEB, AllXYEB, group_val, var_divider, mask_from_filter
 from npf.tests.variable import is_log
-from npf.tests.section import SectionVariable
 from npf.tests.build import Build
 from npf.output.graph.graph_choice import decide_graph_type
 from npf.output.graph.variable_to_series import extract_variable_to_series

@@ -11,17 +11,17 @@ import itertools
 import string
 from pathlib import Path
 from queue import Empty
-from typing import Tuple, Dict
+from typing import List, Tuple, Dict
 import numpy as np
 from npf import osutils
 from npf.globals import cwd_path, get_build_path
-from npf.tests.RemoteParameters import RemoteParameters
 from npf.tests.build import Build
 from npf.cluster.nic import NIC
 from npf.tests.eventbus import EventBus
+from npf.tests.remote_params import RemoteParameters
+from npf.tests.repository import Repository
 from npf.tests.section import *
 from npf.osutils import get_valid_filename
-from npf.sections import Section, SectionNull
 from npf.types.dataset import Run, Dataset
 
 from npf.types.units import parseBool
@@ -194,9 +194,9 @@ class Test:
                 section.finish(self)
         except Exception as e:
             if i == -1:
-                raise Exception("An exception occured while accessing the file %s" % (test_path))
+                raise Exception("An exception occured while accessing the file %s" % (test_path)) from e
             else:
-                raise Exception("An exception occured while parsing %s at line %d:\n%s" % (test_path, i, e.__str__()))
+                raise Exception("An exception occured while parsing %s at line %d:\n%s" % (test_path, i, e.__str__())) from e
 
         # Check that all reference roles are defined
         known_roles = {'self', 'default'}.union(set(npf.roles.keys()))
