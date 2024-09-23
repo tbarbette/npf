@@ -19,7 +19,9 @@ PARALLEL=[1-8]
 cpu:CPU=[1-8]
 WINDOW=[1*32768]
 CONGESTION={bbr,cubic,reno}
+nocongestion:CONGESTION=cubic
 NODELAY={-N:Nagle disabled,:Nagle enabled}
+nowindow:WINDOW=1024
 TIME={2,10}
 
 fastregression:PARALLEL={1,8}

@@ -4,6 +4,7 @@ from collections import OrderedDict
 from subprocess import PIPE
 from pathlib import Path
 import re
+from npf.globals import get_options
 from npf.types.dataset import Run, Dataset
 import copy
 
@@ -148,11 +149,18 @@ class Build:
                 if os.path.basename(filename) in f:
                     kind = f[f.rfind("-") + 1 :]
                     f = filename + kind
-                    kr[kind] = self._load_results(f, cache)
+                    if get_options().debug:
+                        print("[DEBUG] Loading result file for time series %s..." % f)
+                    results = self._load_results(f, cache)
+                    if results:
+                        kr[kind] = results
+
             return kr
 
         else:
             filename = self.__resultFilename(test)
+            if get_options().debug:
+                        print("[DEBUG] Loading result file %s..." % filename)
             return self._load_results(filename, cache)
 
     def _load_results(self, filename, cache):
@@ -171,6 +179,7 @@ class Build:
         """
         if not Path(filename).exists():
             return None
+        print(filename)
         if cache:
             if filename in self.cache:
                 return self.cache[filename]
@@ -204,9 +213,9 @@ class Build:
                                 type_results.append(float(result.strip()))
                         results[type_r] = type_results
                 all_results[Run(variables)] = results
-        except:
-            print("Could not parse %s. The program will stop to avoid erasing data. Please correct or delete the file.\nLine %d : %s\n" % (filename,iline, line))
-            raise
+        except Exception as e:
+            raise Exception("Could not parse %s. The program will stop to avoid erasing data. Please correct or delete the file.\nLine %d : %s\n" % (filename,iline, line)) from e
+
         f.close()
         self.cache[filename] = all_results
         return all_results

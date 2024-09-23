@@ -1136,7 +1136,7 @@ class Test:
         """
         if not prev_time_results:
             prev_time_results = {}
-
+        print
         init_done = False
         test_folder = self.make_test_folder()
 
@@ -1397,7 +1397,7 @@ class Test:
                             prev_results[run] = all_data_results[run]
                         build.writeversion(self, prev_results, allow_overwrite=True)
                         for kind, kr in time_results.items():
-                            prev_time_results.setdefault(kind,OrderedDict())
+                            prev_time_results.setdefault(kind, OrderedDict())
                             prev_time_results[kind].update(time_results[kind])
                         build.writeversion(self, prev_time_results, allow_overwrite=True, kind=True, reload=False)
                     else:

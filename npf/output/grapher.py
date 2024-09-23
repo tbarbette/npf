@@ -674,7 +674,7 @@ class Grapher:
         for result_types, var_name in self.configdict('graph_result_as_variable', {}).items():
             exploded_series, exploded_vars_values = result_as_variable(series, result_types, var_name, vars_values)
             self.graph_group(series=exploded_series, vars_values=exploded_vars_values, filename=filename, fileprefix = fileprefix, title=title)
-            
+
 
         self.graph_group(series, vars_values, filename=filename, fileprefix = fileprefix, title=title)
 
@@ -801,15 +801,15 @@ class Grapher:
                 statics[k] = list(v)[0]
             else:
                 dyns.append(k)
-                
 
-        if len(dyns) > 2:
+
+        if len(dyns) >int(self.config("graph_max_variables",2)):
 
             print("WARNIGN: Too many variables to plot !")
             maxvar = 0
             most_useless = list(reversed(dyns))
             try:
-               
+
                 for i, (test, build, all_results) in enumerate(series):
                         dataset = Statistics.buildDataset(all_results, test)
                         clf = tree.DecisionTreeRegressor()
@@ -1171,7 +1171,7 @@ class Grapher:
                     barplot = False
                     horizontal = False
                     default_add_legend = True
-                            
+
                     graph_type = decide_graph_type(self.config, len(vars_all), vars_values, key, result_type, len(dyns), ISUBPLOT)
 
                     try:

@@ -1,5 +1,6 @@
 from typing import Tuple
 
+from npf.globals import get_options
 from npf.output.grapher import *
 from npf.tests.repository import *
 from npf.tests.test import Test, SectionScript, ScriptInitException
@@ -68,6 +69,7 @@ class Regression:
             tests_total += 1
             run = Run(v)
             results_types = all_results.get(run)
+            
             # TODO : some config could implement acceptable range no matter the old value
             if results_types is None or len(results_types) == 0:
                 continue
@@ -146,16 +148,15 @@ class Regression:
 
     def regress_all_tests(  self,
                             tests: List['Test'],
-                            options,
                             history: int = 1,
                             on_finish = None,
                             do_compare:bool = True,
                             i_serie=0, nseries=1) -> Tuple[Build, List[Dataset], List[Dataset]]:
         """
-        Execute all tests passed in argument for the last build of the regressor associated repository
+        Execute all experiments (tests) passed in argument for the last build of the regressor associated repository
         :param history: Start regression at last build + 1 - history
-        :param tests: List of tests
-        :param options: Options object
+        :param tests: List of experiments
+        
         :return: the lastbuild and one Dataset per tests or None if could not build
         """
         repo = self.repo
@@ -165,7 +166,7 @@ class Regression:
         if repo.url:
             build = repo.get_last_build(history=history)
         else:
-            build = Build(repo, 'local', result_path=options.result_path )
+            build = Build(repo, 'local', result_path=get_options().result_path )
 
 
         nok = 0
@@ -198,8 +199,8 @@ class Regression:
                                                 build,
                                                 prev_results=build.load_results(test),
                                                 prev_time_results=build.load_results(test, kind=True),
-                                                options=options,
-                                                do_test=options.do_test,
+                                                options=get_options(),
+                                                do_test=get_options().do_test,
                                                 on_finish=early_results,
                                                 iserie=i_serie*len(tests) + i_test,
                                                 nseries=len(tests)*nseries)
@@ -212,7 +213,7 @@ class Regression:
             variables_passed, variables_total = regression.compare( test, test.variables, all_results, build,
                                                                     old_all_results,
                                                                     repo.last_build,
-                                                                    init_done=init_done, allow_supplementary=options.allow_supplementary)
+                                                                    init_done=init_done, allow_supplementary=get_options().allow_supplementary)
             if variables_passed == variables_total:
                 nok += 1
             data_datasets.append(all_results)

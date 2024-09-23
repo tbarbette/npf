@@ -9,7 +9,7 @@ import sys
 
 import npf
 import npf.cmdline
-from npf.tests import pypost
+from npf.tests import get_default_repository, pypost
 from npf.tests.regression import *
 from npf.output.statistics import Statistics
 from npf.tests.test import Test, ScriptInitException
@@ -17,6 +17,11 @@ from npf.tests.test import Test, ScriptInitException
 import multiprocessing
 
 def main():
+    """NPF Regress has the faculty to look at the history of a single repository.
+    It cannot however compare multiple repositories and generally create comparison graphs.
+    """
+
+    # Configure cmdline parser
     parser = argparse.ArgumentParser(description='NPF Test runner')
     v = npf.cmdline.add_verbosity_options(parser)
 
@@ -67,7 +72,7 @@ def main():
 
     args = parser.parse_args()
 
-
+    # Parse cluster options
     npf.parse_nodes(args)
 
 
@@ -79,16 +84,7 @@ def main():
     if args.repo:
         repo = Repository.get_instance(args.repo, args)
     else:
-        if os.path.exists(args.test_files) and os.path.isfile(args.test_files):
-            tmptest = Test(args.test_files,options=args)
-            if "default_repo" in tmptest.config and tmptest.config["default_repo"] is not None:
-                repo = Repository.get_instance(tmptest.config["default_repo"], args)
-            else:
-                print("This npf script has no default repository")
-                sys.exit(1)
-        else:
-            print("Please specify a repository to use to the command line or only a single test with a default_repo")
-            sys.exit(1)
+        repo = get_default_repository(args)
 
     if args.graph_num == -1:
         args.graph_num = 8 if args.compare else 0

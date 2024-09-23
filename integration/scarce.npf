@@ -1,0 +1,17 @@
+%info
+A script that does not have all outputs for all variables, and not all inputs either
+
+
+%variables
+N=[1-8]
+r:R=[1-4]
+
+%late_variables
+R?=1
+
+%script
+echo "RESULT-N $N"
+echo "RESULT-M $(( $N * $R ))"
+if [ $((${N}%2)) -eq 0 ]; then
+    echo "RESULT-EXP $(( round(pow(2,$N), 2) ))"
+fi

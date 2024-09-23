@@ -128,76 +128,79 @@ class Statistics:
             print("")
 
             #P-value of ANOVA
-            import statsmodels.api as sm
-            from statsmodels.formula.api import ols
             variables = [k for k,v in vars_values.items() if len(v) > 1]
 
-            m = f'{result_type} ~ ' + ' * '.join( [f"{v}" for v in variables])
+            if len(variables) > 0:
+                import statsmodels.api as sm
+                from statsmodels.formula.api import ols
 
-            pd.set_option("display.max_rows", None)
+                m = f'{result_type} ~ ' + ' * '.join( [f"{v}" for v in variables])
 
-            d = np.concatenate((X,y.reshape(-1,1)),axis=1)
+                pd.set_option("display.max_rows", None)
 
-            dfn = pd.DataFrame(d, columns=list(vars_values.keys()) + [result_type or "y"])
-            dfn = dfn.replace([np.inf, -np.inf], np.nan).dropna(axis=0)
+                d = np.concatenate((X,y.reshape(-1,1)),axis=1)
 
-            model =  ols(m, data=dfn).fit()
+                dfn = pd.DataFrame(d, columns=list(vars_values.keys()) + [result_type or "y"])
+                dfn = dfn.replace([np.inf, -np.inf], np.nan).dropna(axis=0)
 
-            anova_table = sm.stats.anova_lm(model, typ=2)
+                model =  ols(m, data=dfn).fit()
 
-            interaction_pvalues = anova_table.loc[anova_table.index.str.count(':') <= 1, 'PR(>F)']
+                anova_table = sm.stats.anova_lm(model, typ=2)
 
-            interaction_matrix = pd.DataFrame(np.nan, index=variables, columns=variables + [result_type])
+                interaction_pvalues = anova_table.loc[anova_table.index.str.count(':') <= 1, 'PR(>F)']
 
-            for interaction in interaction_pvalues.index:
-                if interaction == "Residual":
-                    continue
-                factors = interaction.split(':')
+                interaction_matrix = pd.DataFrame(np.nan, index=variables, columns=variables + [result_type])
 
-                if len(factors) > 1:
-                    interaction_matrix.loc[factors[0], factors[1]] = interaction_pvalues[interaction]
-                    #interaction_matrix.loc[factors[1], factors[0]] = interaction_pvalues[interaction]
-                else:
-                    interaction_matrix.loc[factors[0],result_type] = interaction_pvalues[interaction]
+                for interaction in interaction_pvalues.index:
+                    if interaction == "Residual":
+                        continue
+                    factors = interaction.split(':')
 
-            print("")
-            print("P-value of ANOVA (low p-value indicates a probable interaction):")
-            print(interaction_matrix.fillna(""))
-            ax = sn.heatmap(interaction_matrix, cmap="viridis", fmt=".2f", annot=True)
-            ax.figure.tight_layout()
-            f = npf.build_filename(test, build, filename if not filename is True else None, {}, 'pdf', result_type, show_serie=False, suffix="anova")
-            plt.savefig(f)
-            print(f"Graph of a ANOVA matrix saved to {f}")
+                    if len(factors) > 1:
+                        interaction_matrix.loc[factors[0], factors[1]] = interaction_pvalues[interaction]
+                        #interaction_matrix.loc[factors[1], factors[0]] = interaction_pvalues[interaction]
+                    else:
+                        interaction_matrix.loc[factors[0],result_type] = interaction_pvalues[interaction]
 
-            pd.reset_option("display.float_format")
+                print("")
+                print("P-value of ANOVA (low p-value indicates a probable interaction):")
+                print(interaction_matrix.fillna(""))
+                ax = sn.heatmap(interaction_matrix, cmap="viridis", fmt=".2f", annot=True)
+                ax.figure.tight_layout()
+                f = npf.build_filename(test, build, filename if not filename is True else None, {}, 'pdf', result_type, show_serie=False, suffix="anova")
+                plt.savefig(f)
+                print(f"Graph of a ANOVA matrix saved to {f}")
+
 
         print('')
+        if len(X) > 1:
+            ys = np.ndarray(shape = (len(X), len(dataset)))
 
-        ys = np.ndarray(shape = (len(X), len(dataset)))
+            for i,d in enumerate(dataset):
+                ys[:,i] = d[2]
 
-        for i,d in enumerate(dataset):
-            ys[:,i] = d[2]
+            df = pd.DataFrame(np.concatenate((X,ys),axis=1),columns=list(vars_values.keys()) + [d[0] if d[0] else "y" for d in dataset])
+            pd.options.display.float_format = "{:,.2f}".format
+            print("Correlation matrix:")
 
-        df = pd.DataFrame(np.concatenate((X,ys),axis=1),columns=list(vars_values.keys()) + [d[0] if d[0] else "y" for d in dataset])
-        pd.options.display.float_format = "{:,.2f}".format
-        print("Correlation matrix:")
+            corr = df.corr()
+            corr = corr.dropna(axis=0,how='all')
 
-        corr = df.corr()
-        corr = corr.dropna(axis=0,how='all')
-
-        corr = corr.dropna(axis=1,how='all')
-        keep = np.triu(np.ones(corr.shape)).astype(bool)
-        corr = corr.where(keep==True, np.nan)
-        print(corr.fillna(""))
+            corr = corr.dropna(axis=1,how='all')
+            keep = np.triu(np.ones(corr.shape)).astype(bool)
+            corr = corr.where(keep==True, np.nan)
+            print(corr.fillna(""))
 
 
-        ax = sn.heatmap(corr, cmap="viridis", fmt=".2f", annot=True)
-        ax.figure.tight_layout()
-        f = npf.build_filename(test, build, filename if not filename is True else None, {}, 'pdf', result_type, show_serie=False, suffix="correlation")
-        plt.savefig(f)
-        print(f"Graph of correlation matrix saved to {f}")
+            ax = sn.heatmap(corr, cmap="viridis", fmt=".2f", annot=True)
+            ax.figure.tight_layout()
+            f = npf.build_filename(test, build, filename if not filename is True else None, {}, 'pdf', result_type, show_serie=False, suffix="correlation")
+            plt.savefig(f)
+            print(f"Graph of correlation matrix saved to {f}")
 
-        plt.clf()
+            plt.clf()
+
+            pd.reset_option("display.float_format")
 
     @classmethod
     def buildDataset(cls, all_results: Dataset, test: Test) -> List[tuple]:
@@ -225,7 +228,7 @@ class Statistics:
                     row[i] = values.index(row[i])
                 dtype['values'][i] = list(values)
         X = np.array(dataset, ndmin=2)
-        
+
         lset = []
         for result_type, y_value in y.items():
             result_type = sanitize(result_type)

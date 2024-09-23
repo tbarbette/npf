@@ -7,7 +7,7 @@ from npf.tests.test import Test
 from npf.types.dataset import Dataset
 
 
-"""Runs all tests for a given list of tests (or a folder to expand), and a series of repositories.
+"""Runs all tests for a given list of experiment (or a folder to expand), and a series of repositories.
 """
 class Comparator():
     def __init__(self, repo_list: List[Repository]):
@@ -27,7 +27,6 @@ class Comparator():
             for test in tests:
                 build, data_dataset, time_dataset = regressor.regress_all_tests(
                     tests=[test],
-                    options=options,
                     do_compare=do_regress,
                     on_finish=lambda b,dd,td: self.build_list(on_finish,test,b,dd,td) if on_finish else None,
                     i_serie=i_repo,

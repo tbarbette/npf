@@ -12,6 +12,7 @@ import argparse
 import npf
 import npf.cmdline
 import npf.osutils
+from npf.tests import get_default_repository
 from npf.tests.test_driver import Comparator
 from npf.output import generate_outputs
 from npf.tests.regression import *
@@ -20,7 +21,7 @@ import multiprocessing
 
 def main():
     """
-    The main function for running the NPF cross-repository comparator.
+    The main function for running NPF.
     """
 
     # First, invoke cmdline parsing
@@ -43,6 +44,9 @@ def main():
     repo_list = []
     for repo_name in args.repos:
         repo = Repository.get_instance(repo_name, args)
+        repo_list.append(repo)
+    if not repo_list:
+        repo = get_default_repository(args)
         repo_list.append(repo)
 
     # Comparator will handle the comparison between each repo in the list
