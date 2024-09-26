@@ -154,7 +154,7 @@ def has_tag(cell, tag: str) -> bool:
     return tag in tags or "all" in tags
 
 
-def get_name(var, var_names: dict[str, str]):
+def get_name(var, var_names):
     """Returns the name associated with a variable or a list of variables."""
     if isinstance(var, list):
         return [get_name(v, var_names) for v in var]

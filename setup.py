@@ -36,7 +36,8 @@ install_requires = [
     'seaborn',
     'statsmodels',
     'scikit-optimize',
-    'colorama'
+    'colorama',
+    'scikit-optimize'
     ]
 
 setuptools.setup(
