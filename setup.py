@@ -35,7 +35,8 @@ install_requires = [
     'spellwise',
     'seaborn',
     'statsmodels',
-    'scikit-optimize'
+    'scikit-optimize',
+    'colorama'
     ]
 
 setuptools.setup(
