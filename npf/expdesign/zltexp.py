@@ -38,6 +38,8 @@ class OptVariableExpander(FullVariableExpander):
         approx = int(len(self.expanded) * ceil(log2(len(self.input_values)) if (self.n_it <= 1) else self.n_tot_done/(self.n_it - 1)))
         max = len(self.expanded) * len(self.input_values)
         return f"~{approx}(max {max})"
+
+
 class ZLTVariableExpander(OptVariableExpander):
 
     def __init__(self, vlist:Dict[str,Variable], results, overriden, input, output, margin, all=False, perc=False, monotonic=False):
@@ -160,5 +162,99 @@ class ZLTVariableExpander(OptVariableExpander):
             return self.__next__()
 
         return self.need_run_for(next_val)
-        
-        
+
+
+class MinAcceptableVariableExpander(OptVariableExpander):
+
+    def __init__(self, vlist:Dict[str,Variable], results, overriden, input, output, margin):
+        self.output = output
+        super().__init__(vlist, results, overriden, input, margin, False)
+
+    def need_run_for(self, next_val):
+        self.next_val = next_val
+        copy = self.current.copy()
+        copy.update({self.input : next_val})
+        self.n_done += 1
+        return copy
+
+    def ensure_monotonic(self, max_r, vals_for_current):
+        self.validate_run()
+        return self.__next__()
+
+    def validate_run(self):
+        """ Mark this run as the best ZLT one
+        """
+        #self.results[self.current][IS_ZLT] = 1
+        self.current = None
+
+    def __next__(self):
+        if self.current is None:
+            self.current = self.it.__next__()
+            if self.current is None:
+                return None
+            self.n_it += 1
+            self.n_tot_done += self.n_done
+            self.n_done = 0
+            self.next_val = None
+            self.executable_values = self.input_values.copy()
+        elif not self.executable_values:
+            #There's no more points to try, we could never find a ZLT
+            self.current = None
+            return self.__next__()
+
+
+        # get all outputs for all inputs
+        vals_for_current = {}
+        acceptable_rates = []
+        min_r = min(self.executable_values)
+        for r, vals in self.results.items():
+            if Run(self.current).inside(r):
+                try:
+                    if self.output:
+                        r_out = np.mean(vals[self.output])
+                        r_in = r.variables[self.input]
+                        vals_for_current[r_in] = r_out
+                        if r_out >= 100/self.margin:
+                            acceptable_rates.append(r_in)
+                except KeyError as e:
+                    raise Exception(
+                        f"{self.output} is not in the results. Sample of last result : {vals}"
+                    ) from e
+
+        #Step 1 : try the min value first
+        if not vals_for_current:
+            next_val = min_r
+        elif len(vals_for_current) == 1:
+            #If we're lucky, the min rate is doable
+
+            if len(acceptable_rates) == 1:
+                    return self.ensure_monotonic(min(acceptable_rates), vals_for_current)
+
+            #Step 2 : go for the value abouve the undoable value
+            maybe_achievable_inputs = list(filter(lambda x : x >= min_r, self.executable_values))
+            next_val = max(maybe_achievable_inputs)
+        else:
+
+            max_r = max(self.executable_values)
+            if vals_for_current[max_r] < 100/self.margin:
+                #Undoable
+                self.current = None
+                return self.__next__()
+
+            min_acceptable = min(acceptable_rates)
+            maybe_achievable_inputs = list(filter(lambda x : x >= min_r/self.margin, self.executable_values))
+            left_to_try = set(maybe_achievable_inputs).difference(vals_for_current.keys())
+
+            left_to_try_below_acceptable = list(filter(lambda x: x < min_acceptable, left_to_try))
+            if not left_to_try_below_acceptable:
+                return self.ensure_monotonic(min_acceptable, vals_for_current)
+
+            #Binary search
+            next_val = left_to_try_below_acceptable[int(len(left_to_try_below_acceptable) / 2)]
+
+        if next_val == self.next_val:
+            self.executable_values.remove(next_val)
+            #Loop : this value is not running for some reasons
+            return self.__next__()
+
+        return self.need_run_for(next_val)

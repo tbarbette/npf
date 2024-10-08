@@ -5,7 +5,7 @@ from typing import List, Set
 from npf.expdesign.fullexp import FullVariableExpander
 from npf.expdesign.lhsexp import LHSVariableExpander
 from npf.expdesign.randomexp import RandomVariableExpander
-from npf.expdesign.zltexp import ZLTVariableExpander
+from npf.expdesign.zltexp import ZLTVariableExpander, MinAcceptableVariableExpander
 from npf.tests.repository import Repository
 from npf.tests.variable import CoVariable, DictVariable, ListVariable, SimpleVariable, Variable, VariableFactory, get_bool, is_bool, replace_variables
 
@@ -21,12 +21,12 @@ class Section:
 
     def finish(self, test):
         pass
-    
+
 
 class SectionNull(Section):
     def __init__(self, name='null'):
         super().__init__(name)
-        
+
 class SectionSendFile(Section):
     def __init__(self, role, path):
         super().__init__('sendfile')
@@ -248,6 +248,9 @@ class SectionVariable(Section):
                 all_lower = False
                 perc = method.lower()[2] == 'p'
             return ZLTVariableExpander(self.vlist, overriden=overriden, results=results, input=params[0], output=params[1], margin=1.01 if len(params) == 2 else float(params[2]), all=all_lower, perc=perc)
+        elif "minacceptable" in method.lower():
+            return MinAcceptableVariableExpander(self.vlist, overriden=overriden, results=results, input=params[0], output=params[1], margin=1.01 if len(params) == 2 else float(params[2]))
+
 
         else:
             return FullVariableExpander(self.vlist, overriden)

@@ -174,6 +174,7 @@ class Statistics:
 
         print('')
         if len(X) > 1:
+          try:
             ys = np.ndarray(shape = (len(X), len(dataset)))
 
             for i,d in enumerate(dataset):
@@ -201,6 +202,9 @@ class Statistics:
             plt.clf()
 
             pd.reset_option("display.float_format")
+          except Exception as e:
+              print("Error while generating statitics...", e)
+              pass
 
     @classmethod
     def buildDataset(cls, all_results: Dataset, test: Test) -> List[tuple]:

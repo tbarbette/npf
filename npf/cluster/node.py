@@ -12,6 +12,7 @@ from npf.executor.localexecutor import LocalExecutor
 from npf.executor.sshexecutor import SSHExecutor
 from npf.executor.executor import Executor
 from npf.tests.variable import Variable
+from npf.types.units import get_bool
 
 class Node:
     """
