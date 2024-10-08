@@ -179,7 +179,7 @@ class Build:
         """
         if not Path(filename).exists():
             return None
-        print(filename)
+
         if cache:
             if filename in self.cache:
                 return self.cache[filename]

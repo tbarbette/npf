@@ -818,7 +818,7 @@ class Grapher:
                         disp = np.var(y)/np.mean(y)
                         if disp > maxvar:
                             maxvar = disp
-                            most_useless = [dtype["names"][i] for i in np.argsort(clf.feature_importances_)]
+                            most_useless = [dtype["names"][i] for i in np.argsort(clf.feature_importances_) if dtype["names"][i] in dyns]
             except Exception as e:
                     print("ERROR: Could not compute feature importance to ignore most meaningless variable...")
                     print(e)
