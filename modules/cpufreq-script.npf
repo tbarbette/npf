@@ -1,5 +1,5 @@
 %info
-This is not a test, this is a module to be imported using "%import" to set the
+This is not an experiment, this is a module to be imported using "%import" to set the
 CPU frequency
 
 This module sets the CPU frequency to a given value using cpupower
@@ -30,16 +30,17 @@ CPUFREQ_SILENT=
 CPUFREQ_CPUCORES?= $(("-c $CPUFREQ_CORES" if "$CPUFREQ_CORES" != "" else "" ))
 CPUFREQ_NUMA?=0
 CPUFREQ_FIRST_ONLY= $(( "| head -n1" if "$CPUFREQ_SILENT" else "" ))
+CPUFREQ_FORCE_RANGE?=false
 
 %script sudo=true autokill=false
-echo "Setting $CPUFREQ_CORES to $CPUFREQ"
+echo "Setting $CPUFREQ_CPUCORES to $CPUFREQ"
 if [ -n "$CPUFREQ" ] ; then
     if [ $CPUFREQ -gt 10000 ] ; then
         UNIT=
     else
         UNIT=M
     fi
-    if [ -e "/sys/devices/system/cpu/intel_pstate" -o $CPUFREQ_FORCE_RANGE ] ; then
+    if [ $CPUFREQ_FORCE_RANGE -o -e "/sys/devices/system/cpu/intel_pstate" -o $CPUFREQ_FORCE_RANGE ] ; then
         cpupower ${CPUFREQ_CPUCORES} frequency-set -u ${CPUFREQ}${UNIT} -d ${CPUFREQ}${UNIT} ${CPUFREQ_FIRST_ONLY}
         echo "CPU Frequency set to ${CPUFREQ} through pstate range"
     else
