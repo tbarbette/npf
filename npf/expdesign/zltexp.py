@@ -56,7 +56,7 @@ class ZLTVariableExpander(OptVariableExpander):
 
     def ensure_monotonic(self, max_r, vals_for_current):
 
-        if not self.monotonic:
+        if not self.monotonic and max_r < max(self.executable_values):
             # If the function is not monotonic, we now have to try rates between the max acceptable and the first dropping rate
             after_max = next(iter(filter(lambda x : x > max_r, self.executable_values)))
             if after_max not in vals_for_current:
