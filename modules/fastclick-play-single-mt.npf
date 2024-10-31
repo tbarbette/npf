@@ -169,10 +169,10 @@ elementclass MyNull { [0-$(( $GEN_NGEN - 1 ))]=>[0- $(($GEN_NGEN - 1)) ]; };
         {% if GEN_IPV6 %}
             fdIN{{ t }} :: FastUDPFlowsIP6(RATE 0, LIMIT -1, LENGTH $GEN_LENGTH, SRCETH $INsrcmac, DSTETH $INdstmac, SRCIP6 ${client:0:ip6}, DSTIP6 ${server:0:ip6}, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST, SEQUENTIAL $GEN_SEQUENTIAL)
         {% else %}
-            fdIN{{ t }} :: $(( " FastUDPFlows(RATE " + ( str(int($GEN_RATE / $GEN_NGEN) ) if "$HAVE_PRATE" else "0") +  ", LIMIT " + str(int($LIMIT / $GEN_NGEN) if "$HAVE_PRATE" else "-1" ) + " , LENGTH $GEN_LENGTH, SRCETH $INsrcmac, DSTETH $INdstmac, SRCIP ${client:0:ip}, DSTIP ${server:0:ip}, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_FLOWSIZE, SEQUENTIAL $GEN_SEQUENTIAL, BURST $GEN_BURST, ACTIVE false)" ))
+            fdIN{{ t }} :: $(( " FastUDPFlows(RATE " + ( str(int($GEN_RATE / $GEN_NGEN) ) if "$HAVE_PRATE" else "0") +  ", LIMIT " + str(int($LIMIT / $GEN_NGEN) if "$HAVE_PRATE" else "-1" ) + " , LENGTH $GEN_LENGTH, SRCETH $INsrcmac, DSTETH $INdstmac, SRCIP ${client:0:ip}, DSTIP ${server:0:ip}, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_FLOWSIZE, SEQUENTIAL $GEN_SEQUENTIAL, BURST $GEN_BURST)" ))
         {% endif %}
     {% elif GEN_DUMP == 0 %}
-        fdIN{{t}} :: FromDump({{t_path}}, STOP true, TIMING $TIMING, TIMING_FNT "$TIMING_FNT", END_AFTER $END_AFTER, ACTIVE false, BURST 1);
+        fdIN{{t}} :: FromDump({{t_path}}, STOP true, TIMING $TIMING, TIMING_FNT "$TIMING_FNT", END_AFTER $END_AFTER, BURST 1);
     {% elif GEN_DUMP == 1 %}
         fdIN{{t}} :: FromIPSummaryDump({{t_path}}, TIMES $replay_count, TIMING $TIMING, TIMESTAMP $TIMING, ZERO false, BURST $GEN_BURST, STOP true);
     {% else %}
