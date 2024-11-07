@@ -58,7 +58,7 @@ class ZLTVariableExpander(OptVariableExpander):
 
     def ensure_monotonic(self, max_r, vals_for_current):
 
-        if not self.monotonic:
+        if not self.monotonic and max_r < max(self.executable_values):
             # If the function is not monotonic, we now have to try rates between the max acceptable and the first dropping rate
             after_max = next(iter(filter(lambda x : x > max_r, self.executable_values)))
             if after_max not in vals_for_current:
@@ -93,6 +93,8 @@ class ZLTVariableExpander(OptVariableExpander):
         # get all outputs for all inputs
         vals_for_current = {}
         acceptable_rates = []
+
+        # max_r is the maximal rate (tried or not) that we tried but still dropped some packets
         max_r = max(self.executable_values)
         for r, vals in self.results.items():
             if Run(self.current).inside(r):
@@ -124,7 +126,12 @@ class ZLTVariableExpander(OptVariableExpander):
 
             #Step 2 : go for the rate below the output of the max input
             maybe_achievable_inputs = list(filter(lambda x : x <= max_r, self.executable_values))
-            next_val = max(maybe_achievable_inputs)
+            if len(maybe_achievable_inputs) == 0:
+                print(f"WARNING: No achievable for {self.input}! Tried {max_r} and it did not work.")
+                self.current = None
+                return self.__next__()
+            else:
+                next_val = max(maybe_achievable_inputs)
         else:
 
             maybe_achievable_inputs = list(filter(lambda x : x <= max_r*self.margin, self.executable_values))

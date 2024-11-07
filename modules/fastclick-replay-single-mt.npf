@@ -133,7 +133,7 @@ elementclass Numberise { $magic |
 }
 
 elementclass NoNumberise { $magic |
-    input-> Strip(14) -> check :: CheckIPHeader(CHECKSUM false) -> Unstrip(14) -> output
+    input-> MarkIPHeader(OFFSET 14) -> output
 }
 
 fdIN
