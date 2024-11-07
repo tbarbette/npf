@@ -79,6 +79,9 @@ UNQUEUE=
 udpgen:UNQUEUE=Unqueue()
 rate:UNQUEUE=EXPAND( Bandwidth${DISTRIB}Unqueue( $(( int($GEN_RATE / $GEN_NGEN) )), EXTRA_LENGTH true, LINK_RATE true, BURST_DURATION 1, BURST $GEN_BURST) )
 prate:UNQUEUE=EXPAND( ${DISTRIB}Unqueue($(( int($GEN_RATE / $GEN_NGEN)  )), BURST $GEN_BURST, ACTIVE $(( "false" if $GEN_PROGRESSIVE else "true" )) ) )
+REPLAY=0
+replay:REPLAY=1
+replay:UNQUEUE=ReplayUnqueue(STOP -1, STOP_TIME {{LIMIT_TIME}}, QUICK_CLONE $quick, VERBOSE true, ACTIVE true, LIMIT {{ ( (LIMIT | int) / (GEN_NGEN | int) ) | int - 4096 }}, TIMING {{TIMING}}, TIMING_FNT {{TIMING_FNT}} )
 prate:HAVE_PRATE=1
 HAVE_UNQUEUE?=0
 udpgen,-prate|prate,-udpgen|rate|replay:HAVE_UNQUEUE=1
@@ -108,6 +111,7 @@ GEN_MAGIC?=EXPAND(    -> magic :: Classifier( $(( ", ".join([ "${NUMBEROFFSET}/5
 DOLAT?=1
 FDDISPATCH=EXPAND( $((" rr :: RoundRobinSwitch(SPLITBATCH false);" if $GEN_THREADS > 1 and $GEN_PIPELINE else "rr :: MyNull;")) )
 NBBUF?=200000
+replay:NBBUF= {{ LIMIT }}
 
 gen_preped:GEN_NUMBER= -> MarkIPHeader
 gen_preped:FDDISPATCH?=  rr :: Classifier( 40/5741,  40/5722,    40/57E3,      40/5774);
@@ -172,7 +176,7 @@ elementclass MyNull { [0-$(( $GEN_NGEN - 1 ))]=>[0- $(($GEN_NGEN - 1)) ]; };
             fdIN{{ t }} :: $(( " FastUDPFlows(RATE " + ( str(int($GEN_RATE / $GEN_NGEN) ) if "$HAVE_PRATE" else "0") +  ", LIMIT " + str(int($LIMIT / $GEN_NGEN) if "$HAVE_PRATE" else "-1" ) + " , LENGTH $GEN_LENGTH, SRCETH $INsrcmac, DSTETH $INdstmac, SRCIP ${client:0:ip}, DSTIP ${server:0:ip}, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_FLOWSIZE, SEQUENTIAL $GEN_SEQUENTIAL, BURST $GEN_BURST, ACTIVE false)" ))
         {% endif %}
     {% elif GEN_DUMP == 0 %}
-        fdIN{{t}} :: FromDump({{t_path}}, STOP true, TIMING $TIMING, TIMING_FNT "$TIMING_FNT", END_AFTER $END_AFTER, ACTIVE false, BURST 1);
+        fdIN{{t}} :: FromDump({{t_path}}, STOP true, TIMING {{ $TIMING if not $REPLAY else 0 }}, TIMING_FNT "$TIMING_FNT", END_AFTER $END_AFTER, ACTIVE {{ REPLAY }}, BURST 1  );
     {% elif GEN_DUMP == 1 %}
         fdIN{{t}} :: FromIPSummaryDump({{t_path}}, TIMES $replay_count, TIMING $TIMING, TIMESTAMP $TIMING, ZERO false, BURST $GEN_BURST, STOP true);
     {% else %}
@@ -211,7 +215,16 @@ ender :: Script(TYPE PASSIVE,
                 stop);
 $FDDISPATCH
 
-$(( "\n".join([ ( "fdIN%d" % (t) + (  ("-> limit%d   :: Counter(COUNT_CALL "+str(int($LIMIT / $GEN_NGEN) ) +" ender.run)") % (t) if ($LIMIT > 0 and not "$HAVE_PRATE") else "" ) + ( ( "-> unqueue%d :: " % t + str( "$UNQUEUE") ) if $HAVE_UNQUEUE else "" ) + " -> [%d]rr" % (t) ) for t in range($GEN_NGEN) ] ) ))
+{% for t in range(GEN_NGEN | int ) %}
+     fdIN{{t}}
+    {% if LIMIT > 0 and not "$HAVE_PRATE"  %}
+         -> limit{{t}} :: Counter(COUNT_CALL {{ ( (LIMIT | int) / (GEN_NGEN | int) )  | int }} ender.run)
+    {% endif %}
+    {% if HAVE_UNQUEUE %}
+        -> unqueue{{t}} :: $UNQUEUE
+    {% endif %}
+     -> [{{t}}]rr;
+{% endfor %}
 
 elementclass Generator { $magic, $t |
 input
