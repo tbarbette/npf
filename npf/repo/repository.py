@@ -15,11 +15,11 @@ import npf
 from npf import osutils
 import npf.globals
 from npf.tests.build import Build
-from npf.tests.variable import VariableFactory
+from npf.models.variables.VariableFactory import VariableFactory
 
 import git
 
-from npf.types.units import is_numeric
+from npf.models.units import is_numeric
 
 repo_variables = ['name', 'branch', 'configure', 'url', 'method', 'parent', 'tags', 'make', 'version', 'clean', 'build_info',
                   'bin_folder', 'bin_name', 'env']
@@ -463,3 +463,5 @@ class Repository:
             raise Exception("%s is not a valid repository name !" % (dep))
         cls._repo_cache[dep] = repo
         return repo
+
+

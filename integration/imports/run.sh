@@ -1,5 +1,5 @@
 #!/bin/bash
-../../npf_compare.py \
+../../npf.py \
         local \
         --force-retest \
         --test main.npf \

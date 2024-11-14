@@ -12,7 +12,9 @@ import argparse
 import npf
 import npf.cmdline
 import npf.osutils
-from npf.tests import get_default_repository
+import npf.parsing
+from npf.repo.factory import get_default_repository
+from npf.repo.factory import get_default_repository
 from npf.tests.test_driver import Comparator
 from npf.output import generate_outputs
 from npf.tests.regression import *
@@ -38,7 +40,7 @@ def main():
     args = parser.parse_args()
 
     # Parse the cluster options
-    npf.parse_nodes(args)
+    npf.parsing.parse_nodes(args)
 
     # Parsing repo list and getting last_build
     repo_list = []

@@ -15,18 +15,17 @@ from npf.output.statistics import Statistics
 from npf.output.transform.pandas import to_pandas
 from npf.output.transform.combine_variables import combine_variables
 from npf.output.transform.result_as_variable import result_as_variable
-from npf.tests.sections import SectionVariable
-from npf.types import units
+from npf.models import units
 from npf.output.notebook.notebook import prepare_notebook_export
 from npf.output.web.web import prepare_web_export
-from npf.types.units import *
-from npf.types.units import is_numeric
-import npf.types.units
-from npf.types.units import get_bool
-from npf.types.units import is_bool
-from npf.types.units import get_numeric
-import npf.types.units
-from npf.types.units import numericable
+from npf.models.units import *
+from npf.models.units import is_numeric
+import npf.models.units
+from npf.models.units import get_bool
+from npf.models.units import is_bool
+from npf.models.units import get_numeric
+import npf.models.units
+from npf.models.units import numericable
 if sys.version_info < (3, 7):
     from orderedset import OrderedSet
 else:
@@ -40,10 +39,10 @@ from typing import List
 import numpy as np
 from math import log,pow
 
-from npf.types import dataset
-from npf.types.series import Series
-from npf.types.dataset import Run, XYEB, AllXYEB, group_val, var_divider, mask_from_filter
-from npf.tests.variable import is_log
+from npf.models import dataset
+from npf.models.series import Series
+from npf.models.dataset import Run, XYEB, AllXYEB, group_val, var_divider, mask_from_filter
+from npf.tests.variable import is_log, replace_variables
 from npf.tests.build import Build
 from npf.output.graph.graph_choice import decide_graph_type
 from npf.output.graph.variable_to_series import extract_variable_to_series
@@ -846,7 +845,7 @@ class Grapher:
         if title:
             v = {}
             v.update(statics)
-            title=SectionVariable.replace_variables(v, title)
+            title=replace_variables(v, title)
 
         if sv: #Only one supported for now
             graphs = [ None for _ in vars_values[sv] ]
@@ -860,7 +859,7 @@ class Grapher:
                         v = {}
                         v.update(statics)
                         v.update(build.statics)
-                        build._pretty_name=SectionVariable.replace_variables(v, graph_series_label)
+                        build._pretty_name=replace_variables(v, graph_series_label)
 
 #                graph.title = title if title else self.var_name(sv)
 #                if len(series) > 1:
@@ -926,7 +925,7 @@ class Grapher:
                 matched = False
                 for k in data_types.keys():
                     if re.match(result_type, k):
-                        if npf.types.units.is_numeric(n_cols):
+                        if npf.models.units.is_numeric(n_cols):
                             n_cols = get_numeric(n_cols)
                             subplot_legend_titles = [self.var_name("result",result_type=result_type)]
                         else:
@@ -1771,7 +1770,7 @@ class Grapher:
                     x.append(np.mean(xdata[i][2][yi][2]))
             if not all_num(x):
                 if units.numericable(x):
-                    ax = [npf.types.units.get_numeric(v) for i, v in enumerate(x)]
+                    ax = [npf.models.units.get_numeric(v) for i, v in enumerate(x)]
                 else:
                     ax = np.arange(len(x)) + 0.5 + i
             else:
@@ -1961,6 +1960,6 @@ class Grapher:
         axis.yname = yname
 
         if yticks:
-            ticks = [npf.types.units.get_numeric(parseUnit(y)) for y in yticks.split('+')]
+            ticks = [npf.models.units.get_numeric(parseUnit(y)) for y in yticks.split('+')]
             plt.yticks(ticks)
         return isLog

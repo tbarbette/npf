@@ -1,4 +1,4 @@
-from npf.types import units
+from npf.models import units
 from npf.output.graph.graphdata import GraphData
 from npf.output.graph.variable_to_series import extract_variable_to_series
 

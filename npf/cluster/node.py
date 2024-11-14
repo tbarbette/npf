@@ -11,8 +11,8 @@ from npf.cluster.nic import NIC
 from npf.executor.localexecutor import LocalExecutor
 from npf.executor.sshexecutor import SSHExecutor
 from npf.executor.executor import Executor
-from npf.tests.variable import Variable
-from npf.types.units import get_bool
+from npf.models.variables.variable import Variable
+from npf.models.units import get_bool
 
 class Node:
     """
@@ -254,3 +254,5 @@ class Node:
             except Exception as e:
                 print(f"Error while trying to look for NICs on {node.name} : ", e)
         return node
+
+

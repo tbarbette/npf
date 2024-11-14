@@ -4,8 +4,8 @@ from typing import Dict
 
 import numpy as np
 from npf.expdesign.fullexp import FullVariableExpander
-from npf.types.dataset import Run
-from npf.tests.variable import Variable
+from npf.models.dataset import Run
+from npf.models.variables.variable import Variable
 
 class OptVariableExpander(FullVariableExpander):
     def __init__(self, vlist:Dict[str,Variable], results, overriden, input, margin, all=False):

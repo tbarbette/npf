@@ -1,13 +1,13 @@
 from typing import List
 import pandas as pd
 
-from npf.types.series import Series
+from npf.models.series import Series
 
 def to_pandas(series: List[Series]):
     all_results_df = pd.DataFrame() # Empty dataframe
     for test, build, all_results in series:
-        for i, (x) in enumerate(all_results):
-            if len(x) == 0:
+        for i, (x,results) in enumerate(all_results.items()):
+            if len(results) == 0:
                 continue
             try:
 

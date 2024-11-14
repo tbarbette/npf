@@ -1,6 +1,6 @@
 from pygtrie import Trie
-from npf.types.dataset import mask_from_filter
-from npf.types.units import np
+from npf.models.dataset import mask_from_filter
+from npf.models.units import np
 
 
 import matplotlib.pyplot as plt

@@ -3,7 +3,6 @@ import os
 import sys
 import threading
 import time
-import traceback
 import random
 import shutil
 import datetime
@@ -14,26 +13,24 @@ from queue import Empty
 from typing import List, Tuple, Dict
 import numpy as np
 from npf import osutils
+from npf.cluster.factory import executor, nodes_for_role
 from npf.globals import cwd_path, get_build_path
+
+from npf.models.variables.VariableFactory import VariableFactory
 from npf.tests.build import Build
 from npf.cluster.nic import NIC
 from npf.tests.eventbus import EventBus
 from npf.tests.remote_params import RemoteParameters
-from npf.tests.repository import Repository
+from npf.repo.repository import Repository
 from npf.tests.section import *
 from npf.osutils import get_valid_filename
-from npf.types.dataset import Run, Dataset
+from npf.models.dataset import Run, Dataset
 from npf.version import __version__
 
 
-from npf.types.units import parseBool
-from ..types.units import get_bool
+from npf.models.units import parseBool
 from decimal import *
 from functools import reduce
-
-import logging
-
-from subprocess import PIPE, Popen, TimeoutExpired
 
 def _parallel_exec(param: RemoteParameters):
     npf.options = param.options
@@ -201,7 +198,7 @@ class Test:
                 raise Exception("An exception occured while parsing %s at line %d:\n%s" % (test_path, i, e.__str__())) from e
 
         # Check that all reference roles are defined
-        known_roles = {'self', 'default'}.union(set(npf.roles.keys()))
+        known_roles = {'self', 'default'}.union(set(npf.globals.roles.keys()))
         for script in self.get_scripts():
             known_roles.add(script.get_role())
         # for file in self.files:
@@ -304,7 +301,7 @@ class Test:
         toSend = set()
         for script in self.get_scripts():
             role = script.get_role()
-            nodes = npf.nodes_for_role(role)
+            nodes = nodes_for_role(role)
             for node in nodes:
               if not node.nfs:
                 for repo in repo_under_test:
@@ -345,11 +342,11 @@ class Test:
 
         L = [imp.test.sendfile for imp in self.imports]
         for role, fpaths in itertools.chain(self.sendfile.items(), {k: v for d in L for k, v in d.items()}.items()):
-            nodes = npf.nodes_for_role(role)
+            nodes = npf.cluster.factory.nodes_for_role(role)
             for node in nodes:
               if not node.nfs:
                 for fpath in fpaths:
-                    fpath = SectionVariable.replace_variables(st, fpath, role, self_node=node,
+                    fpath = replace_variables(st, fpath, role, self_node=node,
                                                               default_role_map=self.config.get_dict("default_role_map"))
 #                    if not os.path.isabs(fpath):
 #                        fpath = './npf/' + fpath
@@ -386,10 +383,10 @@ class Test:
 
         for s in files:
             role = s.get_role() or self_role
-            v["NPF_NODE_MAX"] = len(npf.nodes_for_role(role))
+            v["NPF_NODE_MAX"] = len(npf.cluster.factory.nodes_for_role(role))
             if not s.noparse:
-                s.filename = SectionVariable.replace_variables(v, s.filename, role, default_role_map = self.config.get_dict("default_role_map"))
-                p = SectionVariable.replace_variables(v, s.content, role,default_role_map = self.config.get_dict("default_role_map"))
+                s.filename = replace_variables(v, s.filename, role, default_role_map = self.config.get_dict("default_role_map"))
+                p = replace_variables(v, s.content, role,default_role_map = self.config.get_dict("default_role_map"))
             else:
                 p = s.content
             if s.jinja:
@@ -422,7 +419,7 @@ class Test:
             if self.options.show_files:
                 print("File %s:" % filename)
                 print(p.strip())
-            for node in npf.nodes_for_role(role):
+            for node in npf.cluster.factory.nodes_for_role(role):
                 if not node.executor.writeFile(filename, path_to_root, p):
                     print("Re-trying with sudo...")
                     if not node.executor.writeFile(filename, path_to_root, p, sudo=True):
@@ -430,14 +427,14 @@ class Test:
 
     def test_require(self, v, build):
         for require in self.requirements + list(itertools.chain.from_iterable([imp.test.requirements for imp in self.imports])):
-            p = SectionVariable.replace_variables(v, require.content, require.role(),
+            p = replace_variables(v, require.content, require.role(),
                                                   self.config.get_dict("default_role_map"))
             if require.jinja:
                     from jinja2 import Environment, BaseLoader
                     env = Environment(loader=BaseLoader)
                     template = env.from_string(p)
                     p = template.render(**v)
-            pid, output, err, returncode = npf.executor(require.role(), self.config.get_dict("default_role_map")).exec(
+            pid, output, err, returncode = executor(require.role(), self.config.get_dict("default_role_map")).exec(
                 cmd=p, bin_paths=[build.get_local_bin_folder()], options=self.options, event=None, testdir=None)
             if returncode != 0:
                 return False, output, err
@@ -677,7 +674,7 @@ class Test:
                   v["NPF_ROLE"] = role
                   for script in t.scripts:
                     srole = role or script.get_role()
-                    nodes = npf.nodes_for_role(srole)
+                    nodes = npf.cluster.factory.nodes_for_role(srole)
 
                     autokill = m.Value('i', 0) if parseBool(script.params.get("autokill", t.config["autokill"])) else None
                     v["NPF_NODE_MAX"] = len(nodes)
@@ -730,7 +727,7 @@ class Test:
                             param.virt = "ip netns exec npfns%d" % i_multi
                             param.sudo = True
 
-                        param.commands = SectionVariable.replace_variables(
+                        param.commands = replace_variables(
                             v,
                             script.content,
                             self_role = srole, self_node=node,
@@ -758,7 +755,7 @@ class Test:
                         param.role = srole
                         param.role_id = i_node
                         param.default_role_map = self.config.get_dict("default_role_map")
-                        param.nodes = npf.nodes_for_role(param.role)
+                        param.nodes = npf.cluster.factory.nodes_for_role(param.role)
                         param.delay = script.delay()
 
                         deps_bin_path = [repo.get_remote_bin_folder(node) for repo in script.get_deps_repos(self.options) if
@@ -875,11 +872,11 @@ class Test:
 
                     role = script.get_role()
 
-                    for i_node, node in enumerate(npf.nodes_for_role(role, role_map)):
+                    for i_node, node in enumerate(npf.cluster.factory.nodes_for_role(role, role_map)):
                         vlist["NPF_NODE"] = node.get_name()
                         vlist["NPF_NODE_ID"] = i_node
 
-                        cmd = SectionVariable.replace_variables(
+                        cmd = replace_variables(
                             vlist,
                             exitscripts,self_role = role, default_role_map = role_map)
                         executor=node.executor
@@ -1476,7 +1473,7 @@ class Test:
             s = excludes.split('+')
             m = set()
             for role in s:
-                nodes = npf.nodes_for_role(role)
+                nodes = npf.cluster.factory.nodes_for_role(role)
                 for node in nodes:
                   if node in m:
                     return False
@@ -1492,7 +1489,7 @@ class Test:
             for k, val in script.params.items():
                 nic_match = re.match(r'(?P<nic_idx>[0-9]+)[:](?P<type>' + NIC.TYPES + '+)', k, re.IGNORECASE)
                 if nic_match:
-                    npf.nodes_for_role(script.get_role(), self.config.get_dict("default_role_map"))[0].get_nic(
+                    npf.cluster.factory.nodes_for_role(script.get_role(), self.config.get_dict("default_role_map"))[0].get_nic(
                         int(nic_match.group('nic_idx')))[nic_match.group('type')] = val
 
     def get_imports(self) -> List[SectionImport]:

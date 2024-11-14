@@ -2,8 +2,8 @@
 
 import numpy as np
 from npf.tests.build import Build
-from npf.types.units import get_numeric
-from npf.types.dataset import XYEB
+from npf.models.units import get_numeric
+from npf.models.dataset import XYEB
 
 
 def do_heatmap(graph, axis, key, result_type, data : XYEB, xdata : XYEB, vars_values: dict, shift=0, idx=0, sparse=False,show_values=False):

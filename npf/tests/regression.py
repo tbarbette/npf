@@ -2,9 +2,9 @@ from typing import Tuple
 
 from npf.globals import get_options
 from npf.output.grapher import *
-from npf.tests.repository import *
+from npf.repo.repository import *
 from npf.tests.test import Test, SectionScript, ScriptInitException
-from npf.types.dataset import Dataset
+from npf.models.dataset import Dataset
 
 
 """Handles regression tests. That is, given an history of versions, execute tests for all previous versions

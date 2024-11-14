@@ -16,8 +16,7 @@ from collections import OrderedDict
 from typing import List
 
 from npf.tests.build import Build
-from npf.tests.test import Test
-from npf.types.dataset import Dataset, sanitize
+from npf.models.dataset import Dataset, sanitize
 import npf
 
 import pandas as pd
@@ -26,7 +25,7 @@ import matplotlib.pyplot as plt
 
 class Statistics:
     @staticmethod
-    def run(build: Build, all_results: Dataset, test: Test, max_depth=3, filename=None, doviz=True):
+    def run(build: Build, all_results: Dataset, test: 'Test', max_depth=3, filename=None, doviz=True):
         print("Building dataset...")
 
         #Transform the dataset into a standard table of X/Features and Y observations
@@ -207,7 +206,7 @@ class Statistics:
               pass
 
     @classmethod
-    def buildDataset(cls, all_results: Dataset, test: Test) -> List[tuple]:
+    def buildDataset(cls, all_results: Dataset, test: 'Test') -> List[tuple]:
         #map of every <variable name, format>
         dtype = test.variables.dtype()
 

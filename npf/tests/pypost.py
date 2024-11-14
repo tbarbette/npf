@@ -3,7 +3,7 @@
 
 from typing import List
 
-from npf.types.series import Series
+from npf.models.series import Series
 
 
 def execute_pypost(series: List[Series]):

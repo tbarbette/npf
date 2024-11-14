@@ -1,8 +1,9 @@
 from collections import OrderedDict
 from ordered_set import OrderedSet
 
-from npf.types.units import numericable
-from npf.types.units import get_numeric
+
+from npf.models.units import numericable
+from npf.models.units import get_numeric
 
 
 def result_as_variable(series, result_types, var_name, vars_values):

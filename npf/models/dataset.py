@@ -4,7 +4,8 @@ from typing import Dict, Final, List, Tuple
 from collections import OrderedDict
 import sys
 
-from npf.types.units import get_numeric, is_numeric
+from npf import build_filename
+from npf.models.units import get_numeric, is_numeric
 
 if sys.version_info < (3, 7):
     from orderedset import OrderedSet
@@ -13,7 +14,7 @@ else:
 import natsort
 import csv
 
-from npf.types.units import numeric_dict
+from npf.models.units import numeric_dict
 from npf.output.web.web import prepare_web_export
 
 class Run:
@@ -277,7 +278,7 @@ def prepare_csvs(all_result_types, datasets, statics, run_list, options, kind=No
                 if result_type in csvs:
                     type_filename,csvfile,wr = csvs[result_type]
                 else:
-                    type_filename = npf.build_filename(test, build, options.output if options.output != 'graph' else options.graph_filename, statics, 'csv', type_str=result_type, show_serie=(len(datasets) > 1 or options.show_serie), force_ext=True, data_folder=True, prefix = kind + '-' if kind else None)
+                    type_filename = build_filename(test, build, options.output if options.output != 'graph' else options.graph_filename, statics, 'csv', type_str=result_type, show_serie=(len(datasets) > 1 or options.show_serie), force_ext=True, data_folder=True, prefix = kind + '-' if kind else None)
                     csvfile = open(type_filename, 'w')
                     wr = csv.writer(csvfile, delimiter=' ',
                                 quotechar='"', quoting=csv.QUOTE_MINIMAL)

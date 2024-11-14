@@ -1,10 +1,10 @@
 from typing import List
-import npf
+import npf.parsing
 from npf.tests.build import Build
 from npf.tests.regression import Regression, npf
-from npf.tests.repository import Repository
+from npf.repo.repository import Repository
 from npf.tests.test import Test
-from npf.types.dataset import Dataset
+from npf.models.dataset import Dataset
 
 
 """Runs all tests for a given list of experiment (or a folder to expand), and a series of repositories.
@@ -23,7 +23,7 @@ class Comparator():
             build = None
             regressor = Regression(repo)
             tests = Test.expand_folder(test_name, options=options, tags=repo.tags + tags)
-            tests = npf.override(options, tests)
+            tests = npf.parsing.override(options, tests)
             for test in tests:
                 build, data_dataset, time_dataset = regressor.regress_all_tests(
                     tests=[test],

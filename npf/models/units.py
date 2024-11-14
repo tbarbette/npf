@@ -112,3 +112,13 @@ def numeric_dict(d):
         return d
 
 
+def dtype(v):
+    if is_numeric(v):
+        if is_integer(v):
+            return int
+        else:
+            return float
+    else:
+        return str
+
+

@@ -2,8 +2,10 @@ import logging
 from typing import Dict, List
 import enoslib as en
 
+import npf.cluster.node
 import npf.cmdline
 import npf.globals
+import npf.parsing
 from npf.output import generate_outputs
 from npf.output.grapher import Grapher
 from npf.test_driver import Comparator, group_series
@@ -25,8 +27,8 @@ def run(npf_script, roles:Dict[str,en.Host], argsv:List[str]=[]):
     full_args = ["--test", npf_script]
     full_args.extend(argsv)
     args = parser.parse_args(full_args)
-    npf.initialize(args)
-    npf.create_local()
+    npf.parsing.initialize(args)
+    npf.cluster.node.create_local()
     
     #en.set_config(ansible_stdout="regular")
 

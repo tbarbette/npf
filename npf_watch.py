@@ -17,6 +17,7 @@ import sys
 
 import npf
 import npf.cmdline
+import npf.parsing
 from npf.tests.regression import *
 from npf.tests.test import Test
 
@@ -168,7 +169,7 @@ def main():
     parser.set_defaults(graph_size=[6,2.5])
     args = parser.parse_args()
 
-    npf.parse_nodes(args)
+    npf.parsing.parse_nodes(args)
 
     history = args.history
 

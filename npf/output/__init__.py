@@ -1,5 +1,5 @@
 from typing import Dict, List, Tuple
-from npf.types.series import Series
+from npf.models.series import Series
 
 def generate_outputs(filename: str, series: Series , time_series:Series, options) -> Tuple['Dataset',Dict]:
     """

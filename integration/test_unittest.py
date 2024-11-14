@@ -6,22 +6,24 @@ from npf import cmdline
 
 from npf.expdesign.zltexp import ZLTVariableExpander
 from npf.output.grapher import Grapher
-from npf.tests import repository
+from npf.repo import repository
+from npf.models.variables.RangeVariable import RangeVariable
+from npf.models.variables.SimpleVariable import SimpleVariable
 from npf.tests.build import Build
 from npf.tests.test_driver import Comparator
 from npf.cluster.node import *
 
 from collections import OrderedDict
 
-from npf.tests.repository import Repository
+from npf.repo.repository import Repository
 from npf.tests.test import Test
-from npf.tests.variable import RangeVariable, SimpleVariable, dtype
-from npf.types.dataset import Run
+from npf.models.units import dtype
+from npf.models.dataset import Run
 
 import numpy as np
 import logging
 
-from npf.types.units import numeric_dict
+from npf.models.units import numeric_dict
 
 logger = logging.getLogger()
 logger.level = logging.DEBUG
@@ -38,7 +40,7 @@ def get_args():
     args = parser.parse_args(args = "")
     args.tags = {}
     npf.globals.set_args(args)
-    npf.parse_nodes(args)
+    npf.parsing.parse_nodes(args)
     return args
 
 def test_args():
@@ -155,8 +157,8 @@ def test_core():
 
         full_args = ["--test", "integration/sections.npf",'--force-retest']
         args = parser.parse_args(full_args)
-        npf.initialize(args)
-        npf.create_local()
+        npf.parsing.initialize(args)
+        npf.parsing.create_local()
 
         repo_list = [repository.Repository.get_instance("local", options=args)]
 

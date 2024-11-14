@@ -1,4 +1,4 @@
-from npf.types import units
+from npf.models import units
 
 # types of graphs: bar, line, boxplot, simple_bar
 

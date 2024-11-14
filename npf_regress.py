@@ -9,9 +9,12 @@ import sys
 
 import npf
 import npf.cmdline
-from npf.tests import get_default_repository, pypost
+import npf.parsing
+from npf.repo.factory import get_default_repository
+from npf.tests import pypost
 from npf.tests.regression import *
 from npf.output.statistics import Statistics
+from npf.repo.factory import get_default_repository
 from npf.tests.test import Test, ScriptInitException
 
 import multiprocessing
@@ -73,7 +76,7 @@ def main():
     args = parser.parse_args()
 
     # Parse cluster options
-    npf.parse_nodes(args)
+    npf.parsing.parse_nodes(args)
 
 
     if args.force_oldbuild and not args.allow_oldbuild:
@@ -155,7 +158,7 @@ def main():
     if not tests:
         sys.exit(errno.ENOENT)
 
-    npf.override(args, tests)
+    npf.parsing.override(args, tests)
 
     for b in last_rebuilds:
         print("Last version %s had no result. Re-executing tests for it." % b.version)
