@@ -612,11 +612,10 @@ class Grapher:
         if options.pandas_filename is not None or options.web is not None or options.notebook_path is not None:
             all_results_df=pd.DataFrame() # Empty dataframe
             for test, build, all_results in series:
-                for i, (x) in enumerate(all_results):
-                    if len(x) == 0:
+                for i, (x,results) in enumerate(all_results.items()):
+                    if len(results) == 0:
                         continue
                     try:
-
                         labels = [k[1] if type(k) is tuple else k for k,v in x.variables.items()]
                         x_vars = [[(v[1] if type(v) is tuple else v) for k,v in x.variables.items()]]
                         x_vars=pd.DataFrame(x_vars,index=[0],columns=labels)
