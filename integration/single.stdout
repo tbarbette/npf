@@ -1,0 +1,12 @@
+[Click 2022] Running test single.npf on version 9197a59...
+Executing init scripts...
+N = 2, X = 3 [run 1/3 for test 1/1]
+[30m[0][0m RESULT-D 4
+N = 2, X = 3 [run 2/3 for test 1/1]
+[30m[0][0m RESULT-D 4
+N = 2, X = 3 [run 3/3 for test 1/1]
+[30m[0][0m RESULT-D 4
+[4.0, 4.0, 4.0]
+Generating graphs...
+Pandas dataframe written to out.csv
+Graph of test written to /npf/compare/single_click-2022-D.pdf
