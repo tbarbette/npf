@@ -1,4 +1,4 @@
-from npf.types.dataset import convert_to_xyeb
+from npf.models.dataset import convert_to_xyeb
 from npf.variable import is_numeric, get_numeric
 import numpy as np
 

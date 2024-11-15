@@ -3,7 +3,7 @@ from typing import Tuple
 from npf.grapher import *
 from npf.repository import *
 from npf.test import Test, SectionScript, ScriptInitException
-from npf.types.dataset import Dataset
+from npf.models.dataset import Dataset
 
 
 """Handles regression tests. That is, given an history of versions, execute tests for all previous versions

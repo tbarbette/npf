@@ -12,7 +12,7 @@ from npf.repository import Repository
 from npf.test import Test
 from npf.build import Build
 from npf.variable import RangeVariable, SimpleVariable, dtype, numeric_dict
-from npf.types.dataset import Run
+from npf.models.dataset import Run
 
 import numpy as np
 import logging

@@ -5,7 +5,7 @@ from subprocess import PIPE
 from pathlib import Path
 import re
 from npf import variable, npf
-from npf.types.dataset import Run, Dataset
+from npf.models.dataset import Run, Dataset
 import copy
 
 renametable = {

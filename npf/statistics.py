@@ -15,7 +15,7 @@ from typing import List
 
 from npf.build import Build
 from npf.test import Test
-from npf.types.dataset import Dataset
+from npf.models.dataset import Dataset
 from npf import npf
 
 class Statistics:
