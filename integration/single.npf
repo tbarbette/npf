@@ -1,0 +1,6 @@
+%variables
+N=2
+X=3
+
+%script
+echo "RESULT-D 4"
