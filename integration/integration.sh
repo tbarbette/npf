@@ -3,12 +3,11 @@
 
 ret=0
 
-#Function that launches a npf test on click-2022 and compare the expected output
-compare() {
-    test=$1
-    python=$2
+compare_raw() {
+    test=$2
+    python=$3
     echo "Executing npf test $test..."
-    $python npf-run.py click-2022 --force-test --no-graph-time --test integration/$test.npf --quiet-build ${@:3} &> res$test
+    $python $1 click-2022 --force-test --no-graph-time --test integration/$test.npf --quiet-build ${@:4} &> res$test
     if [ $? -ne 0 ] ; then
         echo "npf-run.py returned an error for test $test !"
         cat res$test
@@ -19,10 +18,15 @@ compare() {
         echo "$test passed !"
     else
         echo "Error for $test : expected output does not match !"
-        echo "Command : $python npf-run.py click-2022 --force-test --test integration/$test.npf --quiet-build ${@:3}"
+        echo "Command : $python $1 click-2022 --force-test --test integration/$test.npf --quiet-build ${@:4}"
         diff res$test integration/$test.stdout
         ret=1
     fi
+}
+
+#Function that launches a npf test on click-2022 and compare the expected output
+compare() {
+    compare_raw npf-run.py $@
 }
 
 #Function that launch watcher on a npf test with click-2022 and compare the expected output
@@ -79,6 +83,12 @@ fi
 
 
 try integration/empty.npf $python
+compare_raw npf_compare.py single $python --csv out.csv
+diff out.csv integration/single.csv
+if [ $? -ne 0 ] ; then
+    echo "single.csv changed !"
+    ret=1
+fi
 compare experimental $python
 compare pyexit $python
 compare integration-01 $python
