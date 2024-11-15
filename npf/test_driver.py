@@ -6,8 +6,8 @@ from npf.regression import Grapher, OrderedDict, Regression, npf
 from npf.repository import Repository
 from npf.statistics import Statistics
 from npf.test import Test
-from npf.types.dataset import Dataset, Run
-from npf.types.series import Series
+from npf.models.dataset import Dataset, Run
+from npf.models.series import Series
 
 
 """Runs all tests for a given list of tests (or a folder to expand), and a series of repositories.

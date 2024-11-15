@@ -6,9 +6,9 @@ import copy
 import traceback
 import sys
 
-from npf.types.notebook.notebook import prepare_notebook_export
+from npf.models.notebook.notebook import prepare_notebook_export
 
-from npf.types.web.web import prepare_web_export
+from npf.models.web.web import prepare_web_export
 if sys.version_info < (3, 7):
     from orderedset import OrderedSet
 else:
@@ -23,9 +23,9 @@ import numpy as np
 from pygtrie import Trie
 from math import log,pow
 
-from npf.types import dataset
-from npf.types.series import Series
-from npf.types.dataset import Run, XYEB, AllXYEB, group_val, var_divider, mask_from_filter
+from npf.models import dataset
+from npf.models.series import Series
+from npf.models.dataset import Run, XYEB, AllXYEB, group_val, var_divider, mask_from_filter
 from npf.variable import is_log, is_numeric, get_numeric, numericable, get_bool, is_bool
 from npf.section import SectionVariable
 from npf.build import Build

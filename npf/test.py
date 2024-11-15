@@ -18,7 +18,7 @@ from npf.node import NIC
 from npf.section import *
 from npf.npf import get_valid_filename
 from npf.sections import Section, SectionNull
-from npf.types.dataset import Run, Dataset
+from npf.models.dataset import Run, Dataset
 from npf.eventbus import EventBus
 from .variable import get_bool
 from decimal import *

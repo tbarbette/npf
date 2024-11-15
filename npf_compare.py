@@ -20,7 +20,7 @@ import multiprocessing
 
 from npf import npf
 
-from npf.types.series import Series
+from npf.models.series import Series
 
 from npf.test_driver import group_series
 

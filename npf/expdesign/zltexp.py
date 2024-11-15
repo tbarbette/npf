@@ -4,7 +4,7 @@ from typing import Dict
 
 import numpy as np
 from npf.expdesign.fullexp import FullVariableExpander
-from npf.types.dataset import Run
+from npf.models.dataset import Run
 from npf.variable import Variable
 
 class OptVariableExpander(FullVariableExpander):
