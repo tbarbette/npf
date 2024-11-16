@@ -6,7 +6,7 @@ from npf.types.units import get_numeric
 from npf.types.dataset import XYEB
 
 
-def do_heatmap(graph, axis, key, result_type, data : XYEB, xdata : XYEB, vars_values: dict, shift=0, idx=0, sparse=False):
+def do_heatmap(graph, axis, key, result_type, data : XYEB, xdata : XYEB, vars_values: dict, shift=0, idx=0, sparse=False,show_values=False):
         graph.format_figure(axis, result_type, shift, key=key)
         nseries = 0
         yvals = []
@@ -14,8 +14,8 @@ def do_heatmap(graph, axis, key, result_type, data : XYEB, xdata : XYEB, vars_va
             nseries = max(len(y), nseries)
             y = get_numeric(build._pretty_name)
             yvals.append(y)
-    
-        
+
+
         if not key in vars_values:
             print("WARNING: Heatmap with an axis of size 1")
             xvals = [1]
@@ -32,10 +32,10 @@ def do_heatmap(graph, axis, key, result_type, data : XYEB, xdata : XYEB, vars_va
             xmax=len(xvals) - 1
             ymin=0
             ymax=len(yvals) - 1
-        
+
         data = [data[i] for i in np.argsort(yvals)]
         yvals = [yvals[i] for i in np.argsort(yvals)]
-        
+
 
         matrix = np.empty(tuple((ymax-ymin + 1,xmax-xmin + 1)))
         matrix[:] = np.NaN
@@ -43,7 +43,7 @@ def do_heatmap(graph, axis, key, result_type, data : XYEB, xdata : XYEB, vars_va
         if len(data) <= 1 or nseries <= 1:
             print("WARNING: Heatmap needs two dynamic variables. The map will have a weird ratio")
 
-            
+
         for i, (x, ys, e, build) in enumerate(data): #X index
             assert(isinstance(build,Build))
             for yi in range(nseries): #index in the array of Y, so it is the index of X
@@ -58,6 +58,20 @@ def do_heatmap(graph, axis, key, result_type, data : XYEB, xdata : XYEB, vars_va
 
         pos = axis.imshow(matrix)
         axis.figure.colorbar(pos, ax=axis)
+
+        if show_values:
+                mean = np.mean(matrix)
+                for i in range(len(data)):
+                        for j in range(nseries):
+                                v = matrix[i, j]
+                                text = axis.text(
+                                    j,
+                                    i,
+                                    f'%0.{str(show_values - 1)}f' %v,
+                                    ha="center",
+                                    va="center",
+                                    color="w" if v< mean else "black",
+                                )
 
         if sparse:
             prop = xmax-xmin / ymax-ymin

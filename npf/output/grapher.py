@@ -1195,12 +1195,12 @@ class Grapher:
                             xname=self.var_name(result_type)
                         elif graph_type == "heatmap":
                             """Heatmap"""
-                            r, ndata = do_heatmap(self, axis, key, result_type, data, xdata, vars_values, shift, ISUBPLOT, sparse = False)
+                            r, ndata = do_heatmap(self, axis, key, result_type, data, xdata, vars_values, shift, ISUBPLOT, sparse = False, show_values=self.get_show_values())
                             default_add_legend = False
                             barplot = True
                         elif graph_type == "sparse_heatmap":
                             """sparse Heatmap"""
-                            r, ndata = do_heatmap(self, axis, key, result_type, data, xdata, vars_values, shift, ISUBPLOT, sparse = True)
+                            r, ndata = do_heatmap(self, axis, key, result_type, data, xdata, vars_values, shift, ISUBPLOT, sparse = True, show_values=self.get_show_values())
                             default_add_legend = False
                             barplot = True
 
@@ -1551,15 +1551,21 @@ class Grapher:
     def reject_outliers(self, result, test):
         return test.reject_outliers(result)
 
-    def write_labels(self, rects, plt, color, idx = 0, each=False):
-        if self.config('graph_show_values',False):
-            prec =  self.config('graph_show_values',False)
-            if is_numeric(prec):
-                prec = get_numeric(prec)
-            elif type(prec) is list and is_numeric(prec[idx]):
-                prec = get_numeric(prec[idx])
-            else:
-                prec = 2
+    def get_show_values(self):
+        prec = self.config('graph_show_values',False)
+
+        if not prec:
+            return False
+        if is_numeric(prec):
+            prec = get_numeric(prec)
+        elif type(prec) is list and is_numeric(prec[idx]):
+            prec = get_numeric(prec[idx])
+        else:
+            prec = 2
+        return prec
+
+    def write_labels(self, prec, rects, plt, color, idx = 0, each=False):
+        if prec:
             def autolabel(rects, ax):
                 for rect in rects:
                     if hasattr(rect, 'get_ydata'):
@@ -1616,7 +1622,7 @@ class Grapher:
         c = graphcolorseries[gcolor[isubplot % len(gcolor)]][0]
         rects = plt.bar(ticks, y, label=x, color=c, width=width, yerr=( y - mean + std, mean - y +  std))
 
-        self.write_labels(rects, plt,c)
+        self.write_labels(self.get_show_values(), rects, plt,c)
 
         plt.xticks(ticks, x)
         plt.gca().set_xlim(0, len(x))
@@ -1855,7 +1861,7 @@ class Grapher:
             allmin = min(allmin, np.min(ax))
             allmax = max(allmax, np.max(ax))
 
-            self.write_labels(rects, plt, build._color, idx, True)
+            self.write_labels(self.get_show_values(), rects, plt, build._color, idx, True)
 
         if xmin == float('inf'):
             return False, len(data)
