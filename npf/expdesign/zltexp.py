@@ -127,6 +127,12 @@ class ZLTVariableExpander(OptVariableExpander):
 
             maybe_achievable_inputs = list(filter(lambda x : x <= max_r*self.margin, self.executable_values))
             left_to_try = set(maybe_achievable_inputs).difference(vals_for_current.keys())
+            if len(left_to_try) == 0:
+                #There's no more points to try, we could never find a ZLT
+                self.current = None
+                return self.__next__()
+
+
 
             #Step 3...K : try to get an acceptable rate. This step might be skipped if we got an acceptable rate already
             if not acceptable_rates:
