@@ -7,6 +7,7 @@ from subprocess import PIPE, Popen, TimeoutExpired
 from typing import List
 from .executor import Executor
 from pathlib import Path
+import time
 
 class LocalKiller:
     def __init__(self, pgpid):
@@ -92,6 +93,7 @@ class LocalExecutor(Executor):
         flushing = False
 
         step = 0.2
+        start = time.time()
         killer = LocalKiller(pgpid)
         if queue:
             queue.put(killer)
@@ -115,8 +117,7 @@ class LocalExecutor(Executor):
 
 
                 if timeout is not None:
-                    timeout -= step
-                    if timeout < 0:
+                    if timeout < time.time() - start:
                         raise TimeoutExpired(cmd, timeout)
 
             p.stdin.close()
