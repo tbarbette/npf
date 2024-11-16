@@ -68,6 +68,7 @@ timing:TIMING_FNT=100
 GEN_START_DELAY=2
 
 %late_variables
+PRELOAD?=0
 GEN_TX_DESC?=EXPAND($GEN_DESC)
 GEN_NGEN=EXPAND( $((1 if $GEN_PIPELINE else $GEN_THREADS)) )
 GEN_IPV6?=0
@@ -81,7 +82,8 @@ rate:UNQUEUE=EXPAND( Bandwidth${DISTRIB}Unqueue( $(( int($GEN_RATE / $GEN_NGEN) 
 prate:UNQUEUE=EXPAND( ${DISTRIB}Unqueue($(( int($GEN_RATE / $GEN_NGEN)  )), BURST $GEN_BURST, ACTIVE $(( "false" if $GEN_PROGRESSIVE else "true" )) ) )
 REPLAY=0
 replay:REPLAY=1
-replay:UNQUEUE=ReplayUnqueue(STOP -1, STOP_TIME {{LIMIT_TIME}}, QUICK_CLONE $quick, VERBOSE true, ACTIVE true, LIMIT {{ ( (LIMIT | int) / (GEN_NGEN | int) ) | int - 4096 }}, TIMING {{TIMING}}, TIMING_FNT {{TIMING_FNT}} )
+replay,-timing:UNQUEUE=ReplayUnqueue(STOP -1, STOP_TIME {{LIMIT_TIME}}, QUICK_CLONE $quick, VERBOSE true, ACTIVE true, LIMIT {{ ( (LIMIT | int) / (GEN_NGEN | int) ) | int - 4096 }})
+replay,timing:UNQUEUE=ReplayUnqueue(STOP -1, STOP_TIME {{LIMIT_TIME}}, QUICK_CLONE $quick, VERBOSE true, ACTIVE true, LIMIT {{ ( (LIMIT | int) / (GEN_NGEN | int) ) | int - 4096 }}, TIMING {{TIMING}}, TIMING_FNT {{TIMING_FNT}})
 prate:HAVE_PRATE=1
 HAVE_UNQUEUE?=0
 udpgen,-prate|prate,-udpgen|rate|replay:HAVE_UNQUEUE=1
@@ -90,7 +92,7 @@ NRECORD=EXPAND( $(( int($LIMIT / $SAMPLE + 1024) * 2 )) )
 BROADCAST_IGNORE= -> c :: Classifier(0/$mac,-) //Ignore broadcasts
 GEN_NOREWRITE_ETHER?=0
 TIMING?=false
-GEN_BLOCKING=true
+GEN_BLOCKING?=true
 GEN_FLOWSIZE?=EXPAND($GEN_BURST)
 TIMING_FNT?=
 DODUMP?=0
@@ -132,7 +134,8 @@ test $GEN_RATE -gt 1 || ( echo "GEN_RATE must be > 0" && exit 1)
 BROADCAST_IGNORE= -> c :: Classifier(-, 0/ffffffffffff)
 
 
-%script deps=fastclick-light sudo=true delay=2 name=fastclick-play
+
+%file launch.sh
 proc=\$(( $(nproc --all) - 1 ))
 if [ "$GEN_CPUS" = "" ] ; then
     GEN_CPUS=0-$proc
@@ -140,6 +143,9 @@ fi
 $GEN_GDB click --dpdk -l $GEN_CPUS --file-prefix gen-$RCV_NIC -a ${self:$RCV_NIC:pci}  -- PKTGEN_CONFIG_${RCV_NIC} PREFIX=$GEN_PREFIX
 echo "EVENT TX_FINISHED"
 echo "Generator stopped..."
+
+%script deps=fastclick-light-utime sudo=true delay=2 name=fastclick-play
+bash launch.sh
 
 %file PKTGEN_CONFIG_${RCV_NIC} jinja
 d :: DPDKInfo($NBBUF)
@@ -160,7 +166,7 @@ define($rxverbose 99)
 
 elementclass MyNull { [0-$(( $GEN_NGEN - 1 ))]=>[0- $(($GEN_NGEN - 1)) ]; };
 
-//JiffieClock()
+JiffieClock()
 
 {% for t in range(GEN_NGEN|int) %}
     {% if GEN_MULTI_TRACE %}
@@ -176,7 +182,7 @@ elementclass MyNull { [0-$(( $GEN_NGEN - 1 ))]=>[0- $(($GEN_NGEN - 1)) ]; };
             fdIN{{ t }} :: $(( " FastUDPFlows(RATE " + ( str(int($GEN_RATE / $GEN_NGEN) ) if "$HAVE_PRATE" else "0") +  ", LIMIT " + str(int($LIMIT / $GEN_NGEN) if "$HAVE_PRATE" else "-1" ) + " , LENGTH $GEN_LENGTH, SRCETH $INsrcmac, DSTETH $INdstmac, SRCIP ${client:0:ip}, DSTIP ${server:0:ip}, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_FLOWSIZE, SEQUENTIAL $GEN_SEQUENTIAL, BURST $GEN_BURST, ACTIVE false)" ))
         {% endif %}
     {% elif GEN_DUMP == 0 %}
-        fdIN{{t}} :: FromDump({{t_path}}, STOP true, TIMING {{ $TIMING if not $REPLAY else 0 }}, TIMING_FNT "$TIMING_FNT", END_AFTER $END_AFTER, ACTIVE {{ REPLAY }}, BURST 1  );
+        fdIN{{t}} :: FromDump({{t_path}}, STOP true, TIMING {{ $TIMING if not $REPLAY else 0 }}, TIMING_FNT "$TIMING_FNT", END_AFTER $END_AFTER, ACTIVE {{ REPLAY }}, BURST 1 {% if PRELOAD > 0 %}, PRELOAD $PRELOAD{% endif %} );
     {% elif GEN_DUMP == 1 %}
         fdIN{{t}} :: FromIPSummaryDump({{t_path}}, TIMES $replay_count, TIMING $TIMING, TIMESTAMP $TIMING, ZERO false, BURST $GEN_BURST, STOP true);
     {% else %}
