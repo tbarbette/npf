@@ -121,7 +121,7 @@ class ExtendAction(argparse.Action):
 def add_testing_options(parser: ArgumentParser, regression: bool = False):
     t = parser.add_argument_group('Testing options')
     tf = t.add_mutually_exclusive_group()
-    tf.add_argument('--no-test',
+    t.add_argument('--no-test',
                     help='Do not run any tests, use previous results', dest='do_test', action='store_false',
                     default=True)
     t.add_argument('--no-supplementary-test',

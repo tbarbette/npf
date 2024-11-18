@@ -7,10 +7,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def do_barplot(graph, axis, vars_all, dyns, result_type, data, shift, show_vals, horizontal=False, data_types=None):
+def do_barplot(graph, axis, vars_all, dyns, result_type, data, shift, show_values=False, horizontal=False, data_types=None):
         nseries = len(data)
 
-        graph.format_figure(axis,result_type,shift)
+        isLog = graph.format_figure(axis,result_type,shift)
 
         # If more than 20 bars, do not print bar edges
         maxlen = max([len(serie_data[0]) for serie_data in data])
@@ -103,8 +103,7 @@ def do_barplot(graph, axis, vars_all, dyns, result_type, data, shift, show_vals,
                         **common_args(build),
                         **(hatch_args(build) if do_hatch else nohatch_args(build))
                     )
-                if show_vals:
-                    graph.write_labels(rects, plt, build._color)
+                graph.write_labels(show_values, rects, plt, build._color, isLog=isLog)
 
         ss = combine_variables_late(graph, vars_all, dyns)
 

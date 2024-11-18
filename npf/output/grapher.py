@@ -1205,12 +1205,12 @@ class Grapher:
                             barplot = True
 
                         elif graph_type == "barh" or graph_type=="horizontal_bar":
-                            r, ndata= do_barplot(self, axis, vars_all, dyns, result_type, data, shift, ibrokenY==0, horizontal=True, data_types=data_types)
+                            r, ndata= do_barplot(self, axis, vars_all, dyns, result_type, data, shift, show_values=self.get_show_values() if ibrokenY==0 else False, horizontal=True, data_types=data_types)
                             barplot = True
                             horizontal = True
                         else:
                             """Barplot. X is all seen variables combination, series are version"""
-                            r, ndata= do_barplot(self, axis, vars_all, dyns, result_type, data, shift, ibrokenY==0, data_types=data_types)
+                            r, ndata= do_barplot(self, axis, vars_all, dyns, result_type, data, shift, show_values=self.get_show_values() if ibrokenY==0 else False, data_types=data_types)
                             barplot = True
                     except Exception as e:
                         print("ERROR : could not graph %s" % result_type)
@@ -1564,14 +1564,14 @@ class Grapher:
             prec = 2
         return prec
 
-    def write_labels(self, prec, rects, plt, color, idx = 0, each=False):
+    def write_labels(self, prec, rects, plt, color, idx = 0, each=False,isLog=False):
         if prec:
             def autolabel(rects, ax):
                 for rect in rects:
                     if hasattr(rect, 'get_ydata'):
                         heights = rect.get_ydata()
                         xs = rect.get_xdata()
-                        m=1.1
+                        m=1.10
                     else:
                         heights = rect.get_height()
                         xs = rect.get_x() + rect.get_width()/2.
@@ -1580,7 +1580,11 @@ class Grapher:
                     if not each:
                         xs = [np.mean(xs)]
                         heights = [np.mean(heights)]
+                    if not isLog:
+                        m = 0.05*np.max(heights)
+
                     for x,height in zip(xs,heights):
+
                         try:
 
                             if np.isnan(height):
@@ -1588,7 +1592,7 @@ class Grapher:
                         except Exception as e:
                             print("exception", e)
                             continue
-                        ax.text(x, m*height,
+                        ax.text(x, m*height if isLog else (m + height),
                             ('%0.'+str(prec - 1)+'f') % height, color=color, fontweight='bold',
                              ha='center', va='bottom')
             autolabel(rects, plt)
@@ -1614,7 +1618,7 @@ class Grapher:
 
         ticks = np.arange(ndata) + 0.5
 
-        self.format_figure(axis,result_type,shift)
+        isLog = self.format_figure(axis,result_type,shift)
 
         gcolor = self.configlist('graph_color')
         if not gcolor:
@@ -1622,7 +1626,7 @@ class Grapher:
         c = graphcolorseries[gcolor[isubplot % len(gcolor)]][0]
         rects = plt.bar(ticks, y, label=x, color=c, width=width, yerr=( y - mean + std, mean - y +  std))
 
-        self.write_labels(self.get_show_values(), rects, plt,c)
+        self.write_labels(self.get_show_values(), rects, plt,c,isLog=isLog)
 
         plt.xticks(ticks, x)
         plt.gca().set_xlim(0, len(x))
@@ -1630,7 +1634,7 @@ class Grapher:
 
     def do_box_plot(self, axis, key, result_type, data : XYEB, xdata : XYEB,shift=0,idx=0):
 
-        self.format_figure(axis, result_type, shift, key=key)
+        isLog = self.format_figure(axis, result_type, shift, key=key)
         nseries = max([len(y) for y in [y for x,y,e,build in data]])
 
         labels=[]
@@ -1697,7 +1701,7 @@ class Grapher:
             plt.setp(rects['fliers'], color = build._color)
             plt.setp(rects['medians'], color = lighter(build._color,0.50,0))
 
-            self.write_labels(rects['boxes'], plt, build._color)
+            self.write_labels(rects['boxes'], plt, build._color, isLog=isLog)
 
         if nseries > 1:
             m = len(data)*nseries + 1
@@ -1719,7 +1723,7 @@ class Grapher:
 
     def do_cdf(self, axis, key, result_type, data : XYEB, xdata : XYEB,shift=0,idx=0):
 
-        self.format_figure(axis, result_type, shift, key=key, default_format="%d")
+        isLog = self.format_figure(axis, result_type, shift, key=key, default_format="%d")
         nseries = max([len(y) for y in [y for x,y,e,build in data]])
 
         for i, (x, ys, e, build) in enumerate(data):
@@ -1758,7 +1762,7 @@ class Grapher:
 
         #For each series...
         for i, (x, y, e, build) in enumerate(data):
-            self.format_figure(axis, result_type, shift, key=key)
+            isLog = self.format_figure(axis, result_type, shift, key=key)
             c = build._color
 
             if xdata:
@@ -1861,7 +1865,7 @@ class Grapher:
             allmin = min(allmin, np.min(ax))
             allmax = max(allmax, np.max(ax))
 
-            self.write_labels(self.get_show_values(), rects, plt, build._color, idx, True)
+            self.write_labels(self.get_show_values(), rects, plt, build._color, idx, True,isLog=isLog)
 
         if xmin == float('inf'):
             return False, len(data)
@@ -1959,4 +1963,4 @@ class Grapher:
         if yticks:
             ticks = [npf.types.units.get_numeric(parseUnit(y)) for y in yticks.split('+')]
             plt.yticks(ticks)
-
+        return isLog
