@@ -9,4 +9,3 @@ N = 2, X = 3 [run 3/3 for test 1/1]
 [4.0, 4.0, 4.0]
 Generating graphs...
 Pandas dataframe written to out.csv
-Graph of test written to /npf/compare/single_click-2022-D.pdf

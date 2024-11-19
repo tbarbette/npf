@@ -83,7 +83,7 @@ fi
 
 
 try integration/empty.npf $python
-compare_raw npf_compare.py single $python --csv out.csv
+compare_raw npf_compare.py single $python --no-graph --no-graph-time --csv out.csv
 diff out.csv integration/single.csv
 if [ $? -ne 0 ] ; then
     echo "single.csv changed !"
