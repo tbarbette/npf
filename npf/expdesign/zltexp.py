@@ -38,10 +38,10 @@ class OptVariableExpander(FullVariableExpander):
         approx = int(len(self.expanded) * ceil(log2(len(self.input_values)) if (self.n_it <= 1) else self.n_tot_done/(self.n_it - 1)))
         max = len(self.expanded) * len(self.input_values)
         return f"~{approx}(max {max})"
+
 class ZLTVariableExpander(OptVariableExpander):
 
     def __init__(self, vlist:Dict[str,Variable], results, overriden, input, output, margin, all=False, perc=False, monotonic=False):
-
         self.output = output
         self.perc = perc
         self.monotonic = monotonic
@@ -127,15 +127,10 @@ class ZLTVariableExpander(OptVariableExpander):
 
             maybe_achievable_inputs = list(filter(lambda x : x <= max_r*self.margin, self.executable_values))
             left_to_try = set(maybe_achievable_inputs).difference(vals_for_current.keys())
-            if len(left_to_try) == 0:
-                #There's no more points to try, we could never find a ZLT
-                self.current = None
-                return self.__next__()
-
 
 
             #Step 3...K : try to get an acceptable rate. This step might be skipped if we got an acceptable rate already
-            if not acceptable_rates:
+            if left_to_try and not acceptable_rates:
                 #Try the rate below the min already tried rate - its drop count. For instance if we tried 70 last run but got 67 of throughput, try the rate below 64
                 min_input = min(vals_for_current.keys())
                 min_output = vals_for_current[min_input]
