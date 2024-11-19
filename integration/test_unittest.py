@@ -209,10 +209,10 @@ def test_zlt():
     logger.error(run)
 
 
-def _test_allzlt(monotonic):
-    vlist = {'RATE' : RangeVariable("RATE",1,10,log=False)}
+def _test_allzlt(monotonic,all=True):
+    vlist = {'RATE' : RangeVariable("RATE",1,10,log=False)} #From 1 to 10 included
     results = OrderedDict()
-    zlt = ZLTVariableExpander(vlist, results, {}, "RATE", "PPS", 1.01,all=True,monotonic=monotonic)
+    zlt = ZLTVariableExpander(vlist, results, {}, "RATE", "PPS", 1.01, all=all, monotonic=monotonic)
     it = iter(zlt)
     run = next(it)
     assert run["RATE"] == 10
@@ -220,12 +220,13 @@ def _test_allzlt(monotonic):
     run = next(it)
     assert run["RATE"] == 3
     results[Run({'RATE' : 3})] = {'PPS':[3]}
-    run = next(it)
-    assert run["RATE"] == 2
-    results[Run({'RATE' : 2})] = {'PPS':[2]}
-    run = next(it)
-    assert run["RATE"] == 1
-    results[Run({'RATE' : 1})] = {'PPS':[1]}
+    if all:
+        run = next(it)
+        assert run["RATE"] == 2
+        results[Run({'RATE' : 2})] = {'PPS':[2]}
+        run = next(it)
+        assert run["RATE"] == 1
+        results[Run({'RATE' : 1})] = {'PPS':[1]}
     if not monotonic:
         run = next(it)
         assert run["RATE"] == 4
@@ -240,6 +241,8 @@ def _test_allzlt(monotonic):
 def test_allzlt():
     _test_allzlt(monotonic=True)
     _test_allzlt(monotonic=False)
+    _test_allzlt(monotonic=True, all=False)
+    _test_allzlt(monotonic=False, all=False)
 
 def test_test_main():
     t = Test("examples/iperf.npf", options = npf.globals.options)

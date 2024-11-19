@@ -43,7 +43,6 @@ class OptVariableExpander(FullVariableExpander):
 class ZLTVariableExpander(OptVariableExpander):
 
     def __init__(self, vlist:Dict[str,Variable], results, overriden, input, output, margin, all=False, perc=False, monotonic=False):
-
         self.output = output
         self.perc = perc
         self.monotonic = monotonic
@@ -148,7 +147,7 @@ class ZLTVariableExpander(OptVariableExpander):
                     return self.__next__()
 
             #Step 3...K : try to get an acceptable rate. This step might be skipped if we got an acceptable rate already
-            if not acceptable_rates:
+            if left_to_try and not acceptable_rates:
                 #Try the rate below the min already tried rate - its drop count. For instance if we tried 70 last run but got 67 of throughput, try the rate below 64
                 min_input = min(vals_for_current.keys())
                 min_output = vals_for_current[min_input]
