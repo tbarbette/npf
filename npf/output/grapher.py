@@ -1701,7 +1701,7 @@ class Grapher:
             plt.setp(rects['fliers'], color = build._color)
             plt.setp(rects['medians'], color = lighter(build._color,0.50,0))
 
-            self.write_labels(rects['boxes'], plt, build._color, isLog=isLog)
+            self.write_labels(self.get_show_values(), rects['boxes'], plt, color=build._color, isLog=isLog)
 
         if nseries > 1:
             m = len(data)*nseries + 1
