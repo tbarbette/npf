@@ -247,7 +247,8 @@ class SectionVariable(Section):
             else:
                 all_lower = False
                 perc = method.lower()[2] == 'p'
-            return ZLTVariableExpander(self.vlist, overriden=overriden, results=results, input=params[0], output=params[1], margin=1.01 if len(params) == 2 else float(params[2]), all=all_lower, perc=perc)
+            monotonic = method.lower()[-1] == 'm'
+            return ZLTVariableExpander(self.vlist, overriden=overriden, results=results, input=params[0], output=params[1], margin=1.01 if len(params) == 2 else float(params[2]), all=all_lower, perc=perc, monotonic=monotonic)
         elif "minacceptable" in method.lower():
             return MinAcceptableVariableExpander(self.vlist, overriden=overriden, results=results, input=params[0], output=params[1], margin=1.01 if len(params) == 2 else float(params[2]))
 

@@ -57,10 +57,14 @@ class ZLTVariableExpander(OptVariableExpander):
         return copy
 
     def ensure_monotonic(self, max_r, vals_for_current):
-
-        if not self.monotonic and max_r < max(self.executable_values):
+        if not self.monotonic and \
+            (max_r is not None and max_r < max(self.executable_values) or (max_r is None)):
             # If the function is not monotonic, we now have to try rates between the max acceptable and the first dropping rate
-            after_max = next(iter(filter(lambda x : x > max_r, self.executable_values)))
+            if max_r is not None:
+                after_max = next(iter(filter(lambda x : x > max_r, self.executable_values)))
+            else:
+                after_max = min(self.executable_values)
+
             if after_max not in vals_for_current:
                 return self.need_run_for(after_max)
 
@@ -121,27 +125,27 @@ class ZLTVariableExpander(OptVariableExpander):
             #If we're lucky, the max rate is doable
 
             if len(acceptable_rates) == 1 and not self.all:
-                    return self.ensure_monotonic(max(acceptable_rates), vals_for_current)
+                return self.ensure_monotonic(max(acceptable_rates), vals_for_current)
 
 
             #Step 2 : go for the rate below the output of the max input
             maybe_achievable_inputs = list(filter(lambda x : x <= max_r, self.executable_values))
             if len(maybe_achievable_inputs) == 0:
                 print(f"WARNING: No achievable for {self.input}! Tried {max_r} and it did not work.")
-                self.current = None
-                return self.__next__()
+                return self.ensure_monotonic(None, vals_for_current)
             else:
                 next_val = max(maybe_achievable_inputs)
         else:
 
             maybe_achievable_inputs = list(filter(lambda x : x <= max_r*self.margin, self.executable_values))
             left_to_try = set(maybe_achievable_inputs).difference(vals_for_current.keys())
-            if len(left_to_try) == 0:
-                #There's no more points to try, we could never find a ZLT
-                self.current = None
-                return self.__next__()
-
-
+            if len(left_to_try) == 0: #No more values left to try
+                if len(acceptable_rates) > 0: #Nothing left to try but we have a ZLT, should try the next value in non-monotonic
+                    return self.ensure_monotonic(max(acceptable_rates), vals_for_current)
+                else:
+                    #We could never find a zlt, and there's nothing left to try... no value can handle the input
+                    self.validate_run()
+                    return self.__next__()
 
             #Step 3...K : try to get an acceptable rate. This step might be skipped if we got an acceptable rate already
             if not acceptable_rates:
