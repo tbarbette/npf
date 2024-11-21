@@ -11,6 +11,7 @@ Set GEN_DUMP=1 to use a FromIPSummaryDump instead of FromDump, the trace paramet
 To generate UDP packets, use GEN_DUMP=-1
 
 The normal way to use multi-threading would be to round-robin the trace between the threads. Use the "GEN_MULTI_TRACE=1" to use multiple traces, using -1, -2, ... -GEN_THREADS suffixes to the trace.
+If the tag scale_multi_trace is given, then the number of threads is fixed and the trace will be used from 1 to .. GEN_MULTI_TRACE. If GEN_MULTI_GEN is smaller than GEN_THREADS, some threads might be unused. This is useful to scale the number of threads.
 
 Use the "gen_nolat" tag to disable latency tracking. This cannot be done using variables.
 
@@ -70,7 +71,9 @@ GEN_START_DELAY=2
 %late_variables
 PRELOAD?=0
 GEN_TX_DESC?=EXPAND($GEN_DESC)
-GEN_NGEN=EXPAND( $((1 if $GEN_PIPELINE else $GEN_THREADS)) )
+//The number of generator element such as FromDump or FastUDPSrc
+GEN_NGEN=EXPAND( $((1 if $GEN_PIPELINE else $GEN_THREADS )) )
+scale_multi_trace:GEN_NGEN=EXPAND( $GEN_MULTI_TRACE )
 GEN_IPV6?=0
 GEN_NANO?=0
 GEN_PREFIX?=
@@ -164,13 +167,28 @@ define($quick true)
 define($txverbose 99)
 define($rxverbose 99)
 
-elementclass MyNull { [0-$(( $GEN_NGEN - 1 ))]=>[0- $(($GEN_NGEN - 1)) ]; };
+elementclass MyNull {
+{% if $GEN_NGEN > $GEN_THREADS %}
+    {% for t in range($GEN_NGEN) %}
+        [{{t}}]->[{{t % $GEN_THREADS}} ];
+    {%endfor%}
+{% elif $GEN_NGEN < $GEN_THREADS %}
+    {% for t in range($GEN_NGEN) %}
+        [{{t}}]->[{{t}} ];
+    {%endfor%}
+    {% for t in range($GEN_NGEN,$GEN_THREADS) %}
+        Idle->[{{t}} ];
+    {%endfor%}
+{% else %}
+    [0-$(( $GEN_NGEN - 1 ))]=>[0- $(($GEN_NGEN - 1)) ];
+{% endif %}
+};
 
 JiffieClock()
 
 {% for t in range(GEN_NGEN|int) %}
     {% if GEN_MULTI_TRACE %}
-    {% set t_path=trace ~ "-" ~ (t+1) %}
+        {% set t_path=trace ~ "-" ~ (t+1) %}
     {% else %}
         {% set t_path=trace %}
     {% endif %}
@@ -232,7 +250,7 @@ $FDDISPATCH
      -> [{{t}}]rr;
 {% endfor %}
 
-elementclass Generator { $magic, $t |
+elementclass Generator { $magic |
 input
  $(( " -> replay :: Pipeliner(BLOCKING "+("true" if $GEN_THREADS == 1 else "false")+", CAPACITY 1024, ALWAYS_UP true)" if $GEN_PIPELINE else ""))
   -> MarkMACHeader
@@ -245,10 +263,32 @@ $(( "-> Pad " if $GEN_DUMP < 2 and $GEN_DUMP > -1 else "" ))
   -> output;
 }
 
-$(( "\n".join( [ ( "rr[%d] -> gen%d :: Generator(\<57%02x>, "+str(t)+") -> tdIN;" +  ("StaticThreadSched(gen%d/replay ${GEN_SOCKET}/%d);" if $GEN_PIPELINE else "StaticThreadSched(fdIN%d ${GEN_SOCKET}/%d " +(", unqueue%d ${GEN_SOCKET}/%d" % (t,t+1) if $HAVE_UNQUEUE else "" ) + ")" ) ) % (t,t,t,t,t  + 1) for t in range($GEN_THREADS) ] ) ))
+{% for t in range($GEN_THREADS|int) %}
 
+    {% set thread=(t%GEN_THREADS + 1) %}
 
-$(( " StaticThreadSched(fdIN0 0/0, unqueue0 0/0);" if $GEN_PIPELINE else "" ))
+    rr[{{t}}] -> gen{{t}} :: Generator(\<57{{ "%02x" % t  }}>) -> tdIN;
+    {% if GEN_PIPELINE %}
+        StaticThreadSched(gen{{t}}/replay ${GEN_SOCKET}/{{thread}});
+        StaticThreadSched(fdIN0 0/0, unqueue0 0/0);
+    {% else %}
+        {% if t < $GEN_NGEN %}
+            StaticThreadSched(fdIN{{t}} ${GEN_SOCKET}/{{thread}});
+            {% if HAVE_UNQUEUE %}
+                StaticThreadSched(unqueue{{t}} ${GEN_SOCKET}/{{thread}});
+            {% endif %}
+        {% endif %}
+    {% endif %}
+{% endfor %}
+{% for t in range($GEN_THREADS,$GEN_NGEN) %}
+
+            {% set thread=(t%GEN_THREADS + 1) %}
+            StaticThreadSched(fdIN{{t}} ${GEN_SOCKET}/{{thread}});
+            {% if HAVE_UNQUEUE %}
+                StaticThreadSched(unqueue{{t}} ${GEN_SOCKET}/{{thread}});
+            {% endif %}
+{% endfor %}
+
 
 $(( " StaticThreadSched(tdIN 0/%d);" % ($GEN_THREADS + 1) if $GEN_TX_PIPELINE else "" ))
 
@@ -277,12 +317,6 @@ $(( (  "avg :: HandlerAggregate( " + ",".join(["ELEMENT avg%d" % (i) for i in ra
 
 
 }
-
-/*Script(TYPE ACTIVE,
-    label loop,
-    read load,
-    wait 1s,
-    goto loop)*/
 
 ig :: Script(TYPE ACTIVE,
     goto end $(eq $ITERATION_TIME 0),
