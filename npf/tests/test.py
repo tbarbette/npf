@@ -23,6 +23,8 @@ from npf.tests.repository import Repository
 from npf.tests.section import *
 from npf.osutils import get_valid_filename
 from npf.types.dataset import Run, Dataset
+from npf.version import __version__
+
 
 from npf.types.units import parseBool
 from ..types.units import get_bool
@@ -487,6 +489,7 @@ class Test:
         v_internals.update({
                         'NPF_REPO':get_valid_filename(build.repo.name),
                         'NPF_REPO_PATH': rp,
+                        'NPF_VERSION': __version__,
                         'NPF_ROOT': '../', #Deprecated
                         'NPF_ROOT_PATH': os.path.relpath(npf.npf_root_path(), abs_test_folder),
                         'NPF_BUILD_PATH': bp,
