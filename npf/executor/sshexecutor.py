@@ -104,7 +104,8 @@ class SSHExecutor(Executor):
             #First echo the pid of the shell, so it can be recovered and killed in case of kill from another script
             #Then launch the pre-command (goes to the right folder)
             #Then the user command, wrapped with sudo and/or bash if needed
-            ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command("echo $$;"+ pre + cmd + " ; echo '' ;")
+            final_command = "echo $$;"+ pre + cmd + " ; retval=$? ; echo '' ; exit $retval"
+            ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command(final_command)
             if stdin is not None:
                 ssh_stdin.write(stdin)
             channels = [ssh_stdout, ssh_stderr]
