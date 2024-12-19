@@ -59,6 +59,8 @@ class Regression:
 
         if not old_all_results:
             return 0, 0
+        
+        m = multiprocessing.Manager()
 
         tests_passed = 0
         tests_total = 0
@@ -101,13 +103,14 @@ class Regression:
                                 diff * 100, run.format_variables()))
 
                     if not init_done:
-                        test.do_init_all(build=build, options=test.options, do_test=test.options.do_test)
+                        test.do_init_all(build=build, options=test.options, do_test=test.options.do_test, m=m)
                         init_done = True
                     variables = v.copy()
                     for late_variables in test.get_late_variables():
                         variables.update(late_variables.execute(variables, test))
 
                     new_results_types, new_time_results_types, output, err, n_exec, n_err = test.execute(build, run, variables,
+                                                                    m = m,
                                                                     n_runs=test.config["n_supplementary_runs"],
                                                                     allowed_types={SectionScript.TYPE_SCRIPT, SectionScript.TYPE_EXIT})
 

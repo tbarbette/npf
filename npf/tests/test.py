@@ -590,7 +590,7 @@ class Test:
             raise e
         return has_err, has_values
 
-    def execute(self, build, run, v, n_runs=1, n_retry=0, allowed_types=SectionScript.ALL_TYPES_SET, do_imports=True,
+    def execute(self, build, run, v, n_runs=1, n_retry=0, allowed_types=SectionScript.ALL_TYPES_SET, m:multiprocessing.Manager=None, do_imports=True,
                 test_folder=None, event=None, v_internals={}, before_test = None) \
             -> Tuple[Dict, Dict, str, str, int]:
         """Executes all repetitions of an experiment for the given set of variables.
@@ -656,7 +656,6 @@ class Test:
         # Launching the tests in itself
         data_results = OrderedDict()  # dict of result_name -> [val, val, val]
         all_time_results = {}  # dict of kind -> time_value -> {result_name -> [val, val, val]}
-        m = multiprocessing.Manager()
         all_output = []
         all_err = []
         for i in range(n_runs):
@@ -686,7 +685,7 @@ class Test:
 
                     autokill = m.Value('i', 0) if parseBool(script.params.get("autokill", t.config["autokill"])) else None
                     nokill = parseBool(script.params.get("nokill", t.config["nokill"]))
-                    print("nokill",nokill)
+
                     v["NPF_NODE_MAX"] = len(nodes)
                     for i_node, node in enumerate(nodes):
                       v["NPF_NODE"] = node.get_name()
@@ -1098,7 +1097,7 @@ class Test:
             update[event_t][result_type] = []
 
     def do_init_all(self, build, options, do_test, allowed_types=SectionScript.ALL_TYPES_SET, test_folder=None,
-                    v_internals={}):
+                    v_internals={}, m: multiprocessing.Manager=None):
         if not build.build(options.force_build, options.no_build, options.quiet_build, options.show_build_cmd):
             raise ScriptInitException()
         if not self.build_deps([build.repo], v_internals=v_internals, no_build=options.no_build):
@@ -1117,7 +1116,8 @@ class Test:
                                                                                       allowed_types={"init"},
                                                                                       do_imports=True,
                                                                                       test_folder=test_folder,
-                                                                                      v_internals=v_internals)
+                                                                                      v_internals=v_internals,
+                                                                                      m=m)
 
             if num_err > 0:
                 if not options.quiet:
@@ -1150,6 +1150,7 @@ class Test:
         print
         init_done = False
         test_folder = self.make_test_folder()
+        m = multiprocessing.Manager()
 
         #All the following paths must be relative to the NPF experiment root folder (that is something like NPF's folder/test1234567/)
         full_test_folder = npf.from_experiment_path(test_folder) + os.sep
@@ -1162,7 +1163,7 @@ class Test:
         if not SectionScript.TYPE_SCRIPT in allowed_types:
             # If scripts is not in allowed_types, we have to run the init by force now
 
-            self.do_init_all(build, options, do_test=do_test, allowed_types=allowed_types, v_internals=v_internals)
+            self.do_init_all(build, options, do_test=do_test, allowed_types=allowed_types, v_internals=v_internals, m=m)
             if not self.options.preserve_temp:
                 shutil.rmtree(test_folder)
             return {}, {}, True
@@ -1314,7 +1315,7 @@ class Test:
                 if n_runs > 0 and do_test:
                     if not init_done:
                         self.do_init_all(build, options, do_test, allowed_types=allowed_types, test_folder=test_folder,
-                                         v_internals=v_internals)
+                                         v_internals=v_internals, m=m)
                         init_done = True
 
                     def print_header(i, i_try):
@@ -1339,7 +1340,8 @@ class Test:
                                                                                                   allowed_types={
                                                                                                       SectionScript.TYPE_SCRIPT, SectionScript.TYPE_EXIT},
                                                                                                   test_folder=test_folder,
-                                                                                                  v_internals=v_internals, before_test = print_header)
+                                                                                                  v_internals=v_internals, before_test = print_header,
+                                                                                                  m=m)
                     if new_data_results:
                         for result_type, values in new_data_results.items():
                             if values is None:
