@@ -66,7 +66,7 @@ NUMBEROFFSET=40
 gen_norx:GEN_RX=0
 timing:TIMING=1
 timing:TIMING_FNT=100
-GEN_START_DELAY=2
+GEN_START_DELAY=5
 
 %late_variables
 PRELOAD?=0
@@ -85,8 +85,8 @@ rate:UNQUEUE=EXPAND( Bandwidth${DISTRIB}Unqueue( $(( int($GEN_RATE / $GEN_NGEN) 
 prate:UNQUEUE=EXPAND( ${DISTRIB}Unqueue($(( int($GEN_RATE / $GEN_NGEN)  )), BURST $GEN_BURST, ACTIVE $(( "false" if $GEN_PROGRESSIVE else "true" )) ) )
 REPLAY=0
 replay:REPLAY=1
-replay,-timing:UNQUEUE=ReplayUnqueue(STOP -1, STOP_TIME {{LIMIT_TIME}}, QUICK_CLONE $quick, VERBOSE true, ACTIVE true, LIMIT {{ ( (LIMIT | int) / (GEN_NGEN | int) ) | int - 4096 }})
-replay,timing:UNQUEUE=ReplayUnqueue(STOP -1, STOP_TIME {{LIMIT_TIME}}, QUICK_CLONE $quick, VERBOSE true, ACTIVE true, LIMIT {{ ( (LIMIT | int) / (GEN_NGEN | int) ) | int - 4096 }}, TIMING {{TIMING}}, TIMING_FNT {{TIMING_FNT}})
+replay,-timing:UNQUEUE=ReplayUnqueue(STOP -1, STOP_TIME {{LIMIT_TIME}}, QUICK_CLONE $quick, VERBOSE true, ACTIVE false, LIMIT {{ ( (LIMIT | int) / (GEN_NGEN | int) ) | int - 4096 }})
+replay,timing:UNQUEUE=ReplayUnqueue(STOP -1, STOP_TIME {{LIMIT_TIME}}, QUICK_CLONE $quick, VERBOSE true, ACTIVE false, LIMIT {{ ( (LIMIT | int) / (GEN_NGEN | int) ) | int - 4096 }}, TIMING {{TIMING}}, TIMING_FNT {{TIMING_FNT}})
 prate:HAVE_PRATE=1
 HAVE_UNQUEUE?=0
 udpgen,-prate|prate,-udpgen|rate|replay:HAVE_UNQUEUE=1
@@ -116,7 +116,7 @@ GEN_MAGIC?=EXPAND(    -> magic :: Classifier( $(( ", ".join([ "${NUMBEROFFSET}/5
 DOLAT?=1
 FDDISPATCH=EXPAND( $((" rr :: RoundRobinSwitch(SPLITBATCH false);" if $GEN_THREADS > 1 and $GEN_PIPELINE else "rr :: MyNull;")) )
 NBBUF?=200000
-replay:NBBUF= {{ LIMIT }}
+replay:NBBUF= {{ LIMIT  + 65536 }}
 
 gen_preped:GEN_NUMBER= -> MarkIPHeader
 gen_preped:FDDISPATCH?=  rr :: Classifier( 40/5741,  40/5722,    40/57E3,      40/5774);
@@ -385,6 +385,9 @@ dm :: DriverManager(  print "Waiting ${GEN_START_DELAY} seconds before launching
                 print "Starting gen...",
         {% for t in range($GEN_NGEN) %}
                  write fdIN{{ t }}.active true,
+           {% if HAVE_UNQUEUE %}
+                write unqueue{{t}}.active true,
+            {% endif %}
         {% endfor %}
 		$(( "write starter.run," if $GEN_PROGRESSIVE else "" ))
                 print "Starting timer wait...",
