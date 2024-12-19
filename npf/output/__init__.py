@@ -129,10 +129,12 @@ def generate_outputs(filename: str, series: Series , time_series:Series, options
     print("Generating graphs...")
 
     pypost.execute_pypost(series=series)
+
     g = grapher.graph(series=series,
                       filename=filename,
                       options=options,
                       title=options.graph_title)
+
     if options.do_time:
         for time_ns,series in n_time_series.items():
             print(f"Generating graph for time serie '{time_ns}'...")

@@ -111,4 +111,4 @@ BURST = 32, LENGTH = 1024 [run 3/3 for test 11/11]
 [30m[0][0m RESULT 32
 [30m[0][0m 			stop
 [32.0, 32.0, 32.0]
-Graph of test written to results/click-2022/9197a59/integration-02.pdf
+Graph of test written to compare/integration_click-2022-02.pdf

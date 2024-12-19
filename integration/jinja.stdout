@@ -53,5 +53,5 @@ PARALLEL = 4 [run 3/3 for test 1/1]
 Result for R is 0 !
 Result for F is 0 !
 F: [6.0, 6.0, 6.0], R: [3.0, 3.0, 3.0]
-Graph of test written to results/click-2022/9197a59/jinja-F.pdf
-Graph of test written to results/click-2022/9197a59/jinja-R.pdf
+Graph of test written to compare/jinja_click-2022-F.pdf
+Graph of test written to compare/jinja_click-2022-R.pdf

@@ -25,5 +25,5 @@ Executing init scripts...
 [30m[0][0m A-115-RESULT-V 5
 [30m[0][0m B-115-RESULT-V 50
 No valid data for Build(repo = click-2022, version = 9197a59)
-Graph of test written to results/click-2022/9197a59/globsync-A-V.pdf
-Graph of test written to results/click-2022/9197a59/globsync-B-V.pdf
+Graph of test written to compare/globsync_click-2022-A-V.pdf
+Graph of test written to compare/globsync_click-2022-B-V.pdf

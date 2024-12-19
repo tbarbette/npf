@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
 NPF repository watcher. Essentially a loop watching for commits in a list of git repo to execute given tests when
-a commit is made. If you want to integrate npf in your CI test suite, use npf-run. Passive watching is intended
+a commit is made. If you want to integrate npf in your CI test suite, use npf.py. Passive watching is intended
 to watch project you don't own but you use, just to be sure that they do not mess performances.
 
-We prefered to separate this tool from npf-run because of the lot of specifics for sending an e-mail, watch loop, etc
+We prefered to separate this tool from npf.py because of the lot of specifics for sending an e-mail, watch loop, etc
 """
 import argparse
 import smtplib

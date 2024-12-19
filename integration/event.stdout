@@ -20,6 +20,6 @@ Executing init scripts...
 [30m[0][0m RESULT-X 1
 [30m[0][0m RESULT-Z 1
 X: [1.0, 1.0, 1.0], Y: [1.0, 1.0, 1.0], Z: [1.0, 1.0, 1.0]
-Graph of test written to results/click-2022/9197a59/event-X.pdf
-Graph of test written to results/click-2022/9197a59/event-Y.pdf
-Graph of test written to results/click-2022/9197a59/event-Z.pdf
+Graph of test written to compare/event_click-2022-X.pdf
+Graph of test written to compare/event_click-2022-Y.pdf
+Graph of test written to compare/event_click-2022-Z.pdf

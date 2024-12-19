@@ -14,7 +14,6 @@ import npf.cmdline
 import npf.osutils
 import npf.parsing
 from npf.repo.factory import get_default_repository
-from npf.repo.factory import get_default_repository
 from npf.tests.test_driver import Comparator
 from npf.output import generate_outputs
 from npf.tests.regression import *

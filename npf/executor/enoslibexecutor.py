@@ -48,8 +48,6 @@ class EnoslibExecutor(Executor):
         if not title:
             title = self.machine.address
         
-        print(cmd)
-
         env = env.copy()
         env.update(os.environ)
         if bin_paths:
@@ -65,6 +63,10 @@ class EnoslibExecutor(Executor):
             cmd = "sudo -E " + virt + "  bash -c '"+ cmd.replace("'", "'\"'\"'") + "'";
         else:
             cmd = virt + " bash -c '"+ cmd.replace("'", "'\"'\"'") + "'";
+
+        killer = EnoslibKiller(pgpid)
+        if queue:
+            queue.put(killer)
 
         try:
             p = en.run_command(cmd, roles=self.machine)

@@ -143,6 +143,6 @@ THRESH = 90, RATE = 90 [run 3/3 for test 11/~12(max 57)]
 [30m[0][0m RESULT-GOODPC 100
 [30m[0][0m RESULT-THROUGHPUT 90
 DROPPEDPC: [0.0, 0.0, 0.0], GOODPC: [100.0, 100.0, 100.0], THROUGHPUT: [90.0, 90.0, 90.0]
-Graph of test written to results/click-2022/9197a59/zlt-DROPPEDPC.pdf
-Graph of test written to results/click-2022/9197a59/zlt-GOODPC.pdf
-Graph of test written to results/click-2022/9197a59/zlt-THROUGHPUT.pdf
+Graph of test written to compare/zlt_click-2022-DROPPEDPC.pdf
+Graph of test written to compare/zlt_click-2022-GOODPC.pdf
+Graph of test written to compare/zlt_click-2022-THROUGHPUT.pdf

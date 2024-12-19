@@ -848,4 +848,4 @@ BURST = 1024, LENGTH = 1024 [run 2/3 for test 121/121]
 BURST = 1024, LENGTH = 1024 [run 3/3 for test 121/121]
 [30m[0][0m RESULT 1024
 [1024.0, 1024.0, 1024.0]
-Graph of test written to results/click-2022/9197a59/integration-01.pdf
+Graph of test written to compare/integration_click-2022-01.pdf

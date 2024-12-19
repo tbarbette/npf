@@ -417,6 +417,6 @@ N = 32 [run 3/3 for test 32/32]
 [30m[0][0m RESULT-LOG 3.47
 [30m[0][0m RESULT-EXP 4294967296.0
 EXP: [4294967296.0, 4294967296.0, 4294967296.0], LOG: [3.47, 3.47, 3.47], N: [32.0, 32.0, 32.0]
-Graph of test written to results/click-2022/9197a59/math-EXP.pdf
-Graph of test written to results/click-2022/9197a59/math-LOG.pdf
-Graph of test written to results/click-2022/9197a59/math-N.pdf
+Graph of test written to compare/math_click-2022-EXP.pdf
+Graph of test written to compare/math_click-2022-LOG.pdf
+Graph of test written to compare/math_click-2022-N.pdf
