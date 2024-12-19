@@ -14,7 +14,9 @@ import npf
 import argparse
 from npf import repository
 
-def run(npf_script, roles:Dict[str,en.Host], argsv:List[str]=[]):
+def run(npf_script, roles:Dict[str,en.Host], argsv: List[str] = None):
+    if argsv is None:
+        argsv = []
     logging.getLogger('fontTools.subset').level = logging.WARN
     parser = argparse.ArgumentParser(description='NPF Test runner through enoslib')
     v = npf.cmdline.add_verbosity_options(parser)
@@ -29,27 +31,27 @@ def run(npf_script, roles:Dict[str,en.Host], argsv:List[str]=[]):
     args = parser.parse_args(full_args)
     npf.parsing.initialize(args)
     npf.cluster.node.create_local()
-    
+
     #en.set_config(ansible_stdout="regular")
 
     for r, eno_obj in roles.items():
         from npf.executor.enoslibexecutor import EnoslibExecutor
         ex = EnoslibExecutor(eno_obj)
-        
+
         node = Node(eno_obj.address, executor=ex, tags=args.tags)
         if r in npf.globals.roles:
             npf.globals.roles[r].append(node)
         else:
             npf.globals.roles[r] = [node]
-    
+
     repo_list = []
     for repo_name in args.repos:
         repo = repository.Repository.get_instance(repo_name, args)
         repo_list.append(repo)
-    
+
     comparator = Comparator(repo_list)
-    
-    
+
+
     series, time_series = comparator.run(test_name=args.test_files,
                                          tags=args.tags,
                                          options=args,
