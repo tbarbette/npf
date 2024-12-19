@@ -69,9 +69,6 @@ def build_filename(test, build, hint, variables, def_ext, type_str='', show_seri
 
 
 def build_output_filename(repo_list):
-    if get_options().graph_filename is None:
-        filename = 'compare/' + os.path.splitext(os.path.basename(get_options().test_files))[0] + '_' + '_'.join(
-            ["%s" % repo.reponame for repo in repo_list]) + '.pdf'
-    else:
-        filename = get_options().graph_filename
-    return filename
+    return get_options().graph_filename or (
+        'compare/' + os.path.splitext(os.path.basename(get_options().test_files))[0] + '_' + '_'.join(
+            ["%s" % repo.reponame for repo in repo_list]) + '.pdf')

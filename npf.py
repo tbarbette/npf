@@ -31,12 +31,15 @@ def main():
 
     npf.cmdline.add_verbosity_options(parser)
 
+    #Parsing options specific to this command-line
     parser.add_argument('repos', metavar='repo', type=str, nargs='*', help='names of the repositories to compare. Use a format such as repo+VAR=VAL:Title to overwrite variables and serie name. By default "local" is used, which means no repository is used and therefore versioning is disabled.')
     parser.add_argument('--graph-title', type=str, nargs='?', help='Graph title')
 
     b = npf.cmdline.add_building_options(parser)
     t = npf.cmdline.add_testing_options(parser)
     g = npf.cmdline.add_graph_options(parser)
+
+    # Launch the generic parsing
     args = parser.parse_args()
 
     # Parse the cluster options
@@ -56,7 +59,9 @@ def main():
 
     # Create a proper file name for the output
     filename = npf.build_output_filename(repo_list)
-    filename = npf.osutils.ensure_folder_exists(filename)
+
+    # Ensure its path exists
+    npf.osutils.ensure_folder_exists(filename)
 
     # Launch the actual runs
     series, time_series = comparator.run(test_name=args.test_files,
