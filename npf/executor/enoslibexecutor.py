@@ -21,7 +21,7 @@ class EnoslibExecutor(Executor):
     def exec(self, cmd : str, bin_paths : List[str]=[],
              queue: Queue = None, options = None,
              stdin = None, timeout = None, sudo = False,
-             testdir = None, event = None, title = None, env = {}, virt = "" ,
+             testdir = None, event = None, title = None, env = {}, virt = "", nokill=False
         ) -> [int, str, str, int]:
         """Runs a command in local
 

@@ -63,7 +63,8 @@ def _parallel_exec(param: RemoteParameters):
                                  event=param.event,
                                  title=param.name,
                                  env=param.env,
-                                 virt=param.virt)
+                                 virt=param.virt,
+                                 nokill=param.nokill)
 
     sys.stdout.flush()
     sys.stderr.flush()
@@ -78,12 +79,12 @@ def _parallel_exec(param: RemoteParameters):
             v = param.autokill.value
             param.event.c.release()
             if v == 0:
-                Test.killall(param.queue, param.event)
+                Test.killall(param.queue, param.event, param.options.debug)
         elif pid == -1:
             #Keyboard interrupt
             if param.options.debug:
                 print(f"[DEBUG] Script {param.name} stopped through keyboard interrupt.")
-            Test.killall(param.queue, param.event)
+            Test.killall(param.queue, param.event, param.options.debug)
         else:
             if param.options.debug:
                 print(f"[DEBUG] Script {param.name} finished with exit code {c}, autokill=false so it will not terminate the other scripts." % param.name)
@@ -241,6 +242,11 @@ class Test:
                     if script.type == SectionScript.TYPE_SCRIPT:
                         script.params['autokill'] = imp.params['autokill']
                 del imp.params['autokill']
+            if 'nokill' in imp.params:
+                for script in imp.test.scripts:
+                    if script.type == SectionScript.TYPE_SCRIPT:
+                        script.params['nokill'] = imp.params['nokill']
+                del imp.params['nokill']
             if imp.multi is not None:
                 for script in imp.test.scripts:
                     if script.type == SectionScript.TYPE_SCRIPT or script.type == SectionScript.TYPE_INIT:
@@ -451,7 +457,7 @@ class Test:
             print("Could not cleanup file %s" % s.filename)
 
     @staticmethod
-    def killall(queue, event):
+    def killall(queue, event, debug=False):
         event.terminate()
         while not queue.empty():
             try:
@@ -471,6 +477,8 @@ class Test:
                 killer.force_kill()
             except OSError:
                 pass
+            if debug:
+                print("[DEBUG] Waiting for a script to die...")
 
     def update_constants(self, v_internals : dict, build : Build, full_test_folder : str, out_path : str = None, node = None):
 
@@ -677,6 +685,8 @@ class Test:
                     nodes = npf.cluster.factory.nodes_for_role(srole)
 
                     autokill = m.Value('i', 0) if parseBool(script.params.get("autokill", t.config["autokill"])) else None
+                    nokill = parseBool(script.params.get("nokill", t.config["nokill"]))
+                    print("nokill",nokill)
                     v["NPF_NODE_MAX"] = len(nodes)
                     for i_node, node in enumerate(nodes):
                       v["NPF_NODE"] = node.get_name()
@@ -740,7 +750,7 @@ class Test:
                             template = env.from_string(param.commands)
                             param.commands = template.render(**v)
                         param.options = self.options
-                        param.queue = queue
+                        param.queue = None if nokill else queue
                         param.stdin = t.stdin.content
                         timeout = t.config['timeout']
                         if 'timeout' in script.params:
@@ -766,6 +776,7 @@ class Test:
                         param.script = script
                         param.name = script.get_name(True)
                         param.autokill = autokill
+                        param.nokill = nokill
                         param.env = OrderedDict()
                         if self.options.keep_env:
                             param.env.update({key:os.environ[key] for key in self.options.keep_env})
