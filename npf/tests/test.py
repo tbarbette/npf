@@ -87,7 +87,7 @@ def _parallel_exec(param: RemoteParameters):
             Test.killall(param.queue, param.event, param.options.debug)
         else:
             if param.options.debug:
-                print(f"[DEBUG] Script {param.name} finished with exit code {c}, autokill=false so it will not terminate the other scripts." % param.name)
+                print(f"[DEBUG] Script {param.name} finished with exit code {c}, autokill=false so it will not terminate the other scripts.")
         if pid == -1:
             return -1, o, e, c, param.script
         return True, o, e, c, param.script
