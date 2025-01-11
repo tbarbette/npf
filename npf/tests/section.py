@@ -1,6 +1,5 @@
 import npf
 from npf.models.variables.variable import Variable
-from npf.sections import *
 from npf.tests.sections import *
 from npf.tests.variable import *
 
