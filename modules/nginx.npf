@@ -18,6 +18,7 @@ NGINX_IRQ_AFFINITY=1
 %late_variables
 NGINX_SRVTYPE=default_server
 NGINX_SERVER_CONFIG?=
+NGINX_SSL_CIPHER?=
 ssl:NGINX_SRVTYPE=ssl
 ssl:NGINX_SERVER_CONFIG=ssl on;ssl_certificate nginx-selfsigned.crt;ssl_certificate_key nginx-selfsigned.key;
 
