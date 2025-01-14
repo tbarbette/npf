@@ -23,8 +23,8 @@ ssl:NGINX_SRVTYPE=ssl
 ssl:NGINX_SERVER_CONFIG=ssl on;ssl_certificate nginx-selfsigned.crt;ssl_certificate_key nginx-selfsigned.key;
 
 %init
-mkdir -p nginx
-mkdir -p $NGINX_ROOT
+mkdir -p nginx || sudo mkdir -p nginx
+mkdir -p $NGINX_ROOT || sudo mkdir -p $NGINX_ROOT
 echo "RESULT 1"
 
 %-ssl:file genssl.sh

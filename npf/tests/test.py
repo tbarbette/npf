@@ -427,7 +427,7 @@ class Test:
                 print(p.strip())
             for node in npf.cluster.factory.nodes_for_role(role):
                 if not node.executor.writeFile(filename, path_to_root, p):
-                    print("Re-trying with sudo...")
+                    print(f"Re-trying to write file {filename} with sudo...")
                     if not node.executor.writeFile(filename, path_to_root, p, sudo=True):
                         raise Exception("Could not create file %s on %s" % (filename, node.name))
 
