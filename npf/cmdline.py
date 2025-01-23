@@ -46,7 +46,7 @@ def add_graph_options(parser: ArgumentParser):
                    help='Generate a Jupyter Notebook that plots the data (*.ipynb file format).')
     o.add_argument('--template-nb', dest='template_nb_path',
                    help='Use a custom Jupyter Notebook as template.',
-                   default="npf/types/notebook/template.ipynb")
+                   default="npf/output/notebook/template.ipynb")
     o.add_argument('--nb-kernel', dest='nb_kernel',
                    help='Specify which kernel to use for executing the Jupyter Notebook.',
                    default="python3")

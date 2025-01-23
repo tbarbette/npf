@@ -69,6 +69,7 @@ timing:TIMING_FNT=100
 GEN_START_DELAY=5
 
 %late_variables
+GEN_NUMA?=false
 PRELOAD?=0
 GEN_TX_DESC?=EXPAND($GEN_DESC)
 //The number of generator element such as FromDump or FastUDPSrc
@@ -147,7 +148,7 @@ $GEN_GDB click --dpdk -l $GEN_CPUS --file-prefix gen-$RCV_NIC -a ${self:$RCV_NIC
 echo "EVENT TX_FINISHED"
 echo "Generator stopped..."
 
-%script deps=fastclick-light-utime sudo=true delay=2 name=fastclick-play
+%script deps=fastclick-utime sudo=true delay=2 name=fastclick-play
 bash launch.sh
 
 %file PKTGEN_CONFIG_${RCV_NIC} jinja
@@ -200,7 +201,7 @@ JiffieClock()
             fdIN{{ t }} :: $(( " FastUDPFlows(RATE " + ( str(int($GEN_RATE / $GEN_NGEN) ) if "$HAVE_PRATE" else "0") +  ", LIMIT " + str(int($LIMIT / $GEN_NGEN) if "$HAVE_PRATE" else "-1" ) + " , LENGTH $GEN_LENGTH, SRCETH $INsrcmac, DSTETH $INdstmac, SRCIP ${client:0:ip}, DSTIP ${server:0:ip}, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_FLOWSIZE, SEQUENTIAL $GEN_SEQUENTIAL, BURST $GEN_BURST, ACTIVE false)" ))
         {% endif %}
     {% elif GEN_DUMP == 0 %}
-        fdIN{{t}} :: FromDump({{t_path}}, STOP true, TIMING {{ $TIMING if not $REPLAY else 0 }}, TIMING_FNT "$TIMING_FNT", END_AFTER $END_AFTER, ACTIVE {{ REPLAY }}, BURST 1 {% if PRELOAD > 0 %}, PRELOAD $PRELOAD{% endif %} );
+        fdIN{{t}} :: FromDump({{t_path}}, STOP true, TIMING {{ $TIMING if not $REPLAY else 0 }}, TIMING_FNT "$TIMING_FNT", END_AFTER $END_AFTER, ACTIVE {{ REPLAY }}, BURST 32 {% if PRELOAD > 0 %}, PRELOAD $PRELOAD{% endif %} , MMAP false, DPDK true);
     {% elif GEN_DUMP == 1 %}
         fdIN{{t}} :: FromIPSummaryDump({{t_path}}, TIMES $replay_count, TIMING $TIMING, TIMESTAMP $TIMING, ZERO false, BURST $GEN_BURST, STOP true);
     {% else %}
@@ -292,7 +293,7 @@ $(( "-> Pad " if $GEN_DUMP < 2 and $GEN_DUMP > -1 else "" ))
 
 $(( " StaticThreadSched(tdIN 0/%d);" % ($GEN_THREADS + 1) if $GEN_TX_PIPELINE else "" ))
 
-receiveIN :: FromDPDKDevice($port, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, PAUSE $GEN_PAUSE, NDESC $GEN_DESC, MAXTHREADS $GEN_RX_THREADS, NUMA false, ACTIVE $GEN_RX)
+receiveIN :: FromDPDKDevice($port, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, PAUSE $GEN_PAUSE, NDESC $GEN_DESC, MAXTHREADS $GEN_RX_THREADS, NUMA $GEN_NUMA, ACTIVE $GEN_RX)
 
 elementclass Receiver { $mac, $dir |
     input[0]

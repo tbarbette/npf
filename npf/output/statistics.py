@@ -142,33 +142,37 @@ class Statistics:
                 dfn = pd.DataFrame(d, columns=list(vars_values.keys()) + [result_type or "y"])
                 dfn = dfn.replace([np.inf, -np.inf], np.nan).dropna(axis=0)
 
-                model =  ols(m, data=dfn).fit()
+                try:
+                    model =  ols(m, data=dfn).fit()
 
-                anova_table = sm.stats.anova_lm(model, typ=2)
+                    anova_table = sm.stats.anova_lm(model, typ=2)
 
-                interaction_pvalues = anova_table.loc[anova_table.index.str.count(':') <= 1, 'PR(>F)']
+                    interaction_pvalues = anova_table.loc[anova_table.index.str.count(':') <= 1, 'PR(>F)']
 
-                interaction_matrix = pd.DataFrame(np.nan, index=variables, columns=variables + [result_type])
+                    interaction_matrix = pd.DataFrame(np.nan, index=variables, columns=variables + [result_type])
 
-                for interaction in interaction_pvalues.index:
-                    if interaction == "Residual":
-                        continue
-                    factors = interaction.split(':')
+                    for interaction in interaction_pvalues.index:
+                        if interaction == "Residual":
+                            continue
+                        factors = interaction.split(':')
 
-                    if len(factors) > 1:
-                        interaction_matrix.loc[factors[0], factors[1]] = interaction_pvalues[interaction]
-                        #interaction_matrix.loc[factors[1], factors[0]] = interaction_pvalues[interaction]
-                    else:
-                        interaction_matrix.loc[factors[0],result_type] = interaction_pvalues[interaction]
+                        if len(factors) > 1:
+                            interaction_matrix.loc[factors[0], factors[1]] = interaction_pvalues[interaction]
+                            #interaction_matrix.loc[factors[1], factors[0]] = interaction_pvalues[interaction]
+                        else:
+                            interaction_matrix.loc[factors[0],result_type] = interaction_pvalues[interaction]
 
-                print("")
-                print("P-value of ANOVA (low p-value indicates a probable interaction):")
-                print(interaction_matrix.fillna(""))
-                ax = sn.heatmap(interaction_matrix, cmap="viridis", fmt=".2f", annot=True)
-                ax.figure.tight_layout()
-                f = npf.build_filename(test, build, filename if not filename is True else None, {}, 'pdf', result_type, show_serie=False, suffix="anova")
-                plt.savefig(f)
-                print(f"Graph of a ANOVA matrix saved to {f}")
+                    print("")
+                    print("P-value of ANOVA (low p-value indicates a probable interaction):")
+                    print(interaction_matrix.fillna(""))
+                    ax = sn.heatmap(interaction_matrix, cmap="viridis", fmt=".2f", annot=True)
+                    ax.figure.tight_layout()
+                    f = npf.build_filename(test, build, filename if not filename is True else None, {}, 'pdf', result_type, show_serie=False, suffix="anova")
+                    plt.savefig(f)
+                    print(f"Graph of a ANOVA matrix saved to {f}")
+                except Exception as e:
+                    print("Could not compute ANOVA", e)
+
 
 
         print('')
