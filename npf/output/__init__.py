@@ -137,10 +137,11 @@ def generate_outputs(filename: str, series: Series , time_series:Series, options
 
     if options.do_time:
         for time_ns,series in n_time_series.items():
-            print(f"Generating graph for time serie '{time_ns}'...")
-            g = grapher.graph(  series=series,
-                                filename=filename,
-                                fileprefix=time_ns,
-                                options=options,
-                                title=options.graph_title)
+            if len(series):
+                print(f"Generating graph for time serie '{time_ns}'...")
+                g = grapher.graph(  series=series,
+                                    filename=filename,
+                                    fileprefix=time_ns,
+                                    options=options,
+                                    title=options.graph_title)
     return series, time_series

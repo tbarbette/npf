@@ -1,4 +1,4 @@
-Executing test pyexit.npf
+[Click 2022] Running test pyexit.npf on version 9197a59...
 Executing init scripts...
 CPU = 1, R = 50, T = 100 [run 1/3 for test 1/8]
 [30m[0][0m RESULT-RX 50
@@ -80,6 +80,7 @@ CPU = 8, R = 50, T = 100 [run 3/3 for test 8/8]
 [30m[0][0m RESULT-RX 50
 [30m[0][0m RESULT-TX 100
 LOSS: [-50.0, -50.0, -50.0], RX: [50.0, 50.0, 50.0], TX: [100.0, 100.0, 100.0]
+Generating graphs...
 Graph of test written to compare/pyexit_click-2022-LOSS.pdf
 Graph of test written to compare/pyexit_click-2022-RX.pdf
 Graph of test written to compare/pyexit_click-2022-TX.pdf

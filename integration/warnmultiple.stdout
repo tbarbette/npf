@@ -1,5 +1,5 @@
 Starting tests
-Executing test warnmultiple.npf
+[Click 2022] Running test warnmultiple.npf on version 9197a59...
 Executing init scripts...
 TEST = A [run 1/3 for test 1/3]
 [30m[0][0m RESULT-TEST 78
@@ -40,4 +40,5 @@ TEST = C [run 3/3 for test 3/3]
 [30m[0][0m RESULT-TEST 40
 WARNING: There are multiple occurences of metric TEST, please add it in result_add, result_append or result_overwrite. result_overwrite is selected by default, add `result_overwrite={TEST}` to %config to silent this message.
 [40.0, 40.0, 40.0]
+Generating graphs...
 Graph of test written to results/local/local/warnmultiple-TEST.pdf

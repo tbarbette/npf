@@ -192,7 +192,12 @@ def main():
         ntests = 0
 
         for test in tests:
-            print("Executing test %s" % test.filename)
+            if build.version != "local":
+                print(
+                    f"[{repo.name}] Running test {test.filename} on version {build.version}..."
+                )
+            else:
+                print(f"[{repo.name}] Running test {test.filename}...")
 
             regression = Regression(test)
 
@@ -259,8 +264,6 @@ def main():
                         g_series.append((test, g_build, g_all_results))
                 except FileNotFoundError:
                     print("Previous build %s could not be found, we will not graph it !" % g_build.version)
-
-
 
 
             filename = args.graph_filename or build.result_path(test.filename, 'pdf')

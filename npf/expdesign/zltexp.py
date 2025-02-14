@@ -113,9 +113,10 @@ class ZLTVariableExpander(OptVariableExpander):
                         else:
                             max_r = min(max_r, r_out)
                 except KeyError as e:
-                    raise Exception(
-                        f"{self.output} is not in the results. Sample of last result : {vals}"
-                    ) from e
+                    #raise Exception(
+                     print(   f"{self.output} is not in the results. Sample of last result : {vals}"
+                    )
+                    #from e
 
         #Step 1 : try the max input rate first
         if not vals_for_current:

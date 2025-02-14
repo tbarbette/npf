@@ -38,7 +38,7 @@ def do_heatmap(graph, axis, key, result_type, data : XYEB, xdata : XYEB, vars_va
 
 
         matrix = np.empty(tuple((ymax-ymin + 1,xmax-xmin + 1)))
-        matrix[:] = np.NaN
+        matrix[:] = np.nan
 
         if len(data) <= 1 or nseries <= 1:
             print("WARNING: Heatmap needs two dynamic variables. The map will have a weird ratio")

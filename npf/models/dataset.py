@@ -195,7 +195,7 @@ def mask_from_filter(fl, data_types, build, ax, y):
                     fl_x = np.array(fl_xyeb[0])
                     fl_y = np.array(fl_xyeb[1])
                     break
-            fl_y = np.array([fl_y[fl_x == r_y][0] if r_y in fl_x else np.NaN for r_y in ax])
+            fl_y = np.array([fl_y[fl_x == r_y][0] if r_y in fl_x else np.nan for r_y in ax])
         else:
             fl_y = np.array(data_types(fl))
         if fl_op == '>':

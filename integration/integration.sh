@@ -18,7 +18,7 @@ compare_raw() {
         echo "$test passed !"
     else
         echo "Error for $test : expected output does not match !"
-        echo "Command : $python $1 click-2022 --force-test --test integration/$test.npf --quiet-build ${@:4}"
+        echo "Command : $python $1 click-2022 --force-test --no-graph-time --test integration/$test.npf --quiet-build ${@:4}"
         diff res$test integration/$test.stdout
         ret=1
     fi

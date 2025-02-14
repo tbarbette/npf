@@ -181,6 +181,10 @@ class Regression:
                 )
             else:
                 print(f"[{repo.name}] Running test {test.filename}...")
+
+            if test.get_title() != test.filename:
+                print(test.get_title())
+
             regression = self
             if repo.last_build:
                 try:

@@ -1,4 +1,4 @@
-Executing test jinja.npf
+[Click 2022] Running test jinja.npf on version 9197a59...
 Executing init scripts...
 [30m[0][0m RESULT 1
 PARALLEL = 4 [run 1/3 for test 1/1]
@@ -53,5 +53,6 @@ PARALLEL = 4 [run 3/3 for test 1/1]
 Result for R is 0 !
 Result for F is 0 !
 F: [6.0, 6.0, 6.0], R: [3.0, 3.0, 3.0]
+Generating graphs...
 Graph of test written to compare/jinja_click-2022-F.pdf
 Graph of test written to compare/jinja_click-2022-R.pdf
