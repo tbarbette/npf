@@ -192,8 +192,6 @@ class Node:
         if path is None:
             path = os.path.abspath(npf.globals.experiment_path())
         node = cls._nodes.get(addr, None)
-        if node is not None:
-            return node
         sshex = SSHExecutor(user, addr, path, port)
 
         node = Node(addr, sshex, options.tags)
