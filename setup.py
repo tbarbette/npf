@@ -61,7 +61,7 @@ setuptools.setup(
     python_requires='>=3.6',
     entry_points={
         'console_scripts': [
-            'npf=npf:main',
+            'npf=npf.tests.main:main',
             'npf-regress=npf_regress:main',
             'npf-watch=npf_watch:main',
 

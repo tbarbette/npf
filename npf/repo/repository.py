@@ -459,8 +459,8 @@ class Repository:
             return cls._repo_cache[dep]
         try:
             repo = Repository(dep, options)
-        except FileNotFoundError:
-            raise Exception("%s is not a valid repository name !" % (dep))
+        except FileNotFoundError as e:
+            raise Exception("%s is not a valid repository name !" % (dep)) from e
         cls._repo_cache[dep] = repo
         return repo
 
