@@ -19,7 +19,7 @@ install_requires = [
     'ordered_set; python_version >= "3.7.0"',
     'paramiko',
     'asteval',
-    'cryptography==43.0.1',
+    'cryptography==44.0.1',
     'gitdb',
     'pyasn1',
     'natsort',
