@@ -16,8 +16,8 @@ class OptVariableExpander(FullVariableExpander):
         self.input = input
         self.input_values = vlist[input].makeValues()
         if len(self.input_values) <= 2:
-            print(f"WARNING: Doing zero-loss-throughput search on the variable {input} that has only {len(self.input_values)} values. This is useless."
-                 f"You must define a range to search with a variable like {input}=[0-100#5].")
+            print(  f"WARNING: Doing zero-loss-throughput search on the variable {input} that has only {len(self.input_values)} values. This is useless."
+                    f"You must define a range to search with a variable like {input}=[0-100#5].")
         del vlist[input]
         self.current = None
         self.n_done = 0
@@ -38,7 +38,6 @@ class OptVariableExpander(FullVariableExpander):
         approx = int(len(self.expanded) * ceil(log2(len(self.input_values)) if (self.n_it <= 1) else self.n_tot_done/(self.n_it - 1)))
         max = len(self.expanded) * len(self.input_values)
         return f"~{approx}(max {max})"
-
 
 class ZLTVariableExpander(OptVariableExpander):
 
@@ -146,6 +145,7 @@ class ZLTVariableExpander(OptVariableExpander):
                     #We could never find a zlt, and there's nothing left to try... no value can handle the input
                     self.validate_run()
                     return self.__next__()
+
 
             #Step 3...K : try to get an acceptable rate. This step might be skipped if we got an acceptable rate already
             if left_to_try and not acceptable_rates:
