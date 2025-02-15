@@ -80,7 +80,7 @@ def test_paths():
     local = Node.makeLocal(test_access=False)
     ssh = Node.makeSSH(addr="cluster01.sample", user=None, path=None)
     ssh2 = Node.makeSSH(addr="cluster01.sample", user=None, path=None)
-    ssh.executor.path = "/different/path/to/root/"
+    ssh.executor.path = npf.npf_root_path() + "/tmp/"
     ssh2.executor.path = npf.experiment_path() + os.sep
 
     #Test the constants are correct
