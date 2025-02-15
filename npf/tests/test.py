@@ -486,7 +486,7 @@ class Test:
         rp = ('../' + build.build_path()) if not os.path.isabs(build.build_path()) else build.build_path()
         abs_test_folder = full_test_folder if os.path.isabs(full_test_folder) else cwd_path() + os.sep + full_test_folder
 
-        tp = os.path.relpath(self.path,abs_test_folder)
+        tp = os.path.relpath(self.path, abs_test_folder)
 
         if node and node.executor.path:
             bp = os.path.relpath(bp, f'{npf.experiment_path()}/testfolder/')

@@ -65,6 +65,11 @@ def test_node():
     assert n1.executor.user == "user01" == n2.executor.user
 
 def test_paths():
+    """
+    This test verifies the path management.
+    It creates local and SSH nodes, modifies their executor paths,
+    and then checks if the constants are updated correctly for each node type.
+    """
 
     args = get_args()
     args.do_test = False
@@ -257,11 +262,12 @@ def test_notebook():
 
 def test_enoslib():
     try:
-        import enoslib
+        import enoslib as en
         from npf.enoslib import run
-        run('integration/sections.npf', roles={"localhost":"127.0.0.1"}, argsv=[])
+        run('integration/sections.npf', roles={"localhost":en.LocalHost()}, argsv=[])
 
     except ImportError as e:
+        print("Enoslib test ignored as enoslib is not installed")
         pass  # module doesn't exist, deal with it.
 
 def test_import_mains():

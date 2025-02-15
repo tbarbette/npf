@@ -5,6 +5,7 @@ from npf.output.grapher import *
 from npf.repo.repository import *
 from npf.tests.test import Test, SectionScript, ScriptInitException
 from npf.models.dataset import Dataset
+import multiprocessing
 
 
 """Handles regression tests. That is, given an history of versions, execute tests for all previous versions
