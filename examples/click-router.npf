@@ -1,0 +1,260 @@
+%info
+4 port Click Router
+
+
+%config
+//Timeout for a single script
+timeout=30
+tilera:timeout=-1
+title=
+
+//Axis names
+var_names={LENGTH:Length,result:Throughput (Mbps),TXCPU:Transmit CPU,RXCPU:Receive CPU,GEN_LENGTH:Packet length (Bytes),BURSTOUT:Output burst,BURSTIN:Input burst,napi:NAPI Budget (Packets),sched:Priority,CPU:Number of cores}
+
+accept_zero={LOSS}
+results_expect={THROUGHPUT}
+role_exclude={client+dut}
+default_role_map={server:dut}
+var_unit={result: }
+var_log={napi}
+udp:var_divider={result:1000000000}
+graph_series_sort=-avg
+same:graph_combine_variables={BURSTIN+BURSTOUT:BURST,descin+descout:DESC}
+same:var_serie={DESC}
+var_lim={THROUGHPUT:0-40000}
+
+%variables
+//Parameters for the router itself
+BURSTOUT=32
+BURSTIN=32
+burst:BURSTOUT=[1*1024]
+burst:BURSTIN=[4*1024]
+CPU=1
+cpu:CPU=[1-8]
+
+CHECKSUM=true
+checksum:CHECKSUM={true,false}
+
+cpufreq:CPUFREQ=1200000
+
+//Parameters for the packet generator
+udp:GEN_BURST=256
+GEN_LENGTH=[64*1500]
+udp:GEN_QUICK_CLONE=1
+udp:GEN_STOP=1600000
+udp:GEN_FLOWS=5
+udp:GEN_FLOWSIZE=20
+GEN_TIME=5
+
+thoffset=-1
+parallel:thoffset=0
+
+fastregression:BURSTIN={32,256}
+fastregression:BURSTOUT={32,256}
+fastregression,udp:GEN_LENGTH={64,1500}
+
+descin=256
+descout=256
+ring:descin=[64*4096]
+ring:descout=[64*4096]
+
+FNTIN=
+FNTOUT=
+FNTavg:FNTIN+=-> SetTimestamp
+FNTavg:FNTOUT+=
+FNTnat:FNTOUT+=-> IPRewriter(pattern 139.165.0.2 1024-65535 - - 0 0)
+
+FNTcounter:COUNTER={CounterMP,CounterRxWMP,CounterAtomic,CounterLock,CounterRW,CounterPRW,CounterRCU}
+
+%-nobind,udp:import@client dpdk-bind NIC=0
+%-nobind,udp:import@client dpdk-bind NIC=1
+%-nobind,udp:import@client dpdk-bind NIC=2
+%-nobind,udp:import@client dpdk-bind NIC=3
+%-nobind:import@dut dpdk-bind NIC=0
+%-nobind:import@dut dpdk-bind NIC=1
+%-nobind:import@dut dpdk-bind NIC=2
+%-nobind:import@dut dpdk-bind NIC=3
+%cpufreq:import@dut cpufreq
+
+%late_variables
+GLOBAL_ELEMENTS=
+TSC:GLOBAL_ELEMENTS+=TSCClock(NOWAIT true, INSTALL true);
+JIFFIE:GLOBAL_ELEMENTS+=JiffieClock();
+FNTcounter:FNTIN=EXPAND( -> $COUNTER(NO_RATE true) )
+FNTcounter:FNTOUT=EXPAND( -> $COUNTER(NO_RATE true) )
+maxthreads=-1
+parallel:maxthreads=EXPAND( $CPU )
+
+%same:require
+[ $BURSTIN -eq $BURSTOUT ]
+%same:require
+[ $descin -eq $descout ]
+
+%udp:import@client fastclick-udpgen-latency-quad
+%udp:script@client 0:ip=10.1.0.2 1:ip=10.2.0.2 2:ip=10.3.0.2 3:ip=10.4.0.2 sudo=true autokill=false
+
+%-udp:script@client delay=8
+/home/tom/.tilera/workspace/tester/tester --link xgbe3,xgbe4,xgbe1,xgbe2  -w 16 --dst ${dut:0:mac},${dut:1:mac},${dut:2:mac},${dut:3:mac} --send_time ${GEN_TIME}000000 --init_time 1000000 -b $GEN_LENGTH -l $GEN_LENGTH -i 0 -s 2 -f 128 -t RES | tee results
+while read line; do
+    LENGTH=$(echo $line | grep RES | cut -d' ' -f2)
+    if [ -n "$LENGTH" ] ; then
+        echo "RESULT-THROUGHPUT $(echo $line | grep RES | cut -d' ' -f11)"
+        echo "RESULT-LOSS $(echo $line | grep RES | cut -d' ' -f12)"
+    fi
+done < results
+//TH=$(cat results | grep RES | cut -d' ' -f11)
+//echo "RESULT-THROUGHPUT $TH"
+
+
+%udp:script@dut 0:ip=10.1.0.1 1:ip=10.2.0.1 2:ip=10.3.0.1 3:ip=10.4.0.1 sudo=true autokill=false
+
+
+%script@dut sudo=true
+cat CONFIG | click --dpdk -n 4 -l 0-$(( $CPU - 1 ))
+
+%file CONFIG
+define ($MTU 1500)
+define ($bout ${BURSTOUT})
+define ($bin ${BURSTIN})
+define ($i 1024)
+tol :: Discard(); //ToHost normally
+
+$GLOBAL_ELEMENTS
+
+elementclass Input { $device,$ip,$eth |
+
+    fd :: FromDPDKDevice($device, BURST $bin, PROMISC false, THREADOFFSET $thoffset, VERBOSE 3, MAXTHREADS $maxthreads, NDESC $descin) ->
+
+    c0 :: Classifier(    12/0806 20/0001,
+                         12/0806 20/0002,
+                         12/0800,
+                         -);
+
+    // Respond to ARP Query
+    c0[0] -> arpress :: ARPResponder($ip $eth);
+    arpress[0] -> Print("ARP QUERY") -> [1]output;
+
+    // Deliver ARP responses to ARP queriers as well as Linux.
+    t :: Tee(2);
+    c0[1] -> t;
+    t[0] -> Print("Input to linux") -> [2]output;
+    t[1] -> Print("Arp response received") -> [3]output;
+
+    //Normal IP tou output 0
+    c0[2] -> [0]output;
+
+    // Unknown ethernet type numbers.
+    c0[3] -> Print("Unknown ethernet") -> Discard();
+}
+
+
+td0 :: ToDPDKDevice(${dut:0:pci} , BURST $bout, IQUEUE $i, BLOCKING true, VERBOSE 3, NDESC $descout)
+td1 :: ToDPDKDevice(${dut:1:pci} , BURST $bout, IQUEUE $i, BLOCKING true, VERBOSE 3, NDESC $descout)
+td2 :: ToDPDKDevice(${dut:2:pci} , BURST $bout, IQUEUE $i, BLOCKING true, VERBOSE 3, NDESC $descout)
+td3 :: ToDPDKDevice(${dut:3:pci} , BURST $bout, IQUEUE $i, BLOCKING true, VERBOSE 3, NDESC $descout)
+
+input0 :: Input(${dut:0:pci}, ${dut:0:ip}, ${dut:0:mac});
+input1 :: Input(${dut:1:pci}, ${dut:1:ip}, ${dut:1:mac});
+input2 :: Input(${dut:2:pci}, ${dut:2:ip}, ${dut:2:mac});
+input3 :: Input(${dut:3:pci}, ${dut:3:ip}, ${dut:3:mac});
+
+//arpq0 :: ARPQuerier(${dut:0:ip}, ${dut:0:mac});
+//arpq1 :: ARPQuerier(${dut:1:ip}, ${dut:1:mac});
+arpq0:: EtherEncap(0x0800, SRC ${dut:0:mac}, DST ${client:0:mac});
+arpq1:: EtherEncap(0x0800, SRC ${dut:1:mac}, DST ${client:1:mac});
+arpq2:: EtherEncap(0x0800, SRC ${dut:2:mac}, DST ${client:2:mac});
+arpq3:: EtherEncap(0x0800, SRC ${dut:3:mac}, DST ${client:3:mac});
+
+input0[1] -> td0;
+input1[1] -> td1;
+input2[1] -> td2;
+input3[1] -> td3;
+
+input0[2] -> tol;
+input1[2] -> tol;
+input2[2] -> tol;
+input3[2] -> tol;
+
+//input0[3] -> [1]arpq0;
+//input1[3] -> [1]arpq1;
+input0[3] -> Discard;
+input1[3] -> Discard;
+input2[3] -> Discard;
+input3[3] -> Discard;
+
+arpq0 $FNTOUT -> td0;
+arpq1 $FNTOUT -> td1;
+arpq2 $FNTOUT -> td2;
+arpq3 $FNTOUT -> td3;
+
+// IP routing table.
+rt ::LookupIPRouteMP(   10.1.0.0/16 0,
+						10.2.0.0/16 1,
+						10.3.0.0/16 2,
+						10.4.0.0/16 3);
+
+// Hand incoming IP packets to the routing table.
+// CheckIPHeader checks all the lengths and length fields
+// for sanity.
+ip ::
+Strip(14)
+-> CheckIPHeader(INTERFACES 10.1.0.1/16 10.2.0.1/16 10.3.0.1/16 10.4.0.1/16, CHECKSUM $CHECKSUM, VERBOSE true)
+-> [0]rt;
+
+oerror :: IPPrint("ICMP Error : DF") -> [0]rt;
+ttlerror :: IPPrint("ICMP Error : TTL") -> [0]rt;
+
+input0[0] -> Paint(1) $FNTIN -> ip;
+input1[0] -> Paint(2) $FNTIN -> ip;
+input2[0] -> Paint(3) $FNTIN -> ip;
+input3[0] -> Paint(4) $FNTIN -> ip;
+
+// IP packets for this machine.
+rt[0] -> output0 :: IPOutputCombo(1, ${dut:0:ip}, $MTU);
+rt[1] -> output1 :: IPOutputCombo(2, ${dut:1:ip}, $MTU);
+rt[2] -> output2 :: IPOutputCombo(3, ${dut:2:ip}, $MTU);
+rt[3] -> output3 :: IPOutputCombo(4, ${dut:3:ip}, $MTU);
+
+output0[3] -> ICMPError(${dut:0:ip}, timeexceeded, SET_FIX_ANNO 0) -> ttlerror;
+output1[3] -> ICMPError(${dut:1:ip}, timeexceeded, SET_FIX_ANNO 0) -> ttlerror;
+output2[3] -> ICMPError(${dut:2:ip}, timeexceeded, SET_FIX_ANNO 0) -> ttlerror;
+output3[3] -> ICMPError(${dut:3:ip}, timeexceeded, SET_FIX_ANNO 0) -> ttlerror;
+
+output0[4] -> ICMPError(${dut:0:ip}, unreachable, needfrag, SET_FIX_ANNO 0) -> oerror;
+output1[4] -> ICMPError(${dut:1:ip}, unreachable, needfrag, SET_FIX_ANNO 0) -> oerror;
+output2[4] -> ICMPError(${dut:2:ip}, unreachable, needfrag, SET_FIX_ANNO 0) -> oerror;
+output3[4] -> ICMPError(${dut:3:ip}, unreachable, needfrag, SET_FIX_ANNO 0) -> oerror;
+
+output0[2] -> ICMPError(${dut:0:ip}, parameterproblem, SET_FIX_ANNO 0) -> oerror;
+output1[2] -> ICMPError(${dut:1:ip}, parameterproblem, SET_FIX_ANNO 0) -> oerror;
+output2[2] -> ICMPError(${dut:2:ip}, parameterproblem, SET_FIX_ANNO 0) -> oerror;
+output3[2] -> ICMPError(${dut:3:ip}, parameterproblem, SET_FIX_ANNO 0) -> oerror;
+
+output0[1] -> ICMPError(${dut:0:ip}, redirect, host, SET_FIX_ANNO 0) -> IPPrint("ICMP Error : Redirect") -> arpq0;
+output1[1] -> ICMPError(${dut:1:ip}, redirect, host, SET_FIX_ANNO 0) -> IPPrint("ICMP Error : Redirect") -> arpq1;
+output2[1] -> ICMPError(${dut:2:ip}, redirect, host, SET_FIX_ANNO 0) -> IPPrint("ICMP Error : Redirect") -> arpq2;
+output3[1] -> ICMPError(${dut:3:ip}, redirect, host, SET_FIX_ANNO 0) -> IPPrint("ICMP Error : Redirect") -> arpq3;
+
+output0[0] -> arpq0;
+output1[0] -> arpq1;
+output2[0] -> arpq2;
+output3[0] -> arpq3;
+
+DriverManager(wait,
+            read input0/fd.hw_count,
+            read input1/fd.hw_count,
+            read input2/fd.hw_count,
+            read input3/fd.hw_count,
+            read input0/fd.hw_dropped,
+            read input1/fd.hw_dropped,
+            read input2/fd.hw_dropped,
+            read input3/fd.hw_dropped,
+            read input0/fd.mac,
+            read input1/fd.mac,
+            read input2/fd.mac,
+            read input3/fd.mac,
+            read td0.count,
+            read td1.count,
+            read td2.count,
+            read td3.count,
+            );

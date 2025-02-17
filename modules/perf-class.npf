@@ -7,7 +7,7 @@ Use the perf-class python program to aggregate using a dictionary. See https://g
 graph_result_as_variable+={PERF-(.*):Perf}
 
 %variables
-PERF_OPT=
+PERF_OPT= -g --call-graph dwarf
 PERF_TIME?=4
 PERF_EVENT=cycles
 PERF_MIN=1
@@ -15,13 +15,14 @@ PERF_CLASS_MAP=EXPAND($NPF_ROOT_PATH/libs/perf/kernel.map)
 PERF_STACK_MAX=8
 PERF_FREQ=1000
 PERF_CLASS_OPT?=
+PERF_SCRIPT_OPT?=
 
 %late_variables
 PERF_PREFIX?=
 
 %sendfile ../libs/perf/
 
-%script sudo=true autokill=false deps=perf-class
+%script sudo=true autokill=false deps=perf-class nokill=true
 trap : INT
 sh script.sh ${PERF_PREFIX}
 
@@ -29,12 +30,17 @@ sh script.sh ${PERF_PREFIX}
 echo "Launching perf record..."
 trap : INT
 PREFIX=$1
-perf record -r 80 -F $PERF_FREQ -a --call-graph dwarf $PERF_OPT -o perf${PREFIX}.data -e $PERF_EVENT sleep $PERF_TIME
-perf script -i perf${PREFIX}.data > perf${PREFIX}.script
+echo "Recording perf..."
+perf record -r 80 -F $PERF_FREQ -a $PERF_OPT -o perf${PREFIX}.data -e $PERF_EVENT sleep $PERF_TIME
+echo "Record finished"
 
 %exit
+echo "Running perf script..."
+sudo perf script ${PERF_SCRIPT_OPT} -i perf${PREFIX}.data > perf${PREFIX}.script
+echo "Running perf class..."
 python3 ${NPF_BUILD_ROOT}/perf-class/perf_class/perf_class.py perf${PERF_PREFIX}.script --map ${PERF_CLASS_MAP} --min ${PERF_MIN} --stack-max ${PERF_STACK_MAX} --show-failed ${PERF_CLASS_OPT} > perf${PERF_PREFIX}.list
 echo "Script finished"
+echo "NOTE: If the number of match is not near 100 percent, add your own perf-class map of events ! Use PERF_CLASS_OPT=--map path/to/file.map"
 cat perf${PERF_PREFIX}.list | while read line; do
     sym=$(echo $line | cut -d';' -f1 | xargs)
     pc=$(echo $line | cut -d';' -f2 | xargs | grep -oE '[0-9.]*' )

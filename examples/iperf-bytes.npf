@@ -1,0 +1,33 @@
+%info
+IPerf 2 Throughput & Transfer Experiment
+
+This version is similar to iperf.npf, but extracts the number of transferred bytes, and not only the throughput.
+
+%config
+n_runs=5
+var_names={PARALLEL:Number of parallel connections,WINDOW:Window size (kB),THROUGHPUT:Throughput,TRANSFER:Transfer}
+timeout=25
+default_repo=iperf2
+graph_background=7
+
+%import graph-beautiful
+
+%variables
+PARALLEL=[1-8]
+WINDOW={64,512}
+TIME=2
+
+%script@server
+iperf -s
+
+%script@client delay=1
+//Launch the program, copy the output to a log
+iperf -c ${server:0:ip} -w ${WINDOW}k -t $TIME -P $PARALLEL 2>&1 | tee iperf.log
+
+//Parse the log to find the throughput & transfer rate
+throughput=$(cat iperf.log | grep -ioE "[0-9.]+ [kmg]?bits" | tail -n 1)
+transfer=$(cat iperf.log | grep -ioE "[0-9.]+ [kmg]?Bytes" | tail -n 1)
+
+//Give the throughput to NPF through stdout
+echo "RESULT-THROUGHPUT $throughput"
+echo "RESULT-TRANSFER $transfer"

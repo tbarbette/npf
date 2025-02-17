@@ -1,6 +1,3 @@
-from npf.variable import OrderedDict
-
-
 from collections import OrderedDict
 
 

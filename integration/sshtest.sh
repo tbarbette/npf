@@ -8,10 +8,10 @@ fi
 set -e
 
 mkdir -p /tmp/npf
-python3 ./npf-run.py local/$(pwd)/libs/ --test integration/localcopy.npf --cluster dut=tbarbette@127.0.0.100:/tmp/npf/,nfs=0 --show-all --force-retest
+python3 ./npf.py local/$(pwd)/libs/ --test integration/localcopy.npf --cluster dut=tbarbette@127.0.0.100:/tmp/npf/,nfs=0 --show-all --force-retest
 rm -rf /tmp/npf
 
 
-python3 ./npf-run.py local/$(pwd)/libs/ --test integration/localcopy.npf --cluster dut=tbarbette@127.0.0.100 --show-all --force-retest
+python3 ./npf.py local/$(pwd)/libs/ --test integration/localcopy.npf --cluster dut=tbarbette@127.0.0.100 --show-all --force-retest
 
 

@@ -52,7 +52,7 @@ setuptools.setup(
     url="https://github.com/tbarbette/npf",
     packages=setuptools.find_packages(),
     package_data={'': ['*.repo', '*.npf']},
-    py_modules=['npf_run', 'npf_compare', 'npf_watch'],
+    py_modules=['npf', 'npf_regress', 'npf_watch'],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
@@ -61,13 +61,17 @@ setuptools.setup(
     python_requires='>=3.6',
     entry_points={
         'console_scripts': [
-            'npf=npf_compare:main',
-            'npf-regress=npf_run:main',
-            'npf-run=npf_run:main',
-            'npf-compare=npf_compare:main',
+            'npf=npf.tests.main:main',
+            'npf-regress=npf_regress:main',
             'npf-watch=npf_watch:main',
-            'npf-run.py=npf_run:main',
-            'npf-compare.py=npf_compare:main',
+
+            #Backward compat
+            'npf-run=npf_regress:main',
+            'npf-compare=npf:main',
+
+            #With .py (backward compat)
+            'npf-run.py=npf_regress:main',
+            'npf-compare.py=npf:main',
             'npf-watch.py=npf_watch:main',
         ],
     },

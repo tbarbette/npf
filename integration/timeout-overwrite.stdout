@@ -1,7 +1,8 @@
-Executing test timeout-overwrite.npf
+[Click 2022] Running test timeout-overwrite.npf on version 9197a59...
 Timeout overwrite test
 Executing init scripts...
 [run 1/1 for test 1/1]
 [30m[0][0m RESULT 1
 [1.0]
-Graph of test written to results/click-2022/9197a59/timeout-overwrite.pdf
+Generating graphs...
+Graph of test written to compare/timeout-overwrite_click-2022.pdf

@@ -1,0 +1,17 @@
+%info
+L2 Packet generation using FastClick and DPDK
+
+Measures the throughput between 2 ports that should be connected through L2 on the same "client" machine
+
+%config
+default_repo=fastclick
+require_tags=dpdk
+timeout=20
+
+%variables
+GEN_LENGTH=[64*1500]
+GEN_PROMISC=1
+
+%-nobind:import@client dpdk-bind NIC=0
+%-nobind:import@client dpdk-bind NIC=1
+%import@client fastclick-udpgen-dual delay=2

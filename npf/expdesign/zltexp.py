@@ -5,7 +5,7 @@ from typing import Dict
 import numpy as np
 from npf.expdesign.fullexp import FullVariableExpander
 from npf.models.dataset import Run
-from npf.variable import Variable
+from npf.models.variables.variable import Variable
 
 class OptVariableExpander(FullVariableExpander):
     def __init__(self, vlist:Dict[str,Variable], results, overriden, input, margin, all=False):
@@ -16,8 +16,8 @@ class OptVariableExpander(FullVariableExpander):
         self.input = input
         self.input_values = vlist[input].makeValues()
         if len(self.input_values) <= 2:
-            print(f"WARNING: Doing zero-loss-throughput search on the variable {input} that has only {len(self.input_values)} values. This is useless."
-                 f"You must define a range to search with a variable like {input}=[0-100#5].")
+            print(  f"WARNING: Doing zero-loss-throughput search on the variable {input} that has only {len(self.input_values)} values. This is useless."
+                    f"You must define a range to search with a variable like {input}=[0-100#5].")
         del vlist[input]
         self.current = None
         self.n_done = 0
@@ -55,16 +55,26 @@ class ZLTVariableExpander(OptVariableExpander):
         return copy
 
     def ensure_monotonic(self, max_r, vals_for_current):
-
-        if not self.monotonic and max_r < max(self.executable_values):
+        if not self.monotonic and \
+            (max_r is not None and max_r < max(self.executable_values) or (max_r is None)):
             # If the function is not monotonic, we now have to try rates between the max acceptable and the first dropping rate
-            after_max = next(iter(filter(lambda x : x > max_r, self.executable_values)))
+            if max_r is not None:
+                after_max = next(iter(filter(lambda x : x > max_r, self.executable_values)))
+            else:
+                after_max = min(self.executable_values)
+
             if after_max not in vals_for_current:
                 return self.need_run_for(after_max)
 
         #Else we're finished
-        self.current = None
+        self.validate_run()
         return self.__next__()
+
+    def validate_run(self):
+        """ Mark this run as the best ZLT one
+        """
+        #self.results[self.current][IS_ZLT] = 1
+        self.current = None
 
     def __next__(self):
         if self.current is None:
@@ -77,6 +87,7 @@ class ZLTVariableExpander(OptVariableExpander):
             self.next_val = None
             self.executable_values = self.input_values.copy()
         elif not self.executable_values:
+            #There's no more points to try, we could never find a ZLT
             self.current = None
             return self.__next__()
 
@@ -101,9 +112,10 @@ class ZLTVariableExpander(OptVariableExpander):
                         else:
                             max_r = min(max_r, r_out)
                 except KeyError as e:
-                    raise Exception(
-                        f"{self.output} is not in the results. Sample of last result : {vals}"
-                    ) from e
+                    #raise Exception(
+                     print(   f"{self.output} is not in the results. Sample of last result : {vals}"
+                    )
+                    #from e
 
         #Step 1 : try the max input rate first
         if not vals_for_current:
@@ -112,21 +124,27 @@ class ZLTVariableExpander(OptVariableExpander):
             #If we're lucky, the max rate is doable
 
             if len(acceptable_rates) == 1 and not self.all:
-                    return self.ensure_monotonic(max(acceptable_rates), vals_for_current)
+                return self.ensure_monotonic(max(acceptable_rates), vals_for_current)
 
 
             #Step 2 : go for the rate below the output of the max input
             maybe_achievable_inputs = list(filter(lambda x : x <= max_r, self.executable_values))
             if len(maybe_achievable_inputs) == 0:
                 print(f"WARNING: No achievable for {self.input}! Tried {max_r} and it did not work.")
-                self.current = None
-                return self.__next__()
+                return self.ensure_monotonic(None, vals_for_current)
             else:
                 next_val = max(maybe_achievable_inputs)
         else:
 
             maybe_achievable_inputs = list(filter(lambda x : x <= max_r*self.margin, self.executable_values))
             left_to_try = set(maybe_achievable_inputs).difference(vals_for_current.keys())
+            if len(left_to_try) == 0: #No more values left to try
+                if len(acceptable_rates) > 0: #Nothing left to try but we have a ZLT, should try the next value in non-monotonic
+                    return self.ensure_monotonic(max(acceptable_rates), vals_for_current)
+                else:
+                    #We could never find a zlt, and there's nothing left to try... no value can handle the input
+                    self.validate_run()
+                    return self.__next__()
 
 
             #Step 3...K : try to get an acceptable rate. This step might be skipped if we got an acceptable rate already
@@ -161,5 +179,99 @@ class ZLTVariableExpander(OptVariableExpander):
             return self.__next__()
 
         return self.need_run_for(next_val)
-        
-        
+
+
+class MinAcceptableVariableExpander(OptVariableExpander):
+
+    def __init__(self, vlist:Dict[str,Variable], results, overriden, input, output, margin):
+        self.output = output
+        super().__init__(vlist, results, overriden, input, margin, False)
+
+    def need_run_for(self, next_val):
+        self.next_val = next_val
+        copy = self.current.copy()
+        copy.update({self.input : next_val})
+        self.n_done += 1
+        return copy
+
+    def ensure_monotonic(self, max_r, vals_for_current):
+        self.validate_run()
+        return self.__next__()
+
+    def validate_run(self):
+        """ Mark this run as the best ZLT one
+        """
+        #self.results[self.current][IS_ZLT] = 1
+        self.current = None
+
+    def __next__(self):
+        if self.current is None:
+            self.current = self.it.__next__()
+            if self.current is None:
+                return None
+            self.n_it += 1
+            self.n_tot_done += self.n_done
+            self.n_done = 0
+            self.next_val = None
+            self.executable_values = self.input_values.copy()
+        elif not self.executable_values:
+            #There's no more points to try, we could never find a ZLT
+            self.current = None
+            return self.__next__()
+
+
+        # get all outputs for all inputs
+        vals_for_current = {}
+        acceptable_rates = []
+        min_r = min(self.executable_values)
+        for r, vals in self.results.items():
+            if Run(self.current).inside(r):
+                try:
+                    if self.output:
+                        r_out = np.mean(vals[self.output])
+                        r_in = r.variables[self.input]
+                        vals_for_current[r_in] = r_out
+                        if r_out >= 100/self.margin:
+                            acceptable_rates.append(r_in)
+                except KeyError as e:
+                    raise Exception(
+                        f"{self.output} is not in the results. Sample of last result : {vals}"
+                    ) from e
+
+        #Step 1 : try the min value first
+        if not vals_for_current:
+            next_val = min_r
+        elif len(vals_for_current) == 1:
+            #If we're lucky, the min rate is doable
+
+            if len(acceptable_rates) == 1:
+                    return self.ensure_monotonic(min(acceptable_rates), vals_for_current)
+
+            #Step 2 : go for the value abouve the undoable value
+            maybe_achievable_inputs = list(filter(lambda x : x >= min_r, self.executable_values))
+            next_val = max(maybe_achievable_inputs)
+        else:
+
+            max_r = max(self.executable_values)
+            if vals_for_current[max_r] < 100/self.margin:
+                #Undoable
+                self.current = None
+                return self.__next__()
+
+            min_acceptable = min(acceptable_rates)
+            maybe_achievable_inputs = list(filter(lambda x : x >= min_r/self.margin, self.executable_values))
+            left_to_try = set(maybe_achievable_inputs).difference(vals_for_current.keys())
+
+            left_to_try_below_acceptable = list(filter(lambda x: x < min_acceptable, left_to_try))
+            if not left_to_try_below_acceptable:
+                return self.ensure_monotonic(min_acceptable, vals_for_current)
+
+            #Binary search
+            next_val = left_to_try_below_acceptable[int(len(left_to_try_below_acceptable) / 2)]
+
+        if next_val == self.next_val:
+            self.executable_values.remove(next_val)
+            #Loop : this value is not running for some reasons
+            return self.__next__()
+
+        return self.need_run_for(next_val)

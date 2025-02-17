@@ -4,6 +4,9 @@ from typing import Dict, Final, List, Tuple
 from collections import OrderedDict
 import sys
 
+from npf import build_filename
+from npf.models.units import get_numeric, is_numeric
+
 if sys.version_info < (3, 7):
     from orderedset import OrderedSet
 else:
@@ -11,10 +14,8 @@ else:
 import natsort
 import csv
 
-from npf import npf
-from npf.variable import is_numeric, get_numeric, numeric_dict
-
-from npf.models.web.web import prepare_web_export
+from npf.models.units import numeric_dict
+from npf.output.web.web import prepare_web_export
 
 class Run:
     def __init__(self, variables):
@@ -194,7 +195,7 @@ def mask_from_filter(fl, data_types, build, ax, y):
                     fl_x = np.array(fl_xyeb[0])
                     fl_y = np.array(fl_xyeb[1])
                     break
-            fl_y = np.array([fl_y[fl_x == r_y][0] if r_y in fl_x else np.NaN for r_y in ax])
+            fl_y = np.array([fl_y[fl_x == r_y][0] if r_y in fl_x else np.nan for r_y in ax])
         else:
             fl_y = np.array(data_types(fl))
         if fl_op == '>':
@@ -277,7 +278,7 @@ def prepare_csvs(all_result_types, datasets, statics, run_list, options, kind=No
                 if result_type in csvs:
                     type_filename,csvfile,wr = csvs[result_type]
                 else:
-                    type_filename = npf.build_filename(test, build, options.output if options.output != 'graph' else options.graph_filename, statics, 'csv', type_str=result_type, show_serie=(len(datasets) > 1 or options.show_serie), force_ext=True, data_folder=True, prefix = kind + '-' if kind else None)
+                    type_filename = build_filename(test, build, options.output if options.output != 'graph' else options.graph_filename, statics, 'csv', type_str=result_type, show_serie=(len(datasets) > 1 or options.show_serie), force_ext=True, data_folder=True, prefix = kind + '-' if kind else None)
                     csvfile = open(type_filename, 'w')
                     wr = csv.writer(csvfile, delimiter=' ',
                                 quotechar='"', quoting=csv.QUOTE_MINIMAL)
@@ -476,3 +477,5 @@ def convert_to_xyeb(datasets: List[Tuple['Test', 'Build' , Dataset]], run_list, 
     return data_types
 
 
+def sanitize(name:str):
+    return name.replace('-', '_')

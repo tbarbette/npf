@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
 NPF repository watcher. Essentially a loop watching for commits in a list of git repo to execute given tests when
-a commit is made. If you want to integrate npf in your CI test suite, use npf-run. Passive watching is intended
+a commit is made. If you want to integrate npf in your CI test suite, use npf.py. Passive watching is intended
 to watch project you don't own but you use, just to be sure that they do not mess performances.
 
-We prefered to separate this tool from npf-run because of the lot of specifics for sending an e-mail, watch loop, etc
+We prefered to separate this tool from npf.py because of the lot of specifics for sending an e-mail, watch loop, etc
 """
 import argparse
 import smtplib
@@ -15,9 +15,11 @@ from email.mime.text import MIMEText
 
 import sys
 
-from npf import npf
-from npf.regression import *
-from npf.test import Test
+import npf
+import npf.cmdline
+import npf.parsing
+from npf.tests.regression import *
+from npf.tests.test import Test
 
 import multiprocessing
 
@@ -116,7 +118,7 @@ class Watcher():
 
                 regressor = Regression(repo)
 
-                build,datasets, time_datasets = regressor.regress_all_tests(tests=tests, options=options, history = self.history)
+                build,datasets, time_datasets = regressor.regress_all_tests(tests=tests, history = self.history)
 
                 if (build is None):
                     continue
@@ -141,13 +143,13 @@ def main():
     parser.add_argument('--history', dest='history', metavar='N', type=int, default=1,
                         help='assume last N commits as untested (default 0)')
 
-    v = npf.add_verbosity_options(parser)
+    v = npf.cmdline.add_verbosity_options(parser)
 
-    t = npf.add_testing_options(parser)
+    t = npf.cmdline.add_testing_options(parser)
 
-    b = npf.add_building_options(parser)
+    b = npf.cmdline.add_building_options(parser)
 
-    a = npf.add_graph_options(parser)
+    a = npf.cmdline.add_graph_options(parser)
     a.add_argument('--graph-num', metavar='N', type=int, nargs='?', default=8,
                    help='Number of versions to graph')
 
@@ -167,7 +169,7 @@ def main():
     parser.set_defaults(graph_size=[6,2.5])
     args = parser.parse_args()
 
-    npf.parse_nodes(args)
+    npf.parsing.parse_nodes(args)
 
     history = args.history
 

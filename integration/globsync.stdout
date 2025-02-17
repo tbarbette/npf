@@ -1,4 +1,4 @@
-Executing test globsync.npf
+[Click 2022] Running test globsync.npf on version 9197a59...
 Executing init scripts...
 [run 1/3 for test 1/1]
 [30m[0][0m A-100-RESULT-V 5
@@ -24,6 +24,5 @@ Executing init scripts...
 [30m[0][0m B-110-RESULT-V 100
 [30m[0][0m A-115-RESULT-V 5
 [30m[0][0m B-115-RESULT-V 50
+Generating graphs...
 No valid data for Build(repo = click-2022, version = 9197a59)
-Graph of test written to results/click-2022/9197a59/globsync-A-V.pdf
-Graph of test written to results/click-2022/9197a59/globsync-B-V.pdf

@@ -1,9 +1,0 @@
-%variables
-N=[1*64]
-A={1, 2, 3}
-B={0,100}
-
-%script
-echo "RESULT-N $(($N * $A + $B))"
-echo "RESULT-LOG $(( log($N * $A + $B) ))"
-echo "RESULT-EXP $(( pow(2,$N * $A + $B) ))"

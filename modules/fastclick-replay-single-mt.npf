@@ -93,7 +93,7 @@ echo "Launching generator with $cpulist CPU cores..."
 $GDB click --dpdk -l $cpulist -- PKTGEN_CONFIG
 echo "EVENT TX_FINISHED"
 
-%file PKTGEN_CONFIG
+%file PKTGEN_CONFIG jinja
 d :: DPDKInfo(NB_SOCKET_MBUF $NBBUF, NB_SOCKET_MBUF 8192)
 
 define($bout $PKTGEN_BURST_OUT)
@@ -113,7 +113,13 @@ define($txverbose 99)
 define($rxverbose 99)
 define($limit $LIMIT)
 
-$(( "fdIN :: FromDump($trace, STOP false, TIMING false)" if $GEN_DUMP == 0 else "fdIN :: FromIPSummaryDump($trace, TIMING false, TIMESTAMP false, ZERO false, TIMES -1, STOP true);" if $GEN_DUMP==1 else "fdIN :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH $GEN_LENGTH, SRCETH $INsrcmac, DSTETH $INdstmac, SRCIP ${client:0:ip}, DSTIP ${server:0:ip}, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST, SEQUENTIAL $GEN_SEQUENTIAL)" ))
+{% if GEN_DUMP == 0 %}
+fdIN :: FromDump($trace, STOP false, TIMING false)
+{% elif GEN_DUMP == 1 %}
+fdIN :: FromIPSummaryDump($trace, TIMING false, TIMESTAMP false, ZERO false, TIMES -1, STOP true);
+{% else %}
+fdIN :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH $GEN_LENGTH, SRCETH $INsrcmac, DSTETH $INdstmac, SRCIP ${client:0:ip}, DSTIP ${server:0:ip}, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST, SEQUENTIAL $GEN_SEQUENTIAL)
+{% endif %}
 
 tdIN :: ToDPDKDevice($txport, BLOCKING $GEN_BLOCKING, BURST $bout, VERBOSE $txverbose, IQUEUE $bout, NDESC $GEN_DESC, TCO $TCO)
 

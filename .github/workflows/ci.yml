@@ -40,7 +40,7 @@ jobs:
         pip install pytest
     - name: Version
       run: |
-        npf-run --version
+        npf --version
     - name: Compilation test
       run: |
         python -m compileall -q npf *.py

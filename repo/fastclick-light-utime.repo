@@ -1,0 +1,3 @@
+parent=fastclick-light
+name=FastClick - DPacket and disabled all generally unused features, enabling user timestamp
+configure+=--enable-user-timestamp

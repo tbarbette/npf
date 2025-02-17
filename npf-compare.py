@@ -1,1 +1,0 @@
-npf_compare.py

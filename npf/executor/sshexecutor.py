@@ -5,12 +5,14 @@ from multiprocessing import Queue
 from typing import List
 import warnings
 from cryptography.utils import CryptographyDeprecationWarning
+
+import npf.globals
+from npf.tests.eventbus import EventBus
 with warnings.catch_warnings():
     warnings.filterwarnings('ignore', category=CryptographyDeprecationWarning)
     import paramiko
 from .executor import Executor
-from ..eventbus import EventBus
-from .. import npf
+
 from paramiko.buffered_pipe import PipeTimeout
 import socket
 import stat
@@ -50,7 +52,7 @@ class SSHExecutor(Executor):
     def exec(self, cmd, bin_paths : List[str] = None,
              queue: Queue = None, options = None,
              stdin = None, timeout=None, sudo=False, testdir=None,
-             event=None, title=None, env={}, virt = "", raw = False):
+             event=None, title=None, env={}, virt = "", raw = False, nokill = False):
         if testdir:
             cmd = "mkdir -p " + testdir + " && cd " + testdir + ";\n" + cmd;
         if not title:
@@ -70,9 +72,9 @@ class SSHExecutor(Executor):
 
         if self.path:
             env['NPF_ROOT'] = self.path
-            env['NPF_CWD_PATH'] = os.path.relpath(npf.cwd_path(options),self.path)
-            env['NPF_EXPERIMENT_PATH'] = '../' + os.path.relpath(npf.experiment_path(), self.path)
-            env['NPF_ROOT_PATH'] = '../' + os.path.relpath(npf.npf_root_path(), self.path)
+            env['NPF_CWD_PATH'] = os.path.relpath(npf.globals.cwd_path(options),self.path)
+            env['NPF_EXPERIMENT_PATH'] = '../' + os.path.relpath(npf.globals.experiment_path(), self.path)
+            env['NPF_ROOT_PATH'] = '../' + os.path.relpath(npf.globals.npf_root_path(), self.path)
         env_str=""
         for k,v in env.items():
             if v is not None:
@@ -115,7 +117,7 @@ class SSHExecutor(Executor):
             #for channel in channels:
             #   channel.channel.setblocking(False)
 
-            while (not event.is_terminated() and not ssh_stdout.channel.exit_status_ready()) or (ssh_stdout.channel.recv_ready() or ssh_stderr.channel.recv_ready()):
+            while ((nokill or not event.is_terminated()) and not ssh_stdout.channel.exit_status_ready()) or (ssh_stdout.channel.recv_ready() or ssh_stderr.channel.recv_ready()):
                 try:
                     line = None
                     for ichannel,channel in enumerate(channels):
@@ -165,7 +167,8 @@ class SSHExecutor(Executor):
                         event.terminate()
                         pid = 0
                         break
-                if event.is_terminated():
+                if not nokill and event.is_terminated():
+                    print("Terminated, so killing if", queue)
                     if not ssh_stdin.channel.closed:
 
                         if options and options.debug:
