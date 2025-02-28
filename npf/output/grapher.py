@@ -30,6 +30,7 @@ if sys.version_info < (3, 7):
     from orderedset import OrderedSet
 else:
     from ordered_set import OrderedSet
+from npf.version import __version__
 
 from packaging import version
 from scipy import ndimage
@@ -1007,9 +1008,23 @@ class Grapher:
             else:
                 type_filename = npf.build_filename(one_test, one_build, filename if not filename is True else None, graph.statics(), 'pdf', type_str=(fileprefix +'-' if fileprefix else "") +result_type, show_serie=False)
                 try:
+                    metadata_creator = f"npf v{__version__}"
+
+                    script_name = list(self.scripts)[0]     # there should only be one script
+                    filename = f"{script_name.path}/{script_name.filename}"
+                    print(filename)
+                    with open(filename, "r") as f:
+                        metadata_subject = f"----- File {script_name.filename} -----\n{f.read()}"
+
+                    metadata = {
+                        "Creator": metadata_creator,
+                        "Subject": metadata_subject
+                    }
+
                     plt.savefig(type_filename, bbox_extra_artists=extra_artists if len(extra_artists) > 0 else [],
                             bbox_inches='tight',
-                            dpi=self.options.graph_dpi, transparent=True)
+                            dpi=self.options.graph_dpi, transparent=True,
+                            metadata=metadata)
                     print("Graph of test written to %s" % type_filename)
                 except Exception as e:
                     print("ERROR : Could not draw the graph!")
