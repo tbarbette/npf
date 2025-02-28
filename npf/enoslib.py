@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List
+from typing import Dict, Iterable, List
 import enoslib as en
 
 import npf.cmdline
@@ -14,7 +14,7 @@ from npf.tests.test_driver import Comparator
 import npf
 import argparse
 
-def run(npf_script, roles:Dict[str,en.Host], argsv: List[str] = None):
+def run(npf_script, series:List[str], roles:Dict[str,en.Host], argsv: List[str] = None):
     if argsv is None:
         argsv = []
     logging.getLogger('fontTools.subset').level = logging.WARN
@@ -28,20 +28,27 @@ def run(npf_script, roles:Dict[str,en.Host], argsv: List[str] = None):
 
     full_args = ["--test", npf_script, *argsv]
     args = parser.parse_args(full_args)
+
+    #The repo argument is just a trick to have the API look more pytonish
+    args.repos.extend(series)
+
     npf.parsing.initialize(args)
     npf.parsing.create_local()
 
     #en.set_config(ansible_stdout="regular")
 
-    for r, eno_obj in roles.items():
+    for r, eno_objs in roles.items():
         from npf.executor.enoslibexecutor import EnoslibExecutor
-        ex = EnoslibExecutor(eno_obj)
 
-        node = Node(eno_obj.address, executor=ex, tags=args.tags)
-        if r in npf.globals.roles:
-            npf.globals.roles[r].append(node)
-        else:
-            npf.globals.roles[r] = [node]
+        if not isinstance(eno_objs, Iterable):
+            eno_objs=[eno_objs]
+        for eno_obj in eno_objs:
+            ex = EnoslibExecutor(eno_obj)
+            node = Node(eno_obj.address, executor=ex, tags=args.tags)
+            if r in npf.globals.roles:
+                npf.globals.roles[r].append(node)
+            else:
+                npf.globals.roles[r] = [node]
 
     repo_list = []
     for repo_name in args.repos:

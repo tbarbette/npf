@@ -10,6 +10,8 @@ from pathlib import Path
 
 import enoslib as en
 
+
+
 class EnoslibExecutor(Executor):
     def __init__(self, machine):
         super().__init__()
@@ -64,9 +66,9 @@ class EnoslibExecutor(Executor):
         else:
             cmd = virt + " bash -c '"+ cmd.replace("'", "'\"'\"'") + "'";
 
-        killer = EnoslibKiller(pgpid)
-        if queue:
-            queue.put(killer)
+#        if queue:
+#            killer = EnoslibKiller(pgpid)
+#            queue.put(killer)
 
         try:
             p = en.run_command(cmd, roles=self.machine)

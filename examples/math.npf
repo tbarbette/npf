@@ -12,7 +12,7 @@ var_format={RESULT:%d}
 %variables
 N=[1-50]
 
-%script
+%script@client
 echo "RESULT-N $N"
 echo "RESULT-LOG $(( log($N) ))"
 echo "RESULT-EXP $(( pow(2,$N) ))"
