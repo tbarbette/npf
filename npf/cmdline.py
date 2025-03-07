@@ -80,18 +80,22 @@ def add_graph_options(parser: ArgumentParser):
     g.add_argument('--graph-group-repo', dest='group_repo', action='store_true', default=False, help="Group series, using the repository name as a variable")
 
     g.add_argument('--graph-group-series', dest='group_series', action='store_true', default=False, help="Group series with the same name")
+
+    g.add_argument('--keep-parameters', dest='remove_parameters', action='store_false', default=True, help="Do not remove parameters from the dataset. By default, variables which have the same values for the entire dataset are removed before the dataset is passed to output modules (CSV, graphs, web, ...). This option keeps them.")
+
     g.add_argument('--no-transform', dest='do_transform', action='store_false', default=True, help="Forbid automatic transformation of data such as extracting a variable as a serie")
 
-    g.add_argument('--graph-select-max', dest='graph_select_max', type=int, default=None)
+    g.add_argument('--graph-select-max', dest='graph_select_max', type=int, default=None, help="Only keep the first X results for each run.")
 
     g.add_argument('--graph-dpi', dest='graph_dpi', type=int, default=300)
 
-    g.add_argument('--no-graph-time', dest='do_time', action='store_false', default=True)
+    g.add_argument('--no-graph-time', dest='do_time', action='store_false', default=True, help="Do not plot time series graphs")
 
-    g.add_argument('--no-graph', dest='no_graph', action='store_true', default=False)
+    g.add_argument('--no-graph', dest='no_graph', action='store_true', default=False, help="Do not plot graphs")
 
     g.add_argument('--iterative', dest='iterative', action='store_true', default=False,
                    help='Graph after each results, allowing to get a faster glimpse at the results')
+
     g.add_argument('--onefirst', dest='onefirst', action='store_true', default=False,
                    help='Do a first pass with one run per variables, then do the last runs')
 
