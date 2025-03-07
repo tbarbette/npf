@@ -1010,11 +1010,10 @@ class Grapher:
                 try:
                     metadata_creator = f"npf v{__version__}"
 
-                    script_name = list(self.scripts)[0]     # there should only be one script
-                    filename = f"{script_name.path}/{script_name.filename}"
-                    print(filename)
-                    with open(filename, "r") as f:
-                        metadata_subject = f"----- File {script_name.filename} -----\n{f.read()}"
+                    test_script = list(self.scripts)[0]     # there should only be one script
+                    script_filename = f"{test_script.path}/{test_script.filename}"
+                    with open(script_filename, "r") as f:
+                        metadata_subject = f"----- File {test_script.filename} -----\n{f.read()}"
 
                     metadata = {
                         "Creator": metadata_creator,
