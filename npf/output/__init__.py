@@ -23,7 +23,7 @@ def generate_outputs(filename: str, series: Series , time_series:Series, options
     if series is None:
         return
 
-    #Group repo if asked to do so
+    #Group repo if asked to do so with --group-repo. If the user called NPF with multiple series like 'npf.py repo1 repo2 --group-repo ...' it will move repo1 and repo2 as a variable instead of keeping it as different series.
     if options.group_repo:
         repo_series=OrderedDict()
         for test, build, dataset in series:
@@ -38,6 +38,7 @@ def generate_outputs(filename: str, series: Series , time_series:Series, options
             series.append((test, build, dataset))
 
     # Merge series with common name
+    # If user launched with 'npf.py local+VAR=1:Test local+VAR=2:Test', despite the two series having the same name they won't be merged by default. This options will merge resutls as if they were part of the same serie.
     if options.group_series:
         merged_series = OrderedDict()
         for test, build, dataset in series:
@@ -98,20 +99,21 @@ def generate_outputs(filename: str, series: Series , time_series:Series, options
             useful_variables.remove(v)
 
     #Keep only the variables in Run that are usefull as defined above
-    for i, (test, build, dataset) in enumerate(series):
-        new_dataset: Dict[Run,List] = OrderedDict()
-        for run, results in dataset.items():
-            m = run.intersect(useful_variables)
-            if m in new_dataset:
-                print(f"WARNING: You are comparing series with different variables. Results of series '{build.pretty_name()}' are merged.")
-                for output, data in results.items():
-                    if output in new_dataset[m]:
-                        new_dataset[m][output].extend(data)
-                    else:
-                        new_dataset[m][output] = data
-            else:
-                new_dataset[m] = results
-        series[i] = (test, build, new_dataset)
+    if options.remove_parameters:
+        for i, (test, build, dataset) in enumerate(series):
+            new_dataset: Dict[Run,List] = OrderedDict()
+            for run, results in dataset.items():
+                m = run.intersect(useful_variables)
+                if m in new_dataset:
+                    print(f"WARNING: You are comparing series with different variables. Results of series '{build.pretty_name()}' are merged.")
+                    for output, data in results.items():
+                        if output in new_dataset[m]:
+                            new_dataset[m][output].extend(data)
+                        else:
+                            new_dataset[m][output] = data
+                else:
+                    new_dataset[m] = results
+            series[i] = (test, build, new_dataset)
 
     #Keep only the variables in Time Run that are usefull as defined above
     if options.do_time:
