@@ -250,7 +250,7 @@ class SectionVariable(Section):
         elif "zl" in method.lower():
             if method.lower().startswith("allzl"):
                 all_lower = True
-                perc = method.lower()[5] == 'p'
+                perc = method.lower()[6] == 'p'
             else:
                 all_lower = False
                 perc = method.lower()[2] == 'p'

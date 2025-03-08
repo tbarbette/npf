@@ -1224,8 +1224,14 @@ class Test:
 
                 if prev_results and prev_results is not None and not (options.force_test or options.force_retest):
                     run_results = prev_results.get(run, None)
+
                     if run_results is None:
                         run_results = {}
+                        if self.options.debug:
+                            print(f"[DEBUG] {run} not found in cache ({len(prev_results)} entries)")
+                    else:
+                        if self.options.debug:
+                            print(f"[DEBUG] {run} found in cache ({len(prev_results)} entries) : {run_results}")
                 else:
                     run_results = {}
 

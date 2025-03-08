@@ -3,6 +3,7 @@ from npf.models.dataset import mask_from_filter
 from npf.models.units import np
 
 
+from npf.output.graph.colors import lighter
 import matplotlib.pyplot as plt
 import numpy as np
 
