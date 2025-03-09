@@ -1,4 +1,5 @@
 from npf.models.units import get_numeric
+from npf.models.variables.ParentVariable import ParentVariable
 from npf.models.variables.DictVariable import DictVariable
 from npf.models.variables.ExpandVariable import ExpandVariable
 from npf.models.variables.HeadVariable import HeadVariable
@@ -10,8 +11,6 @@ from npf.models.variables.SimpleVariable import SimpleVariable
 
 
 import regex
-
-
 import re
 
 
@@ -35,8 +34,12 @@ class VariableFactory:
         result = regex.match("EXPAND\((.*)\)", valuedata)
         if result:
             if vsection is None:
-                raise Exception("RANDOM variable without vsection",vsection)
+                raise Exception("EXPAND variable without vsection",vsection)
             return ExpandVariable(name, result.group(1), vsection)
+
+        result = regex.match("CONCAT\((.*),(.*)\)", valuedata)
+        if result:
+            return ParentVariable(name, [VariableFactory.build(name,result.group(1),vsection), VariableFactory.build(name,result.group(2),vsection)])
 
         result = regex.match("RANDOM[ ]*\([ ]*([^,]+)[ ]*,[ ]*([^,]+)[ ]*\)", valuedata)
         if result:
