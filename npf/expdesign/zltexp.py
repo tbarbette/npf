@@ -62,13 +62,12 @@ class ZLTVariableExpander(OptVariableExpander):
         self.output = output
         self.perc = perc
         self.monotonic = monotonic
-        self.constraints = constraints
         super().__init__(vlist, results, overriden, input, margin, all)
-        if self.constraints:
-            self.results = OrderedDict(
-                sorted(self.results.items(), key=lambda result: tuple(result[0].variables[c] for c in self.constraints if c in result[0].variables),reverse=True)
-            )
-
+        if constraints:
+            self.expanded = sorted(self.expanded, key=lambda result: tuple(result[c] for c in constraints if c in result),reverse=True)
+            self.constraints = [tuple((c, vlist[c].makeValues())) for c in constraints]
+        else:
+             self.constraints = None
 
     def need_run_for(self, next_val):
         self.next_val = next_val
@@ -111,9 +110,32 @@ class ZLTVariableExpander(OptVariableExpander):
             self.next_val = None
             self.executable_values = self.input_values.copy()
             if self.constraints:
-                for c in self.constraints:
-                    if c in self.current:
-                        self.executable_values = list(filter(lambda x : x <= self.current[c], self.executable_values))
+                for c, c_vals in self.constraints:
+                    m = None
+                    cplus = min(filter(lambda x: x > self.current[c], c_vals), default=None)
+                    for r, vals in self.results.items():
+                        """
+                        say we are now at CPU=4, we should start at the minimal accepted rate for CPU=5
+                        """
+                        #Keep only CPU = 5
+                        if r.variables[c] != cplus:
+                            continue
+                        wc = self.current.copy()
+                        del wc[c]
+
+                        if Run(wc).inside(r):  #Without the constraint and the rate, so the run is any rate but with C == 5
+                            #print("Consider", r)
+                            r_out = np.mean(vals[self.output])
+                            r_in = r.variables[self.input]
+                            if self.perc:
+                                r_out = r_out/100 * r_in
+                            if r_out >= r_in/self.margin:
+                                #Accepted run
+                                if m is None or r_in > m: #Find the rate at which drops start
+                                    m = r_in
+                    #print("Max for ", cplus, " is ", m)
+                    if m:
+                        self.executable_values = list(filter(lambda x : x <= m, self.executable_values))
         elif not self.executable_values:
             #There's no more points to try, we could never find a ZLT
             self.current = None
@@ -205,7 +227,7 @@ class ZLTVariableExpander(OptVariableExpander):
                         if left_to_try_below_acceptable and self.all == 2:
                             to_try = set()
                             step = 1
-                            print(self.executable_values)
+
                             midx = self.executable_values.index(max_acceptable)
                             pos = midx - 1
                             while pos >= 0:
