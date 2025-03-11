@@ -40,12 +40,35 @@ class OptVariableExpander(FullVariableExpander):
         return f"~{approx}(max {max})"
 
 class ZLTVariableExpander(OptVariableExpander):
+    """ZLT variable expander. This class is used to find the Zero Loss Throughput of a system.
 
-    def __init__(self, vlist:Dict[str,Variable], results, overriden, input, output, margin, all=False, perc=False, monotonic=False):
+    In a broader way, it will try to find the maximal value for a given parameter that passes some acceptance test. For ZLT, the acceptence is the number of packets being dropped nearing zero.
+
+    Given a possible input speed of 1 to 16MPPS, it will try 16MPPS first. If the output observed rate was 8MPPS (with zlp instead of zlt, ie perc=True in this class, it will use a percentage instead), it will try 7MPPS, the rate below the obseration.
+    If 7MPPS was not achievable, the first goal is to find a "minimal" acceptable rate with a binary search. Say 7MPPS of input gave 2MPPS of output, it will try 7-2=5MPPS. That is very unlikely though, much probably 7 was okay.
+    When a minimal acceptable rate is found, it will try to find the maximal acceptable rate with a binary search. Say 7MPPS was acceptable, nothing says that 8 or 9 was not okay too as the response is not necessarily linear. So it will try the middle between 8 and 15. So 11. Then 9, then 8.
+
+    Once the maximum acceptable rate is found, by default ZLT will try the value above to ensure that the rate is not diminishing and the response is indeed monotonic. If monotonic is true then this will not be done.
+
+    The parameter all will force to run all acceptable rates. This is useful when you want to find all acceptable rates, not only the maximal one and want to observe what happens below the maximal rate. However in general you don't want *all* rates under the maximal one, but just what is necessary to observe how, say, the latency, increase with the rate. So all can be 2 to use an exponential backoff. If the acceptable rate is 8, it will only try 8-1=7, 8-2=6, 8-4=4, (not 8-8=0 unless that is a valid rate)
+
+    Constraints are variables for which a higher value, all other parameters being equal, is better. For instance, the number of cores is a usual constraint in a system which is relatively horizontally scalable.
+    Imagine you have 14MPPS with 4 cores and the system has not much inter-core contention. There's no need to try 15 and 16MPPS with 3 cores as 3 cores cannot do better than 4 cores.
+    The same is true for frequency
+
+    """
+    def __init__(self, vlist:Dict[str,Variable], results, overriden,
+                 input, output, margin, all=0, perc=False, monotonic=False,constraints=[]):
         self.output = output
         self.perc = perc
         self.monotonic = monotonic
+        self.constraints = constraints
         super().__init__(vlist, results, overriden, input, margin, all)
+        if self.constraints:
+            self.results = OrderedDict(
+                sorted(self.results.items(), key=lambda result: tuple(result[0].variables[c] for c in self.constraints if c in result[0].variables),reverse=True)
+            )
+
 
     def need_run_for(self, next_val):
         self.next_val = next_val
@@ -74,6 +97,7 @@ class ZLTVariableExpander(OptVariableExpander):
         """ Mark this run as the best ZLT one
         """
         #self.results[self.current][IS_ZLT] = 1
+
         self.current = None
 
     def __next__(self):
@@ -86,6 +110,10 @@ class ZLTVariableExpander(OptVariableExpander):
             self.n_done = 0
             self.next_val = None
             self.executable_values = self.input_values.copy()
+            if self.constraints:
+                for c in self.constraints:
+                    if c in self.current:
+                        self.executable_values = list(filter(lambda x : x <= self.current[c], self.executable_values))
         elif not self.executable_values:
             #There's no more points to try, we could never find a ZLT
             self.current = None
@@ -118,23 +146,25 @@ class ZLTVariableExpander(OptVariableExpander):
                     #from e
 
         #Step 1 : try the max input rate first
+        next_val = None
         if not vals_for_current:
             next_val = max_r
         elif len(vals_for_current) == 1:
             #If we're lucky, the max rate is doable
-
-            if len(acceptable_rates) == 1 and not self.all:
-                return self.ensure_monotonic(max(acceptable_rates), vals_for_current)
-
-
-            #Step 2 : go for the rate below the output of the max input
-            maybe_achievable_inputs = list(filter(lambda x : x <= max_r, self.executable_values))
-            if len(maybe_achievable_inputs) == 0:
-                print(f"WARNING: No achievable for {self.input}! Tried {max_r} and it did not work.")
-                return self.ensure_monotonic(None, vals_for_current)
+            if len(acceptable_rates) == 1:
+                if not self.all:
+                    return self.ensure_monotonic(max(acceptable_rates), vals_for_current)
             else:
-                next_val = max(maybe_achievable_inputs)
-        else:
+                #Step 2 : go for the rate below the output of the max input
+                maybe_achievable_inputs = list(filter(lambda x : x <= max_r, self.executable_values))
+                if len(maybe_achievable_inputs) == 0:
+                    print(f"WARNING: No achievable for {self.input}! Tried {max_r} and it did not work.")
+                    return self.ensure_monotonic(None, vals_for_current)
+                else:
+                    next_val = max(maybe_achievable_inputs)
+
+        if next_val==None:
+            #We have at least two values or one value but it's acceptable and all is set, so we need to analyse values below the max acceptable rate
 
             maybe_achievable_inputs = list(filter(lambda x : x <= max_r*self.margin, self.executable_values))
             left_to_try = set(maybe_achievable_inputs).difference(vals_for_current.keys())
@@ -161,19 +191,44 @@ class ZLTVariableExpander(OptVariableExpander):
                 else:
                     next_val = min(left_to_try)
             else:
+                #We now have an acceptable rate, but we don't know if it's the actual maximal one
                 #Step K... n : we do a binary search between the maximum acceptable rate and the minimal rate observed
-                max_acceptable = -1 if self.all else max(acceptable_rates)
+
+                #Max acceptable is the maximal known working rate
+                max_acceptable = max(acceptable_rates)
                 #Consider we tried 100->95 (max_r=95), 90->90 (acceptable) we have to try values between 90..95
                 left_to_try_over_acceptable = list(filter(lambda x: x > max_acceptable, left_to_try))
                 if not left_to_try_over_acceptable:
-                    return self.ensure_monotonic(max(acceptable_rates), vals_for_current)
+                    #Ok so we now have the real max acceptable rate. We now have to do more exploration if all is set
+                    if self.all >= 1:
+                        left_to_try_below_acceptable = list(filter(lambda x: x < max_acceptable, left_to_try))
+                        if left_to_try_below_acceptable and self.all == 2:
+                            to_try = set()
+                            step = 1
+                            print(self.executable_values)
+                            midx = self.executable_values.index(max_acceptable)
+                            pos = midx - 1
+                            while pos >= 0:
+                                val = self.executable_values[pos]
+                                if val in left_to_try_below_acceptable:
+                                    to_try.add(val)
+                                step *= 2
+                                pos = midx - step
+
+                            left_to_try_below_acceptable = to_try
+                        left_to_try_over_acceptable = left_to_try_below_acceptable
+                    if not left_to_try_over_acceptable:
+                        return self.ensure_monotonic(max(acceptable_rates), vals_for_current)
                 #Binary search
-                if self.all:
+                if self.all > 0:
                     next_val = max(left_to_try_over_acceptable)
                 else:
                     next_val = left_to_try_over_acceptable[int(len(left_to_try_over_acceptable) / 2)]
 
         if next_val == self.next_val:
+
+            print("ZLT Warning: Removing ",next_val)
+            print(vals_for_current)
             self.executable_values.remove(next_val)
             #Loop : this value is not running for some reasons
             return self.__next__()
@@ -182,7 +237,9 @@ class ZLTVariableExpander(OptVariableExpander):
 
 
 class MinAcceptableVariableExpander(OptVariableExpander):
-
+    """An exploration that tries to find the smallest value that is acceptable for a given factor.
+    Typical usage is when you want to find the minimum amount of cores needed to achieve a certain throughput.
+    """
     def __init__(self, vlist:Dict[str,Variable], results, overriden, input, output, margin):
         self.output = output
         super().__init__(vlist, results, overriden, input, margin, False)

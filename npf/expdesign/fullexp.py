@@ -6,6 +6,7 @@ class FullVariableExpander:
     matrix first."""
 
     def __init__(self, vlist, overriden):
+         #List of all variables
         self.expanded = [OrderedDict()]
         for k, v in vlist.items():
             if k in overriden:

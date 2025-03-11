@@ -1,5 +1,4 @@
 from collections import OrderedDict
-import random
 from npf.expdesign.fullexp import FullVariableExpander
 from skopt.sampler import Lhs
 from skopt.space import Space
@@ -7,12 +6,21 @@ from skopt.space import Space
 class LHSVariableExpander(FullVariableExpander):
     """Same as BruteVariableExpander but uses LHS to explore only some point"""
 
-    def __init__(self, vlist, overriden, seed, n_iter):
+    def __init__(self, vlist, overriden, seed, n_iter,type="classic", criterion="maximin"):
         self.n_iter = n_iter
+
+        #skopt space
         v_space = []
+
+        #r_space is the real space
         r_space = []
+
+        #List of all variables
         self.expanded = []
+
         ks = []
+
+        #List of parameters (factors with single value)
         uniques = OrderedDict()
         self.orig_n = 1 #Original dimension size
         for k, v in vlist.items():
@@ -32,7 +40,7 @@ class LHSVariableExpander(FullVariableExpander):
 
         space = Space(v_space)
 
-        lhs = Lhs(criterion="maximin", iterations=10000)
+        lhs = Lhs(criterion=criterion, type="classic", iterations=10000)
         x = lhs.generate(space.dimensions, n_samples=n_iter, random_state=seed)
         for line in x:
             d = OrderedDict()

@@ -3,8 +3,11 @@ import re
 import time
 from typing import List, Set
 from npf.expdesign.fullexp import FullVariableExpander
+from npf.expdesign.gpexp import GPVariableExpander
 from npf.expdesign.lhsexp import LHSVariableExpander
+from npf.expdesign.multiexp import MultiVariableExpander
 from npf.expdesign.randomexp import RandomVariableExpander
+from npf.expdesign.twokexp import TWOKVariableExpander
 from npf.expdesign.zltexp import ZLTVariableExpander, MinAcceptableVariableExpander
 from npf.models.units import is_bool
 from npf.models.variables.variable import Variable
@@ -209,59 +212,82 @@ class SectionVariable(Section):
             values.append(SectionVariable.replace_variables(v, value))
         return values
 
+    def _expand_single(self, results, m, overriden):
+            a = m.find("(")
+            params = []
+
+            if a > 0:
+                params = m[a + 1:-1].split(",")
+            if m.lower() == "shuffle" or m.lower().startswith("rand"):
+                if len(params) >= 1:
+                    seed = int(params[0])
+                else:
+                    print("WARNING: Using a time-based seed. Please set the seed with --exp-design random(42)")
+                    seed = time.time()
+                return RandomVariableExpander(self.vlist, overriden, seed = seed, n_iter = int(params[1]) if len(params) >= 2 else -1)
+            elif m.lower().startswith("gp"):
+                if len(params) >= 1:
+                    seed = int(params[0])
+                else:
+                    print("WARNING: Using a time-based seed. Please set the seed with --exp-design gp(42)")
+                    seed = int(time.time())
+                return GPVariableExpander(self.vlist, results=results, overriden=overriden, seed = seed, ci = float(params[1]) if len(params) >= 2 else 0.95, outputs=params[2:] if len(params) >= 3 else [])
+            elif m.lower().startswith("lhs"):
+                if len(params) >= 1:
+                    seed = int(params[0])
+                else:
+                    print("WARNING: Using a time-based seed. Please set the seed with --exp-design lhs(42)")
+                    seed = time.time()
+                return LHSVariableExpander(self.vlist, overriden, seed = seed, n_iter = int(params[1]) if len(params) >= 2 else -1)
+            elif "zl" in m.lower():
+                if m.lower().startswith("nearzl"):
+                    all_lower = 2
+                    perc = m.lower()[7] == 'p'
+                elif m.lower().startswith("allzl"):
+                    all_lower = 1
+                    perc = m.lower()[6] == 'p'
+                else:
+                    all_lower = 0
+                    perc = m.lower()[2] == 'p'
+                monotonic = m.lower()[-1] == 'm'
+                return ZLTVariableExpander(self.vlist, overriden=overriden, results=results, input=params[0], output=params[1],
+                                           margin=1.01 if len(params) == 2 else float(params[2]), all=all_lower, perc=perc, monotonic=monotonic,
+                                           constraints=params[3:] if len(params) > 3 else [])
+            elif "minacceptable" in m.lower():
+                return MinAcceptableVariableExpander(self.vlist, overriden=overriden, results=results, input=params[0], output=params[1], margin=1.01 if len(params) == 2 else float(params[2]))
+            elif m.lower()=="2k":
+                return TWOKVariableExpander(self.vlist, overriden=overriden)
+            else:
+                return FullVariableExpander(self.vlist, overriden)
+
     def expand(self, results=None, method="full", overriden=set()):
         """Expands variables based on the specified method.
 
         This method determines how to expand the variables in the list based on the provided method.
         It can return different types of variable expanders depending on the method specified, including
-        random shuffling or specific ZLT expansions.
+        random shuffling, 2K or specific zero-loss-throughput expansions.
+
+        Multiple methods can be given in which case methods will run one after the other. This allows bootstrapping.
 
         Args:
             results (dict, optional): A dictionary of previous results for iterative methods. Defaults to an empty dictionary.
-            method (str, optional): The method to use for expansion. Can be "full", "shuffle", "rand", "random", or variations of "zl". Defaults to "full".
+            method (str, optional): The method to use for expansion. Can be "full", "shuffle", "2k", "rand", "random", or variations of "zl". Defaults to "full".
             overriden (set, optional): A set of overridden variables. Defaults to an empty set.
 
         Returns:
             VariableExpander: An instance of the appropriate variable expander based on the method specified.
 
         """
-
         if results is None:
             results = {}
-        a = method.find("(")
-        params = []
 
-        if a > 0:
-            params = method[a + 1:-1].split(",")
-        if method == "shuffle" or method.startswith("rand"):
-            if len(params) >= 1:
-                seed = int(params[0])
-            else:
-                print("WARNING: Using a time-based seed. Please set the seed with --exp-design random(42)")
-                seed = time.time()
-            return RandomVariableExpander(self.vlist, overriden, seed = seed, n_iter = int(params[1]) if len(params) >= 2 else -1)
-        elif method.startswith("lhs"):
-            if len(params) >= 1:
-                seed = int(params[0])
-            else:
-                print("WARNING: Using a time-based seed. Please set the seed with --exp-design lhs(42)")
-                seed = time.time()
-            return LHSVariableExpander(self.vlist, overriden, seed = seed, n_iter = int(params[1]) if len(params) >= 2 else -1)
-        elif "zl" in method.lower():
-            if method.lower().startswith("allzl"):
-                all_lower = True
-                perc = method.lower()[6] == 'p'
-            else:
-                all_lower = False
-                perc = method.lower()[2] == 'p'
-            monotonic = method.lower()[-1] == 'm'
-            return ZLTVariableExpander(self.vlist, overriden=overriden, results=results, input=params[0], output=params[1], margin=1.01 if len(params) == 2 else float(params[2]), all=all_lower, perc=perc, monotonic=monotonic)
-        elif "minacceptable" in method.lower():
-            return MinAcceptableVariableExpander(self.vlist, overriden=overriden, results=results, input=params[0], output=params[1], margin=1.01 if len(params) == 2 else float(params[2]))
-
-
+        methods = re.split("[;\n]", method)
+        if len(methods) == 1:
+            return self._expand_single(results, method, overriden)
         else:
-            return FullVariableExpander(self.vlist, overriden)
+            return MultiVariableExpander([self._expand_single(results, m, overriden) for m in methods])
+
+
 
     def __iter__(self):
         return self.expand()

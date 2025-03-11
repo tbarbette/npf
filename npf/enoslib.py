@@ -14,7 +14,7 @@ from npf.tests.test_driver import Comparator
 import npf
 import argparse
 
-def run(npf_script, series:List[str], roles:Dict[str,en.Host], argsv: List[str] = None):
+def run(npf_script, series:List[str] = [], roles:Dict[str,en.Host] = {"localhost":en.LocalHost}, argsv: List[str] = None):
     if argsv is None:
         argsv = []
     logging.getLogger('fontTools.subset').level = logging.WARN
