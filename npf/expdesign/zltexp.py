@@ -67,7 +67,7 @@ class ZLTVariableExpander(OptVariableExpander):
             self.expanded = sorted(self.expanded, key=lambda result: tuple(result[c] for c in constraints if c in result),reverse=True)
             self.constraints = [tuple((c, vlist[c].makeValues())) for c in constraints]
         else:
-             self.constraints = None
+            self.constraints = None
 
     def need_run_for(self, next_val):
         self.next_val = next_val
@@ -109,33 +109,48 @@ class ZLTVariableExpander(OptVariableExpander):
             self.n_done = 0
             self.next_val = None
             self.executable_values = self.input_values.copy()
+            print("Evaluating ", self.current)
             if self.constraints:
-                for c, c_vals in self.constraints:
-                    m = None
-                    cplus = min(filter(lambda x: x > self.current[c], c_vals), default=None)
+                wc = self.current.copy()
+
+                for c, _ in self.constraints:
+                    del wc[c]
+                if True:
+                    m = {}
+                    #Keep only values that are strictly better
                     for r, vals in self.results.items():
-                        """
-                        say we are now at CPU=4, we should start at the minimal accepted rate for CPU=5
-                        """
-                        #Keep only CPU = 5
-                        if r.variables[c] != cplus:
-                            continue
-                        wc = self.current.copy()
-                        del wc[c]
 
                         if Run(wc).inside(r):  #Without the constraint and the rate, so the run is any rate but with C == 5
-                            #print("Consider", r)
-                            r_out = np.mean(vals[self.output])
-                            r_in = r.variables[self.input]
-                            if self.perc:
-                                r_out = r_out/100 * r_in
-                            if r_out >= r_in/self.margin:
-                                #Accepted run
-                                if m is None or r_in > m: #Find the rate at which drops start
-                                    m = r_in
-                    #print("Max for ", cplus, " is ", m)
+                            valid = True
+                            #print("Run", r)
+                            r_c_vals = [] #Values for each constraints
+                            for c, c_vals in self.constraints:
+                                c_equal = self.current[c]
+                                c_plus = min(filter(lambda x: x > self.current[c], c_vals), default=None)
+                                c_val = r.variables[c]
+                                if c_val < c_equal or (c_plus and c_val > c_plus):
+                                    valid = False
+                                    break
+                                r_c_vals.append(c_val)
+
+                            if valid:
+                                #print("Consider", r, r_c_vals)
+                                r_out = np.mean(vals[self.output])
+                                r_in = r.variables[self.input]
+                                if self.perc:
+                                    r_out = r_out/100 * r_in
+                                if r_out >= r_in/self.margin:
+                                    #Accepted run
+                                    if not tuple(r_c_vals) in m or r_in > m[tuple(r_c_vals)]: #Find the rate at which drops start
+                                        m[tuple(r_c_vals)] = r_in
                     if m:
+                        m =  min(m.values())
                         self.executable_values = list(filter(lambda x : x <= m, self.executable_values))
+                    else:
+                        m = None
+                    print("Max for run ",self.current," is ", m)
+
+
         elif not self.executable_values:
             #There's no more points to try, we could never find a ZLT
             self.current = None
@@ -281,6 +296,7 @@ class MinAcceptableVariableExpander(OptVariableExpander):
         """ Mark this run as the best ZLT one
         """
         #self.results[self.current][IS_ZLT] = 1
+        # self.constraints Run(self.current)
         self.current = None
 
     def __next__(self):
