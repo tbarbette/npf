@@ -127,6 +127,9 @@ gen_preped:FDDISPATCH=EXPAND( rr :: Classifier( $(( ", ".join([ "40/57%02x" % t 
 GEN_FLOWS?=128
 
 
+%prate,timing:require
+echo "timing and prate are not compatible"
+exit 1
 
 %-rate:require
 //test $GEN_RATE -eq -1 || ( echo "GEN_RATE can only be -1 (deactivated) when rate is not given" && exit 1)
@@ -356,7 +359,7 @@ ig :: Script(TYPE ACTIVE,
 //                print "IG-$t-RESULT-${PREFIX}ILAT01 $(RIN/tsd0.perc01 $indexA)",
 //                print "IG-$t-RESULT-${PREFIX}ILAT50 $(RIN/tsd0.median $indexA)",
                 print "IG-$t-RESULT-${PREFIX}ILATENCY $(RIN/tsd0.average $indexA)",
-//                print "IG-$t-RESULT-${PREFIX}ILAT99 $(RIN/tsd0.perc99 $indexA)",
+                print "IG-$t-RESULT-${PREFIX}ILAT99 $(RIN/tsd0.perc99 $indexA)",
                 set indexA $(RIN/tsd0.index),
                 label next,
                 set lastcount $count,

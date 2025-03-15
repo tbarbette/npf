@@ -62,6 +62,7 @@ NRECORD=EXPAND( $(( int($LIMIT / $SAMPLE * $PKTGEN_REPLAY_COUNT  * 2) )) )
 BROADCAST_IGNORE= -> c :: Classifier(0/$mac,-) //Ignore broadcasts
 GEN_RX_THREADS?=EXPAND($GEN_THREADS)
 http:GEN_HTTP_SERVER?=1
+GEN_HTTP_SERVER?=0
 
 %promisc:late_variables
 BROADCAST_IGNORE= -> c :: Classifier(-, 0/ffffffffffff)
@@ -173,6 +174,9 @@ $BROADCAST_IGNORE
     -> avgD :: AverageCounterMP(IGNORE $ignore)
     -> avgD2 :: AverageCounterMP(IGNORE $ignore)
     -> Discard;
+
+$(( (  "avg :: HandlerAggregate( " + ",".join(["ELEMENT avg%c" % (ord('A')+i) for i in range($GEN_THREADS) ]) + " );" ) ))
+$(( (  "avg2 :: HandlerAggregate( " + ",".join(["ELEMENT avg%c2" % (ord('A')+i) for i in range($GEN_THREADS) ]) + " );" ) ))
 
     magic[4]
     -> Unstrip(14)
@@ -360,6 +364,16 @@ DriverManager(  pause,
                  print "",
                  print "RESULT-THROUGHPUT $rx",
                  print "RESULT-TX $tx",
+                 set sent $(add $(gen0/avgSIN2.count) $(gen1/avgSIN2.count) $(gen2/avgSIN2.count) $(gen3/avgSIN2.count)),
+                 set count $(RIN/avg2.add count),
+                set txpps $(add $(gen0/avgSIN2.rate) $(gen1/avgSIN2.rate) $(gen2/avgSIN2.rate) $(gen3/avgSIN2.rate)),
+            set rxpps $(RIN/avg2.add rate),
+                print "RESULT-COUNT $count",
+                print "RESULT-SENT $sent",
+                print "RESULT-PPS $rxpps",
+                print "RESULT-TXPPS $txpps",
+                print "RESULT-DROPPED $(sub $sent $count)",
+                print "RESULT-DROPPEDPC $(div $(sub $sent $count) $sent)",
                 print "RESULT-LATENCY $(tsd.avg average)",
                 print "RESULT-LAT00 $(tsd.avg min)",
                 print "RESULT-LAT01 $(tsd.avg perc01)",
