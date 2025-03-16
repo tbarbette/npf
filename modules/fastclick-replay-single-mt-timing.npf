@@ -67,10 +67,10 @@ GEN_HTTP_SERVER?=0
 %promisc:late_variables
 BROADCAST_IGNORE= -> c :: Classifier(-, 0/ffffffffffff)
 
-%largemem:script deps=fastclick sudo=true
+%largemem:script deps=fastclick-noiqueue-utime sudo=true
 click --dpdk -l 0-15  --socket-mem $DPDKMEM --huge-dir /mnt/hugepages  -- PKTGEN_CONFIG
 
-%-largemem:script deps=fastclick sudo=true
+%-largemem:script deps=fastclick-noiqueue-utime sudo=true
 click --dpdk -l 0-15 --file-prefix=gen  -- PKTGEN_CONFIG
 //cat PKTGEN_CONFIG
 //gdb -ex run -ex "signal 2" -ex "bt" -batch -args click --dpdk -l 0-15  -- PKTGEN_CONFIG
