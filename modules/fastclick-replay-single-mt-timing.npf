@@ -75,7 +75,7 @@ click --dpdk -l 0-15 --file-prefix=gen  -- PKTGEN_CONFIG
 //cat PKTGEN_CONFIG
 //gdb -ex run -ex "signal 2" -ex "bt" -batch -args click --dpdk -l 0-15  -- PKTGEN_CONFIG
 
-%file PKTGEN_CONFIG
+%file PKTGEN_CONFIG jinja
 d :: DPDKInfo(NB_SOCKET_MBUF $NBBUF, NB_SOCKET_MBUF 8192)
 
 define($bout $PKTGEN_BURST_OUT)
@@ -92,6 +92,8 @@ define($port ${self:$RCV_NIC:pci})
 define($quick true)
 define($txverbose 99)
 define($rxverbose 99)
+
+JiffieClock()
 
 $(( "HTTPServer" if $GEN_HTTP_SERVER else "" ))
 

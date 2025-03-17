@@ -151,7 +151,7 @@ $GEN_GDB click --dpdk -l $GEN_CPUS --file-prefix gen-$RCV_NIC -a ${self:$RCV_NIC
 echo "EVENT TX_FINISHED"
 echo "Generator stopped..."
 
-%script deps=fastclick-utime sudo=true delay=2 name=fastclick-play
+%script deps=fastclick-noiqueue-utime sudo=true delay=2 name=fastclick-play
 bash launch.sh
 
 %file PKTGEN_CONFIG_${RCV_NIC} jinja
