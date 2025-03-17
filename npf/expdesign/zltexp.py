@@ -250,7 +250,12 @@ class ZLTVariableExpander(OptVariableExpander):
                                 if val in left_to_try_below_acceptable:
                                     to_try.add(val)
                                 step *= 2
+                                lastpos = pos
                                 pos = midx - step
+                            if lastpos > 0:
+                                val = self.executable_values[0]
+                                if val in left_to_try_below_acceptable:
+                                    to_try.add(val)
 
                             left_to_try_below_acceptable = to_try
                         left_to_try_over_acceptable = left_to_try_below_acceptable

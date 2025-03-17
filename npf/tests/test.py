@@ -474,6 +474,8 @@ class Test:
                 time.sleep(0.010)
                 i += 1
             try:
+                if debug:
+                    print("[DEBUG] It's been long enough... Force killing!")
                 killer.force_kill()
             except OSError:
                 pass
