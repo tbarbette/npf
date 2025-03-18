@@ -253,7 +253,7 @@ def _test_allzlt(monotonic,all=True):
             assert run["RATE"] == i
             results[Run({'RATE' : i})] = {'PPS':[i]}
     if all == 2:
-        for i in [5,4,2]:
+        for i in [5,4,2,1]:
             print("all",i)
             run = next(it)
             assert run["RATE"] == i
