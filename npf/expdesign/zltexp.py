@@ -115,7 +115,7 @@ class ZLTVariableExpander(OptVariableExpander):
 
                 for c, _ in self.constraints:
                     del wc[c]
-                if True:
+                try:
                     m = {}
                     #Keep only values that are strictly better
                     for r, vals in self.results.items():
@@ -149,7 +149,8 @@ class ZLTVariableExpander(OptVariableExpander):
                     else:
                         m = None
                     print("Max for run ",self.current," is ", m)
-
+                except Exception as e:
+                    print("ERROR:",e)
 
         elif not self.executable_values:
             #There's no more points to try, we could never find a ZLT
