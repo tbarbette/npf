@@ -6,6 +6,16 @@ import numpy as np
 from npf.expdesign.fullexp import FullVariableExpander
 from npf.models.dataset import Run
 from npf.models.variables.variable import Variable
+import re
+from lark import Lark, UnexpectedInput
+
+constraint_grammar = """
+    start: token ("[" token "]")? ("-" ignore_list)?
+    token: /[a-zA-Z_][a-zA-Z0-9_]*/
+    ignore_list: token ("+" token)*
+"""
+
+constraint_parser = Lark(constraint_grammar, start="start", parser="lalr")
 
 class OptVariableExpander(FullVariableExpander):
     def __init__(self, vlist:Dict[str,Variable], results, overriden, input, margin, all=False):
@@ -64,8 +74,35 @@ class ZLTVariableExpander(OptVariableExpander):
         self.monotonic = monotonic
         super().__init__(vlist, results, overriden, input, margin, all)
         if constraints:
-            self.expanded = sorted(self.expanded, key=lambda result: tuple(result[c] for c in constraints if c in result),reverse=True)
-            self.constraints = [tuple((c, vlist[c].makeValues())) for c in constraints]
+            self.constraints = []
+            for c in constraints:
+
+                try:
+                    sub_token = None
+                    ignore_list = []
+                    parsed = constraint_parser.parse(c)
+
+
+                    c = parsed.children[0].children[0].value
+
+                    print("Constraint", c)
+                    if parsed.children and len(parsed.children) > 1:
+
+                        sub_token = parsed.children[1].children[0].value
+                        print(f"If a rate cannot be achieved with {c}=={sub_token}, then other values of {c} will be ignored")
+                        if len(parsed.children) > 2:
+                            for i in parsed.children[2].children:
+                                ignore_list.append(i.children[0].value)
+                        if ignore_list:
+                            print("Whatever the value of these factores are : ",ignore_list)
+                    else:
+                        print(f"If a rate cannot be achieved with {c}==N, then values for {c} < N will be ignored, all other parameters being constant")
+                except UnexpectedInput:
+                    raise ValueError(f"Invalid constraint format: {c}")
+
+                self.constraints.append(tuple((c, vlist[c].makeValues(),sub_token,ignore_list)))
+
+                self.expanded = sorted(self.expanded, key=lambda result: tuple((result[c] == c_main,result[c],) for c,_,c_main,_ in self.constraints if c in result), reverse=True)
         else:
             self.constraints = None
 
@@ -113,25 +150,46 @@ class ZLTVariableExpander(OptVariableExpander):
             if self.constraints:
                 wc = self.current.copy()
 
-                for c, _ in self.constraints:
+                for c, _, _, c_ignore_list in self.constraints:
                     del wc[c]
+                    for i in c_ignore_list:
+                        del wc[i]
                 try:
                     m = {}
                     #Keep only values that are strictly better
                     for r, vals in self.results.items():
 
-                        if Run(wc).inside(r):  #Without the constraint and the rate, so the run is any rate but with C == 5
+                        if Run(wc).inside(r):  #Without the constraints and the rate
+                            #We mark valid runs as any runs "above" the current run
                             valid = True
                             #print("Run", r)
                             r_c_vals = [] #Values for each constraints
-                            for c, c_vals in self.constraints:
-                                c_equal = self.current[c]
-                                c_plus = min(filter(lambda x: x > self.current[c], c_vals), default=None)
-                                c_val = r.variables[c]
-                                if c_val < c_equal or (c_plus and c_val > c_plus):
-                                    valid = False
-                                    break
-                                r_c_vals.append(c_val)
+                            for c, c_vals, c_main, c_ignore_list in self.constraints:
+                                c_equal = self.current[c] #The value of the constraint for this run
+                                if c_main:
+                                    #C_main is given when a specfic value of a constraint is always better, and there is no specific rank
+                                    c_val = r.variables[c]
+                                    #We keep this run only if it's the same value as the current run or it's c_main
+                                    if c_val != c_equal and c_val != c_main:
+                                        valid = False
+                                        break
+                                    #If c_val != c_main we need to check the values for the c_ignore_list
+                                    if c_val != c_main:
+                                        for i in c_ignore_list:
+                                            i_val = r.variables[i]
+                                            if i_val != self.current[i]:
+                                                valid = False
+                                                break
+                                        if not valid:
+                                            break
+                                    r_c_vals.append(c_val)
+                                else:
+                                    c_plus = min(filter(lambda x: x > self.current[c], c_vals), default=None)   #The value for a better run according to this constraint
+                                    c_val = r.variables[c]
+                                    if c_val < c_equal or (c_plus and c_val > c_plus):
+                                        valid = False
+                                        break
+                                    r_c_vals.append(c_val)
 
                             if valid:
                                 #print("Consider", r, r_c_vals)

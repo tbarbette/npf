@@ -37,7 +37,8 @@ install_requires = [
     'statsmodels',
     'scikit-optimize',
     'colorama',
-    'scikit-optimize'
+    'scikit-optimize',
+    'lark'
     ]
 
 setuptools.setup(

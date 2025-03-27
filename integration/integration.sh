@@ -89,6 +89,7 @@ if [ $? -ne 0 ] ; then
     echo "single.csv changed !"
     ret=1
 fi
+compare negative $python
 compare experimental $python
 compare pyexit $python
 compare integration-01 $python
