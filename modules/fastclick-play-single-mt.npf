@@ -80,7 +80,7 @@ GEN_NANO?=0
 GEN_PREFIX?=
 GEN_FNT?=
 DISTRIB?=Rated
-UNQUEUE=
+UNQUEUE?=
 udpgen:UNQUEUE=Unqueue()
 rate:UNQUEUE=EXPAND( Bandwidth${DISTRIB}Unqueue( $(( int($GEN_RATE / $GEN_NGEN) )), EXTRA_LENGTH true, LINK_RATE true, BURST_DURATION 1, BURST $GEN_BURST) )
 prate:UNQUEUE=EXPAND( ${DISTRIB}Unqueue($(( int($GEN_RATE / $GEN_NGEN)  )), BURST $GEN_BURST, ACTIVE $(( "false" if $GEN_PROGRESSIVE else "true" )) ) )
@@ -151,10 +151,10 @@ $GEN_GDB click --dpdk -l $GEN_CPUS --file-prefix gen-$RCV_NIC -a ${self:$RCV_NIC
 echo "EVENT TX_FINISHED"
 echo "Generator stopped..."
 
-%gen_pipeline:script deps=fastclick-noiqueue-utime sudo=true delay=2 name=fastclick-play
+%gen_pipeline,-iqueue:script deps=fastclick-noiqueue-utime sudo=true delay=2 name=fastclick-play
 bash launch.sh
 
-%-gen_pipeline:script autokill=false criticial=true
+%-gen_pipeline,-iqueue:script autokill=false criticial=true
 if [ $GEN_PIPELINE -eq 0 -a $GEN_TX_PIPELINE -eq 0 ] ; then
     exit 0
 else
@@ -163,9 +163,11 @@ else
 fi
 
 
-%-gen_pipeline:script deps=fastclick-noiqueue-utime-rtc sudo=true delay=2 name=fastclick-play
+%-gen_pipeline,-iqueue:script deps=fastclick-noiqueue-utime-rtc sudo=true delay=2 name=fastclick-play
 bash launch.sh
 
+%iqueue:script deps=fastclick-utime sudo=true delay=2 name=fastclick-play
+bash launch.sh
 
 %file PKTGEN_CONFIG_${RCV_NIC} jinja
 d :: DPDKInfo($NBBUF)
@@ -240,6 +242,29 @@ tdIN ::
 elementclass NoTimestampDiff { $a, $b, $c, $d, $e |
 input -> output;
 Idle->[1]output;
+}
+
+elementclass DuplicateRewrite {
+    exit :: MinBatch(2) -> output;
+    [0]
+    -> EnsureDPDKBuffer
+    //-> MarkIPHeader(OFFSET 14) -> IPPrint(IN)
+//    -> Print
+    -> t :: Duplicate;
+
+    t[1]
+    //-> IPPrint(B)
+    -> exit;
+    t[0] -> Strip(14) -> MarkIPHeader(OFFSET 0)
+    //-> IPPrint(ABefore) -> Print
+    -> ipc :: IPClassifier(src net 2.0.0.0/8,dst net 2.0.0.0/8, -);
+
+    out :: Unstrip(14)
+    //-> IPPrint(A)
+    -> exit;
+    ipc[0] -> StoreData(OFFSET 12, DATA \<03>) -> out;
+    ipc[1] -> StoreData(OFFSET 16, DATA \<03>) -> out;
+    ipc[2] -> IPPrint("Unexpected, neither internal or external", ACTIVE true) -> Discard;
 }
 
 elementclass Numberise { $magic |
