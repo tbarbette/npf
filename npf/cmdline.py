@@ -102,12 +102,13 @@ def add_graph_options(parser: ArgumentParser):
 
     s = parser.add_argument_group('Statistics options')
     s.add_argument('--statistics',
-                   help='Give some statistics output', dest='statistics', action='store_true',
-                   default=False)
+                   help='Give some statistics output. Accepts a list of outputs names to give statistics about, or will try to find the best outputs if no value is provided.',
+                   dest='statistics', default=False,
+                   action=ArgListOrTrueAction)
     s.add_argument('--statistics-maxdepth',
                    help='Max depth of learning tree', dest='statistics_maxdepth', type=int, default=None)
     s.add_argument('--statistics-maxmetrics',
-                   help='Max depth of learning tree', dest='statistics_maxmetrics', type=int, default=3)
+                   help='Maximum number of metrics to give, ignored if statistics has some arguments.', dest='statistics_maxmetrics', type=int, default=3)
     s.add_argument('--statistics-filename',
                    help='Output of learning tree', dest='statistics_filename', type=str, default=None)
 
@@ -120,6 +121,22 @@ class ExtendAction(argparse.Action):
 
     def __call__(self, parser, namespace, values, option_string=None):
         setattr(namespace, self.dest, getattr(namespace, self.dest) + values)
+
+
+class ArgListOrTrueAction(argparse.Action):
+    def __init__(self, option_strings, dest, **kwargs):
+        if "nargs" in kwargs:
+            raise ValueError("nargs cannot be set for ArgListOrTrueAction, it is always *")
+        super().__init__(option_strings, dest, nargs='*', **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        if values is None:
+            setattr(namespace, self.dest, True)
+        else:
+            current_values = getattr(namespace, self.dest, [])
+            if type(current_values) is bool:
+                current_values = []
+            setattr(namespace, self.dest, current_values + values)
 
 
 def add_testing_options(parser: ArgumentParser, regression: bool = False):

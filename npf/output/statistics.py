@@ -36,7 +36,9 @@ class Statistics:
         for result_type, X, y, dtype in dataset:
             all_vars.append(np.var(y)/np.mean(y))
 
-        if npf.globals.options.statistics_maxmetrics and len(dataset) > npf.globals.options.statistics_maxmetrics:
+        if type(npf.globals.options.statistics) is list:
+            s_dataset = [dataset[i] for i,(result_type, X, y, dtype) in enumerate(dataset) if result_type in npf.globals.options.statistics]
+        elif npf.globals.options.statistics_maxmetrics and len(dataset) > npf.globals.options.statistics_maxmetrics:
             print(f"There are {len(dataset)} observations. Only the first {npf.globals.options.statistics_maxmetrics} with the most variance will be shown. Use --statistics-maxmetrics N to change the limit.")
             s_dataset = [dataset[i] for i in np.flip(np.argsort(all_vars))[:npf.globals.options.statistics_maxmetrics]]
         else:
