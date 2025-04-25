@@ -368,7 +368,8 @@ class Grapher:
             new_all_results = OrderedDict()
 
             #Now we have to actually aggregate the results from all merge list
-            for run, multiple_run_results in aggregates.items():
+            try:
+              for run, multiple_run_results in aggregates.items():
                     #multiple_run_results is a list of results for each run
                     new_run_results = OrderedDict()
                     #agg becomes a dict of result_type (for this run) to all the results for this run
@@ -386,6 +387,8 @@ class Grapher:
                         else:
                             new_run_results[result_type] = list(filter(lambda x:  not np.isnan(x), [group_val(np.asarray(ag), method, lambda fl: agg[fl][i]) for i,ag in agg[result_type].items()]))
                     new_all_results[run] = new_run_results
+            except Exception as e:
+                    print("ERROR : Aggregate caneclled because an error occured, ", e)
             nseries.append((test,build,new_all_results))
         return nseries
 

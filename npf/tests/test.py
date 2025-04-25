@@ -523,7 +523,11 @@ class Test:
                     time_value = nr.group("time_value")
                     if result_type is None:
                         result_type = ''
-                    n = float(nr.group("value"))
+                    try:
+                        n = float(nr.group("value"))
+                    except Exception as e:
+                        print(f"ERROR while interpreting {nr.group('value')}", e)
+                        continue
                     mult = nr.group("multiplier")
                     unit = ""
                     if nr.group("unit"):
