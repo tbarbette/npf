@@ -248,19 +248,14 @@ elementclass DuplicateRewrite {
     exit :: MinBatch(2) -> output;
     [0]
     -> EnsureDPDKBuffer
-    //-> MarkIPHeader(OFFSET 14) -> IPPrint(IN)
-//    -> Print
     -> t :: Duplicate;
 
     t[1]
-    //-> IPPrint(B)
     -> exit;
     t[0] -> Strip(14) -> MarkIPHeader(OFFSET 0)
-    //-> IPPrint(ABefore) -> Print
     -> ipc :: IPClassifier(src net 2.0.0.0/8,dst net 2.0.0.0/8, -);
 
     out :: Unstrip(14)
-    //-> IPPrint(A)
     -> exit;
     ipc[0] -> StoreData(OFFSET 12, DATA \<03>) -> out;
     ipc[1] -> StoreData(OFFSET 16, DATA \<03>) -> out;
