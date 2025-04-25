@@ -1,0 +1,3 @@
+parent=fastclick
+name=FastClick - Enabling user timestamp, disabling iqueue and full RTC
+configure+=--enable-user-timestamp --disable-dpdk-softqueue --disable-fullpush-nonatomic
