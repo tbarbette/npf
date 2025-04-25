@@ -20,7 +20,7 @@ PERF_SCRIPT_OPT?=
 %late_variables
 PERF_PREFIX?=
 
-%sendfile ../libs/perf/
+%-nolibs:sendfile ../libs/perf/
 
 %script sudo=true autokill=false deps=perf-class nokill=true
 trap : INT
