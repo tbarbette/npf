@@ -25,6 +25,7 @@ RCV_NIC=0
 LIMIT=500000
 TIMING=5
 TIMING_FNT=100
+//Cannot be changed!
 GEN_THREADS=4
 PROMISC=false
 promisc:PROMISC=true
@@ -33,7 +34,6 @@ ITERATIVE=0
 iterative:ITERATIVE=1
 ITERATION_TIME=1
 END_WAIT=0
-PAUSE=none
 GEN_DESC=0
 GEN_PRINT_START=
 nolinktest=0
@@ -47,6 +47,7 @@ R4=8
 
 
 %late_variables
+PAUSE?=EXPAND( $(( $GEN_PAUSE if "$GEN_PAUSE" else "none" )) )
 GEN_HOOK?=
 SAMPLE?=1
 STARTAFTER?=0

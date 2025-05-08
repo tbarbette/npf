@@ -69,6 +69,7 @@ timing:TIMING_FNT=100
 GEN_START_DELAY=5
 
 %late_variables
+GEN_DEBUG?=0
 GEN_NUMA?=false
 PRELOAD?=0
 GEN_TX_DESC?=EXPAND($GEN_DESC)
@@ -203,7 +204,8 @@ elementclass MyNull {
 {% endif %}
 };
 
-JiffieClock()
+jc :: JiffieClock(VERBOSE true)
+StaticThreadSched(jc -1);
 
 {% for t in range(GEN_NGEN|int) %}
     {% if GEN_MULTI_TRACE %}
@@ -219,7 +221,7 @@ JiffieClock()
             fdIN{{ t }} :: $(( " FastUDPFlows(RATE " + ( str(int($GEN_RATE / $GEN_NGEN) ) if "$HAVE_PRATE" else "0") +  ", LIMIT " + str(int($LIMIT / $GEN_NGEN) if "$HAVE_PRATE" else "-1" ) + " , LENGTH $GEN_LENGTH, SRCETH $INsrcmac, DSTETH $INdstmac, SRCIP ${client:0:ip}, DSTIP ${server:0:ip}, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_FLOWSIZE, SEQUENTIAL $GEN_SEQUENTIAL, BURST $GEN_BURST, ACTIVE false)" ))
         {% endif %}
     {% elif GEN_DUMP == 0 %}
-        fdIN{{t}} :: FromDump({{t_path}}, STOP true, TIMING {{ $TIMING if not $REPLAY else 0 }}, TIMING_FNT "$TIMING_FNT", END_AFTER $END_AFTER, ACTIVE {{ REPLAY }}, BURST 32 {% if PRELOAD > 0 %}, PRELOAD $PRELOAD{% endif %} , MMAP false, DPDK true);
+        fdIN{{t}} :: FromDump({{t_path}}, STOP true, TIMING {{ $TIMING if not $REPLAY else 0 }}, {% if not $REPLAY %} TIMING_FNT "$TIMING_FNT", {% endif %} END_AFTER $END_AFTER, ACTIVE {{ REPLAY }}, BURST 32 {% if PRELOAD > 0 %}, PRELOAD $PRELOAD{% endif %} , MMAP false, DPDK true);
     {% elif GEN_DUMP == 1 %}
         fdIN{{t}} :: FromIPSummaryDump({{t_path}}, TIMES $replay_count, TIMING $TIMING, TIMESTAMP $TIMING, ZERO false, BURST $GEN_BURST, STOP true);
     {% else %}
@@ -240,8 +242,8 @@ tdIN ::
 
 
 elementclass NoTimestampDiff { $a, $b, $c, $d, $e |
-input -> output;
-Idle->[1]output;
+    input -> output;
+    Idle->[1]output;
 }
 
 elementclass DuplicateRewrite {
@@ -342,8 +344,16 @@ $GEN_MAGIC
     c[1] //Not for this computer or broadcasts
     -> Discard;
 
-$((  "\n".join([ "magic[%d] -> tsd%d :: $GEN_TSDIFF(gen%d/rt, OFFSET %d, N $NRECORD, SAMPLE $SAMPLE, NANO $GEN_NANO ) -> Unstrip(14) ->  avg%d :: AverageCounterIMP(IGNORE $ignore) -> Discard;  tsd%d[1] -> Print('WARNING: Untimestamped packet on thread %d', 64) -> Discard;" % (t,t,t,${NUMBEROFFSET} + 2,t,t,t) for t in range($GEN_THREADS) ]) ))
-
+{% for t in range(GEN_THREADS) %}
+    magic[{{t}}]
+        -> tsd{{t}} :: $GEN_TSDIFF(gen{{t}}/rt, OFFSET {{ NUMBEROFFSET + 2 }}, N $NRECORD, SAMPLE $SAMPLE, NANO $GEN_NANO )
+        -> Unstrip(14)
+        -> avg{{t}} :: AverageCounterIMP(IGNORE $ignore, THRESHOLD $GEN_THRESHOLD)
+        -> Discard;
+    tsd{{t}}[1]
+        -> Print('WARNING: Untimestamped packet on thread {{t}}', 64)
+        -> Discard;
+{% endfor %}
 
 $(( (  "avg :: HandlerAggregate( " + ",".join(["ELEMENT avg%d" % (i) for i in range($GEN_THREADS) ]) + " );" ) if 1 else "" ))
 
@@ -379,8 +389,12 @@ ig :: Script(TYPE ACTIVE,
                 set sent $(avgSIN.add count),
                 set bytessent $(avgSIN.add byte_count),
                 set bytes $(RIN/avg.add byte_count),
-                print "IG-$t-RESULT-${PREFIX}IGSENT $(sub $sent $lastsent)",
-                print "IG-$t-RESULT-${PREFIX}IGBYTESSENT $(sub $bytessent $lastbytessent)",
+                set dsent $(sub $sent $lastsent),
+                set dbytesent $(sub $bytessent $lastbytessent),
+                print "IG-$t-RESULT-${PREFIX}IGSENT $dsent",
+                print "IG-$t-RESULT-${PREFIX}IGBYTESSENT $dbytesent",
+                print "IG-$t-RESULT-${PREFIX}IGTXPPS $(div $dsent $elapsed)",
+                print "IG-$t-RESULT-${PREFIX}IGTX $(div $dbytesent $elapsed)",
                 set drop $(sub $sent $count),
                 set lastdrop $drop,
 {% if GEN_RX %}
@@ -464,6 +478,7 @@ dm :: DriverManager(  print "Waiting ${GEN_START_DELAY} seconds before launching
                 goto perc $(le $i 100.0),
                 label alatval,
                 print "RESULT-${PREFIX}TESTTIME $(sub $stoptime $starttime)",
+                print "RESULT-${PREFIX}SENTTIME $(avgSIN.avg time)",
                 set sent $(avgSIN.add count),
                 set count $(RIN/avg.add count),
                 set bytes $(RIN/avg.add byte_count),
@@ -480,6 +495,12 @@ dm :: DriverManager(  print "Waiting ${GEN_START_DELAY} seconds before launching
                 print "RESULT-${PREFIX}SENT $sent",
                 print "RESULT-${PREFIX}TX $(avgSIN.add link_rate)",
                 print "RESULT-${PREFIX}TXPPS $(avgSIN.add rate)",
+{% if GEN_DEBUG %}
+    {% for t in range($GEN_THREADS) %}
+        print "thread {{t}} rate $(gen{{t}}/avgSIN.rate) time $(gen{{t}}/avgSIN.time)",
+    {% endfor %}
+{% endif %}
+
                 print "EVENT GEN_POST",
                 stop);
 
