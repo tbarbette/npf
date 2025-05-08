@@ -170,8 +170,10 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
                    help='Count the number of valid previous tests as the maxium number of points in all tests, instead of the minimum', dest='min_test', action='store_false',
                    default=True)
     t.add_argument('--preserve-temporaries',
-                   help='Do not delete tesite folder with temporary files', dest='preserve_temp',
-                   action='store_true',
+                   help='Do not delete test folder with temporary files. If a value is provided, each test result will be moved to that folder. The folder path may contain variable values to do the replacement.',
+                   dest='preserve_temp',
+                   nargs='?',
+                   const=True,
                    default=False)
     t.add_argument('--use-last',
                    help='Use data from previous version instead of running test if possible', dest='use_last',

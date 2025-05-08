@@ -1432,12 +1432,18 @@ class Test:
         if not self.options.preserve_temp:
             try:
                 shutil.rmtree(npf.experiment_path() + os.sep + test_folder)
-            except PermissionError:
+            except (PermissionError, OSError):
                 pass
-            except OSError:
-                pass
-        else:
+        elif self.options.preserve_temp is True:
             print("Test files have been kept in folder %s" % test_folder)
+        else:
+            dest = replace_variables(variables, self.options.preserve_temp)
+            try:
+                os.mkdir(npf.experiment_path() + os.sep + dest)
+                shutil.move(npf.experiment_path() + os.sep + test_folder, npf.experiment_path() + os.sep + dest)
+                print("Test files have been moved to folder %s" % dest)
+            except (PermissionError, OSError) as e:
+                print("ERROR: Could not move test files to %s : %s" % (dest,e))
 
         return all_data_results, all_time_results, init_done
 
