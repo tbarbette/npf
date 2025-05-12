@@ -1,19 +1,68 @@
 %info
-Module to replay a trace or a dump with throughput and latency measurement
+Module generate traffic using FastClick with throughput and latency measurement
 
-Packets are directed towards one NIC of the "server" role using one NIC of the CLIENT and expect to receive packets back on any (eventyally the same) NIC. There is no L3 support (ARP).
+This module supports generating UDP traffic or playing a PCAP.
 
-Suggested usage example in your test (omit the prefixed "//" that prevent loop import here)
+Both can generate at a given rate (UDP) or acceleration factor (PCAP).
+Both can also use a "replay" mode, that is preloading packet in memory then replaying them in loop.
 
-//%import@client fastclick-replay-single-mt trace=path/to.pcap NIC=0 CLIENT_NIC=0
+Packets are directed towards one NIC of the "server" role using one NIC of the CLIENT and expect to receive packets back on any (eventually the same) NIC.
 
+There is no L3 support (ARP). MAC adresses must be set correctly.
+
+# Usage
+
+Add in your NPF test script (omit the prefixed "//" that prevent loop import here)
+
+//%import@client fastclick-play-single-mt
+
+## Playing a trace
+Be sure to pass the variable trace=path/to/trace
+The variable LIMIT_TIME will limit the replay time.
+
+
+## Playing UDP traffic
+Give the tag "udpgen" with --tags udpgen to npf cmdline
+The variable GEN_LENGTH=128 allows to set the packet size to 128 bytes. Check the variables section below for other parameters.
+The variable LIMIT_TIME will limit the replay time.
+
+## Preloading in memory
+Give the "replay" tag with --tags replay to npf cmdline
+The variable PKTGEN_REPLAY_COUNT=10 will replay 10 times.
+The variable LIMIT_TIME will limit the replay time instead.
+
+## Packet or bit rate (UDP or trace)
+Pass the "rate" tag to express a rate in BPS, "prate" for a rate in PPS
+Then set GEN_RATE to define the rate
+
+## Timing acceleration (traces, replayed or not)
+Use TIMING=0 to play as fast possible the packets (you might consider preloading in memory, see below).
+Use TIMING=1 to play packets using the original timing, eventually tweaked at X% of the original timing using TIMING_FNT.
+For instance TIMING_FNT=200 will replay twice faster. TIMING_FNT can be a function of time (given as x). For instance to start replay at 1% at t=0 then 100% at t=10 and then stay at 100%:
+TIMING_FNT=1+min(99,x*10)
+
+## Replaying from compressed dump (particular case)
 Set GEN_DUMP=1 to use a FromIPSummaryDump instead of FromDump, the trace parameter should therefore follow the FromIPSummaryDump format. Similarly, use GEN_DUMP=2 to use FromMinDump.
-To generate UDP packets, use GEN_DUMP=-1
 
+# Zero-loss throughput
+Altough not tied to this specific module, it is often combined with experimental design to find the zero-loss-throughput. The following paramets will give the maximum rate a DUT can forward.
+
+--variables GEN_RATE=[1000000-16000000#1000000]
+--exp-design zlt(GEN_RATE,PPS,1.01)
+
+# Multi-threading
+
+Pass the variables GEN_THREADS=X and GEN_TX_THREADS=y to use x threads for TX and y threads for RX. Default is 4 for both.
+
+## Multi-threading with traces
 The normal way to use multi-threading would be to round-robin the trace between the threads. Use the "GEN_MULTI_TRACE=1" to use multiple traces, using -1, -2, ... -GEN_THREADS suffixes to the trace.
 If the tag scale_multi_trace is given, then the number of threads is fixed and the trace will be used from 1 to .. GEN_MULTI_TRACE. If GEN_MULTI_GEN is smaller than GEN_THREADS, some threads might be unused. This is useful to scale the number of threads.
 
+## Deactivate latency to improve performance
 Use the "gen_nolat" tag to disable latency tracking. This cannot be done using variables.
+
+## Deactivate packet receiption
+Use the gen_norx tag to disable receiving packets. This will leave CPU resources available for sending.
 
 %config
 n_retry=0
@@ -23,52 +72,107 @@ timeout=60
 default_role_map+={server:dut}
 
 %variables
+
+//Number of packet to generate in a burst trade latency accuracy (1) for speed (32)
 PKTGEN_BURST_OUT=32
+
+//Number of time to replay a trace. Not applicable to UDP
 -udpgen:PKTGEN_REPLAY_COUNT=1
+
+//NICs to be used. Deprecated, one should use the NIC specification through the cluster argument and leave 0 here
 NIC=0
 CLIENT_NIC=0
 RCV_NIC=0
+
+//Maximum number of packets to read
 LIMIT=50000000
+
+//Maximum time to replay
 LIMIT_TIME=10
+
+//Do not start measure latency before reaching that amount of packets per second. Avoids starting computing latency when we receive a random ICMP packets from the port
 GEN_THRESHOLD=0
+//Similarly, we can IGNORE the measurement for the X first seconds
+IGNORE?=0
+
+//Number of threads
+
 GEN_THREADS=4
 GEN_RX_THREADS=4
 GEN_PIPELINE=1
 udpgen:GEN_PIPELINE=0
 GEN_TX_PIPELINE=0
+
+//Socket of the NIC
 GEN_SOCKET=0
+
+//Maximum amount of packets to read from the NIC
 GEN_BURST=32
+
+//Promiscuous mode?
 PROMISC=false
 promisc:PROMISC=true
-IGNORE?=0
+
+//Disable pause frame, set to unset with intel NICs that does not support it
 GEN_PAUSE=none
+
+//Number of descriptor, use NIC default with 0
 GEN_DESC=0
+
+//Enable offloaded checksum fixing
 GEN_CSUM=true
+
+//Stop reading traces after Xs
 END_AFTER=0
+
+//Deprecated
 GEN_PROGRESSIVE=0
 progressive:GEN_PROGRESSIVE=1
+
+//Packet or bitrate, depending on the tag
 rate,prate:GEN_RATE?=1000
 GEN_RATE?=-1
+
+//File where to dump the individual latency of all packets
 LATENCYDUMP=/tmp/latency.csv
+
+//Iterative mode
 ITERATION_TIME?=0
 iterative:ITERATION_TIME=1
+
+//Use multiple trace (for multi-threading, see above)
 GEN_MULTI_TRACE=0
+
+//Force ethernet encapsulation
 GEN_FORCE_ETHER=0
 trace_is_ip:GEN_FORCE_ETHER=1
+
+//Packet generation mode, use tags instead of tweaking this
 GEN_DUMP=0
 gen_dump:GEN_DUMP=1
 gen_mindump:GEN_DUMP=2
 udpgen:GEN_LENGTH=64
 udpgen:GEN_DUMP=-1
+
+//Generate sequential UDP ports instead of random. This is actually much faster.
 GEN_SEQUENTIAL=1
+
+//Enable RX
 GEN_RX=1
-NUMBEROFFSET=40
 gen_norx:GEN_RX=0
+
+//Timing
 timing:TIMING=1
 timing:TIMING_FNT=100
+
+//Delay trace start
 GEN_START_DELAY=5
 
+//Where to put the latency record in the packet
+NUMBEROFFSET=40
+
 %late_variables
+GEN_JIFFIECLOCK?=1
 GEN_DEBUG?=0
 GEN_NUMA?=false
 PRELOAD?=0
@@ -88,12 +192,12 @@ prate:UNQUEUE=EXPAND( ${DISTRIB}Unqueue($(( int($GEN_RATE / $GEN_NGEN)  )), BURS
 REPLAY=0
 replay:REPLAY=1
 replay,-timing:UNQUEUE=ReplayUnqueue(STOP -1, STOP_TIME {{LIMIT_TIME}}, QUICK_CLONE $quick, VERBOSE true, ACTIVE false, LIMIT {{ ( (LIMIT | int) / (GEN_NGEN | int) ) | int - 4096 }})
-replay,timing:UNQUEUE=ReplayUnqueue(STOP -1, STOP_TIME {{LIMIT_TIME}}, QUICK_CLONE $quick, VERBOSE true, ACTIVE false, LIMIT {{ ( (LIMIT | int) / (GEN_NGEN | int) ) | int - 4096 }}, TIMING {{TIMING}}, TIMING_FNT {{TIMING_FNT}})
+replay,timing:UNQUEUE=ReplayUnqueue(STOP -1, STOP_TIME {{LIMIT_TIME}}, QUICK_CLONE $quick, VERBOSE true, ACTIVE false, LIMIT {{ ( (LIMIT | int) / (GEN_NGEN | int) ) | int - 4096 }}, TIMING {{TIMING}}, TIMING_FNT "{{TIMING_FNT}}")
 prate:HAVE_PRATE=1
 HAVE_UNQUEUE?=0
 udpgen,-prate|prate,-udpgen|rate|replay:HAVE_UNQUEUE=1
 SAMPLE?=100
-NRECORD=EXPAND( $(( int($LIMIT / $SAMPLE + 1024) * 2 )) )
+NRECORD=EXPAND( $(( int($LIMIT * $PKTGEN_REPLAY_COUNT / $SAMPLE + 1024) * 2 )) )
 BROADCAST_IGNORE= -> c :: Classifier(0/$mac,-) //Ignore broadcasts
 GEN_NOREWRITE_ETHER?=0
 TIMING?=false
@@ -117,6 +221,7 @@ GEN_RECORD?=EXPAND(-> rt :: RecordTimestamp(N $NRECORD, SAMPLE $SAMPLE, OFFSET $
 GEN_MAGIC?=EXPAND(    -> magic :: Classifier( $(( ", ".join([ "${NUMBEROFFSET}/57%02x" % t for t in range($GEN_THREADS) ]) )),  -);)
 DOLAT?=1
 FDDISPATCH=EXPAND( $((" rr :: RoundRobinSwitch(SPLITBATCH false);" if $GEN_THREADS > 1 and $GEN_PIPELINE else "rr :: MyNull;")) )
+
 NBBUF?=200000
 replay:NBBUF= {{ LIMIT  + 65536 }}
 
@@ -204,8 +309,10 @@ elementclass MyNull {
 {% endif %}
 };
 
+{% if GEN_JIFFIECLOCK %}
 jc :: JiffieClock(VERBOSE true)
 StaticThreadSched(jc -1);
+{% endif %}
 
 {% for t in range(GEN_NGEN|int) %}
     {% if GEN_MULTI_TRACE %}
