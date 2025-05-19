@@ -146,7 +146,7 @@ class ZLTVariableExpander(OptVariableExpander):
             self.n_done = 0
             self.next_val = None
             self.executable_values = self.input_values.copy()
-            print("Evaluating ", self.current)
+            #print("Evaluating ", self.current)
             if self.constraints:
                 wc = self.current.copy()
 

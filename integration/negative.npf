@@ -1,0 +1,9 @@
+%info
+Verify parsing of negative results and scientific notation works
+
+%script
+echo "RESULT-POS 1"
+echo "RESULT-NEG -1"
+echo "RESULT-NEGE -9.10141055741e-05"
+echo "RESULT-POSE 9.10141055741e-05"
+

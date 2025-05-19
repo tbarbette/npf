@@ -1011,17 +1011,21 @@ class Grapher:
             else:
                 type_filename = npf.build_filename(one_test, one_build, filename if not filename is True else None, graph.statics(), 'pdf', type_str=(fileprefix +'-' if fileprefix else "") +result_type, show_serie=False)
                 try:
-                    metadata_creator = f"npf v{__version__}"
+                    if os.path.splitext(type_filename)[1].lower() == "pdf":
+                        metadata_creator = f"npf v{__version__}"
 
-                    test_script = list(self.scripts)[0]     # there should only be one script
-                    script_filename = f"{test_script.path}/{test_script.filename}"
-                    with open(script_filename, "r") as f:
-                        metadata_subject = f"----- File {test_script.filename} -----\n{f.read()}"
+                        test_script = list(self.scripts)[0]     # there should only be one script
+                        script_filename = f"{test_script.path}/{test_script.filename}"
+                        with open(script_filename, "r") as f:
+                            metadata_subject = f"----- File {test_script.filename} -----\n{f.read()}"
 
-                    metadata = {
-                        "Creator": metadata_creator,
-                        "Subject": metadata_subject
-                    }
+
+                        metadata = {
+                            "Creator": metadata_creator,
+                            "Subject": metadata_subject
+                        }
+                    else:
+                        metadata = None
 
                     plt.savefig(type_filename, bbox_extra_artists=extra_artists if len(extra_artists) > 0 else [],
                             bbox_inches='tight',

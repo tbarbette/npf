@@ -1,0 +1,24 @@
+[Click 2022] Running test negative.npf on version 9197a59...
+Verify parsing of negative results and scientific notation works
+Executing init scripts...
+[run 1/3 for test 1/1]
+[30m[0][0m RESULT-POS 1
+[30m[0][0m RESULT-NEG -1
+[30m[0][0m RESULT-NEGE -9.10141055741e-05
+[30m[0][0m RESULT-POSE 9.10141055741e-05
+[run 2/3 for test 1/1]
+[30m[0][0m RESULT-POS 1
+[30m[0][0m RESULT-NEG -1
+[30m[0][0m RESULT-NEGE -9.10141055741e-05
+[30m[0][0m RESULT-POSE 9.10141055741e-05
+[run 3/3 for test 1/1]
+[30m[0][0m RESULT-POS 1
+[30m[0][0m RESULT-NEG -1
+[30m[0][0m RESULT-NEGE -9.10141055741e-05
+[30m[0][0m RESULT-POSE 9.10141055741e-05
+NEG: [-1.0, -1.0, -1.0], NEGE: [-9.10141055741e-05, -9.10141055741e-05, -9.10141055741e-05], POS: [1.0, 1.0, 1.0], POSE: [9.10141055741e-05, 9.10141055741e-05, 9.10141055741e-05]
+Generating graphs...
+Graph of test written to compare/negative_click-2022-NEG.pdf
+Graph of test written to compare/negative_click-2022-NEGE.pdf
+Graph of test written to compare/negative_click-2022-POS.pdf
+Graph of test written to compare/negative_click-2022-POSE.pdf
