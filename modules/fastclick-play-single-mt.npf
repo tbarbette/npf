@@ -172,6 +172,7 @@ GEN_START_DELAY=5
 NUMBEROFFSET=40
 
 %late_variables
+GEN_ACTIVEDELAY?=0
 GEN_JIFFIECLOCK?=1
 GEN_DEBUG?=0
 GEN_NUMA?=false
@@ -328,7 +329,7 @@ StaticThreadSched(jc -1);
             fdIN{{ t }} :: $(( " FastUDPFlows(RATE " + ( str(int($GEN_RATE / $GEN_NGEN) ) if "$HAVE_PRATE" else "0") +  ", LIMIT " + str(int($LIMIT / $GEN_NGEN) if "$HAVE_PRATE" else "-1" ) + " , LENGTH $GEN_LENGTH, SRCETH $INsrcmac, DSTETH $INdstmac, SRCIP ${client:0:ip}, DSTIP ${server:0:ip}, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_FLOWSIZE, SEQUENTIAL $GEN_SEQUENTIAL, BURST $GEN_BURST, ACTIVE false)" ))
         {% endif %}
     {% elif GEN_DUMP == 0 %}
-        fdIN{{t}} :: FromDump({{t_path}}, STOP true, TIMING {{ $TIMING if not $REPLAY else 0 }}, {% if not $REPLAY %} TIMING_FNT "$TIMING_FNT", {% endif %} END_AFTER $END_AFTER, ACTIVE {{ REPLAY }}, BURST 32 {% if PRELOAD > 0 %}, PRELOAD $PRELOAD{% endif %} , MMAP false, DPDK true);
+        fdIN{{t}} :: FromDump({{t_path}}, STOP true, TIMING {{ $TIMING if not $REPLAY else 0 }}, {% if not $REPLAY %} TIMING_FNT "$TIMING_FNT", {% endif %} END_AFTER $END_AFTER, ACTIVE {{ REPLAY and not GEN_ACTIVEDELAY }}, BURST 32 {% if PRELOAD > 0 %}, PRELOAD $PRELOAD{% endif %} , MMAP false, DPDK true);
     {% elif GEN_DUMP == 1 %}
         fdIN{{t}} :: FromIPSummaryDump({{t_path}}, TIMES $replay_count, TIMING $TIMING, TIMESTAMP $TIMING, ZERO false, BURST $GEN_BURST, STOP true);
     {% else %}
@@ -353,6 +354,13 @@ elementclass NoTimestampDiff { $a, $b, $c, $d, $e |
     Idle->[1]output;
 }
 
+elementclass PortShift {
+    input -> pc :: IPClassifier(src port < 1024,dst port < 1024,-);
+    pc[0] -> Shifter(0,0,0,371) -> output;
+    pc[1] -> Shifter(0,371,0,0) -> output;
+    pc[2] -> output;
+}
+
 elementclass DuplicateRewrite {
     exit :: MinBatch(2) -> output;
     [0]
@@ -366,8 +374,8 @@ elementclass DuplicateRewrite {
 
     out :: Unstrip(14)
     -> exit;
-    ipc[0] -> StoreData(OFFSET 12, DATA \<03>) -> out;
-    ipc[1] -> StoreData(OFFSET 16, DATA \<03>) -> out;
+    ipc[0] -> Shifter(0,0,1572864,0) -> PortShift -> out;
+    ipc[1] -> Shifter(1572864,0,0,0) -> PortShift -> out;
     ipc[2] -> IPPrint("Unexpected, neither internal or external", ACTIVE true) -> Discard;
 }
 
@@ -502,6 +510,7 @@ ig :: Script(TYPE ACTIVE,
                 print "IG-$t-RESULT-${PREFIX}IGBYTESSENT $dbytesent",
                 print "IG-$t-RESULT-${PREFIX}IGTXPPS $(div $dsent $elapsed)",
                 print "IG-$t-RESULT-${PREFIX}IGTX $(div $dbytesent $elapsed)",
+                print "IG-$t-RESULT-${PREFIX}IGLINK $(div $(mul $(add $(mul $dsent 24) $dbytesent) 8) $elapsed)",
                 set drop $(sub $sent $count),
                 set lastdrop $drop,
 {% if GEN_RX %}
@@ -546,6 +555,10 @@ dm :: DriverManager(  print "Waiting ${GEN_START_DELAY} seconds before launching
            {% if HAVE_UNQUEUE %}
                 write unqueue{{t}}.active true,
             {% endif %}
+
+           {% if GEN_ACTIVEDELAY %}
+                wait {{GEN_ACTIVEDELAY}}ms,
+           {% endif %}
         {% endfor %}
 		$(( "write starter.run," if $GEN_PROGRESSIVE else "" ))
                 print "Starting timer wait...",

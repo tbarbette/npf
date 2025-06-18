@@ -219,9 +219,8 @@ class ZLTVariableExpander(OptVariableExpander):
         # get all outputs for all inputs
         vals_for_current = {}
         acceptable_rates = []
+        dropping = []
 
-        # max_r is the maximal rate (tried or not) that we tried but still dropped some packets
-        max_r = max(self.executable_values)
         for r, vals in self.results.items():
             if Run(self.current).inside(r):
                 try:
@@ -233,13 +232,19 @@ class ZLTVariableExpander(OptVariableExpander):
                         vals_for_current[r_in] = r_out
                         if r_out >= r_in/self.margin:
                             acceptable_rates.append(r_in)
-                        else:
-                            max_r = min(max_r, r_out)
+                        else: #Configuration is dropping
+                            dropping.append(r_in)
                 except KeyError as e:
                     #raise Exception(
                      print(   f"{self.output} is not in the results. Sample of last result : {vals}"
                     )
                     #from e
+
+        # max_r is the maximal executable rate (tried or not). If we already tried some value, max_r is the min value tried but still dropped some packets
+        max_r = max(self.executable_values)
+        if len(dropping) > 0:
+            max_r = vals_for_current[min(dropping)]
+
 
         #Step 1 : try the max input rate first
         next_val = None
@@ -261,6 +266,31 @@ class ZLTVariableExpander(OptVariableExpander):
 
         if next_val==None:
             #We have at least two values or one value but it's acceptable and all is set, so we need to analyse values below the max acceptable rate
+
+            #If not monotonic, we have to verify max_r is realistic. Maybe trying someting at 100% of the rate gives a value of 60, but at 70 it can actually do 70.
+            if len(acceptable_rates) > 0 and max_r < max(acceptable_rates):
+                #following the xample, we saw that for 61 we have something > max_r which is 60
+                print(max_r, vals_for_current)
+                tried_over_max_r = list(filter(lambda x : x > max_r, vals_for_current))
+                if len(tried_over_max_r) == 0:
+                    print("ERROR : impossible case")
+                    #return self.need_run_for()
+
+
+                #We find the minimal input that was dropping, the first should be the max input so 100
+                min_dropping = min(dropping)
+                print(min_dropping)
+
+                #The max acceptable found, 61
+                max_acceptable = max(acceptable_rates)
+                half = max_acceptable + ((min_dropping - max_acceptable) / 4)
+                #We try the next value between, so 61+(100-61)/4 = 70
+                next_over_half = min(filter(lambda x: x > half,self.executable_values))
+                print(next_over_half)
+                if next_over_half < min_dropping:
+                    return self.need_run_for(next_over_half)
+                        #max_r is 60,
+#                        return self.need_run_for()
 
             maybe_achievable_inputs = list(filter(lambda x : x <= max_r*self.margin, self.executable_values))
             left_to_try = set(maybe_achievable_inputs).difference(vals_for_current.keys())

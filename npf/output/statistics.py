@@ -224,8 +224,9 @@ class Statistics:
 
                 dataset.append([v for v in vars])
                 for result_type, results in results_types.items():
-                    r = np.mean(results)
-                    y.setdefault(result_type, []).append(r)
+                    if results and len(results) > 0:
+                        r = np.mean(results)
+                        y.setdefault(result_type, []).append(r)
         dtype['values'] = [None] * len(dtype['formats'])
 
         for i, f in enumerate(dtype['formats']):
