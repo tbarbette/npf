@@ -1,39 +1,27 @@
 import unittest
 import argparse
-
+from . import logger
+from collections import OrderedDict
+import numpy as np
 
 from npf import cmdline
 
-from npf.expdesign.gpexp import GPVariableExpander
-from npf.expdesign.multiexp import MultiVariableExpander
-from npf.expdesign.twokexp import TWOKVariableExpander
-from npf.expdesign.zltexp import ZLTVariableExpander
+
 from npf.output.grapher import Grapher
 from npf.repo import repository
-from npf.models.variables.RangeVariable import RangeVariable
-from npf.models.variables.SimpleVariable import SimpleVariable
-from npf.models.variables.VariableParser import substitute_variables
 from npf.tests.build import Build
 from npf.tests.test_driver import Comparator
 from npf.cluster.node import *
 
-from collections import OrderedDict
+
 
 from npf.repo.repository import Repository
 from npf.tests.test import Test
 from npf.models.units import dtype
 from npf.models.dataset import Run
 
-import numpy as np
-import logging
 
 from npf.models.units import numeric_dict
-
-logger = logging.getLogger()
-logger.level = logging.DEBUG
-stream_handler = logging.StreamHandler(sys.stdout)
-logger.addHandler(stream_handler)
-
 
 def get_args():
     parser = argparse.ArgumentParser(description='NPF Tester')
@@ -174,8 +162,8 @@ def test_core():
         comparator = Comparator(repo_list)
 
         series, time_series = comparator.run(test_name=args.test_files,
-                                             tags=args.tags,
-                                             options=args)
+                                            tags=args.tags,
+                                            options=args)
         assert len(series) == 1
         r = series[0][2]
         assert len(r.items()) == 1
@@ -191,143 +179,10 @@ def test_core():
 
         print("Generating graphs...")
         g = grapher.graph(series=series,
-                          filename=filename,
-                          options=args
-                          )
+                        filename=filename,
+                        options=args
+                        )
 
-
-def test_2K():
-    vlist = {'RATE' : RangeVariable("RATE",1,10,log=False)}
-    results = OrderedDict()
-    twok = TWOKVariableExpander(vlist, results)
-    it = iter(twok)
-    run = next(it)
-    assert run["RATE"] == 1
-    run = next(it)
-    assert run["RATE"] == 10
-    try:
-        next(it)
-        assert False
-    except StopIteration:
-        pass
-
-def test_zlt():
-    vlist = {'RATE' : RangeVariable("RATE",1,10,log=False)}
-    results = OrderedDict()
-    zlt = ZLTVariableExpander(vlist, results, {}, "RATE", "PPS", 1.01)
-    it = iter(zlt)
-    run = next(it)
-    assert run["RATE"] == 10
-    results[Run({'RATE' : 10})] = {'PPS':[3.0]}
-    run = next(it)
-    assert run["RATE"] == 3
-    results[Run({'RATE' : 3})] = {'PPS':[1.5]}
-    run = next(it)
-    assert run["RATE"] == 1
-    results[Run({'RATE' : 1})] = {'PPS':[1]}
-    run = next(it)
-    assert run["RATE"] == 2
-    results[Run({'RATE' : 2})] = {'PPS':[1.5]}
-    try:
-        next(it)
-        assert False
-    except StopIteration:
-        pass
-    logger.error(run)
-
-
-def _test_allzlt(monotonic,all=True):
-    vlist = {'RATE' : RangeVariable("RATE",1,20,log=False)} #From 1 to 10 included
-    results = OrderedDict()
-    zlt = ZLTVariableExpander(vlist, results, {}, "RATE", "PPS", 1.01, all=all, monotonic=monotonic)
-    it = iter(zlt)
-    run = next(it)
-    assert run["RATE"] == 20
-    results[Run({'RATE' : 20})] = {'PPS':[6.0]}
-    run = next(it)
-    assert run["RATE"] == 6
-    results[Run({'RATE' : 6})] = {'PPS':[6.0]}
-    if all == 1:
-        for i in range(5,0,-1):
-            print("all",i)
-            run = next(it)
-            assert run["RATE"] == i
-            results[Run({'RATE' : i})] = {'PPS':[i]}
-    if all == 2:
-        for i in [5,4,2,1]:
-            print("all",i)
-            run = next(it)
-            assert run["RATE"] == i
-            results[Run({'RATE' : i})] = {'PPS':[i]}
-    if not monotonic:
-        run = next(it)
-        print("mono",run)
-        assert run["RATE"] == 7
-        results[Run({'RATE' : 7})] = {'PPS':[6.1]}
-    try:
-        run = next(it)
-        print("last", run)
-        assert False
-    except StopIteration:
-        pass
-    logger.error(run)
-
-
-def test_multi():
-    vlist = {'RATE' : RangeVariable("RATE",1,10,log=False)}
-    results = OrderedDict()
-    twok = MultiVariableExpander([TWOKVariableExpander(vlist, results),TWOKVariableExpander(vlist, results)])
-    it = iter(twok)
-    run = next(it)
-    assert run["RATE"] == 1
-    run = next(it)
-    assert run["RATE"] == 10
-    run = next(it)
-    assert run["RATE"] == 1
-    run = next(it)
-    assert run["RATE"] == 10
-    try:
-        next(it)
-        assert False
-    except StopIteration:
-        pass
-
-
-
-def test_gp():
-
-    vlist = {'RATE' : RangeVariable("RATE",1,10,log=False)}
-    results = OrderedDict()
-    def fake_run(val):
-        results[Run({'RATE' : val})] = {'PPS':[val if val < 7 else val / 0.9]}
-    twok = TWOKVariableExpander(vlist, results)
-    it = iter(twok)
-    run = next(it)
-    assert run["RATE"] == 1
-    fake_run(1)
-    run = next(it)
-    assert run["RATE"] == 10
-    fake_run(10)
-    try:
-        next(it)
-        assert False
-    except StopIteration:
-        pass
-    gp = GPVariableExpander(vlist,{}, results,ci=0.95)
-    it = iter(gp)
-    run = next(it)
-    assert run["RATE"] == 2
-    fake_run(2)
-    try:
-        run = next(it)
-        assert False
-    except StopIteration:
-        pass
-
-def test_allzlt():
-    for a in (0,1,2):
-        _test_allzlt(monotonic=True, all=a)
-        _test_allzlt(monotonic=False, all=a)
 
 
 def test_test_main():
@@ -348,35 +203,3 @@ def test_enoslib():
     except ImportError as e:
         print("Enoslib test ignored as enoslib is not installed")
         pass  # module doesn't exist, deal with it.
-
-def test_import_mains():
-    import npf
-    import npf_regress
-    import npf_watch
-
-def test_var_parser():
-    def test_simple_var():
-        variables = {"foo": "bar"}
-        content = "Hello $foo!"
-        result = substitute_variables(variables, content)
-        assert result == "Hello bar!"
-
-    def test_braced_var():
-        variables = {"foo": "bar"}
-        content = "Hello ${foo}!"
-        result = substitute_variables(variables, content)
-        assert result == "Hello bar!"
-
-    def test_var_parser_inner():
-        variables = {
-            "foo": 123,
-            "bar": ("hello",),
-            "baz": 42,
-        }
-        content = "Value is $foo and ${bar}, missing $unknown stays same."
-        result = substitute_variables(variables, content)
-        assert result == "Value is 123 and hello, missing $unknown stays same."
-
-    test_simple_var()
-    test_braced_var()
-    test_var_parser_inner()
