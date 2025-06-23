@@ -14,7 +14,6 @@ from npf.tests.test_driver import Comparator
 from npf.cluster.node import *
 
 
-
 from npf.repo.repository import Repository
 from npf.tests.test import Test
 from npf.models.units import dtype

@@ -3,23 +3,29 @@ from lark import Lark, Transformer
 variable_grammar = r"""
     start: (var_expr | TEXT)+
 
-    var_expr: DOLLAR BRACE_OPEN NAME BRACE_CLOSE   -> var_braced
-            | DOLLAR NAME                          -> var_simple
+    var_expr: DOLLAR BRACE_OPEN NAME BRACE_CLOSE                                    -> var_braced
+            | DOLLAR BRACE_OPEN NAME COLON INT COLON NAME BRACE_CLOSE                -> var_role
+            | DOLLAR NAME                                                           -> var_simple
+            | DOLLAR BRACKET_OPEN BRACKET_OPEN ANYTHING BRACKET_CLOSE BRACKET_CLOSE -> var_py_replacement
 
     TEXT: /[^$]+/ | "$"
 
     DOLLAR: "$"
     BRACE_OPEN: "{"
     BRACE_CLOSE: "}"
+    BRACKET_OPEN: "("
+    BRACKET_CLOSE: ")"
+    COLON: ":"
 
     NAME: /[a-zA-Z0-9._-]+/
+    INT: /[0-9]+/
+    ANYTHING: /.+/
 
     %import common.WS
     %ignore WS
 """
 
 variable_parser = Lark(variable_grammar, start="start", parser="lalr")
-
 
 class VariableSubstituter(Transformer):
     def __init__(self, variables):
@@ -42,6 +48,13 @@ class VariableSubstituter(Transformer):
 
     def TEXT(self, item):
         return str(item)
+
+    def var_py_replacement(self, items):
+        return ''.join(items)
+
+
+    def var_role(self, items):
+        return ''.join(items)
 
     def start(self, items):
         return ''.join(items)

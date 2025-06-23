@@ -1,3 +1,4 @@
+import unittest
 
 def test_import_mains():
     import npf
