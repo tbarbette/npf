@@ -105,8 +105,9 @@ IGNORE?=0
 //Number of threads
 GEN_THREADS=4
 GEN_RX_THREADS=4
-GEN_PIPELINE=1
-udpgen|gen_multi_trace|replay:GEN_PIPELINE=0
+GEN_PIPELINE=0
+//udpgen|gen_multi_trace|replay|scale_multi_trace:GEN_PIPELINE=0
+gen_pipeline:GEN_PIPELINE=1
 GEN_TX_PIPELINE=0
 
 //Socket of the NIC
@@ -195,6 +196,7 @@ rate:UNQUEUE=EXPAND( Bandwidth${DISTRIB}Unqueue( $(( int($GEN_RATE / $GEN_NGEN) 
 prate:UNQUEUE=EXPAND( ${DISTRIB}Unqueue($(( int($GEN_RATE / $GEN_NGEN)  )), BURST $GEN_BURST, ACTIVE $(( "false" if $GEN_ACTIVEDELAY > 0 else "true" )) ) )
 REPLAY=0
 replay:REPLAY=1
+HAVE_PRATE?=0
 prate:HAVE_PRATE=1
 HAVE_UNQUEUE?=0
 udpgen,-prate|prate,-udpgen|rate:HAVE_UNQUEUE=1
@@ -406,13 +408,16 @@ $(( "" if $GEN_IPV6 and $GEN_CSUM else " -> ResetIPChecksum()  " ))
 
 ender :: Script(TYPE PASSIVE,
                 print "Limit of $LIMIT reached",
+                {% for t in range($GEN_NGEN) %}
+                write fdIN{{ t }}.active false,
+                {% endfor %}
                 stop,
                 stop);
 $FDDISPATCH
 
 {% for t in range(GEN_NGEN | int ) %}
      fdIN{{t}}
-    {% if LIMIT > 0 and not "$HAVE_PRATE"  %}
+    {% if (LIMIT | int) > 0 and not HAVE_PRATE and not REPLAY %}
          -> limit{{t}} :: Counter(COUNT_CALL {{ ( (LIMIT | int) / (GEN_NGEN | int) )  | int }} ender.run)
     {% endif %}
     {% if HAVE_UNQUEUE %}
