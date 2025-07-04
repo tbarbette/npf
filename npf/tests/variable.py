@@ -12,6 +12,7 @@ import random
 
 import npf.cluster.node
 from npf.models.variables.variable import Variable
+from npf.models.variables.VariableParser import substitute_variables
 import npf.osutils
 from npf.models.units import is_numeric
 from npf.models.units import get_bool
@@ -70,9 +71,7 @@ def replace_variables(v: dict, content: str, self_role=None, self_node=None, def
             return str(val[0] if type(val) is tuple else val)
         return match.group(0)
 
-    content = re.sub(
-        Variable.VARIABLE_REGEX,
-        do_replace, content)
+    content = substitute_variables(v, content)
 
     def do_replace_nics(nic_match):
         varRole = nic_match.group('role')
