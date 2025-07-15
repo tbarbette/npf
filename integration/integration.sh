@@ -55,6 +55,8 @@ compare_watcher() {
 try() {
     test=$1
     python=$2
+    echo "Trying $test with ${@:3}"
+    kilall -9 click &> /dev/null
     $python npf.py --force-test --no-graph-time --test $test --quiet --config n_runs=1 --tags fastregression ${@:3}
     if [ $? -ne 0 ] ; then
         echo "npf.py returned an error for test $test !"
@@ -74,6 +76,37 @@ tryweb() {
         exit 1
     fi
 }
+get_csv_value_by_column_name() {
+  local csv_file="$1"
+  local column_name="$2"
+
+  # Read header and value line
+  IFS=',' read -r -a headers < "$csv_file"
+  IFS=',' read -r -a values < <(tail -n 1 "$csv_file")
+
+  # Find index of the target column
+  for i in "${!headers[@]}"; do
+    if [[ "${headers[$i]}" == "$column_name" ]]; then
+      echo "${values[$i]}"
+      return 0
+    fi
+  done
+
+  echo "Column '$column_name' not found." >&2
+  return 1
+}
+
+
+csv_check() {
+    val=$(get_csv_value_by_column_name "out.csv" $1)
+    if (( $(echo "$val/$2 < 1.02 && $val/$2 > 0.98 " | bc -l) )); then
+        return 0
+    else
+        echo "Value $val is not $2 for $1"
+        ret=1
+        return 1
+    fi
+}
 
 if [ $# -eq 1 ] ; then
     python=$1
@@ -81,7 +114,47 @@ else
     python=python
 fi
 
+if pkg-config --exists libdpdk ; then
 
+    #Play a trace, single thread
+    try integration/fastclick-generator.npf $python --variables LIMIT=100 trace=../integration/tls.pcap-1 --csv out.csv
+    csv_check y_COUNT 44
+
+    #Play the same trace, 2 threads
+    try integration/fastclick-generator.npf $python --variables LIMIT=100 trace=../integration/tls.pcap-1 GEN_THREADS=2 --csv out.csv
+    csv_check y_COUNT 88
+
+
+    #Play two traces, 2 threads (one trace per thread)
+    try integration/fastclick-generator.npf $python --variables LIMIT=100 trace=../integration/tls.pcap-1 GEN_THREADS=2 --csv out.csv
+    csv_check y_COUNT 88
+
+
+    #Play the same trace, 2 threads but with pipeling, so using RR with gen_pipeline
+    try integration/fastclick-generator.npf $python --tags gen_pipeline --variables LIMIT=100 trace=../integration/tls.pcap-1 GEN_THREADS=2 --csv out.csv
+    csv_check y_COUNT 44
+
+    #Now replay the trace, preloaded from memory, 10 times
+    try integration/fastclick-generator.npf $python --tags replay --variables LIMIT=100 trace=../integration/tls.pcap-1 PKTGEN_REPLAY_COUNT=10 --csv out.csv
+    csv_check y_COUNT 440
+    csv_check y_BYTES 186370
+
+    #Now replay 2 traces, preloaded from memory, 10 times, using 2 threads
+    try integration/fastclick-generator.npf $python --tags replay scale_multi_trace --variables LIMIT=100 trace=../integration/tls.pcap GEN_MULTI_TRACE=2 PKTGEN_REPLAY_COUNT=10 GEN_THREADS=2 --csv out.csv
+    csv_check y_COUNT 880
+
+    try integration/fastclick-generator.npf $python --tags udpgen replay --variables LIMIT=10000 PKTGEN_REPLAY_COUNT=10 LIMIT_TIME=10 --csv out.csv
+
+    #We have to IGNORE=2 as the token bucket starts full, so the rate is slightly higher at the beginning, still there is a small increase in PPS left
+    try integration/fastclick-generator.npf $python --tags udpgen rate --variables LIMIT=50 GEN_RATE=10000 GEN_LENGTH=1000 GEN_RATE_LINK=0 GEN_BURST=1 IGNORE=2 --csv out.csv
+    csv_check y_PPS 10.5
+
+    try integration/fastclick-generator.npf $python --tags udpgen prate --variables LIMIT=1000 GEN_RATE=500  --csv out.csv
+    csv_check y_COUNT 1000
+    csv_check y_PPS 500
+    try integration/fastclick-generator.npf $python --tags udpgen --variables LIMIT=1000  --csv out.csv
+    csv_check y_COUNT 1000
+fi
 try integration/empty.npf $python
 compare_raw npf.py single $python --no-graph --no-graph-time --csv out.csv
 diff out.csv integration/single.csv

@@ -57,9 +57,15 @@ Altough not tied to this specific module, it is often combined with experimental
 Pass the variables GEN_THREADS=X and GEN_RX_THREADS=y to use x threads for TX and y threads for RX. Default is 4 for both.
 
 ## Multi-threading with traces
-The normal way to use multi-threading would be to round-robin the trace between the threads. Use the "GEN_MULTI_TRACE=1" to use multiple traces, using -1, -2, ... -GEN_THREADS suffixes to the trace.
-If the tag scale_multi_trace is given, then the number of threads is fixed and the trace will be used from 1 to .. GEN_MULTI_TRACE. If GEN_MULTI_GEN is smaller than GEN_THREADS, some threads might be unused. This is useful to scale the number of threads according to the number of input files.
-Passing gen_multI_trace will deactivate pipelining mode (going through a single queue in the TX path) as there should be one trace per thread.
+The normal way to use multi-threading would be to round-robin the trace between the threads.
+
+By default, each thread will re-read the same trace, which is generally not convenient.
+
+A more efficient way is to use multiple traces pre-split, for instance one trace per thread.
+Use the "GEN_MULTI_TRACE=N" tag to use multiple traces, using -1, -2, ... -N suffixes to the trace. If you only have 4 threads (GEN_THREADS=4), then only traces from 1 to 4 will be used. Inversely, if you have 4 threads but only two traces, the threads 3 and 4 will fail.
+
+If the tag scale_multi_trace tag is given, then the number of traces is fixed always sending traces from 1 to .. GEN_MULTI_TRACE. If GEN_MULTI_TRACE is smaller than GEN_THREADS, some threads will be unused. If GEN_MULTI_TRACE is bigger than the number of threads, then they will be distributed in a round-robin fashion. For instance with 16 traces and 4 threads, the first thread will send trace 1,5,9 and 13. This tags therefore ensure there is no mismatch between the numbers of traces and thread.
+
 
 ## Deactivate latency to improve performance
 Use the "gen_nolat" tag to disable latency tracking. This cannot be done using variables.
@@ -84,7 +90,7 @@ default_role_map+={server:dut}
 PKTGEN_BURST_OUT=32
 
 //Number of time to replay a trace. Not applicable to UDP
--udpgen:PKTGEN_REPLAY_COUNT=1
+PKTGEN_REPLAY_COUNT=1
 
 //NICs to be used. Deprecated, one should use the NIC specification through the cluster argument and leave 0 here
 NIC=0
@@ -93,6 +99,7 @@ RCV_NIC=0
 
 //Maximum number of packets to read
 LIMIT=50000000
+replay:LIMIT=1000000
 
 //Maximum time to (re)play
 LIMIT_TIME=10
@@ -109,6 +116,7 @@ GEN_PIPELINE=0
 //udpgen|gen_multi_trace|replay|scale_multi_trace:GEN_PIPELINE=0
 gen_pipeline:GEN_PIPELINE=1
 GEN_TX_PIPELINE=0
+gen_tx_pipeline:GEN_TX_PIPELINE=1
 
 //Socket of the NIC
 GEN_SOCKET=0
@@ -135,6 +143,7 @@ END_AFTER=0
 //Packet or bitrate, depending on the tag
 rate,prate:GEN_RATE?=1000
 GEN_RATE?=-1
+GEN_RATE_LINK?=1
 
 //File where to dump the individual latency of all packets
 LATENCYDUMP=/tmp/latency.csv
@@ -191,15 +200,15 @@ GEN_PREFIX?=
 GEN_FNT?=
 DISTRIB?=Rated
 UNQUEUE?=
-udpgen:UNQUEUE=Unqueue()
-rate:UNQUEUE=EXPAND( Bandwidth${DISTRIB}Unqueue( $(( int($GEN_RATE / $GEN_NGEN) )), EXTRA_LENGTH true, LINK_RATE true, BURST_DURATION 1, BURST $GEN_BURST) )
+udpgen,-replay:UNQUEUE=Unqueue()
+rate:UNQUEUE=EXPAND( Bandwidth${DISTRIB}Unqueue( $(( int($GEN_RATE / $GEN_NGEN) )), EXTRA_LENGTH true, LINK_RATE $GEN_RATE_LINK, BURST_DURATION 1, BURST $GEN_BURST) )
 prate:UNQUEUE=EXPAND( ${DISTRIB}Unqueue($(( int($GEN_RATE / $GEN_NGEN)  )), BURST $GEN_BURST, ACTIVE $(( "false" if $GEN_ACTIVEDELAY > 0 else "true" )) ) )
 REPLAY=0
 replay:REPLAY=1
 HAVE_PRATE?=0
 prate:HAVE_PRATE=1
 HAVE_UNQUEUE?=0
-udpgen,-prate|prate,-udpgen|rate:HAVE_UNQUEUE=1
+udpgen,-prate,-replay|prate,-udpgen|rate:HAVE_UNQUEUE=1
 SAMPLE?=100
 NRECORD=EXPAND( $(( int($LIMIT * $PKTGEN_REPLAY_COUNT / $SAMPLE + 1024) * 2 )) )
 BROADCAST_IGNORE= -> c :: Classifier(0/$mac,-) //Ignore broadcasts
@@ -240,6 +249,7 @@ GEN_FLOWS?=128
 PREFIX?=
 
 GEN_OVERWRITE_NIC?=
+GEN_MAX_QUEUES?=
 
 %prate,timing:require
 echo "timing and prate are not compatible"
@@ -254,7 +264,11 @@ test $GEN_RATE -gt 1 || ( echo "GEN_RATE must be > 0" && exit 1)
 %promisc:late_variables
 BROADCAST_IGNORE= -> c :: Classifier(-, 0/ffffffffffff)
 
-
+%-udpgen,-replay:require
+if [ "$trace" = "" ] ; then
+    echo "You must either set the udpgen tag or set a trace"
+    exit 1
+fi
 
 %file launch.sh jinja
 proc=$(getconf _NPROCESSORS_ONLN)
@@ -268,14 +282,14 @@ if [ "$GEN_CPUS" = "" ] ; then
     GEN_CPUS=0-$proc
 fi
 echo "Launching Click generator with $GEN_CPUS cpus"
-$GEN_GDB click --dpdk -l $GEN_CPUS --file-prefix gen-$RCV_NIC -a {% if GEN_OVERWRITE_NIC %}{{GEN_OVERWRITE_NIC}}{%else%}${self:$RCV_NIC:pci}{%endif%}  -- PKTGEN_CONFIG_${RCV_NIC} PREFIX=$GEN_PREFIX
+$GEN_GDB click --dpdk -l $GEN_CPUS --file-prefix gen-$RCV_NIC {% if GEN_OVERWRITE_NIC %}{{GEN_OVERWRITE_NIC}}{%else%}-a ${self:$RCV_NIC:pci}{%endif%}  -- PKTGEN_CONFIG_${RCV_NIC} PREFIX=$GEN_PREFIX
 echo "EVENT TX_FINISHED"
 echo "Generator stopped..."
 
-%gen_pipeline,-iqueue:script deps=fastclick-noiqueue-utime sudo=true delay=2 name=fastclick-play
+%gen_pipeline,-iqueue|gen_tx_pipeline,-iqueue:script deps=fastclick-noiqueue-utime sudo=true delay=2 name=fastclick-play
 bash launch.sh
 
-%-gen_pipeline,-iqueue:script autokill=false criticial=true
+%-gen_pipeline,-gen_tx_pipeline,-iqueue:script autokill=false criticial=true
 if [ $GEN_PIPELINE -eq 0 -a $GEN_TX_PIPELINE -eq 0 ] ; then
     exit 0
 else
@@ -284,7 +298,7 @@ else
 fi
 
 
-%-gen_pipeline,-iqueue:script deps=fastclick-noiqueue-utime-rtc sudo=true delay=2 name=fastclick-play
+%-gen_pipeline,-gen_tx_pipeline,-iqueue:script deps=fastclick-noiqueue-utime-rtc sudo=true delay=2 name=fastclick-play
 bash launch.sh
 
 %iqueue:script deps=fastclick-utime sudo=true delay=2 name=fastclick-play
@@ -341,16 +355,23 @@ StaticThreadSched(jc -1);
     {% if GEN_DUMP==-1 %}
     //UDP-based
         {% if GEN_IPV6 %}
-            fdIN{{ t }} :: FastUDPFlowsIP6(RATE 0, LIMIT -1, LENGTH $GEN_LENGTH, SRCETH $INsrcmac, DSTETH $INdstmac, SRCIP6 ${client:0:ip6}, DSTIP6 ${server:0:ip6}, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST, SEQUENTIAL $GEN_SEQUENTIAL)
+            fdIN{{ t }} :: FastUDPFlowsIP6(
+                            RATE 0,
+                            LIMIT -1, LENGTH $GEN_LENGTH, SRCETH $INsrcmac, DSTETH $INdstmac, SRCIP6 ${client:0:ip6}, DSTIP6 ${server:0:ip6}, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST, SEQUENTIAL $GEN_SEQUENTIAL)
         {% else %}
-            fdIN{{ t }} :: $(( " FastUDPFlows(RATE " + ( str(int($GEN_RATE / $GEN_NGEN) ) if "$HAVE_PRATE" else "0") +  ", LIMIT " + str(int($LIMIT / $GEN_NGEN) if "$HAVE_PRATE" else "-1" ) + " , LENGTH $GEN_LENGTH, SRCETH $INsrcmac, DSTETH $INdstmac, SRCIP ${client:0:ip}, DSTIP ${server:0:ip}, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_FLOWSIZE, SEQUENTIAL $GEN_SEQUENTIAL, BURST $GEN_BURST, ACTIVE false)" ))
+            fdIN{{ t }} :: FastUDPFlows(
+                            RATE {% if HAVE_PRATE %}{{($GEN_RATE / $GEN_NGEN) | int }}{%else%}0{%endif%},
+                            LIMIT {% if HAVE_PRATE %}{{($LIMIT / $GEN_NGEN) | int }}{%else%}-1{%endif%},
+                            LENGTH $GEN_LENGTH, SRCETH $INsrcmac, DSTETH $INdstmac, SRCIP ${client:0:ip}, DSTIP ${server:0:ip},
+                            FLOWS $GEN_FLOWS, FLOWSIZE $GEN_FLOWSIZE,
+                            SEQUENTIAL $GEN_SEQUENTIAL, BURST $GEN_BURST, ACTIVE false)
         {% endif %}
     {% elif GEN_DUMP == 0 %}
         fdIN{{t}} :: FromDump({{t_path}}, STOP {{ "false" if REPLAY else "true" }}, TIMING {{ $TIMING if not $REPLAY else 0 }}, {% if not $REPLAY %} TIMING_FNT "$TIMING_FNT", {% endif %} END_AFTER $END_AFTER, ACTIVE {{ "true" if (REPLAY and not GEN_ACTIVEDELAY) else "false" }}, BURST 32 {% if PRELOAD > 0 %}, PRELOAD $PRELOAD{% endif %} , MMAP false, DPDK true);
     {% elif GEN_DUMP == 1 %}
-        fdIN{{t}} :: FromIPSummaryDump({{t_path}}, TIMES $replay_count, TIMING $TIMING, TIMESTAMP $TIMING, ZERO false, BURST $GEN_BURST, STOP true);
+        fdIN{{t}} :: FromIPSummaryDump({{t_path}}, TIMES $replay_count, TIMING $TIMING, TIMESTAMP $TIMING, ZERO false, BURST $GEN_BURST, STOP {{ "false" if REPLAY else "true" }});
     {% else %}
-        fdIN{{t}} :: FromMinDump({{t_path}}, TIMES $replay_count,  BURST $GEN_BURST, STOP true, DPDK true);
+        fdIN{{t}} :: FromMinDump({{t_path}}, TIMES $replay_count,  BURST $GEN_BURST, STOP {{ "false" if REPLAY else "true" }}, DPDK true);
     {% endif %}
 {% endfor %}
 
@@ -362,7 +383,8 @@ tdIN ::
 {% else %}
     {[0] -> [0]} ->
 {% endif %}
-     realTD :: ToDPDKDevice($port, BLOCKING $GEN_BLOCKING, BURST $bout, VERBOSE $txverbose, IQUEUE $bout, NDESC $GEN_TX_DESC, IPCO $GEN_CSUM )
+
+     realTD :: ToDPDKDevice($port, BLOCKING $GEN_BLOCKING, BURST $bout, VERBOSE $txverbose, IQUEUE $bout, NDESC $GEN_TX_DESC, IPCO $GEN_CSUM {% if GEN_MAX_QUEUES %}, MAXQUEUES {{GEN_MAX_QUEUES}}{% endif %})
 
 
 
@@ -435,7 +457,10 @@ $(( "-> EnsureDPDKBuffer" if $GEN_DUMP < 2 else "" ))
 {% if GEN_DUMP > 0 or GEN_FORCE_ETHER != 1 %}
     ->  EtherEncap(0x0800, $INsrcmac, $INdstmac)
 {% elif GEN_NOREWRITE_ETHER == 0 %}
-     -> rwIN :: EtherRewrite($INsrcmac,$INdstmac)
+    {% if not REPLAY %}
+    -> { [0] -> cverif :: Classifier(12/0800,12/86DD,12/0806, -)[0-2] => [0]; cverif[3] -> Print("Packet is not IP, ARP or IP6?") -> [0]; }
+    {% endif %}
+    -> rwIN :: EtherRewrite($INsrcmac,$INdstmac)
 {% endif %}
 
 {% if GEN_DUMP < 2 and GEN_DUMP > -1 %}
@@ -481,7 +506,9 @@ $(( "-> EnsureDPDKBuffer" if $GEN_DUMP < 2 else "" ))
 {% endfor %}
 
 
-$(( " StaticThreadSched(tdIN 0/%d);" % ($GEN_THREADS + 1) if $GEN_TX_PIPELINE else "" ))
+{% if GEN_TX_PIPELINE %}
+    StaticThreadSched(tdIN 0/{{GEN_THREADS + 1}});
+{% endif %}
 
 receiveIN :: FromDPDKDevice($port, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, PAUSE $GEN_PAUSE, NDESC $GEN_DESC, MAXTHREADS $GEN_RX_THREADS, NUMA $GEN_NUMA, ACTIVE $GEN_RX)
 
@@ -578,6 +605,13 @@ $(( (  "tsd :: HandlerAggregate( " + ",".join(["ELEMENT RIN/tsd%d" % (i) for i i
 
 $(( "avgSIN :: HandlerAggregate( " + ",".join(["ELEMENT gen%d/avgSIN" % (i) for i in range($GEN_THREADS) ]) + " );" ))
 
+timeout :: Script(TYPE PASSIVE,
+                wait ${LIMIT_TIME}s,
+                print "Timed out...",
+                {% for i in range($GEN_THREADS if REPLAY else $GEN_NGEN) %}
+                stop,
+                {% endfor %}
+                );
 
 dm :: DriverManager(
                 print "Waiting ${GEN_START_DELAY} seconds before launching generation...",
@@ -608,6 +642,7 @@ dm :: DriverManager(
         print "Starting gen...",
         {% for t in range($GEN_NGEN) %}
             write fdIN{{ t }}.active true,
+
             {% if HAVE_UNQUEUE %}
                 write unqueue{{t}}.active true,
             {% endif %}
@@ -618,11 +653,15 @@ dm :: DriverManager(
         {% endfor %}
 {% endif %}
                 print "Starting timer wait...",
+                write timeout.run,
                 set starttime $(now),
-                wait $LIMIT_TIME,
+                {% for i in range($GEN_THREADS if REPLAY else $GEN_NGEN) %}
+                wait,
+                {% endfor %}
                 set stoptime $(now),
                 print "EVENT GEN_DONE",
                 wait 1s,
+
                 read receiveIN.hw_count,
                 read receiveIN.count,
                 read receiveIN.xstats,
