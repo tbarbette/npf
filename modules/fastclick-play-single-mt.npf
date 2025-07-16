@@ -286,10 +286,14 @@ $GEN_GDB click --dpdk -l $GEN_CPUS --file-prefix gen-$RCV_NIC {% if GEN_OVERWRIT
 echo "EVENT TX_FINISHED"
 echo "Generator stopped..."
 
-%gen_pipeline,-iqueue|gen_tx_pipeline,-iqueue:script deps=fastclick-noiqueue-utime sudo=true delay=2 name=fastclick-play
+%gen_pipeline,-iqueue,-gen_nosudo|gen_tx_pipeline,-iqueue,-gen_nosudo:script deps=fastclick-noiqueue-utime sudo=true delay=2 name=fastclick-play
 bash launch.sh
 
-%-gen_pipeline,-gen_tx_pipeline,-iqueue:script autokill=false criticial=true
+
+%gen_nosudo:script deps=fastclick-utime delay=2 name=fastclick-play
+bash launch.sh
+
+%-gen_pipeline,-gen_tx_pipeline,-iqueue,-gen_nosudo:script autokill=false criticial=true
 if [ $GEN_PIPELINE -eq 0 -a $GEN_TX_PIPELINE -eq 0 ] ; then
     exit 0
 else
@@ -298,10 +302,10 @@ else
 fi
 
 
-%-gen_pipeline,-gen_tx_pipeline,-iqueue:script deps=fastclick-noiqueue-utime-rtc sudo=true delay=2 name=fastclick-play
+%-gen_pipeline,-gen_tx_pipeline,-iqueue,-gen_nosudo:script deps=fastclick-noiqueue-utime-rtc sudo=true delay=2 name=fastclick-play
 bash launch.sh
 
-%iqueue:script deps=fastclick-utime sudo=true delay=2 name=fastclick-play
+%iqueue,-gen_nosudo:script deps=fastclick-utime sudo=true delay=2 name=fastclick-play
 bash launch.sh
 
 %file PKTGEN_CONFIG_${RCV_NIC} jinja
@@ -364,14 +368,15 @@ StaticThreadSched(jc -1);
                             LIMIT {% if HAVE_PRATE %}{{($LIMIT / $GEN_NGEN) | int }}{%else%}-1{%endif%},
                             LENGTH $GEN_LENGTH, SRCETH $INsrcmac, DSTETH $INdstmac, SRCIP ${client:0:ip}, DSTIP ${server:0:ip},
                             FLOWS $GEN_FLOWS, FLOWSIZE $GEN_FLOWSIZE,
+                            STOP true,
                             SEQUENTIAL $GEN_SEQUENTIAL, BURST $GEN_BURST, ACTIVE false)
         {% endif %}
     {% elif GEN_DUMP == 0 %}
-        fdIN{{t}} :: FromDump({{t_path}}, STOP {{ "false" if REPLAY else "true" }}, TIMING {{ $TIMING if not $REPLAY else 0 }}, {% if not $REPLAY %} TIMING_FNT "$TIMING_FNT", {% endif %} END_AFTER $END_AFTER, ACTIVE {{ "true" if (REPLAY and not GEN_ACTIVEDELAY) else "false" }}, BURST 32 {% if PRELOAD > 0 %}, PRELOAD $PRELOAD{% endif %} , MMAP false, DPDK true);
+        fdIN{{t}} :: FromDump({{t_path}}, STOP true, TIMING {{ $TIMING if not $REPLAY else 0 }}, {% if not $REPLAY %} TIMING_FNT "$TIMING_FNT", {% endif %} END_AFTER $END_AFTER, ACTIVE {{ "true" if (REPLAY and not GEN_ACTIVEDELAY) else "false" }}, BURST 32 {% if PRELOAD > 0 %}, PRELOAD $PRELOAD{% endif %} , MMAP false, DPDK true);
     {% elif GEN_DUMP == 1 %}
-        fdIN{{t}} :: FromIPSummaryDump({{t_path}}, TIMES $replay_count, TIMING $TIMING, TIMESTAMP $TIMING, ZERO false, BURST $GEN_BURST, STOP {{ "false" if REPLAY else "true" }});
+        fdIN{{t}} :: FromIPSummaryDump({{t_path}}, TIMES $replay_count, TIMING $TIMING, TIMESTAMP $TIMING, ZERO false, BURST $GEN_BURST, STOP true);
     {% else %}
-        fdIN{{t}} :: FromMinDump({{t_path}}, TIMES $replay_count,  BURST $GEN_BURST, STOP {{ "false" if REPLAY else "true" }}, DPDK true);
+        fdIN{{t}} :: FromMinDump({{t_path}}, TIMES $replay_count,  BURST $GEN_BURST, STOP true, DPDK true);
     {% endif %}
 {% endfor %}
 
@@ -433,13 +438,12 @@ ender :: Script(TYPE PASSIVE,
                 {% for t in range($GEN_NGEN) %}
                 write fdIN{{ t }}.active false,
                 {% endfor %}
-                stop,
                 stop);
 $FDDISPATCH
 
 {% for t in range(GEN_NGEN | int ) %}
      fdIN{{t}}
-    {% if (LIMIT | int) > 0 and not HAVE_PRATE and not REPLAY %}
+    {% if (LIMIT | int) > 0 and not HAVE_PRATE %}
          -> limit{{t}} :: Counter(COUNT_CALL {{ ( (LIMIT | int) / (GEN_NGEN | int) )  | int }} ender.run)
     {% endif %}
     {% if HAVE_UNQUEUE %}
@@ -609,7 +613,7 @@ timeout :: Script(TYPE PASSIVE,
                 wait ${LIMIT_TIME}s,
                 print "Timed out...",
                 {% for i in range($GEN_THREADS if REPLAY else $GEN_NGEN) %}
-                stop,
+                please_stop,
                 {% endfor %}
                 );
 
@@ -631,11 +635,12 @@ dm :: DriverManager(
            {% endif %}
         {% endfor %}
         wait,
-        print "Preload finished!",
+        print "Preload 0 finished!",
         print "EVENT GEN_BEGIN",
         print "Starting gen...",
-        {% for t in range($GEN_THREADS|int - 1) %}
+        {% for t in range($GEN_NGEN|int - 1) %}
             wait,
+            print "Preload {{t + 1}} finished",
         {% endfor %}
 {% else %}
         print "EVENT GEN_BEGIN",
@@ -651,17 +656,17 @@ dm :: DriverManager(
                 wait {{GEN_ACTIVEDELAY}}ms,
             {% endif %}
         {% endfor %}
+        // Replay has an integrated timer, but not all generator have support for limit so we launch an external timeout
+        print "Starting timer wait...",
+        write timeout.run,
 {% endif %}
-                print "Starting timer wait...",
-                write timeout.run,
                 set starttime $(now),
-                {% for i in range($GEN_THREADS if REPLAY else $GEN_NGEN) %}
+{% for i in range($GEN_THREADS if REPLAY else $GEN_NGEN) %}
                 wait,
-                {% endfor %}
+{% endfor %}
                 set stoptime $(now),
                 print "EVENT GEN_DONE",
                 wait 1s,
-
                 read receiveIN.hw_count,
                 read receiveIN.count,
                 read receiveIN.xstats,

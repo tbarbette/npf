@@ -57,7 +57,7 @@ try() {
     python=$2
     echo "Trying $test with ${@:3}"
     kilall -9 click &> /dev/null
-    $python npf.py --force-test --no-graph-time --test $test --quiet --config n_runs=1 --tags fastregression ${@:3}
+    $python npf.py --force-test --no-graph-time --test $test --quiet --config n_runs=1 --tags gen_nosudo fastregression ${@:3}
     if [ $? -ne 0 ] ; then
         echo "npf.py returned an error for test $test !"
         exit 1
