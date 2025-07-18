@@ -21,7 +21,7 @@ def nodes_for_role(role, self_role=None, self_node=None, default_role_map={}):
 
 
 nodePattern = regex.compile(
-    "(?P<role>[a-zA-Z0-9]+)=(:?(?P<user>[a-zA-Z0-9]+)@)?(?P<addr>[a-zA-Z0-9.-]+)(:?[:](?P<path>[a-zA-Z0-9_./~-]+))?")
+    "(?P<role>[a-zA-Z0-9]+)=(:?(?P<user>[a-zA-Z0-9]+)@)?(?P<addr>[a-zA-Z0-9._-]+)(:?[:](?P<path>[a-zA-Z0-9_./~-]+))?")
 
 
 def executor(role, default_role_map):
