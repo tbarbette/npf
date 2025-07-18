@@ -201,10 +201,11 @@ class Node:
 
         if options.do_test and options.do_conntest:
             try:
-                node.ip = socket.gethostbyname(node.executor.addr)
+                node.ip = socket.gethostbyname(sshex.addr)
             except Exception as e:
                 print(f"Could not resolve hostname '{node.executor.addr}'")
-                raise(e)
+                node.ip = sshex.addr
+                #raise(e)
             print(f"Testing connection to {node.executor.addr}...")
             time.sleep(0.01)
             if not node.nfs:
