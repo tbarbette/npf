@@ -30,7 +30,7 @@ ssl:WRK_PROTOCOL=https
 DOCDFLAT?=0
 WRK_SCRIPT?=
 
-%script deps=wrk2-tbarbette title=WRK2Client
+%script deps=wrk2-tbarbette title=WRK2Client python-inline
 set -x
 fname=$RANDOM
 

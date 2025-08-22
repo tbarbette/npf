@@ -35,11 +35,13 @@ class SectionFactory:
         "pyexit(:?\\s+(?P<PyExitName>.*))?|"
         "late_variables|"
         "include\\s+(?P<includeName>[a-zA-Z0-9_./-]+)(?P<includeParams>([ \t]+" + varPattern + ")+)?|"
-        "(init-)?file(:?[@](?P<fileRole>[a-zA-Z0-9]+))?\\s+(?P<fileName>[a-zA-Z0-9_.${}-]+)(:? (?P<fileNoparse>noparse))?(:? (?P<fileJinja>jinja))?|"
-        "require(:?\\s+(?P<requireJinja>jinja))?|"
+        "(init-)?file(:?[@](?P<fileRole>[a-zA-Z0-9]+))?\\s+(?P<fileName>[a-zA-Z0-9_.${}-]+)(:? (?P<fileNoparse>noparse))?(?P<fileEngines>(?:\\s+(?:jinja|python-inline))*)|"
+        "require(?P<requireEngines>(?:\\s+(?:jinja|python-inline))*)|"
         "import(:?[@](?P<importRole>[a-zA-Z0-9]+)(:?[-](?P<importMulti>[*0-9]+))?)?[ \t]+(?P<importModule>" + Variable.VALUE_REGEX + ")(?P<importParams>([ \t]+" + varPattern + ")+)?|"
-        "sendfile(:?[@](?P<sendfileRole>[a-zA-Z0-9]+))?\\s+(?P<sendfilePath>.*)|" +
-        "(:?script|init|exit)(:?[@](?P<scriptRole>[a-zA-Z0-9]+)(:?[-](?P<scriptMulti>[*0-9]+))?)?(:? (?P<scriptJinja>jinja))?(?P<scriptParams>([ \t]+" + varPattern + ")*))$")
+        "sendfile(:?[@](?P<sendfileRole>[a-zA-Z0-9]+))?\\s+(?P<sendfilePath>.*)|"
+        "(:?script|init|exit)(:?[@](?P<scriptRole>[a-zA-Z0-9]+)(:?[-](?P<scriptMulti>[*0-9]+))?)?(?P<scriptEngines>(?:\\s+(?:jinja|python-inline))*)(?P<scriptParams>([ \t]+" + varPattern + ")*)"
+        ")$"
+    )
 
     @staticmethod
     def build(test, data):
@@ -82,7 +84,9 @@ class SectionFactory:
             params = matcher.group('scriptParams')
             params = dict(re.findall(SectionFactory.varPattern, params)) if params else {}
 
-            s = SectionScript(matcher.group('scriptRole'), params, jinja=matcher.group('scriptJinja'))
+            jinja = 'jinja' in matcher.group('scriptEngines') 
+            python_inline = 'python-inline' in matcher.group('scriptEngines')
+            s = SectionScript(matcher.group('scriptRole'), params, jinja=jinja, python_inline=python_inline)
             multi = matcher.group('scriptMulti')
             s.multi = multi
             if sectionName.startswith('init'):
@@ -106,24 +110,26 @@ class SectionFactory:
             raise Exception("Only script sections takes arguments (" + sectionName + " has argument " +
                             matcher.groups("params") + ")")
 
+        jinja = 'jinja' in matcher.group('scriptEngines') 
+        python_inline = 'python-inline' in matcher.group('scriptEngines')
         if sectionName.startswith('file'):
             s = SectionFile(matcher.group('fileName').strip(), role=matcher.group('fileRole'),
-                            noparse=matcher.group('fileNoparse'), jinja=matcher.group('fileJinja'))
+                            noparse=matcher.group('fileNoparse'), jinja=jinja, python_inline=python_inline)
             return s
         if sectionName.startswith('init-file'):
             s = SectionInitFile(matcher.group('fileName').strip(), role=matcher.group('fileRole'),
-                                noparse=matcher.group('fileNoparse'))
+                                noparse=matcher.group('fileNoparse'),jinja=jinja, python_inline=python_inline)
             return s
         elif sectionName.startswith('include'):
             params = matcher.group('includeParams')
-            params = dict(re.findall(SectionFactory.varPattern, params)) if params else {}
+            paramSectionRequires = dict(re.findall(SectionFactory.varPattern, params)) if params else {}
             s = SectionImport(None, matcher.group('includeName').strip(), params, is_include=True)
             return s
         elif sectionName == 'require':
-            s = SectionRequire(jinja=matcher.group('requireJinja'))
+            s = SectionRequire(jinja=jinja, python_inline=python_inline)
             return s
         elif sectionName == 'late_variables':
-            s = SectionLateVariable()
+            s = SectionLateVariable(jinja=jinja, python_inline=python_inline)
             return s
         if hasattr(test, sectionName):
             raise Exception("Only one section of type " + sectionName + " is allowed")
