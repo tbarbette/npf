@@ -14,7 +14,7 @@ echo "WRKs FINISHED"
 fi
 
 
-%-rate:file@client mid.sh
+%-rate:file@client mid.sh python-inline
 #!/bin/bash
 mid=$1
 ncpus=$(grep -c "^processor" /proc/cpuinfo)

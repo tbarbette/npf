@@ -184,7 +184,7 @@ GEN_START_DELAY=5
 //Where to put the latency record in the packet
 NUMBEROFFSET=40
 
-%late_variables
+%late_variables python-inline
 GEN_ACTIVEDELAY?=0
 GEN_JIFFIECLOCK?=1
 GEN_DEBUG?=0
@@ -308,7 +308,7 @@ bash launch.sh
 %iqueue,-gen_nosudo:script deps=fastclick-utime sudo=true delay=2 name=fastclick-play
 bash launch.sh
 
-%file PKTGEN_CONFIG_${RCV_NIC} jinja
+%file PKTGEN_CONFIG_${RCV_NIC} jinja python-inline
 d :: DPDKInfo($NBBUF)
 
 define($bout $PKTGEN_BURST_OUT)

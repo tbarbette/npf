@@ -741,13 +741,16 @@ class Test:
                         if node.mode == "netns" and i_multi > 0:
                             param.virt = "ip netns exec npfns%d" % i_multi
                             param.sudo = True
-
+                        
+                        use_python_inline = self.options.python_inline and script.python_inline
                         param.commands = replace_variables(
                             v,
                             script.content,
                             self_role = srole, self_node=node,
                             default_role_map= self.config.get_dict(
-                                "default_role_map"))
+                                "default_role_map"), 
+                            python_inline=use_python_inline)
+
 
                         if script.jinja:
                             from jinja2 import Environment, BaseLoader

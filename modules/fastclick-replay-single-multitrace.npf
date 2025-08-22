@@ -39,7 +39,7 @@ nolinktest=0
 dump:DODUMP=1
 nolat:NOLAT=1
 
-%late_variables
+%late_variables python-inline
 GEN_BEFORE_REPLAY?=
 NBBUF?=EXPAND( $(( ( ( $LIMIT * $GEN_TRACES ) + (max(4096,$PKTGEN_BURST_OUT) * 2 * 4 ) ) + 8192 )) )
 NRECORD=EXPAND( $(( int($LIMIT / $SAMPLE * $PKTGEN_REPLAY_COUNT  * 2 ) )) )
@@ -70,7 +70,7 @@ fi
 //cat PKTGEN_CONFIG
 $GDB click --dpdk -l ${GEN_CPU}-15 -- PKTGEN_CONFIG
 
-%file PKTGEN_CONFIG
+%file PKTGEN_CONFIG python-inline
 d :: DPDKInfo(NB_MBUF $NBBUF)
 
 define($bout $PKTGEN_BURST_OUT)

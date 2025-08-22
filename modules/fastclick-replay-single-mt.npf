@@ -51,7 +51,7 @@ gen_nolat|nolat:DOLAT=0
 
 trace_is_ip:GEN_TRACE_SUP=->MarkMACHeader->EnsureDPDKBuffer->Unstrip(14)->MarkMACHeader->StoreData(12,\<0800>)
 
-%late_variables
+%late_variables python-inline
 GEN_RX_THREADS?=4
 GEN_IP_OFFSET?=14
 GEN_TRACE_SUP?=
@@ -93,7 +93,7 @@ echo "Launching generator with $cpulist CPU cores..."
 $GDB click --dpdk -l $cpulist -- PKTGEN_CONFIG
 echo "EVENT TX_FINISHED"
 
-%file PKTGEN_CONFIG jinja
+%file PKTGEN_CONFIG jinja python-inline
 d :: DPDKInfo(NB_SOCKET_MBUF $NBBUF, NB_SOCKET_MBUF 8192)
 
 define($bout $PKTGEN_BURST_OUT)

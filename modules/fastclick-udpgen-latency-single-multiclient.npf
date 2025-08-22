@@ -45,7 +45,7 @@ R4=8
 
 
 
-%late_variables
+%late_variables python-inline
 rate:LIMIT?=EXPAND( $(( $RATE * 10 if $RATE < 100000 else 1000000 )) )
 NBBUF=EXPAND( $(( (($LIMIT + ($GEN_BURST * 2) ) * $GEN_THREADS ) + 8192 )) )
 gdb:GDB=gdb -ex run -ex "signal 2" -ex "bt" -batch -args 
@@ -112,7 +112,7 @@ elementclass Sprayer {
     -> output
 }
 
-%file PKTGEN_CONFIG
+%file PKTGEN_CONFIG python-inline
 d :: DPDKInfo($NBBUF)
 
 define($replay_count $GEN_REPLAY)
