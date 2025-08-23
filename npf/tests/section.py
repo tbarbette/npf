@@ -111,7 +111,7 @@ class SectionFactory:
             raise Exception("Only script sections takes arguments (" + sectionName + " has argument " +
                             matcher.groups("params") + ")")
 
-        match_result = matcher.group('fileEngines')
+        match_result = matcher.group('fileEngines') or ""
         jinja = 'jinja' in match_result 
         python_inline = 'python-inline' in match_result
 
@@ -129,10 +129,13 @@ class SectionFactory:
             s = SectionImport(None, matcher.group('includeName').strip(), params, is_include=True)
             return s
         elif sectionName == 'require':
+            match_result = matcher.group('requireEngines') or ""
+            jinja = 'jinja' in match_result 
+            python_inline = 'python-inline' in match_result
             s = SectionRequire(jinja=jinja, python_inline=python_inline)
             return s
         elif sectionName == 'late_variables':
-            s = SectionLateVariable(jinja=jinja, python_inline=python_inline)
+            s = SectionLateVariable()
             return s
         if hasattr(test, sectionName):
             raise Exception("Only one section of type " + sectionName + " is allowed")
@@ -148,6 +151,7 @@ class SectionFactory:
         elif sectionName == 'info':
             s = Section('info')
         if s is None:
+            print(sectionName)
             raise Exception("Unknown section %s, did you meant %s?" % sectionName, hu.suggest(sectionName))
         setattr(test, s.name, s)
         return s
