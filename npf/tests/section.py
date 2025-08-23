@@ -84,8 +84,9 @@ class SectionFactory:
             params = matcher.group('scriptParams')
             params = dict(re.findall(SectionFactory.varPattern, params)) if params else {}
 
-            jinja = 'jinja' in matcher.group('scriptEngines') 
-            python_inline = 'python-inline' in matcher.group('scriptEngines')
+            match_result = matcher.group('scriptEngines')
+            jinja = 'jinja' in match_result 
+            python_inline = 'python-inline' in match_result
             s = SectionScript(matcher.group('scriptRole'), params, jinja=jinja, python_inline=python_inline)
             multi = matcher.group('scriptMulti')
             s.multi = multi
@@ -110,8 +111,10 @@ class SectionFactory:
             raise Exception("Only script sections takes arguments (" + sectionName + " has argument " +
                             matcher.groups("params") + ")")
 
-        jinja = 'jinja' in matcher.group('scriptEngines') 
-        python_inline = 'python-inline' in matcher.group('scriptEngines')
+        match_result = matcher.group('fileEngines')
+        jinja = 'jinja' in match_result 
+        python_inline = 'python-inline' in match_result
+
         if sectionName.startswith('file'):
             s = SectionFile(matcher.group('fileName').strip(), role=matcher.group('fileRole'),
                             noparse=matcher.group('fileNoparse'), jinja=jinja, python_inline=python_inline)

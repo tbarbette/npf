@@ -742,7 +742,7 @@ class Test:
                             param.virt = "ip netns exec npfns%d" % i_multi
                             param.sudo = True
                         
-                        use_python_inline = self.options.python_inline and script.python_inline
+                        use_python_inline = self.options.python_inline or script.python_inline
                         param.commands = replace_variables(
                             v,
                             script.content,
