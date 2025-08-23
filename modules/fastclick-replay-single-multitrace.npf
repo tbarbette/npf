@@ -39,7 +39,7 @@ nolinktest=0
 dump:DODUMP=1
 nolat:NOLAT=1
 
-%late_variables python-inline
+%late_variables 
 GEN_BEFORE_REPLAY?=
 NBBUF?=EXPAND( $(( ( ( $LIMIT * $GEN_TRACES ) + (max(4096,$PKTGEN_BURST_OUT) * 2 * 4 ) ) + 8192 )) )
 NRECORD=EXPAND( $(( int($LIMIT / $SAMPLE * $PKTGEN_REPLAY_COUNT  * 2 ) )) )

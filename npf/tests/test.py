@@ -392,7 +392,8 @@ class Test:
             v["NPF_NODE_MAX"] = len(npf.cluster.factory.nodes_for_role(role))
             if not s.noparse:
                 s.filename = replace_variables(v, s.filename, role, default_role_map = self.config.get_dict("default_role_map"))
-                p = replace_variables(v, s.content, role,default_role_map = self.config.get_dict("default_role_map"))
+                use_python_inline = self.options or s.python_inline
+                p = replace_variables(v, s.content, role,default_role_map = self.config.get_dict("default_role_map"),use_python_inline=use_python_inline)
             else:
                 p = s.content
             if s.jinja:
@@ -433,8 +434,9 @@ class Test:
 
     def test_require(self, v, build):
         for require in self.requirements + list(itertools.chain.from_iterable([imp.test.requirements for imp in self.imports])):
+            use_python_inline = self.options or require.python_inline
             p = replace_variables(v, require.content, require.role(),
-                                                  self.config.get_dict("default_role_map"))
+                                                  self.config.get_dict("default_role_map"),use_python_inline)
             if require.jinja:
                     from jinja2 import Environment, BaseLoader
                     env = Environment(loader=BaseLoader)

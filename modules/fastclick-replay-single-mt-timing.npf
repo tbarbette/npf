@@ -46,7 +46,7 @@ R3=6
 R4=8
 
 
-%late_variables python_inline
+%late_variables
 PAUSE?=EXPAND( $(( $GEN_PAUSE if "$GEN_PAUSE" else "none" )) )
 GEN_HOOK?=
 SAMPLE?=1

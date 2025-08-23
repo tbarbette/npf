@@ -10,7 +10,7 @@ SIDE=rx
 bash get_th.sh ${self:$NIC:ifname} "$(hostname -s)" $RATE_THRESH $SIDE
 exit 0
 
-%file get_th.sh python-inline
+%file get_th.sh
 #!/bin/bash
 
 intif=$1

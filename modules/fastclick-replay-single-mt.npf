@@ -51,7 +51,7 @@ gen_nolat|nolat:DOLAT=0
 
 trace_is_ip:GEN_TRACE_SUP=->MarkMACHeader->EnsureDPDKBuffer->Unstrip(14)->MarkMACHeader->StoreData(12,\<0800>)
 
-%late_variables python-inline
+%late_variables
 GEN_RX_THREADS?=4
 GEN_IP_OFFSET?=14
 GEN_TRACE_SUP?=

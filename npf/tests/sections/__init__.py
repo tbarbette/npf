@@ -470,10 +470,8 @@ class SectionVariable(Section):
 
 
 class SectionLateVariable(SectionVariable):
-    def __init__(self, name='late_variables', jinja=False, python_inline=False):
+    def __init__(self, name='late_variables'):
         super().__init__(name)
-        self.jinja = jinja
-        self.python_inline = python_inline
 
     def finish(self, test):
         test.late_variables.append(self)

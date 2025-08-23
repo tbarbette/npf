@@ -184,7 +184,7 @@ GEN_START_DELAY=5
 //Where to put the latency record in the packet
 NUMBEROFFSET=40
 
-%late_variables python-inline
+%late_variables
 GEN_ACTIVEDELAY?=0
 GEN_JIFFIECLOCK?=1
 GEN_DEBUG?=0

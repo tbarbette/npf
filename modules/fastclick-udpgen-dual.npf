@@ -27,7 +27,7 @@ DUT_NIC_0=0
 DUT_NIC_1=1
 GEN_PROMISC=false
 
-%late_variables python-inline
+%late_variables 
 GEN_TOT=EXPAND( $(( $GEN_BURST * $GEN_FLOWS )) )
 
 %script deps=fastclick sudo=true delay=2
