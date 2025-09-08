@@ -53,7 +53,7 @@ def ae_rand(a,b):
 aeval = Interpreter(usersyms ={'parseBool':get_bool,"randint":ae_rand,"productrange":ae_product_range,"chain":itertools.chain})
 
 
-def replace_variables(v: dict, content: str, self_role=None, self_node=None, default_role_map={}, role_index = 0):
+def replace_variables(v: dict, content: str, self_role=None, self_node=None, default_role_map={}, role_index = 0, python_inline=True):
     """
     Replace all variable and nics references in content
     This is done in two step : variables first, then NICs reference so variable can be used in NIC references
@@ -113,9 +113,10 @@ def replace_variables(v: dict, content: str, self_role=None, self_node=None, def
         else:
             return str(aeval(expr))
 
-    content = re.sub(
-        Variable.MATH_REGEX,
-        do_replace_math, content)
+    if python_inline:
+        content = re.sub(
+            Variable.MATH_REGEX,
+            do_replace_math, content)
     return content
 
 

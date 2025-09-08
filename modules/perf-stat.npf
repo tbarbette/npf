@@ -6,7 +6,7 @@ PERF_TIME=1
 PERF_EVENTS=instructions,cycles,cache-misses,cache-references
 perf_all:PERF_EVENTS=dTLB-loads,instructions,cycles,iTLB-loads,cache-misses,cache-references,dTLB-load-misses,iTLB-load-misses,mem-loads,l2_rqsts.references,l2_rqsts.miss,cycle_activity.stalls_l3_miss,cycle_activity.stalls_total,cycle_activity.stalls_mem_any,cycle_activity.stalls_l2_miss,cycle_activity.stalls_l1d_miss,L1-icache-load-misses,L1-icache-loads,L1-dcache-stores,l1d.replacement,l2_rqsts.all_pf,mem_load_retired.l1_hit,mem_load_retired.l1_miss
 
-%script sudo=true autokill=false
+%script sudo=true autokill=false python-inline
 echo "Starting perf..."
 perf stat -a -I 1000 -C 0-$(( $N_CORES - 1 )) -e "LLC-loads,LLC-load-misses,L1-dcache-load-misses,L1-dcache-loads,branch-misses,${PERF_EVENTS}" -o stats.log sleep $PERF_TIME
 if [ $? -ne 0 ] ; then
@@ -27,7 +27,7 @@ echo "EVENT PERF_PARSED"
 // Script Files
 //-----------------------
 
-%file cache-stats.sh
+%file cache-stats.sh python-inline
 #!/bin/bash
 
 FILE=$1

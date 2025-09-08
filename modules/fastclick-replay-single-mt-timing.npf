@@ -76,7 +76,7 @@ click --dpdk -l 0-15 --file-prefix=gen  -- PKTGEN_CONFIG
 //cat PKTGEN_CONFIG
 //gdb -ex run -ex "signal 2" -ex "bt" -batch -args click --dpdk -l 0-15  -- PKTGEN_CONFIG
 
-%file PKTGEN_CONFIG jinja
+%file PKTGEN_CONFIG jinja python-inline
 d :: DPDKInfo(NB_SOCKET_MBUF $NBBUF, NB_SOCKET_MBUF 8192)
 
 define($bout $PKTGEN_BURST_OUT)

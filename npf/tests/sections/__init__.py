@@ -57,7 +57,7 @@ class SectionScript(Section):
 
     num = 0
 
-    def __init__(self, role=None, params=None, jinja=False):
+    def __init__(self, role=None, params=None, jinja=False, python_inline=False):
         super().__init__('script')
         if params is None:
             params = {}
@@ -67,6 +67,7 @@ class SectionScript(Section):
         self.index = ++self.num
         self.multi = None
         self.jinja = jinja
+        self.python_inline = python_inline
 
     def get_role(self):
         return self._role
@@ -158,13 +159,14 @@ class SectionImport(Section):
 
 
 class SectionFile(Section):
-    def __init__(self, filename, role=None, noparse=False, jinja=False):
+    def __init__(self, filename, role=None, noparse=False, jinja=False, python_inline=False):
         super().__init__('file')
         self.content = ''
         self.filename = filename
         self._role = role
         self.noparse = noparse
         self.jinja = jinja
+        self.python_inline = python_inline
 
     def get_role(self):
         return self._role
@@ -174,18 +176,21 @@ class SectionFile(Section):
 
 
 class SectionInitFile(SectionFile):
-    def __init__(self, filename, role=None, noparse=False):
+    def __init__(self, filename, role=None, noparse=False,jinja=False, python_inline=False):
         super().__init__(filename, role, noparse)
+        self.jinja = jinja
+        self.python_inline = python_inline
 
     def finish(self, test):
         test.init_files.append(self)
 
 
 class SectionRequire(Section):
-    def __init__(self, jinja=False):
+    def __init__(self, jinja=False,python_inline=False):
         super().__init__('require')
         self.content = ''
         self.jinja = jinja
+        self.python_inline = python_inline
 
     def role(self):
         # For now, require is only on one node, the default one
