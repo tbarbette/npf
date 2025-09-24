@@ -610,7 +610,7 @@ class Grapher:
         # for instance if A has [1,2] values and B has [yes,no], graph_combine_variables={A+B:Unique}
         # will remove A and B, and create a new Unique variables with ["1, yes", "1, no", "2, yes", "2, no"]
         for tocombine in self.configlist('graph_combine_variables', []):
-            series = combine_variables(series, tocombine)
+            series = combine_variables(series, tocombine, graph_variables)
 
         # Data transformation : reject outliers if option is given, transform list to arrays, filter according to graph_variables
         #   and divide results as per the var_divider

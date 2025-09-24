@@ -9,7 +9,7 @@ from npf.models.series import Series
 from npf.models.units import get_numeric
 
 
-def combine_variables(series: List[Series], tocombine):
+def combine_variables(series: List[Series], tocombine, graph_variables):
     if type(tocombine) is tuple:
         toname = tocombine[1]
         tocombine = tocombine[0]
