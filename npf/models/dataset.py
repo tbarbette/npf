@@ -35,16 +35,17 @@ class Run:
     def variables(self):
         return self.write_variables()
 
-    def format_variables(self, hide=None):
+    def format_variables(self, hide=None, maxlen=12):
         if hide is None:
             hide = {}
         s = []
         for k, v in self._variables.items():
             if k in hide: continue
+            sk = k if len(k) < maxlen else k[:3]
             if type(v) is tuple:
-                s.append('%s = %s' % (k, v[1]))
+                s.append('%s = %s' % (sk, v[1]))
             else:
-                s.append('%s = %s' % (k, v))
+                s.append('%s = %s' % (sk, v))
         return ', '.join(s)
 
     def print_variable(self, k, default=None):
@@ -354,8 +355,10 @@ def convert_to_xyeb(datasets: List[Tuple['Test', 'Build' , Dataset]], run_list, 
             if len(run) == 0:
                 xval = build.pretty_name()
             else:
-                xval = run.print_variable(key, build.pretty_name())
-
+                if key == "Variables":
+                    xval = run.format_variables(hide=statics,maxlen=3)
+                else:
+                    xval = run.print_variable(key, build.pretty_name())
             results_types = all_results.get(run, OrderedDict())
             for result_type in all_result_types:
 

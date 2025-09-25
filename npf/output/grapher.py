@@ -610,7 +610,7 @@ class Grapher:
         # for instance if A has [1,2] values and B has [yes,no], graph_combine_variables={A+B:Unique}
         # will remove A and B, and create a new Unique variables with ["1, yes", "1, no", "2, yes", "2, no"]
         for tocombine in self.configlist('graph_combine_variables', []):
-            series = combine_variables(series, tocombine, graph_variables)
+            series, graph_variables = combine_variables(series, tocombine, graph_variables)
 
         # Data transformation : reject outliers if option is given, transform list to arrays, filter according to graph_variables
         #   and divide results as per the var_divider
@@ -805,10 +805,9 @@ class Grapher:
             else:
                 dyns.append(k)
 
+        if len(dyns) > int(self.config("graph_max_variables", 2)):
 
-        if len(dyns) >int(self.config("graph_max_variables",2)):
-
-            print("WARNIGN: Too many variables to plot !")
+            print("WARNING: Too many variables to plot !")
             maxvar = 0
             most_useless = list(reversed(dyns))
             try:
@@ -851,6 +850,7 @@ class Grapher:
             v.update(statics)
             title=replace_variables(v, title)
 
+        # If a subplot variable is defined, extract it as a serie
         if sv: #Only one supported for now
             graphs = [ None for _ in vars_values[sv] ]
             for j,(script, build, all_results) in enumerate(series):
@@ -1245,9 +1245,16 @@ class Grapher:
                     else:
                         direction = self.scriptconfig('graph_label_dir', 'result', result_type=result_type, default=None)
 
+                    if direction is None:
+                        # Check if x-axis labels are too big
+                        fig = plt.gcf()
+                        renderer = fig.canvas.get_renderer()
+                        labels = axis.get_xticklabels()
+                        max_label_width = max(label.get_window_extent(renderer).width for label in labels)
+                        if max_label_width > axis.get_window_extent(renderer).width / len(labels):
+                            direction = 'vertical'
                     if direction == 'diagonal' or direction == 'oblique':
                         plt.xticks(rotation = 45, ha='right')
-
                     else:
                         plt.xticks(rotation = 'vertical' if (ndata > 8 or direction =='vertical') else 'horizontal')
 
@@ -1655,8 +1662,9 @@ class Grapher:
     def do_box_plot(self, axis, key, result_type, data : XYEB, xdata : XYEB,shift=0,idx=0):
 
         isLog = self.format_figure(axis, result_type, shift, key=key)
-        nseries = max([len(y) for y in [y for x,y,e,build in data]])
 
+        #Number of bars per series, that is number of Ys inside each dataset. If there is a single dataset
+        nbars = max([len(y) for y in [y for x,y,e,build in data]])
         labels=[]
         alllabels=[]
         allticks=[]
@@ -1666,7 +1674,7 @@ class Grapher:
             return False, 0
         ipos=1
         for i, (x, ys, e, build) in enumerate(data):
-            if nseries == 1 and np.isnan(ys).all():
+            if nbars == 1 and np.isnan(ys).all():
                     continue
             if xdata:
                 x = []
@@ -1674,14 +1682,15 @@ class Grapher:
                     x.append(np.mean(xdata[i][2][yi][2]))
 
             label = str(build.pretty_name())
+
             if label == "Local" and len(data) == 1:
                 print(f"INFO: The label for a serie is 'Local' which is a default name when no serie is passed. Use a command like {sys.argv[0]} 'local:My Label' --test ... to set the label.")
 
             boxdata=[]
             pos = []
-            for yi in range(nseries):
+            for yi in range(nbars):
                 y=e[yi][2]
-                if nseries > 1:
+                if nbars > 1:
                     pos.append(yi*len(data) + i + 1)
                 else:
                     pos.append(ipos)
@@ -1711,6 +1720,7 @@ class Grapher:
 #            std = np.array([e[i][1] for i in order])
 #            ymin = np.array([np.min(e[i][2]) for i in order])
 #            ymax = np.array([np.max(e[i][2]) for i in order])
+
             if len(boxdata) > 1000:
                 print("WARNING: Not drawing more than 1000 points...")
                 continue
@@ -1723,14 +1733,14 @@ class Grapher:
 
             self.write_labels(self.get_show_values(), rects['boxes'], plt, color=build._color, isLog=isLog)
 
-        if nseries > 1:
-            m = len(data)*nseries + 1
+        if nbars > 1:
+            m = len(data)*nbars + 1
         else:
             m = ipos
         axis.set_xlim(0,m)
 
-        if  nseries > 1:
-            xticks = (np.asarray(range(nseries)) * len(data) ) + (len(data) / 2) + 0.5
+        if nbars > 1:
+            xticks = (np.asarray(range(nbars)) * len(data) ) + (len(data) / 2) + 0.5
             axis.set_xticks(xticks)
             axis.set_xticklabels(labels)
         else:
@@ -1739,7 +1749,7 @@ class Grapher:
             for i,(ticklabel, (x,y,e,build)) in enumerate(zip(axis.get_xticklabels(), data)):
                 ticklabel.set_color(allcolors[i])
 
-        return True, nseries
+        return True, nbars
 
     def do_cdf(self, axis, key, result_type, data : XYEB, xdata : XYEB,shift=0,idx=0):
 
