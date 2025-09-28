@@ -62,13 +62,21 @@ class SSHExecutor(Executor):
         #ssh.load_system_host_keys()
         if cfg["identityfile"]:
             try:
+                found=False
                 for key_class in [paramiko.RSAKey, paramiko.DSSKey, paramiko.ECDSAKey, paramiko.Ed25519Key]:
-                    try:
-                        k = key_class.from_private_key_file(cfg["identityfile"])
+                    keys = cfg["identityfile"]
+                    if not type(keys) is list:
+                        keys = [keys]
+                    for key in keys:
+                        try:
+                            k = key_class.from_private_key_file(key)
+                            found=True
+                            break
+                        except paramiko.ssh_exception.SSHException as e:
+                            continue
+                    if found:
                         break
-                    except paramiko.ssh_exception.SSHException:
-                        continue
-                else:
+                if not found:
                     raise paramiko.ssh_exception.SSHException("Could not load private key from %s" % cfg["identityfile"])
             except IOError as e:
                 print("Could not load host keys from %s" % cfg["identityfile"])
