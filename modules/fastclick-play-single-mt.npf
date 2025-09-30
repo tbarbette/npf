@@ -308,7 +308,7 @@ bash launch.sh
 %iqueue,-gen_nosudo:script deps=fastclick-utime sudo=true delay=2 name=fastclick-play
 bash launch.sh
 
-%file PKTGEN_CONFIG_${RCV_NIC} jinja
+%file PKTGEN_CONFIG_${RCV_NIC} jinja python-inline
 d :: DPDKInfo($NBBUF)
 
 define($bout $PKTGEN_BURST_OUT)
