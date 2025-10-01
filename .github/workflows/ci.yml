@@ -46,7 +46,7 @@ jobs:
         python -m compileall -q npf *.py
     - name: Unit test
       run: |
-        python -m pytest integration/test_unittest.py
+        python -m pytest tests
     - name: Run-time tests
       run: |
         ./integration/integration.sh
