@@ -62,9 +62,10 @@ class ZLTVariableExpander(OptVariableExpander):
 
     The parameter all will force to run all acceptable rates. This is useful when you want to find all acceptable rates, not only the maximal one and want to observe what happens below the maximal rate. However in general you don't want *all* rates under the maximal one, but just what is necessary to observe how, say, the latency, increase with the rate. So all can be 2 to use an exponential backoff. If the acceptable rate is 8, it will only try 8-1=7, 8-2=6, 8-4=4, (not 8-8=0 unless that is a valid rate)
 
-    Constraints are variables for which a higher value, all other parameters being equal, is better. For instance, the number of cores is a usual constraint in a system which is relatively horizontally scalable.
-    Imagine you have 14MPPS with 4 cores and the system has not much inter-core contention. There's no need to try 15 and 16MPPS with 3 cores as 3 cores cannot do better than 4 cores.
-    The same is true for frequency
+    Constraints are variables for which a higher value, all other parameters being equal, can only improve performance. For instance, the number of cores is a usual constraint in a system which is relatively horizontally scalable.
+    Giving such "monotonic" constraints to the experimental design can significantly reduce the number of experiments to run.
+    Imagine the ZLT is 14MPPS with 4 cores and the system has not much inter-core contention. There's no need to try 15 and 16MPPS with 3 cores as 3 cores cannot do better than 4 cores.
+
 
     """
     def __init__(self, vlist:Dict[str,Variable], results, overriden,
