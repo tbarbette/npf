@@ -15,7 +15,7 @@ NB_MBUF=65536
 %late_variables
 AVGCNT=IF($NT > 1,AverageCounterMP,AverageCounter)
 
-%script deps=fastclick sudo=true
+%script deps=fastclick sudo=true python-inline
 click --dpdk -l 0-$(($NT - 1)) -- RCV_CONFIG
 
 %file RCV_CONFIG
