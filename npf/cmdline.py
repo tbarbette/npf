@@ -130,7 +130,7 @@ class ArgListOrTrueAction(argparse.Action):
         super().__init__(option_strings, dest, nargs='*', **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
-        if values is None:
+        if not values:  # Empty list or None
             setattr(namespace, self.dest, True)
         else:
             current_values = getattr(namespace, self.dest, [])
