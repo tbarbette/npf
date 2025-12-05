@@ -8,8 +8,6 @@ import numpy as np
 import csv
 
 
-import random
-
 import npf.cluster.node
 from npf.models.variables.variable import Variable
 import npf.osutils
@@ -50,7 +48,12 @@ def ae_product_range(a,b):
 def ae_rand(a,b):
     return random.randint(a,b)
 
-aeval = Interpreter(usersyms ={'parseBool':get_bool,"randint":ae_rand,"productrange":ae_product_range,"chain":itertools.chain})
+aeval = Interpreter(usersyms ={'parseBool':get_bool,
+                               "randint":ae_rand,
+                               "productrange":ae_product_range,
+                               "chain":itertools.chain,
+                               "random": random,
+                               "rand":random.random})
 
 
 def replace_variables(v: dict, content: str, self_role=None, self_node=None, default_role_map={}, role_index = 0):

@@ -12,4 +12,4 @@ graph_type=cdf
 X=[1-5]
 
 %script
-echo "RESULT-N  $(( $X * random.rand() % 100 )) "
+echo "RESULT-N  $(( $X * rand() % 100 )) "
