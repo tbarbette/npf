@@ -108,12 +108,55 @@ csv_check() {
     fi
 }
 
+check_stats() {
+    local name=$1
+    local args=$2
+    local required=$3
+    local forbidden=$4
+    local outfile="resstatistics-$name"
+
+    $python npf.py click-2022 --force-test --no-graph --test integration/statistics.npf --quiet-build $args &> $outfile
+
+    local failed=0
+
+    if [ -n "$required" ]; then
+        IFS='|' read -ra REQ <<< "$required"
+        for s in "${REQ[@]}"; do
+            if ! grep -q "$s" "$outfile"; then
+                echo "Error ($name): Expected '$s' not found!"
+                failed=1
+            fi
+        done
+    fi
+
+    if [ -n "$forbidden" ]; then
+        IFS='|' read -ra FORB <<< "$forbidden"
+        for s in "${FORB[@]}"; do
+            if grep -q "$s" "$outfile"; then
+                echo "Error ($name): Forbidden '$s' found!"
+                failed=1
+            fi
+        done
+    fi
+
+    if [ $failed -eq 1 ]; then
+        cat "$outfile"
+        ret=1
+    else
+        echo "statistics test ($name) passed !"
+    fi
+}
+
+## Tests
+
 if [ $# -eq 1 ] ; then
     python=$1
 else
     python=python
 fi
 
+
+## Tests with DPDK
 if pkg-config --exists libdpdk ; then
 
     #Play a trace, single thread
@@ -155,6 +198,7 @@ if pkg-config --exists libdpdk ; then
     try integration/fastclick-generator.npf $python --tags udpgen --variables LIMIT=1000  --csv out.csv
     csv_check y_COUNT 1000
 fi
+
 try integration/empty.npf $python
 compare_raw npf.py single $python --no-graph --no-graph-time --csv out.csv
 diff out.csv integration/single.csv
@@ -174,6 +218,20 @@ compare math $python
 compare jinja $python
 compare globsync $python
 compare zlt $python --exp-design "zlt(RATE,THROUGHPUT)"
+
+# Test statistics option
+echo "Testing statistics options..."
+
+
+# Test 1: without --statistics, there should be no "Statistics for" or "Building dataset" output
+check_stats "none" "" "" "Building dataset"
+
+# Test 2: with --statistics (no arguments), should get statistics for all 3 metrics
+check_stats "all" "--statistics" "Building dataset|Statistics for EXP|Statistics for LOG|Statistics for N" ""
+
+# Test 3: with --statistics EXP, should get statistics only for EXP
+check_stats "exp" "--statistics EXP" "Building dataset|Statistics for EXP" "Statistics for LOG|Statistics for N"
+
 try integration/cdf.npf $python "--config n_runs=20"
 try integration/heatmap.npf $python
 try examples/iperf.npf $python "--variables TIME=1"
