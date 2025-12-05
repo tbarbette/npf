@@ -1,0 +1,18 @@
+%info
+Statistics test
+
+Test for statistics options
+
+%config
+default_repo=local
+accept_zero={LOG}
+var_unit={RESULT: }
+var_format={RESULT:%d}
+
+%variables
+N=[1-8]
+
+%script
+echo "RESULT-N $N"
+echo "RESULT-LOG $(( round(log($N), 2) ))"
+echo "RESULT-EXP $(( round(pow(2,$N), 2) ))"

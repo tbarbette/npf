@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - name: Set up Python 3.9
+    - name: Set up Python 3.13
       uses: actions/setup-python@v2
       with:
         python-version: 3.13
@@ -37,7 +37,7 @@ jobs:
         python -m pip install --upgrade pip
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         pip install -e .         
-        pip install pytest
+        pip install pytest coverage
     - name: Version
       run: |
         npf --version
@@ -46,7 +46,8 @@ jobs:
         python -m compileall -q npf *.py
     - name: Unit test
       run: |
-        python -m pytest integration/test_unittest.py
+        coverage run -m unittest discover integration/unittests
+        coverage report
     - name: Run-time tests
       run: |
         ./integration/integration.sh
