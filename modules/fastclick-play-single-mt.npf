@@ -234,7 +234,7 @@ GEN_TSDIFF?=TimestampDiff
 GEN_RECORD?=EXPAND(-> rt :: RecordTimestamp(N $NRECORD, SAMPLE $SAMPLE, OFFSET $(( ${NUMBEROFFSET} + 14 + 2 )) ))
 GEN_MAGIC?=EXPAND(    -> magic :: Classifier( $(( ", ".join([ "${NUMBEROFFSET}/57%02x" % t for t in range($GEN_THREADS) ]) )),  -);)
 DOLAT?=1
-FDDISPATCH=EXPAND( $((" rr :: RoundRobinSwitch(SPLITBATCH false);" if $GEN_THREADS > 1 and $GEN_PIPELINE else "rr :: MyNull;")) )
+FDDISPATCH=EXPAND( $((" rr :: RoundRobinSwitch(SPLITBATCH false);" if ( $GEN_THREADS > 1 and $GEN_PIPELINE and not $REPLAY) else "rr :: MyNull;")) )
 
 NBBUF?=200000
 replay:NBBUF= {{ LIMIT  + 65536 }}
