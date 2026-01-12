@@ -55,7 +55,7 @@ exit $r
 
 //%clean
 
-%file nginx.conf
+%file nginx.conf python-inline
 user $NGINX_USER;
 worker_processes $NGINX_NWORKER;
 worker_rlimit_nofile 70000;

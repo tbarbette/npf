@@ -23,7 +23,7 @@ GEN_REPLAY=1
 GEN_INIT_WAIT=5
 LIMIT=500000
 
-%late_variables
+%late_variables 
 NBBUF=EXPAND( $(( ($LIMIT * 4) + 8192 )) )
 
 %script deps=fastclick sudo=true delay=2

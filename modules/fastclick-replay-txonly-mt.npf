@@ -28,7 +28,7 @@ GEN_DESC=0
 
 nolinktest=0
 
-%late_variables
+%late_variables 
 NBBUF=EXPAND( $(( ( ( $LIMIT * $GEN_THREADS ) + ($PKTGEN_BURST_OUT * 2) ) + 8192 )) )
 NRECORD=EXPAND( $(( $LIMIT * $PKTGEN_REPLAY_COUNT  * 2 )) )
 BROADCAST_IGNORE= -> c :: Classifier(0/$mac,-) //Ignore broadcasts

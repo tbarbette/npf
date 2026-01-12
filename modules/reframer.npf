@@ -125,7 +125,7 @@ $REFLB
 
 
 
-%sf:file sfmaker.click
+%sf:file sfmaker.click python-inline
 elementclass SF {
 
         $(( "\n".join(["sc%d :: Counter -> sf%d :: { [0] -> sf :: SFMaker(DELAY $SFDELAY, DELAY_LAST $SFDLAST, DELAY_HARD $SFDHARD, TAKE_ALL $TAKEALL, PROTO_COMPRESS $PROTO_COMPRESS, REORDER $REORDER, PRIO $PRIO, ALWAYSUP $ALWAYS, MODEL $MODEL, MAX_BURST $SFMAX, MAX_TX_BURST $SF_TX_MAX, VERBOSE $SFVERBOSE, BYPASS_AFTER_FAIL $BYPASS_AFTER_FAIL, MAX_CAP $SF_MAX_CAP) %s -> output;}" % (i+1,i+1, (("-> StoreData(19,\<%02d>)"%i) if ($SF and $SFTHREADS>1 and not $HTTP ) else "") ) for i in range($SFTHREADS)]) ))
@@ -161,7 +161,7 @@ $(("    cbp[1] -> bp::Counter -> fu;" if $HH else ""))
 
 }
 
-%sm:file smmaker.click
+%sm:file smmaker.click python-inline
 elementclass SM {
 
         $(( "\n".join(["sc%d :: Counter -> sm%d :: { [0] -> sf :: SFMaker(DELAY $SMDELAY, DELAY_LAST $SMDLAST, DELAY_HARD $SMDHARD, TAKE_ALL $TAKEALL, PROTO_COMPRESS $PROTO_COMPRESS, REORDER $REORDER, PRIO $PRIO, ALWAYSUP $ALWAYS, MODEL $MODEL, MAX_BURST $SFMAX, MAX_TX_BURST $SF_TX_MAX, VERBOSE $SFVERBOSE, BYPASS_AFTER_FAIL $BYPASS_AFTER_FAIL) %s -> output;}" % (i+1,i+1, (("-> StoreData(19,\<%02d>)"%i) if ($SF and $SFTHREADS>1 and not $HTTP ) else "") ) for i in range($SMTHREADS)]) ))
@@ -199,7 +199,7 @@ $(("    cbp[0] -> bp::Counter -> fu;" if $HH else ""))
 
 
 
-%file dut_common.click
+%file dut_common.click python-inline
 //t :: TSCClock(NOWAIT true)
 //j :: JiffieClock()
 h :: HTTPServer(PORT 8080)
@@ -223,7 +223,7 @@ elementclass PGWProcesser {
         -> output;
 };
 
-%file dut.click
+%file dut.click python-inline
 
 DPDKInfo(NB_MBUF $NB_MBUF, MBUF_SIZE $MBUF_SIZE)
 
