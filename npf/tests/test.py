@@ -1339,7 +1339,7 @@ class Test:
                         if n_tests > 0:
                             def print_header(i, i_try):
                                 n_try=int(self.config["n_retry"])
-                                desc = run.format_variables(self.config["var_hide"])
+                                desc = run.format_variables(self.config["var_hide"], maxlen=-1)
                                 if desc:
                                     print(desc, end=' ')
                                 str_retry = f"retrying {i_try+1}/{n_try} " if i_try > 0 else ""
