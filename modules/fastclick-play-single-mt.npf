@@ -286,6 +286,43 @@ $GEN_GDB click --dpdk -l $GEN_CPUS --file-prefix gen-$RCV_NIC {% if GEN_OVERWRIT
 echo "EVENT TX_FINISHED"
 echo "Generator stopped..."
 
+
+%-gen_noverbose:script jinja autokill=false
+{% if REPLAY %}
+echo "The generator is going to preload $LIMIT packets in memory. It will then replay it $PKTGEN_REPLAY_COUNT times. "
+{% else %}
+echo "The generator is going to read {% if LIMIT %}up to {{LIMIT}}{%endif%} packets from the source without preloading and replaying."
+{% endif %}
+{% if GEN_DUMP == -1 %}
+    echo "The source is generating UDP packets."
+{% elif GEN_DUMP == 0 %}
+    {% if GEN_MULTI_TRACE %}
+        echo "There will be {{ GEN_NGEN }} sources reading in parallel".
+
+        {% if GEN_ACTIVEDELAY %}
+        echo "They will start after {{GEN_ACTIVEDELAY}}ms of delay one after the other."
+        {% endif %}
+        {% set t_path=trace ~ "-0.." ~ GEN_NGEN %}
+    {% else %}
+        {% set t_path=trace %}
+    {% endif %}
+    echo "The source is a pcap file {{t_path}}."
+{% elif GEN_DUMP == 1 %}
+    echo "The source is an IP summary dump {{t_path}}."
+{% else %}
+    echo "The source is a minimal dump {{t_path}}."
+{% endif %}
+
+echo "The generator will use $GEN_THREADS threads for TX and $GEN_RX_THREADS for RX."
+{% if GEN_PIPELINE %}
+But the source will be protected by a Pipeliner, so all RX threads will not read directly from the source. *This is usually a performance bottleneck.*
+{% endif %}
+{% if rate %}
+echo "The source will be throttled at $RATE PACKETS per seconds."
+{% elif prate %}
+echo "The source will be throttled at $RATE BITS per seconds."
+{%endif%}
+
 %gen_pipeline,-iqueue,-gen_nosudo|gen_tx_pipeline,-iqueue,-gen_nosudo:script deps=fastclick-noiqueue-utime sudo=true delay=2 name=fastclick-play
 bash launch.sh
 
@@ -458,7 +495,7 @@ input
   -> MarkMACHeader
 $(( "-> EnsureDPDKBuffer" if $GEN_DUMP < 2 else "" ))
 
-{% if GEN_DUMP > 0 or GEN_FORCE_ETHER != 1 %}
+{% if GEN_DUMP > 0 or GEN_FORCE_ETHER == 1 %}
     ->  EtherEncap(0x0800, $INsrcmac, $INdstmac)
 {% elif GEN_NOREWRITE_ETHER == 0 %}
     {% if not REPLAY %}
@@ -645,6 +682,10 @@ dm :: DriverManager(
 {% else %}
         print "EVENT GEN_BEGIN",
         print "Starting gen...",
+// Replay has an integrated timer, but not all generator have support for limit so we launch an external timeout
+        print "Starting timer wait...",
+        write timeout.run,
+
         {% for t in range($GEN_NGEN) %}
             write fdIN{{ t }}.active true,
 
@@ -656,10 +697,7 @@ dm :: DriverManager(
                 wait {{GEN_ACTIVEDELAY}}ms,
             {% endif %}
         {% endfor %}
-        // Replay has an integrated timer, but not all generator have support for limit so we launch an external timeout
-        print "Starting timer wait...",
-        write timeout.run,
-{% endif %}
+        {% endif %}
                 set starttime $(now),
 {% for i in range($GEN_THREADS if REPLAY else $GEN_NGEN) %}
                 wait,
