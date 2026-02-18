@@ -31,6 +31,7 @@ class SSHExecutor(Executor):
         self.ssh = False
         self.unbuffer = True
         self.identityfile = None
+        self.ssh_config = None
         #Executor should not make any connection in init as parameters can be overwritten afterward
 
     def __del__(self):
@@ -43,44 +44,48 @@ class SSHExecutor(Executor):
             return self.ssh
         ssh = paramiko.SSHClient()
 
-        #Inspired by https://gist.github.com/acdha/6064215
-        ssh_config = paramiko.SSHConfig()
-        user_config_file = os.path.expanduser("~/.ssh/config")
-        if os.path.exists(user_config_file):
-            with open(user_config_file) as f:
-                ssh_config.parse(f)
-
         cfg = {'hostname': self.addr, 'username': self.user, 'port': self.port, 'identityfile': self.identityfile}
 
-        user_config = ssh_config.lookup(cfg['hostname'])
-        for k in ('hostname', 'username', 'port', 'identityfile'):
-            if k in user_config:
-                cfg[k] = user_config[k]
+        #Inspired by https://gist.github.com/acdha/6064215
+        ssh_config=None
+        if npf.globals.options.sshconfig:
+            ssh_config = paramiko.SSHConfig()
+            user_config_file = os.path.expanduser("~/.ssh/config")
+            if os.path.exists(user_config_file):
+                with open(user_config_file) as f:
+                    ssh_config.parse(f)
 
-        if 'proxycommand' in user_config:
-            cfg['sock'] = paramiko.ProxyCommand(user_config['proxycommand'])
-        #ssh.load_system_host_keys()
-        if cfg["identityfile"]:
-            try:
-                found=False
-                for key_class in [paramiko.RSAKey, paramiko.DSSKey, paramiko.ECDSAKey, paramiko.Ed25519Key]:
-                    keys = cfg["identityfile"]
-                    if not type(keys) is list:
-                        keys = [keys]
-                    for key in keys:
-                        try:
-                            k = key_class.from_private_key_file(key)
-                            found=True
+            user_config = ssh_config.lookup(cfg['hostname'])
+            for k in ('hostname', 'username', 'port', 'identityfile'):
+                if k in user_config:
+                    cfg[k] = user_config[k]
+
+            if 'proxycommand' in user_config:
+                cfg['sock'] = paramiko.ProxyCommand(user_config['proxycommand'])
+
+            #ssh.load_system_host_keys()
+            if cfg["identityfile"]:
+                try:
+                    found=False
+                    for key_class in [paramiko.RSAKey, paramiko.DSSKey, paramiko.ECDSAKey, paramiko.Ed25519Key]:
+                        keys = cfg["identityfile"]
+                        if not type(keys) is list:
+                            keys = [keys]
+                        for key in keys:
+                            try:
+                                k = key_class.from_private_key_file(key)
+                                found=True
+                                break
+                            except paramiko.ssh_exception.SSHException as e:
+                                continue
+                        if found:
                             break
-                        except paramiko.ssh_exception.SSHException as e:
-                            continue
-                    if found:
-                        break
-                if not found:
-                    raise paramiko.ssh_exception.SSHException("Could not load private key from %s" % cfg["identityfile"])
-            except IOError as e:
-                print("Could not load host keys from %s" % cfg["identityfile"])
-                raise e
+                    if not found:
+                        raise paramiko.ssh_exception.SSHException("Could not load private key from %s" % cfg["identityfile"])
+                except IOError as e:
+                    print("Could not load host keys from %s" % cfg["identityfile"])
+                    raise e
+        self.ssh_config = cfg
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         ssh.connect(cfg["hostname"], username=cfg["username"], port=cfg["port"],sock=cfg['sock'] if "sock" in cfg else None, pkey=k if cfg["identityfile"] else None)
         if cache:

@@ -210,6 +210,7 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
     c.add_argument('--cluster-autosave', default=False, action='store_true', dest='cluster_autosave',
                     help='Automatically save NICs found on the machine. If the file cluster/address.node does not exists, NPF will attempt to auto-discover NICs. If this option is set, it will auto-create the file.')
 
+    c.add_argument('--no-ssh-config', help='Do not use the SSH config file (~/.ssh/config) when connecting to remote nodes', dest='sshconfig', action='store_false', default=True)
 
     return t
 

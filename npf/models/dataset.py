@@ -41,7 +41,7 @@ class Run:
         s = []
         for k, v in self._variables.items():
             if k in hide: continue
-            sk = k if len(k) < maxlen else k[:3]
+            sk = k if maxlen <= 0 or len(k) < maxlen else k[:3]
             if type(v) is tuple:
                 s.append('%s = %s' % (sk, v[1]))
             else:
