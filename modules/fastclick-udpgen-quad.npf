@@ -1,6 +1,8 @@
 %info
 UDP Traffic loop Module, using 4 NICs
 
+Supports 4 sending NICs, but is much more limited than fastclick-play-single-mt
+
 This will generate UDP traffic using 4 NICs.
 Packets are expected to come back, and the sum of UDP
 traffic is accounted for and printed as the RESULT.

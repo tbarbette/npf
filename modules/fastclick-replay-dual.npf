@@ -1,5 +1,7 @@
 %info
 Packets are directed towards the server NIC 0 MAC address using the client NIC 0 and expect to receive packets back on the NIC 1. There is no L3 support (ARP).
+This module is "dual" because NIC 0 sends packets to NIC 1 and vice versa, whereas the basic fastclick-play-single-mt module is only generating on one interface.
+The aformentioned module is much more advanced though.
 
 Suggested usage example in your test (omit the prefixed "//" that prevent loop import here)
 
