@@ -400,7 +400,7 @@ class Test:
                     env = Environment(loader=BaseLoader)
                     try:
                         template = env.from_string(p)
-                        p = template.render(**v)
+                        p = template.render(**(v | dict([(t,True) for t in self.tags])))
                     except Exception as e:
                         print(f"In {s.filename}")
                         if hasattr(e, "lineno"):
@@ -439,7 +439,7 @@ class Test:
                     from jinja2 import Environment, BaseLoader
                     env = Environment(loader=BaseLoader)
                     template = env.from_string(p)
-                    p = template.render(**v)
+                    p = template.render(**(v | dict([(t,True) for t in self.tags])))
             pid, output, err, returncode = executor(require.role(), self.config.get_dict("default_role_map")).exec(
                 cmd=p, bin_paths=[build.get_local_bin_folder()], options=self.options, event=None, testdir=None)
             if returncode != 0:
@@ -753,7 +753,7 @@ class Test:
                             from jinja2 import Environment, BaseLoader
                             env = Environment(loader=BaseLoader)
                             template = env.from_string(param.commands)
-                            param.commands = template.render(**v)
+                            param.commands = template.render(**(v | dict([(t,True) for t in self.tags])))
                         param.options = self.options
                         param.queue = None if nokill else queue
                         param.stdin = t.stdin.content
