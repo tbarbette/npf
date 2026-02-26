@@ -1,4 +1,5 @@
 %info
+(deprecated, use fastclick-play-single-mt instead with udpgen tag)
 UDP Traffic Generator module
 
 This will generate UDP traffic using 1 NICs. There is no

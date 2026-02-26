@@ -1,7 +1,22 @@
 %info
-Advanced version of perf-functions
+Advanced performance profiling using perf record and the perf-class tool.
 
-Use the perf-class python program to aggregate using a dictionary. See https://github.com/tbarbette/perf-class
+Records CPU cycles with perf record, then uses the perf-class Python program
+(https://github.com/tbarbette/perf-class) to aggregate symbols into categories
+using a classification map (dictionary). Outputs RESULT-PERF-<category> with
+the percentage of time spent in each class.
+
+Variables:
+  PERF_OPT       - Extra options for perf record (default: -g --call-graph dwarf)
+  PERF_TIME      - Recording duration in seconds (default: 4)
+  PERF_EVENT     - Hardware event to record (default: cycles)
+  PERF_MIN       - Minimum percentage to report (default: 1)
+  PERF_CLASS_MAP - Path to classification map file
+  PERF_STACK_MAX - Maximum call stack depth (default: 8)
+  PERF_FREQ      - Sampling frequency in Hz (default: 1000)
+
+Usage:
+  %import@dut perf-class PERF_TIME=10 PERF_MIN=2
 
 %config
 graph_result_as_variable+={PERF-(.*):Perf}

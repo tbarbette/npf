@@ -1,7 +1,14 @@
 %info
-Insert netmap module and drivers
+Insert the Netmap kernel module and network drivers for packet I/O.
 
-Support i40e and ixgbe
+Unloads any DPDK UIO drivers (igb_uio, uio_pci_generic) first, then
+loads the Netmap kernel module and the Netmap-patched i40e and ixgbe
+network drivers.
+
+Requires the netmap dependency to be built. Runs as an init script.
+
+Usage:
+  %import@dut netmap-bind
 
 %init sudo=true deps=netmap
 lsmod | grep netmap &> /dev/null

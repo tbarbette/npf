@@ -1,7 +1,18 @@
 %info
-Wait until the number of current connections resets below a value
+Wait until the number of TCP TIME_WAIT connections drops below 100.
 
-Use waitfor=SERVER_CLEAN to start your scripts only when the server is clean
+Kills nginx, then polls netstat and cleans up lingering TIME_WAIT connections
+by writing to /proc/net/tcpdropsock. Emits the event SERVER_CLEAN when the
+number of TIME_WAIT connections is under 100.
+
+Use waitfor=SERVER_CLEAN in your script sections to delay execution until
+the server is clean between test runs.
+
+Variables:
+  WAIT_GREP - IP prefix to filter connections for cleanup (default: 10.221)
+
+Usage:
+  %import@server waitcon WAIT_GREP=10.100
 
 %variables
 

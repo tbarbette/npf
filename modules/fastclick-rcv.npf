@@ -1,8 +1,17 @@
 %info
-This is not a test, this is a module to be imported with %import
+Measure the receiving rate of a DPDK port using FastClick.
 
-This will show the receiving rate of one port using DPDK
+Receives packets on a single DPDK port and reports the average link rate
+(RESULT-RX) and hardware-dropped packets (RESULT-DROPPED) using an
+AverageCounter element.
 
+Variables:
+  NT      - Number of receive threads (default: 1)
+  NDESC   - Number of RX descriptors (default: 256)
+  NB_MBUF - Number of memory buffers (default: 65536)
+
+Usage:
+  %import@dut fastclick-rcv NT=4
 
 %config
 accept_zero={DROPPED}

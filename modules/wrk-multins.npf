@@ -1,3 +1,22 @@
+%info
+HTTP benchmark using WRK across multiple network namespaces.
+
+Launches one WRK instance per namespace (SRV_NS), each binding to a random
+IP address. Collects throughput, requests/s, latency (median, P50, P99),
+and HTTP timeout counts.
+
+Variables:
+  SRV_NS         - Number of namespaces / WRK instances
+  GEN_CONCURRENT - Total concurrent connections (split across instances)
+  GEN_THREADS    - Total threads (split across instances)
+  GEN_TIME       - Test duration in seconds
+  FILE_PATH      - HTTP path to request
+  HTTP_PORT      - Target HTTP port
+  WRK_PROTOCOL   - Protocol (http or https)
+
+Usage:
+  %import@client wrk-multins GEN_CONCURRENT=128 GEN_TIME=30
+
 %script deps=wrk2-tbarbette
 
 echo "Launching WRK on $NPF_NODE"

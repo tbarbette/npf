@@ -1,3 +1,19 @@
+%info
+Traffic generator using DPDK pktgen (pktgen-dpdk).
+
+Launches pktgen-dpdk with a Lua script to generate traffic at a given packet
+size for GEN_TIME seconds. Collects throughput (RESULT-THROUGHPUT) and TX rate
+(RESULT-TX) in Mbps.
+
+Variables:
+  GEN_CPU    - Number of CPU cores to use (default: 8)
+  SND_NIC    - NIC index for sending (default: 0)
+  GEN_TIME   - Duration of the test in seconds (default: 5)
+  GEN_LENGTH - Packet size in bytes (default: 512)
+
+Usage:
+  %import@client pktgen GEN_LENGTH=64 GEN_TIME=10
+
 %variables
 GEN_CPU=8
 SND_NIC=0

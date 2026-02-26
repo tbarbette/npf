@@ -1,4 +1,5 @@
 %info
+(deprecated, use fastclick-play-single-mt instead)
 Module to replay a trace with throughput and latency testing
 
 Packets are directed towards one NIC of the "server" role using one NIC of the CLIENT and expect to receive packets back on the same NIC. There is no L3 support (ARP).

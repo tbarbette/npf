@@ -1,4 +1,5 @@
 %info
+(deprecated, use fastclick-play-single-mt instead with udpgen tag)
 UDP Traffic loop Module, dual side
 
 This will generate UDP traffic using 2 NICs.

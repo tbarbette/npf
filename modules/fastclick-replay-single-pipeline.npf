@@ -1,5 +1,8 @@
 %info
-DEPRECATED
+DEPRECATED: Use fastclick-play-single-mt with the "pipeline" tag instead.
+
+This module is no longer maintained. Import fastclick-play-single-mt
+with the pipeline tag for equivalent functionality.
 
 %require
 echo "Use fastclick-play-single-mt instead with the pipeline tag"

@@ -1,5 +1,15 @@
 %info
-Set the number of hardware queues for a given device
+Set the number of combined hardware queues (RSS queues) for a network device.
+
+Uses ethtool -L to configure the number of combined queues. If the device
+already has the requested number of queues, no change is made.
+
+Variables:
+  N   - Number of combined queues to set (default: 1)
+  NIC - NIC index to configure (default: 0)
+
+Usage:
+  %import@dut dev_channels N=4
 
 %variables
 N=1

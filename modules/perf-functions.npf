@@ -1,5 +1,21 @@
 %info
-Simple module that will record the time spent in each perf function
+Simple performance profiling that reports time spent in each function.
+
+Uses perf record followed by perf report to list functions sorted by
+overhead. Outputs RESULT-PERF-<symbol>@<pid> for each function above the
+PERF_MIN threshold.
+
+For more advanced classification-based profiling, see the perf-class module.
+
+Variables:
+  PERF_OPT   - Extra options for perf record (default: empty)
+  PERF_TIME  - Recording duration in seconds (default: 4)
+  PERF_EVENT - Hardware event to record (default: cycles)
+  PERF_MIN   - Minimum overhead percentage to report (default: 1)
+  PERF_PATH  - Path to perf binary (default: perf)
+
+Usage:
+  %import@dut perf-functions PERF_TIME=5 PERF_MIN=2
 
 %config
 

@@ -1,7 +1,25 @@
 %info
-Launch an NGINX server
+Launch and configure an NGINX HTTP server.
 
-As of now, the dependecy is not handled
+Automatically generates an nginx.conf with configurable workers, CPU affinity,
+NIC queue count, keepalive, gzip, and optional SSL support (use the "ssl" tag).
+Also configures IRQ affinity for the server NIC if NGINX_IRQ_AFFINITY is set.
+
+Variables:
+  NGINX_NWORKER      - Number of worker processes (default: 16)
+  NGINX_PORT         - Listening port (default: 8188)
+  NGINX_GZIP         - Enable gzip compression: "on" or "off" (default: off)
+  NGINX_ROOT         - Document root directory (default: ./nginx/)
+  NGINX_USER         - User to run NGINX as (default: www-data)
+  KEEPALIVE          - Keepalive timeout in seconds (default: 30)
+  NGINX_CPU_STEP     - CPU core step for worker affinity (default: 1)
+  NGINX_IRQ_AFFINITY - Set NIC IRQ affinity to match workers (default: 1)
+
+Tags:
+  ssl - Enable SSL with a self-signed certificate
+
+Usage:
+  %import@server nginx NGINX_NWORKER=8 NGINX_PORT=80
 
 %variables
 NGINX_NWORKER=16

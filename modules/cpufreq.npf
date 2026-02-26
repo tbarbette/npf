@@ -1,10 +1,14 @@
 %info
-This is not a test, this is a module to be imported using "%import" to set the
-CPU frequency
-
+(deprecated)
 This module sets the CPU frequency to a given value using cpupower
 
-//%import@client cpufreq CPUFREQ=%
+This module works at initialization and sets a frequency for the whole test. To set a variable frequency (something you can change in your experiment), use cpufreq-script instead. It is also more feature-fledged.
+
+Usage:
+    %import@client cpufreq CPUFREQ=FREQ_VALUE
+
+See also:
+    cpufreq-script
 
 %config
 require_tags={import}

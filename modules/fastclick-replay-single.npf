@@ -1,5 +1,9 @@
 %info
-DEPRECATED
+DEPRECATED: Use fastclick-play-single-mt with the "replay" tag instead.
+
+This single-threaded replay module is no longer maintained. Use
+fastclick-play-single-mt with GEN_THREADS=1 if you truly need single-thread.
+With multi-threading and a single trace, locking is handled automatically.
 
 %require
 echo "Use fastclick-play-single-mt with the parameter GEN_THREADS=1 if you really wan single thread (why?) and the replay tag to replay. If you use multi-threading, and have a single trace, locking will be put automatically in place so there's really no reason to keep this."

@@ -1,5 +1,15 @@
 %info
-Set the number of hardware queues for a given device
+Configure Ethernet PAUSE frames (flow control) on a network device.
+
+Uses ethtool -A to enable or disable RX and TX pause frames on the
+specified interface.
+
+Variables:
+  PAUSE - Enable or disable pause frames: "on" or "off" (default: off)
+  NIC   - NIC index to configure (default: 0)
+
+Usage:
+  %import@dut dev_pause PAUSE=on
 
 %variables
 PAUSE=off

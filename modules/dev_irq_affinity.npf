@@ -1,5 +1,17 @@
 %info
-Module to set the IRQ affinity for a given device
+Set the IRQ affinity for a network device to pin interrupts to specific CPU cores.
+
+Kills irqbalance first, then uses set_irq_affinity_cpulist.sh if available,
+otherwise falls back to a built-in script (based on Intel/Robert Olsson).
+The OFFSET variable allows shifting the CPU core assignment.
+
+Variables:
+  N      - Number of CPU cores to use (if empty, uses all available)
+  NIC    - NIC index to configure (default: 0)
+  OFFSET - First CPU core index to start binding from (default: 0)
+
+Usage:
+  %import@dut dev_irq_affinity N=4 NIC=0 OFFSET=0
 
 %variables
 N=

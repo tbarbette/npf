@@ -1,3 +1,17 @@
+%info
+Collect hardware performance counters using perf stat.
+
+Runs perf stat on cores 0 to N_CORES-1 for PERF_TIME seconds, collecting
+events such as LLC misses, L1 cache misses, branch misses, TLB misses, and
+instructions per cycle (IPC). Computes and outputs miss ratios.
+
+Use the tag "perf_all" to enable a more set of hardware events than the default events.
+
+Usage:
+  %import@dut perf-stat N_CORES=4 PERF_TIME=5
+
+See also perf-class
+
 // Perf stat
 
 %variables

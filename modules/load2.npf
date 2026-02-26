@@ -1,6 +1,21 @@
 %info
+(deprecated)
+Measure CPU load of the machine using mpstat (second instance).
 
-Print load of the machine
+Identical to the load module but uses a separate script file (load2.sh),
+allowing two independent load monitors to run simultaneously on different
+roles or with different prefixes.
+
+Waits until CPU utilization exceeds THRESH, then accumulates samples.
+Outputs RESULT-<PREFIX>CPUA (average load) and RESULT-<PREFIX>CPUR (per-core ratio).
+
+Variables:
+  PREFIX - Prefix for result names (default: empty)
+  NCPU   - Number of CPU cores to monitor (default: 16)
+  THRESH - Minimum CPU utilization percentage threshold (default: 50)
+
+Usage:
+  %import@server load2 PREFIX=SRV_ NCPU=8
 
 %variables
 PREFIX=

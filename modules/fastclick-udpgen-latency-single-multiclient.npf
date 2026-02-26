@@ -1,4 +1,5 @@
 %info
+(deprecated, use fastclick-play-single-mt instead with udpgen tag)
 UDP Traffic generator Module with latency test, one NIC only
 
 This version differs with udpgen-latency-single by allowing to track the latency over time.

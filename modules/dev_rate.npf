@@ -1,5 +1,18 @@
 %info
-Give the Link rate and PPS through Linux API
+Measure link rate (bits/s) and packet rate (PPS) of a network device using
+Linux kernel counters from /sys/class/net/.
+
+Polls the interface statistics every second and reports time-series results.
+Waits until throughput exceeds RATE_THRESH before starting to accumulate
+results. Outputs RESULT-DEV-<role>-<side>-LINK and RESULT-DEV-<role>-<side>-PPS.
+
+Variables:
+  NIC         - NIC index to monitor (default: 0)
+  RATE_THRESH - Minimum throughput in bits/s before starting measurement (default: 1000000)
+  SIDE        - Direction to monitor: "rx" or "tx" (default: rx)
+
+Usage:
+  %import@dut dev_rate NIC=0 SIDE=rx RATE_THRESH=1000000
 
 %variables
 NIC=0

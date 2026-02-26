@@ -1,6 +1,18 @@
 %info
+Measure CPU load of the machine using mpstat.
 
-Print load of the machine
+Waits until CPU utilization exceeds the THRESH threshold, then accumulates
+load samples every second. When the script is terminated, outputs the average
+CPU load (RESULT-<PREFIX>CPUA) and the per-core CPU ratio
+(RESULT-<PREFIX>CPUR).
+
+Variables:
+  PREFIX - Prefix for result names, useful when importing multiple instances (default: empty)
+  NCPU   - Number of CPU cores to monitor, from core 0 to NCPU-1 (default: 16)
+  THRESH - Minimum CPU utilization percentage before starting measurement (default: 50)
+
+Usage:
+  %import@dut load NCPU=8 THRESH=30
 
 %variables
 PREFIX=

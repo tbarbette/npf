@@ -1,5 +1,8 @@
 %info
-DEPRECATED
+DEPRECATED: Use fastclick-play-single-mt with the "udpgen" tag instead.
+
+This single-NIC UDP generator module is no longer maintained. Import
+fastclick-play-single-mt with the udpgen tag for equivalent functionality.
 
 %require
 echo "Use fastclick-play-single-mt instead with the tag udpgen."

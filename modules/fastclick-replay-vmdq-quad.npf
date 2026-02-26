@@ -1,6 +1,5 @@
 %info
-This is not a test, this is a module to be imported using "%import" to run a pktgen to compute latency of some DUT using FastClick. The traffic is read from traces and replayed in loop.
-
+(deprecated)
 Packets are directed towards the server NIC 0 MAC address using the client NIC 0 and expect to receive packets back on the NIC 1. There is no L3 support (ARP).
 
 Suggested usage example in your test (omit the prefixed "//" that prevent loop import here)

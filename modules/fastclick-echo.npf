@@ -1,2 +1,13 @@
+%info
+Minimal DPDK echo/loopback module made with FastClick.
+
+Receives packets on a DPDK port and sends them back with swapped Ethernet
+source and destination addresses using EtherMirror. Uses cores 0-7.
+
+With the FastClick dependency, it will build itself.
+
+Usage:
+  %import@dut fastclick-echo
+
 %script deps=fastclick sudo=true
 click --dpdk -l 0-7 -a ${self:0:pci} -- -e "FromDPDKDevice(0, PROMISC true) -> EtherMirror -> ToDPDKDevice(0);"

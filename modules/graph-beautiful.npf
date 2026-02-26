@@ -1,3 +1,13 @@
+%info
+Graph styling module for improved visual rendering.
+
+Configures graph tick parameters, grid, legend, and common variable display
+names to produce publication-quality plots. Import this module to apply
+a clean and consistent graph style.
+
+Usage:
+  %import graph-beautiful
+
 %config
 graph_tick_params={direction:in,which:both,axis:both,grid_linestyle:dotted,bottom:true,top:true,right:true,left:true,grid_color:#444444}
 var_grid=true

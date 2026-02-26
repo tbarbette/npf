@@ -474,8 +474,9 @@ ender :: Script(TYPE PASSIVE,
                 print "Limit of $LIMIT reached",
                 {% for t in range($GEN_NGEN) %}
                 write fdIN{{ t }}.active false,
+                please_stop,
                 {% endfor %}
-                stop);
+                print "Moving on...");
 $FDDISPATCH
 
 {% for t in range(GEN_NGEN | int ) %}
@@ -697,7 +698,7 @@ dm :: DriverManager(
                 wait {{GEN_ACTIVEDELAY}}ms,
             {% endif %}
         {% endfor %}
-        {% endif %}
+{% endif %}
                 set starttime $(now),
 {% for i in range($GEN_THREADS if REPLAY else $GEN_NGEN) %}
                 wait,
