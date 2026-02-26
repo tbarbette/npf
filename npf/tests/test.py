@@ -28,6 +28,22 @@ from npf.models.dataset import Run, Dataset
 from npf.version import __version__
 
 
+def _get_nodes(role):
+    """Return the list of nodes for a given role. Intended for use in Jinja templates as get_nodes("role")."""
+    import npf.globals
+    return npf.globals.roles[role]
+
+
+def _jinja_render(template_str: str, variables: dict, tags, role=None) -> str:
+    """Render a Jinja2 template string with the given variables and tags."""
+    from jinja2 import Environment, BaseLoader
+    env = Environment(loader=BaseLoader)
+    template = env.from_string(template_str)
+    ctx = variables | dict([(t, True) for t in tags])
+    ctx["get_nodes"] = _get_nodes
+    return template.render(**ctx)
+
+
 from npf.models.units import parseBool
 from decimal import *
 from functools import reduce
@@ -396,11 +412,8 @@ class Test:
             else:
                 p = s.content
             if s.jinja:
-                    from jinja2 import Environment, BaseLoader
-                    env = Environment(loader=BaseLoader)
                     try:
-                        template = env.from_string(p)
-                        p = template.render(**(v | dict([(t,True) for t in self.tags])))
+                        p = _jinja_render(p, v, self.tags, role=role)
                     except Exception as e:
                         print(f"In {s.filename}")
                         if hasattr(e, "lineno"):
@@ -436,10 +449,7 @@ class Test:
             p = replace_variables(v, require.content, require.role(),
                                                   self.config.get_dict("default_role_map"))
             if require.jinja:
-                    from jinja2 import Environment, BaseLoader
-                    env = Environment(loader=BaseLoader)
-                    template = env.from_string(p)
-                    p = template.render(**(v | dict([(t,True) for t in self.tags])))
+                    p = _jinja_render(p, v, self.tags, role=require.role())
             pid, output, err, returncode = executor(require.role(), self.config.get_dict("default_role_map")).exec(
                 cmd=p, bin_paths=[build.get_local_bin_folder()], options=self.options, event=None, testdir=None)
             if returncode != 0:
@@ -750,10 +760,7 @@ class Test:
                                 "default_role_map"))
 
                         if script.jinja:
-                            from jinja2 import Environment, BaseLoader
-                            env = Environment(loader=BaseLoader)
-                            template = env.from_string(param.commands)
-                            param.commands = template.render(**(v | dict([(t,True) for t in self.tags])))
+                            param.commands = _jinja_render(param.commands, v, self.tags, role=srole)
                         param.options = self.options
                         param.queue = None if nokill else queue
                         param.stdin = t.stdin.content
