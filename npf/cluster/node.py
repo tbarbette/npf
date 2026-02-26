@@ -228,6 +228,12 @@ class Node:
                 #Something was wrong, try first with a more basic test to help the user pinpoint the problem
                 pidT, outT, errT, retT = sshex.exec(cmd="echo -n 'test'", raw=True, title="SSH echo test")
                 if retT != 0 or outT.strip().split("\n")[-1] != "test":
+                    note = ""
+                    if npf.globals.options.sshconfig:
+                        note += "\n\nNote that you are using an ssh config file, make sure it is correct and that the configuration (%s) is correct or use --no-ssh-config." % str(sshex.ssh_config)
+                        if "sock" in sshex.ssh_config:
+                            note += "\nParticularly, it seems a jump socket is used. Make sure it is correct."
+
                     raise Exception(
                         "Could not communicate with%s node %s, got return code %d : %s"
                         % (
@@ -235,7 +241,7 @@ class Node:
                             sshex.addr,
                             retT,
                             outT + errT,
-                        )
+                        ) + note
                     )
             if "access_ok" not in out:
                 raise Exception(("Could not find the access test file at %s on %s. Verify the path= paramater in the cluster file and that this directory already exists. It must match --experiment-folder on the remote equivalent when nfs is active. If the path is not shared accross clusters, ensure you set nfs=0 in the cluster file.\n\nIf you think the above is not correct, please paste the output of the test script below to the github issues:\n" % (sshex.path, sshex.addr)) + "\n---" + out + err + "\n---")
