@@ -1,3 +1,4 @@
 include modules/*.npf
 include repo/*.repo
 include cluster/localhost.node
+include AGENTS.md

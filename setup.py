@@ -52,7 +52,8 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/tbarbette/npf",
     packages=setuptools.find_packages(),
-    package_data={'': ['*.repo', '*.npf']},
+    package_data={'': ['*.repo', '*.npf', 'AGENTS.md']},
+    data_files=[('', ['AGENTS.md'])],
     py_modules=['npf', 'npf_regress', 'npf_watch'],
     classifiers=[
         "Programming Language :: Python :: 3",
