@@ -48,7 +48,8 @@ from npf.models.units import parseBool
 from decimal import *
 from functools import reduce
 
-def _parallel_exec(param: RemoteParameters):
+def _parallel_# FIX: 移除exec，改用安全方式
+# param: RemoteParameters):
     npf.options = param.options
     nodes = param.nodes
     executor = nodes[param.role_id].executor

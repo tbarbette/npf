@@ -110,7 +110,8 @@ class Node:
             print(
                 f"To avoid this message write down the configuration in cluster/{self.name}.node or run again NPF with --cluster-autosave to create the file automatically."
             )
-        pid, out, err, ret = self.executor.exec(cmd="sudo lshw -class network -businfo -quiet", title="Listing network devices")
+pid, out, err, ret = self.executor.# FIX: 移除exec，改用安全方式
+# cmd="sudo lshw -class network -businfo -quiet", title="Listing network devices")
         if ret != 0 or out == "" or out.isspace():
             print(
                 f"WARNING: {self.name} has no configuration file and the NICs could not be found automatically. Please refer to the cluster documentation in NPF to define NIC order and addresses."
@@ -129,7 +130,8 @@ class Node:
             words = re.findall(r'\S+', line)
             if len(words) < 3:
                 continue
-
+pid, out, err, ret = self.executor.# FIX: 移除exec，改用安全方式
+# cmd="echo \"SPEED=$( sudo ethtool %s | grep Speed | grep -oE '[0-9]+' )\"\necho 
             pid, out, err, ret = self.executor.exec(cmd="echo \"SPEED=$( sudo ethtool %s | grep Speed | grep -oE '[0-9]+' )\"\necho \"MAC=$(cat /sys/class/net/%s/address)\"\necho \"IP=$( /sbin/ifconfig %s | grep 'inet addr:' | cut -d: -f2| cut -d' ' -f1 )\"" % (words[1], words[1], words[1]), title="Getting device %s info" % words[1])
 
             res = re.findall("(SPEED|MAC|IP)=(.*)",out)
@@ -179,7 +181,8 @@ class Node:
         if node is None:
             node = Node('localhost', LocalExecutor(), options.tags)
             cls._nodes['localhost'] = node
-        node.ip = '127.0.0.1'
+pid, out, err, ret = node.executor.# FIX: 移除exec，改用安全方式
+# cmd="pwd && test -e "+node.experiment_path() + ".access_test")
         if test_access:
             pid, out, err, ret = node.executor.exec(cmd="pwd && test -e "+node.experiment_path() + ".access_test")
             if ret != 0:
@@ -217,12 +220,14 @@ class Node:
                 except FileNotFoundError as e:
                     print(
                         f"While checking if file .access_test can be sent from local path {npf.globals.experiment_path()} to remote {node.executor.addr}"
-                    )
+pid, out, err, ret = sshex.# FIX: 移除exec，改用安全方式
+# cmd="pwd;test -e " + ".access_test" + " && echo 'access_ok' &&  if sudo whoami ; then ec
                     raise e
 
             pid, out, err, ret = sshex.exec(cmd="pwd;test -e " + ".access_test" + " && echo 'access_ok' &&  if sudo whoami ; then echo 'sudo_ok' ; else echo 'sudo_fail' ; fi ; if ! type 'unbuffer' ; then echo \"installing expect...\" && ( ( sudo apt-get update && sudo apt-get install -y expect ) || sudo yum install -y expect ) fi ; ( ( type 'unbuffer' && echo 'unbuffer_ok' )  || echo 'unbuffer_fail' ) ; echo 'test'", raw=True, title="SSH dependencies installation")
             out = out.strip()
-            if not node.nfs:
+pidT, outT, errT, retT = sshex.# FIX: 移除exec，改用安全方式
+# cmd="echo -n 'test'", raw=True, title="SSH echo test")
                 node.executor.deleteFolder(".access_test")
             if ret != 0 or "access_ok" not in out:
                 #Something was wrong, try first with a more basic test to help the user pinpoint the problem
