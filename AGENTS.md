@@ -108,6 +108,18 @@ VAR={a:Label A,...}  # set with display names
 tag:VAR=value        # conditional on tag
 ```
 
+Variables will be substitued in scripts and files sections.
+
+> **`$((...))` is NPF math, not bash arithmetic**: NPF intercepts `$((...))` and evaluates it with a Python/asteval evaluator — it is **not** passed to bash. Use it for Python-style math on NPF variables: `$(( log($N) ))`, `$(( $N * 2 ))`. To run real bash arithmetic on shell variables, escape it: `\$((a+b))` — NPF strips the backslash and passes `$((a+b))` to bash unchanged. Alternatively use `expr $a + $b`.
+
+> **Variable expansion gotcha**: NPF substitutes `$VAR` in script text before running it. Always use `$VAR` (not bare `VAR`) inside NPF `$((...))`: `$(( $N * 2 ))` works; `$(( N * 2 ))` does not (asteval sees `N` as undefined → 0).
+
+Variables will be substitued in scripts and files sections.
+
+> **`$((...))` is NPF math, not bash arithmetic**: NPF intercepts `$((...))` and evaluates it with a Python/asteval evaluator — it is **not** passed to bash. Use it for Python-style math on NPF variables: `$(( log($N) ))`, `$(( $N * 2 ))`. To run real bash arithmetic on shell variables, escape it: `\$((a+b))` — NPF strips the backslash and passes `$((a+b))` to bash unchanged. Alternatively use `expr $a + $b`.
+
+> **Variable expansion gotcha**: NPF substitutes `$VAR` in script text before running it. Always use `$VAR` (not bare `VAR`) inside NPF `$((...))`: `$(( $N * 2 ))` works; `$(( N * 2 ))` does not (asteval sees `N` as undefined → 0).
+
 **NPF substitutes `$VAR` (and `${VAR}`) in script bodies before the shell runs.**
 
 ```bash
@@ -223,7 +235,7 @@ tls:%script
 
 ## Key conventions
 
-- **Results caching**: NPF caches results per variable combination; re-running adds new points without re-running existing ones if using `--cache`.
+- **Results caching**: The default is to re-run all tests. Use `--cache` to skip combinations already in the result files. The flag is exactly `--cache` — not `--use-cache`, `--no-retest`, or `--force-cache`.
 - **Parallelism**: Scripts across roles run in parallel within a test run; use `waitfor`/`sendto` (EventBus) to synchronize. If printing `EVENT xxx` in one script, scripts with `waitfor=xxx` will start.
 - **`result_overwrite` vs `result_append`**: Default is overwrite (last value wins); use `result_append=METRIC` in `%config` to collect all values.
 - **Jinja2**: Add `jinja` parameter to `%script` or `%file` to enable Jinja2 template rendering with all variables in scope. Jinja is the preferred way rather than python inlining with $(( some python code using VAR )). Using variable replacement like ${VAR} is fine for simple cases. When there is some logic, jinja2 is better. All variables and tags defined are available globally in jinja.
@@ -387,6 +399,68 @@ npf local --test my_bench.npf --no-graph --csv results.csv
 - Do not use NPF variable names (`$TRANSPORT`, `$QD`, etc.) as shell variable names inside a script — NPF will substitute them before the shell sees the script, causing confusing double-expansion.
 - Do not rely on state from one `%script` run surviving to the next — each combination is run in its own subshell.
 - Do not use `%teardown` — the correct section name is `%exit`.
+
+## Enoslib / Grid5000 usage
+
+NPF can run experiments on reserved infrastructure via [enoslib](https://beyondtheclouds.github.io/enoslib/). The `npf.enoslib.run()` Python API replaces the CLI and accepts enoslib `Host` objects as roles.
+
+```python
+from npf import enoslib as npf
+
+results, time_series = npf.run(
+    "my_test.npf",
+    series=[],                    # optional: list of repo strings like CLI
+    argsv=["--force-retest"],     # extra CLI flags as a list
+    roles={"client": host_a, "server": host_b},  # enoslib Host objects
+)
+```
+
+`roles` values can be a single `Host` or a list of `Host` objects. The key is the NPF role name used in `%script@role`.
+
+### Grid5000 two-machine example ([`examples/g5k_iperf.ipynb`](examples/g5k_iperf.ipynb))
+
+See [`examples/iperf-g5k.npf`](examples/iperf-g5k.npf) for the matching test file.
+
+```python
+import enoslib as en
+from npf import enoslib as npf
+
+conf = (
+    en.G5kConf.from_settings(job_name="npf-iperf", walltime="0:30:00",
+                              job_type=["allow_classic_ssh"])
+    .add_machine(roles=["server"], cluster="gros", nodes=1)
+    .add_machine(roles=["client"], cluster="gros", nodes=1)
+)
+provider = en.G5k(conf)
+roles, networks = provider.init()
+
+# install iperf on both nodes — pass roles directly, NOT list(roles.values())
+with en.actions(roles=roles) as a:
+    a.apt(name="iperf", state="present", update_cache=True)
+
+results, _ = npf.run("iperf-g5k.npf", ["local"],
+                     argsv=["--no-graph"], roles=roles)
+if results is None:
+    raise RuntimeError("NPF run failed — check output above")
+provider.destroy()
+```
+
+### Inter-node addressing
+
+Use `${role:ip}` (not `${role:0:ip}`) in `.npf` scripts for enoslib-backed nodes.
+`${role:0:ip}` accesses the NIC table which requires a `.node` config file or auto-discovery;
+`${role:ip}` uses the node-level IP set directly from `eno_obj.address`.
+
+### G5K SSH "Shared connection closed" error
+
+If you see `EnosUnreachableHostsError: Failed to connect … Shared connection to X closed`, the
+SSH ControlMaster socket created during `provider.init()` or the apt install cell has expired
+(G5K's `~/.ssh/config` typically sets `ControlPersist 10` — a 10-second idle timeout).
+
+NPF's `EnoslibExecutor` disables ControlMaster for its own ansible calls, so the connection
+uses a fresh socket each time and won't be affected by an expired shared socket. If you still
+see this error, check your `~/.ssh/config` and increase `ControlPersist` for G5K hosts, or run
+the cells closer together to avoid the idle timeout.
 
 ## Documentation
 

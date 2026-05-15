@@ -1474,8 +1474,14 @@ class Test:
     def expand_folder(test_path, options, tags=None) -> List['Test']:
         tests = []
         if not os.path.exists(test_path):
-            print("The npf script path %s does not exist" % test_path)
-            return tests
+            # Try the NPF root folder as a fallback (useful when running from a subdirectory)
+            from npf.globals import npf_root_path
+            fallback = os.path.join(npf_root_path(), test_path)
+            if os.path.exists(fallback):
+                test_path = fallback
+            else:
+                print("The npf script path %s does not exist (also tried %s)" % (test_path, os.path.abspath(test_path)))
+                return tests
         if os.path.isfile(test_path):
             test = Test(test_path, options=options, tags=tags)
             tests.append(test)

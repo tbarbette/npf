@@ -39,7 +39,7 @@ class Comparator():
                 self.graphs_series.append((test, build, data_dataset[0]))
                 self.time_graphs_series.append((test, build, time_dataset[0]))
         if len(self.graphs_series) == 0:
-            print("No valid tags/test/repo combination.")
+            print("No valid tags/test/repo combination. Check the output above for the specific cause (missing test file, missing tags, or no repository defined).")
             return None, None
 
         return self.graphs_series, self.time_graphs_series

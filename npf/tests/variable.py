@@ -86,12 +86,12 @@ def replace_variables(v: dict, content: str, self_role=None, self_node=None, def
             t = str(nic_match.group('node'))
             if t == "node":
                 return str(len(nodes))
-            v = getattr(nodes[nodeidx], t)
+            v = getattr(nodes[nodeidx], t, None)
             if v is None:
                 if t == "multi":
                     return "1"
                 else:
-                    raise Exception("Unknown node variable %s" % t)
+                    raise Exception("Node variable ${%s:%s} is not set." % (varRole, t))
             else:
                 return str(v)
         else:

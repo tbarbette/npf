@@ -27,6 +27,8 @@ class Node:
         self.tags = []
         self.nfs = True
         self.addr = 'localhost'
+        self.ip = None
+        self.ip6 = None
         self.port = 22
         self.arch = ''
         self.active_nics = range(32)
