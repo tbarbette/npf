@@ -540,7 +540,7 @@ class Grapher:
                 transformed_series.append((test, build, new_results))
             return transformed_series
 
-    def graph(self, filename, options, fileprefix=None, graph_variables: List[Run] = None, title=False, series:Series=None):
+    def graph(self, filename, options, fileprefix=None, graph_variables: List[Run] = None, title=False, series:Series=None, return_fig=False):
         """
         The function "graph" is used to create a graph based on the given parameters and save it to a
         file.
@@ -567,6 +567,7 @@ class Grapher:
         graph
         """
         self.options = options
+        self.return_fig = return_fig
         if self.options.graph_size is None:
             self.options.graph_size = plt.rcParams["figure.figsize"]
         if series is None:
@@ -679,7 +680,7 @@ class Grapher:
             self.graph_group(series=exploded_series, vars_values=exploded_vars_values, filename=filename, fileprefix = fileprefix, title=title)
 
 
-        self.graph_group(series, vars_values, filename=filename, fileprefix = fileprefix, title=title)
+        return self.graph_group(series, vars_values, filename=filename, fileprefix = fileprefix, title=title)
 
         # Export to web format
         if options.web is not None:
@@ -892,7 +893,7 @@ class Grapher:
                 graph.series_prop(prop, self.configdict('graph_cross_reference').values())
 
         if len(graphs) > 0:
-            self.plot_graphs(graphs, filename, fileprefix)
+            return self.plot_graphs(graphs, filename, fileprefix)
 
     def plot_graphs(self, graphs, filename, fileprefix):
         """
@@ -1003,7 +1004,10 @@ class Grapher:
                     return
                 else:
                     result_type = fig_name
-            if not filename:
+            if self.return_fig:
+                ret[result_type] = plt.gcf()
+                plt.figure()  # fresh figure for the next result type
+            elif not filename:
                 buf = io.BytesIO()
                 plt.savefig(buf, format='png', bbox_extra_artists=(extra_artists,) if len(extra_artists) > 0 else [], bbox_inches='tight')
                 buf.seek(0)
@@ -1037,7 +1041,8 @@ class Grapher:
                     print(e)
                     traceback.print_exc()
                 ret[result_type] = None
-            plt.clf()
+            if not self.return_fig:
+                plt.clf()
         return ret
 
 

@@ -865,8 +865,9 @@ class Test:
                         if parseBool(script.params.get("critical", t.config["critical"])):
                             critical_failed = True
                             print("[ERROR] A critical script failed ! Results will be ignored")
-                        print("Bad return code (%d) for script %s on %s ! Something probably went wrong..." % (
-                            c, script.get_name(), script.get_role()))
+                        if not (c > 128 and event.is_terminated()):
+                            print("Bad return code (%d) for script %s on %s ! Something probably went wrong..." % (
+                                c, script.get_name(), script.get_role()))
                         if self.options.quiet:
                             print("stdout:")
                             print(o)

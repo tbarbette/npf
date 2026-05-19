@@ -28,6 +28,13 @@ def run(npf_script: str, series: List[str] = [], roles: Dict = {},
     Returns:
         (series_results, time_series) tuple from the comparator run.
     """
+    import multiprocessing
+    import sys
+    # macOS Python 3.12+ defaults to 'spawn', which requires if __name__=='__main__'
+    # guards that are absent in Jupyter/script contexts. Force 'fork' here.
+    if sys.platform == 'darwin' and multiprocessing.get_start_method(allow_none=True) != 'fork':
+        multiprocessing.set_start_method('fork', force=True)
+
     import logging
     import argparse
     import npf.cmdline as _cmdline
@@ -118,3 +125,41 @@ def run(npf_script: str, series: List[str] = [], roles: Dict = {},
     generate_outputs(filename, series=results, time_series=time_series, options=args)
 
     return results, time_series
+
+
+def plot(results, time_series=None, argsv: List[str] = None) -> dict:
+    """Generate matplotlib figures from NPF results without re-running the experiment.
+
+    Args:
+        results:     Series results from npf.run().
+        time_series: Time series from npf.run() (optional).
+        argsv:       Extra CLI graph arguments (e.g. ["--graph-title", "My Test"]).
+
+    Returns:
+        Dict mapping result-type names (e.g. "THROUGHPUT") to matplotlib Figure objects.
+        Call fig.show() or display(fig) in Jupyter on any of the returned figures.
+    """
+    import argparse
+    import npf.cmdline as _cmdline
+    import npf.parsing as _parsing
+    from npf.output import generate_outputs
+
+    if time_series is None:
+        time_series = []
+    if argsv is None:
+        argsv = []
+
+    parser = argparse.ArgumentParser()
+    _cmdline.add_verbosity_options(parser)
+    _cmdline.add_building_options(parser)
+    _cmdline.add_testing_options(parser, regression=False)
+    _cmdline.add_graph_options(parser)
+    parser.add_argument('repos', metavar='repo', type=str, nargs='*')
+    parser.add_argument('--graph-title', type=str, nargs='?')
+
+    test_name = results[0][0].filename if results else "dummy.npf"
+    args = parser.parse_args(["--test", test_name, *argsv])
+    _parsing.initialize(args)
+
+    return generate_outputs(None, series=results, time_series=time_series,
+                            options=args, return_fig=True)

@@ -2,7 +2,7 @@ import os
 
 from npf.globals import experiment_path, npf_root_path, get_options
 from npf.osutils import get_valid_filename
-from npf.api import run
+from npf.api import run, plot
 
 def npf_writeable_root_path():
     path = npf_root_path()

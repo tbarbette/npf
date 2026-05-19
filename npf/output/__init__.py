@@ -1,7 +1,7 @@
 from typing import Dict, List, Tuple
 from npf.models.series import Series
 
-def generate_outputs(filename: str, series: Series , time_series:Series, options) -> Tuple['Dataset',Dict]:
+def generate_outputs(filename: str, series: Series , time_series:Series, options, return_fig=False) -> Tuple['Dataset',Dict]:
     """
     The function merge different series together, finding common variables
 
@@ -135,7 +135,8 @@ def generate_outputs(filename: str, series: Series , time_series:Series, options
     g = grapher.graph(series=series,
                       filename=filename,
                       options=options,
-                      title=options.graph_title)
+                      title=options.graph_title,
+                      return_fig=return_fig)
 
     if options.do_time:
         for time_ns,series in n_time_series.items():
@@ -146,4 +147,6 @@ def generate_outputs(filename: str, series: Series , time_series:Series, options
                                     fileprefix=time_ns,
                                     options=options,
                                     title=options.graph_title)
+    if return_fig:
+        return g
     return series, time_series

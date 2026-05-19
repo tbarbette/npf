@@ -105,10 +105,62 @@ VAR=[1-16]           # integer range
 VAR=[1-16#2]         # range with step
 VAR={a,b,c}          # explicit set
 VAR={a:Label A,...}  # set with display names
-tag:VAR=value        # conditional on tag
+tag:VAR=value        # set VAR only when tag is active
+tag:VAR={1,2,4,8}    # sweep VAR only when tag is active
+-tag:VAR=value       # set VAR only when tag is NOT active
 ```
 
-Variables will be substitued in scripts and files sections.
+Variables will be substituted in scripts and files sections.
+
+### Tags and conditional variables
+
+Tags are free-form labels passed on the CLI with `--tags tag1,tag2` (or `--tag tag1`). They activate or suppress variable definitions and script sections.
+
+**Use `tag:VAR=` instead of commenting out values.** When you want a variable to sweep a set of values only during focused testing — without changing the default — use a tag-gated definition rather than commenting:
+
+```
+// WRONG: commenting out the sweep forces the reader to uncomment manually
+VAR=8
+//VAR={1,2,4,8}
+
+// RIGHT: tag gates the sweep; default stays 8, sweep activates with --tags sweep
+VAR=8
+sweep:VAR={1,2,4,8}
+```
+
+When the tag is active the tag-gated line **overrides** earlier assignments for the same variable. When the tag is absent, only `VAR=8` applies.
+
+**Common patterns from `examples/iperf-advanced.npf`:**
+
+```
+PARALLEL=[1-8]            # always sweep 1..8
+cpu:CPU=[1-8]             # CPU variable only exists when --tags cpu is passed
+fastregression:PARALLEL={1,8}   # narrow the sweep for a quick CI run
+fastregression:TIME=2           # fix TIME when running fast regression
+nocongestion:CONGESTION=cubic   # skip CONGESTION sweep with --tags nocongestion
+```
+
+**Negated tags** (`-tag:`) apply when the tag is *not* given:
+
+```
+-nostat:results_expect+={TOTAL-cycles}   # expect cycles unless --tags nostat
+```
+
+**Scripts and imports can also be tag-gated** using the same prefix on the section header:
+
+```
+%-nostat:import@server perf-stat         # import perf-stat unless --tags nostat
+```
+
+In Jinja scripts you can test whether a tag-gated variable was defined at all:
+
+```bash
+{% if CPU is not defined %}
+iperf ...
+{% else %}
+taskset -c 0-{{ CPU - 1 }} iperf ...
+{% endif %}
+```
 
 > **`$((...))` is NPF math, not bash arithmetic**: NPF intercepts `$((...))` and evaluates it with a Python/asteval evaluator — it is **not** passed to bash. Use it for Python-style math on NPF variables: `$(( log($N) ))`, `$(( $N * 2 ))`. To run real bash arithmetic on shell variables, escape it: `\$((a+b))` — NPF strips the backslash and passes `$((a+b))` to bash unchanged. Alternatively use `expr $a + $b`.
 
