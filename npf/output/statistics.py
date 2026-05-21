@@ -51,7 +51,6 @@ class Statistics:
             if npf.globals.options.statistics_maxmetrics and i_dataset > npf.globals.options.statistics_maxmetrics:
                 break
             print("Learning dataset built with %d samples and %d features..." % (X.shape[0], X.shape[1]))
-            dataset = Statistics.buildDataset(all_results, test)
             clf = tree.DecisionTreeRegressor(max_depth=max_depth)
             try:
                 clf = clf.fit(X, y)
