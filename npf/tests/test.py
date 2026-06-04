@@ -39,7 +39,7 @@ def _jinja_render(template_str: str, variables: dict, tags, role=None) -> str:
     from jinja2 import Environment, BaseLoader
     env = Environment(loader=BaseLoader)
     template = env.from_string(template_str)
-    ctx = variables | dict([(t, True) for t in tags])
+    ctx = dict([(t, True) for t in tags]) | variables
     ctx["get_nodes"] = _get_nodes
     return template.render(**ctx)
 
