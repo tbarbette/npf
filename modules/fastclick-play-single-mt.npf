@@ -195,6 +195,7 @@ GEN_TX_DESC?=EXPAND($GEN_DESC)
 GEN_NGEN=EXPAND( $((1 if $GEN_PIPELINE else $GEN_THREADS )) )
 scale_multi_trace:GEN_NGEN=EXPAND( $GEN_MULTI_TRACE )
 GEN_IPV6?=0
+GEN_RX_CSUM?=0
 GEN_NANO?=0
 GEN_PREFIX?=
 GEN_FNT?=
@@ -311,6 +312,9 @@ echo "The generator is going to read {% if LIMIT %}up to {{LIMIT}}{%endif%} pack
     echo "The source is an IP summary dump {{t_path}}."
 {% else %}
     echo "The source is a minimal dump {{t_path}}."
+{% endif %}
+{% if  GEN_ACTIVEDELAY and (GEN_ACTIVEDELAY|int) > 0 and ((GEN_ACTIVEDELAY|int)*(GEN_MULTI_TRACE|int) < (IGNORE|int)*1000) %}
+    echo "WARNING: The IGNORE time ({{IGNORE}}s) is smaller than the GEN_ACTIVEDELAY time * GEN_MULTI_TRACE ({{(GEN_ACTIVEDELAY|int)*(GEN_MULTI_TRACE|int)}}ms), so the throughput will account for slowstart."
 {% endif %}
 
 echo "The generator will use $GEN_THREADS threads for TX and $GEN_RX_THREADS for RX."
@@ -552,7 +556,7 @@ $(( "-> EnsureDPDKBuffer" if $GEN_DUMP < 2 else "" ))
     StaticThreadSched(tdIN 0/{{GEN_THREADS + 1}});
 {% endif %}
 
-receiveIN :: FromDPDKDevice($port, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, PAUSE $GEN_PAUSE, NDESC $GEN_DESC, MAXTHREADS $GEN_RX_THREADS, NUMA $GEN_NUMA, ACTIVE $GEN_RX)
+receiveIN :: FromDPDKDevice($port, VERBOSE $rxverbose, MAC $INsrcmac, PROMISC $PROMISC, PAUSE $GEN_PAUSE, NDESC $GEN_DESC, MAXTHREADS $GEN_RX_THREADS, NUMA $GEN_NUMA, ACTIVE $GEN_RX, IPCO $GEN_RX_CSUM, TCO $GEN_RX_CSUM, UCO $GEN_RX_CSUM)
 
 elementclass Receiver { $mac, $dir |
     input[0]

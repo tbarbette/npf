@@ -373,7 +373,7 @@ class Test:
 #                    if not os.path.isabs(fpath):
 #                        fpath = './npf/' + fpath
                     fpath = os.path.relpath(fpath)
-                    print("Sending files %s to %s... " % (fpath, role), end = '')
+                    print("Sending files %s to %s (current %s)... " % (fpath, role, os.getcwd()), end = '')
                     t = node.executor.sendFolder(fpath)
                     if (t[0] > 0):
                         print("{{t}} bytes sent.")
@@ -760,7 +760,13 @@ class Test:
                                 "default_role_map"))
 
                         if script.jinja:
-                            param.commands = _jinja_render(param.commands, v, self.tags, role=srole)
+                            try:
+                                param.commands = _jinja_render(param.commands, v, self.tags, role=srole)
+                            except Exception as e:
+                                print(f"In script {script.get_name()} on role {srole}")
+                                if hasattr(e, "lineno"):
+                                    print(param.commands.splitlines()[e.lineno])
+                                raise e
                         param.options = self.options
                         param.queue = None if nokill else queue
                         param.stdin = t.stdin.content
@@ -910,6 +916,8 @@ class Test:
                         try:
                             pid, s_output, s_err, c = executor.exec(cmd=ncmd, options=self.options)
                         except Exception as e:
+                            s_output = ""
+                            s_err = ""
                             print("An error occured!", e)
                         #print(s_output, s_err)
                         output += s_output

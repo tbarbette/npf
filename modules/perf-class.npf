@@ -37,11 +37,11 @@ PERF_PREFIX?=
 
 %-nolibs:sendfile ../libs/perf/
 
-%script sudo=true autokill=false deps=perf-class nokill=true
+%script sudo=true autokill=false deps=perf-class nokill=true title=perf_measurement
 trap : INT
 sh script.sh ${PERF_PREFIX}
 
-%file script.sh 
+%file script.sh
 echo "Launching perf record..."
 trap : INT
 PREFIX=$1
