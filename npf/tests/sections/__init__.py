@@ -248,7 +248,7 @@ class SectionVariable(Section):
                     perc = m.lower()[6] == 'p'
                 else:
                     all_lower = 0
-                    perc = m.lower()[2] == 'p'
+                    perc = m.lower()[3] == 'p'
                 monotonic = m.lower()[-1] == 'm'
                 return ZLTVariableExpander(self.vlist, overriden=overriden, results=results, input=params[0], output=params[1],
                                            margin=1.01 if len(params) == 2 else float(params[2]), all=all_lower, perc=perc, monotonic=monotonic,

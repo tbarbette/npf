@@ -3,7 +3,9 @@ from math import ceil, log2
 from typing import Dict
 
 import numpy as np
+import npf
 from npf.expdesign.fullexp import FullVariableExpander
+from npf.globals import get_options
 from npf.models.dataset import Run
 from npf.models.variables.variable import Variable
 import re
@@ -74,6 +76,16 @@ class ZLTVariableExpander(OptVariableExpander):
         self.perc = perc
         self.monotonic = monotonic
         super().__init__(vlist, results, overriden, input, margin, all)
+        if get_options().debug:
+            print("ZLT Configuration:")
+            print(f"  input: {input}")
+            print(f"  output: {output}")
+            print(f"  margin: {margin}")
+            print(f"  all: {all}")
+            print(f"  perc: {perc}")
+            print(f"  monotonic: {monotonic}")
+            if constraints:
+                print(f"  constraints: {len(constraints)} constraint(s)")
         if constraints:
             self.constraints = []
             for c in constraints:
@@ -234,6 +246,8 @@ class ZLTVariableExpander(OptVariableExpander):
                         if r_out >= r_in/self.margin:
                             acceptable_rates.append(r_in)
                         else: #Configuration is dropping
+                            if get_options().debug:
+                                print(f"[ZLT] Configuration {r} is dropping with output {r_out} for input {r_in}")
                             dropping.append(r_in)
                 except KeyError as e:
                     #raise Exception(
@@ -241,6 +255,11 @@ class ZLTVariableExpander(OptVariableExpander):
                     )
                     #from e
 
+        if get_options().debug:
+            print("[ZLT] Current : ", self.current)
+            print("[ZLT] Executable values : ", self.executable_values)
+            print("[ZLT] Acceptable rates : ", acceptable_rates)
+            print("[ZLT] Dropping rates : ", dropping)
         # max_r is the maximal executable rate (tried or not). If we already tried some value, max_r is the min value tried but still dropped some packets
         max_r = max(self.executable_values)
         if len(dropping) > 0:
