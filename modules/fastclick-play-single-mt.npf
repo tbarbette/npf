@@ -192,8 +192,8 @@ GEN_NUMA?=false
 PRELOAD?=0
 GEN_TX_DESC?=EXPAND($GEN_DESC)
 //The number of generator element such as FromDump or FastUDPSrc
-GEN_NGEN=EXPAND( $((1 if $GEN_PIPELINE else $GEN_THREADS )) )
-scale_multi_trace:GEN_NGEN=EXPAND( $GEN_MULTI_TRACE )
+-scale_multi_trace:GEN_NGEN?=EXPAND( $((1 if $GEN_PIPELINE else $GEN_THREADS )) )
+scale_multi_trace:GEN_NGEN?=EXPAND( $GEN_MULTI_TRACE )
 GEN_IPV6?=0
 GEN_RX_CSUM?=0
 GEN_NANO?=0
@@ -211,7 +211,7 @@ prate:HAVE_PRATE=1
 HAVE_UNQUEUE?=0
 udpgen,-prate,-replay|prate,-udpgen|rate:HAVE_UNQUEUE=1
 SAMPLE?=100
-NRECORD=EXPAND( $(( int($LIMIT * $PKTGEN_REPLAY_COUNT / $SAMPLE + 1024) * 2 )) )
+NRECORD=EXPAND( $(( int( ( $LIMIT * $PKTGEN_REPLAY_COUNT ) / $SAMPLE + 1024) * 2 )) )
 BROADCAST_IGNORE= -> c :: Classifier(0/$mac,-) //Ignore broadcasts
 GEN_NOREWRITE_ETHER?=0
 TIMING?=0
@@ -319,7 +319,7 @@ echo "The generator is going to read {% if LIMIT %}up to {{LIMIT}}{%endif%} pack
 
 echo "The generator will use $GEN_THREADS threads for TX and $GEN_RX_THREADS for RX."
 {% if GEN_PIPELINE %}
-But the source will be protected by a Pipeliner, so all RX threads will not read directly from the source. *This is usually a performance bottleneck.*
+echo "But the source will be protected by a Pipeliner, so all RX threads will not read directly from the source. *This is usually a performance bottleneck."
 {% endif %}
 {% if rate %}
 echo "The source will be throttled at $RATE PACKETS per seconds."
@@ -476,6 +476,7 @@ $(( "" if $GEN_IPV6 and $GEN_CSUM else " -> ResetIPChecksum()  " ))
 
 ender :: Script(TYPE PASSIVE,
                 print "Limit of $LIMIT reached",
+                print "Stopping all inputs",
                 {% for t in range($GEN_NGEN) %}
                 write fdIN{{ t }}.active false,
                 please_stop,
@@ -485,7 +486,7 @@ $FDDISPATCH
 
 {% for t in range(GEN_NGEN | int ) %}
      fdIN{{t}}
-    {% if (LIMIT | int) > 0 and not HAVE_PRATE %}
+    {% if (LIMIT | int) > 0 and not HAVE_PRATE and not (REPLAY and trace) %}
          -> limit{{t}} :: Counter(COUNT_CALL {{ ( (LIMIT | int) / (GEN_NGEN | int) )  | int }} ender.run)
     {% endif %}
     {% if HAVE_UNQUEUE %}
@@ -632,6 +633,8 @@ ig :: Script(TYPE ACTIVE,
 //                print "IG-$t-RESULT-${PREFIX}ILAT01 $(RIN/tsd0.perc01 $indexA)",
 //                print "IG-$t-RESULT-${PREFIX}ILAT50 $(RIN/tsd0.median $indexA)",
                 print "IG-$t-RESULT-${PREFIX}ILATENCY $(RIN/tsd0.average $indexA)",
+
+                print "IG-$t-RESULT-${PREFIX}ILAT95 $(RIN/tsd0.perc95 $indexA)",
                 print "IG-$t-RESULT-${PREFIX}ILAT99 $(RIN/tsd0.perc99 $indexA)",
                 set indexA $(RIN/tsd0.index),
                 label next,
@@ -676,14 +679,23 @@ dm :: DriverManager(
                 wait {{GEN_ACTIVEDELAY}}ms,
            {% endif %}
         {% endfor %}
-        wait,
-        print "Preload 0 finished!",
-        print "EVENT GEN_BEGIN",
-        print "Starting gen...",
-        {% for t in range($GEN_NGEN|int - 1) %}
+        {% if trace %}
+            print "EVENT GEN_BEGIN",
+            print "Starting gen...",
+            {% for t in range($GEN_NGEN|int) %}
+                wait,
+                print "Replay {{t}} finished",
+            {% endfor %}
+        {% else %}
             wait,
-            print "Preload {{t + 1}} finished",
-        {% endfor %}
+            print "Preload 0 finished!",
+            print "EVENT GEN_BEGIN",
+            print "Starting gen...",
+            {% for t in range($GEN_NGEN|int - 1) %}
+                wait,
+                print "Preload {{t + 1}} finished",
+            {% endfor %}
+        {% endif %}
 {% else %}
         print "EVENT GEN_BEGIN",
         print "Starting gen...",
