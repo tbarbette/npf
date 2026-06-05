@@ -682,10 +682,6 @@ dm :: DriverManager(
         {% if trace %}
             print "EVENT GEN_BEGIN",
             print "Starting gen...",
-            {% for t in range($GEN_NGEN|int) %}
-                wait,
-                print "Replay {{t}} finished",
-            {% endfor %}
         {% else %}
             wait,
             print "Preload 0 finished!",
@@ -718,6 +714,7 @@ dm :: DriverManager(
                 set starttime $(now),
 {% for i in range($GEN_THREADS if REPLAY else $GEN_NGEN) %}
                 wait,
+                print "Thread {{i}} finished",
 {% endfor %}
                 set stoptime $(now),
                 print "EVENT GEN_DONE",
