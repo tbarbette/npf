@@ -24,7 +24,7 @@ WRK_PROTOCOL=http
 %late_variables
 WRK_SCRIPT?=
 
-%script deps=wrk-tbarbette title=WRKClient
+%script deps=wrk-tbarbette title=WRKClient python-inline
 fname=$RANDOM
 which wrk
 wrk -c $GEN_CONCURRENT -r --latency -t $(( $GEN_THREADS if $GEN_THREADS <= $GEN_CONCURRENT else $GEN_CONCURRENT)) -d${GEN_TIME}s $(( "-s ${WRK_SCRIPT}" if "${WRK_SCRIPT}" else "" )) ${WRK_PROTOCOL}://${WRK_HOST}:${HTTP_PORT}/${FILE_PATH} | tee $fname

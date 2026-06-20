@@ -28,7 +28,7 @@ ssl:WRK_PROTOCOL=https
 DOCDFLAT?=0
 WRK_SCRIPT?=
 
-%script deps=wrk2-tbarbette title=WRK2Client
+%script deps=wrk2-tbarbette title=WRK2Client python-inline
 fname=$RANDOM
 
 taskset -c 0-$((${GEN_THREADS} - 1 )) wrk -c $GEN_CONCURRENT -r -a -t $(( $GEN_THREADS if $GEN_THREADS < $GEN_CONCURRENT else $GEN_CONCURRENT )) -d${GEN_TIME}s -R $GEN_RATE $(( "-s ${WRK_SCRIPT}" if "${WRK_SCRIPT}" else "" )) --latency ${WRK_PROTOCOL}://${WRK_HOST}:${HTTP_PORT}/${FILE_PATH} | tee $fname
