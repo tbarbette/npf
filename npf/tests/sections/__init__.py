@@ -232,12 +232,12 @@ class SectionVariable(Section):
                     print("WARNING: Using a time-based seed. Please set the seed with --exp-design gp(42)")
                     seed = int(time.time())
                 return GPVariableExpander(self.vlist, results=results, overriden=overriden, seed = seed, ci = float(params[1]) if len(params) >= 2 else 0.95, outputs=params[2:] if len(params) >= 3 else [])
-            elif m.lower().startswith("lhs"):
+            elif m.lower().startswith("lhs") or m.lower().startswith("maximin"):
                 if len(params) >= 1:
                     seed = int(params[0])
                 else:
                     print("WARNING: Using a time-based seed. Please set the seed with --exp-design lhs(42)")
-                    seed = time.time()
+                    seed = int(time.time())
                 return LHSVariableExpander(self.vlist, overriden, seed = seed, n_iter = int(params[1]) if len(params) >= 2 else -1)
             elif "zl" in m.lower():
                 if m.lower().startswith("nearzl"):

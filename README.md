@@ -1,3 +1,5 @@
+![NPF Logo](logo.png)
+
 Network Performance Framework [![CI](https://github.com/tbarbette/npf/actions/workflows/ci.yml/badge.svg)](https://github.com/tbarbette/npf/actions/workflows/ci.yml) [![CodeQL](https://github.com/tbarbette/npf/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/tbarbette/npf/actions/workflows/codeql-analysis.yml)
 =============================
 

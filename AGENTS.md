@@ -106,6 +106,7 @@ VAR=[1-16#2]         # range with step
 VAR={a,b,c}          # explicit set
 VAR={a:Label A,...}  # set with display names
 tag:VAR=value        # set VAR only when tag is active
+tag1,tag2:VAR=value  # set VAR only when BOTH tag1 and tag2 are active (logical AND)
 tag:VAR={1,2,4,8}    # sweep VAR only when tag is active
 -tag:VAR=value       # set VAR only when tag is NOT active
 ```
@@ -114,7 +115,7 @@ Variables will be substituted in scripts and files sections.
 
 ### Tags and conditional variables
 
-Tags are free-form labels passed on the CLI with `--tags tag1,tag2` (or `--tag tag1`). They activate or suppress variable definitions and script sections.
+Tags are free-form labels passed on the CLI with `--tags tag1,tag2` (or `--tag tag1`). They activate or suppress variable definitions and script sections. Multiple tags can be combined on a single variable or section definition using commas (e.g. `tag1,tag2:VAR=value`), which acts as a logical AND (both tags must be active).
 
 **Use `tag:VAR=` instead of commenting out values.** When you want a variable to sweep a set of values only during focused testing — without changing the default — use a tag-gated definition rather than commenting:
 
