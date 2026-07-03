@@ -132,7 +132,11 @@ class Node:
             if len(words) < 3:
                 continue
 
-            pid, out, err, ret = self.executor.exec(cmd="echo \"SPEED=$( sudo ethtool %s | grep Speed | grep -oE '[0-9]+' )\"\necho \"MAC=$(cat /sys/class/net/%s/address)\"\necho \"IP=$( /sbin/ifconfig %s | grep 'inet addr:' | cut -d: -f2| cut -d' ' -f1 )\"" % (words[1], words[1], words[1]), title="Getting device %s info" % words[1])
+            ifname = words[1]
+            cmd = f"echo \"SPEED=$( sudo ethtool {ifname} | grep Speed | grep -oE '[0-9]+' )\"\n"
+            cmd+= f"echo \"MAC=$(cat /sys/class/net/{ifname}/address)\"\n"
+            cmd+= f"echo \"IP=$( (ip -br -4 addr show dev {ifname} | awk '{{print $3}}' | cut -d/ -f1 ) || (sudo /sbin/ifconfig {ifname} | grep 'inet addr:' | cut -d: -f2| cut -d' ' -f1 ) )\""
+            pid, out, err, ret = self.executor.exec(cmd=cmd, title=f"Getting device {ifname} info")
 
             res = re.findall("(SPEED|MAC|IP)=(.*)",out)
             vals={}
