@@ -197,7 +197,13 @@ class Repository:
         self.name = None
         self._current_build = None
 
-        version = repo.split('@')
+        role = repo.split('@')
+        if len(role) > 1:
+            self.build_role = role[1]
+        else:
+            self.build_role = None
+
+        version = role[0].split('%')
         if len(version) > 1:
             self.version=version[1]
         else:

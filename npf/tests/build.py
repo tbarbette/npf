@@ -262,7 +262,7 @@ class Build:
         else:
             return None
 
-    def compile(self, quiet = False, show_cmd = False):
+    def compile(self, quiet = False, show_cmd = False, node=None):
         """
         Compile the currently checked out repo, assuming it is currently at self.version
         :return: True upon success, False if not
@@ -270,7 +270,8 @@ class Build:
         if not self.repo.url:
             return True
         pwd = os.getcwd()
-        os.chdir(self.build_path())
+        if not node:
+            os.chdir(self.build_path())
 
         if self.repo.build_info:
             print(self.repo.build_info)
@@ -286,25 +287,38 @@ class Build:
                 print(command)
             env = os.environ.copy()
             env.update(self.repo.env)
-            p = subprocess.Popen(command, shell=True, stdin=PIPE, stdout=PIPE, stderr=PIPE, env=env)
-            output, err = [x.decode() for x in p.communicate()]
-            p.wait()
-            if not p.returncode == 0:
-                print("Aborted (error code %d) !" % p.returncode)
+
+            if node:
+                # Add exports for environment variables and cd to the remote build path
+                env_prefix = " ".join([f"export {k}='{v}'" for k, v in self.repo.env.items()])
+                remote_path = self.repo.get_remote_build_path(node)
+                remote_command = f"cd {remote_path} && {env_prefix} {command}"
+                pid, output, err, returncode = node.executor.exec(cmd=remote_command, title=what)
+            else:
+                p = subprocess.Popen(command, shell=True, stdin=PIPE, stdout=PIPE, stderr=PIPE, env=env)
+                output, err = [x.decode() for x in p.communicate()]
+                p.wait()
+                returncode = p.returncode
+
+            if not returncode == 0:
+                print("Aborted (error code %d) !" % returncode)
                 print("stdout :")
                 print(output)
                 print("stderr :")
                 print(err)
-                self.__write_file('.build_version', '')
-                os.chdir(pwd)
+                if not node:
+                    self.__write_file('.build_version', '')
+                    os.chdir(pwd)
                 print("Compilation of %s FAILED. Check the log above, or look at the source at %s" % (self.repo.pretty_name(), self.build_path()) )
                 return False
 
-        os.chdir(pwd)
-        self.__write_file(Build.__get_build_version_path(self.repo), self.version)
+        if not node:
+            os.chdir(pwd)
+            self.__write_file(Build.__get_build_version_path(self.repo), self.version)
+        # TODO: how to write build_version for remote?
         return True
 
-    def build(self, force_build : bool = False, never_build : bool = False, quiet_build : bool = False, show_build_cmd : bool = False, executor=None):
+    def build(self, force_build : bool = False, never_build : bool = False, quiet_build : bool = False, show_build_cmd : bool = False, node=None):
         if force_build or self.is_checkout_needed():
             if self.get_build_version() == None:
                 force_build = "it is the first checkout"
@@ -325,7 +339,7 @@ class Build:
                 return True
             if not quiet_build and self.repo.name != "Local":
                 print("Building %s (because %s)" % (self.repo.name, "you force the build with --force-build" if force_build is True else reason if not force_build else force_build ))
-            if not self.compile(quiet_build, show_build_cmd):
+            if not self.compile(quiet_build, show_build_cmd, node=node):
                 return False
         self.repo._current_build = self
         return True

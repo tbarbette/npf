@@ -59,9 +59,11 @@ class LocalExecutor(Executor):
 
         if not title:
             title = "local"
-        cwd = Path(os.getcwd()).parent
+        cwd = str(Path(os.getcwd()).parent)
         env = env.copy()
         env.update(os.environ)
+        env_str = self.get_env_str(env, options)
+        cmd = env_str + cmd
         if bin_paths:
             if not sudo:
                 env["PATH"] = ':'.join([cwd + '/' + path if not os.path.abspath(path) else path for path in bin_paths]) + ":" + env["PATH"]

@@ -313,7 +313,7 @@ class Test:
             deprepo = Repository.get_instance(dep, self.options)
             if deprepo.url is None or deprepo.reponame in self.options.no_build_deps:
                 continue
-            if not deprepo.get_last_build().build(force_build=deprepo.reponame in self.options.force_build_deps):
+            if not deprepo.get_last_build().build(force_build=deprepo.reponame in self.options.force_build_deps, never_build=getattr(self.options, 'remote_build', False)):
                 raise Exception("Could not build dependency %s" % dep)
         #Do the same for the imports
         for imp in self.imports:
@@ -321,19 +321,28 @@ class Test:
 
         # Send dependencies for nfs=0 nodes
         toSend = set()
+        toBuild = set()
         for script in self.get_scripts():
             role = script.get_role()
             nodes = nodes_for_role(role)
             for node in nodes:
-              if not node.nfs:
                 for repo in repo_under_test:
-                    if repo.get_build_path() and not no_build:
-                        toSend.add((repo.reponame,role,node, repo.get_build_path(), repo.get_remote_build_path(node)))
+                    if getattr(repo, 'build_role', None) and repo.build_role != role:
+                        continue
+                    if getattr(self.options, 'remote_build', False):
+                        toBuild.add((repo, node))
+                    if not node.nfs:
+                        if repo.get_build_path() and not no_build:
+                            toSend.add((repo,role,node, repo.get_build_path(), repo.get_remote_build_path(node)))
                 for dep in script.get_deps():
                     deprepo = Repository.get_instance(dep, self.options)
+                    if getattr(self.options, 'remote_build', False):
+                        toBuild.add((deprepo, node))
+                    if not node.nfs:
+                        toSend.add((deprepo,role,node,deprepo.get_build_path(), deprepo.get_remote_build_path(node)))
 
-                    toSend.add((deprepo.reponame,role,node,deprepo.get_build_path(), deprepo.get_remote_build_path(node)))
-        for repo,role,node,bp,rbp in toSend.difference(done):
+        for repo_obj,role,node,bp,rbp in toSend.difference(done):
+            repo = repo_obj.reponame
             print("Sending software %s to %s... " % (repo, role), end ='')
             try:
 
@@ -355,6 +364,16 @@ class Test:
                 print("Already up to date (%d bytes) !" % s)
 
         done.update(toSend)
+
+        if getattr(self.options, 'remote_build', False):
+            built_repos = set()
+            for repo_obj, node in toBuild:
+                # If NFS is shared, we only need to build once per repo!
+                if node.nfs and repo_obj.reponame in built_repos:
+                    continue
+                if not repo_obj.get_last_build().compile(quiet=self.options.quiet_build, show_cmd=self.options.show_build_cmd, node=node):
+                    raise Exception("Could not compile %s remotely on %s" % (repo_obj.reponame, node.addr))
+                built_repos.add(repo_obj.reponame)
 
         st = dict([(f, v.makeValues()[0]) for f, v in self.variables.statics().items()])
         st.update(v_internals)
@@ -909,7 +928,7 @@ class Test:
                         cmd = replace_variables(
                             vlist,
                             exitscripts,self_role = role, default_role_map = role_map)
-                        executor=node.executor
+                        node=node
                         ncmd = "mkdir -p " + test_folder + " && cd " + test_folder + ";\n" + cmd
 
                         # Execution of the %exit script
@@ -1120,7 +1139,7 @@ class Test:
 
     def do_init_all(self, build, options, do_test, allowed_types=SectionScript.ALL_TYPES_SET, test_folder=None,
                     v_internals={}, m: multiprocessing.Manager=None):
-        if not build.build(options.force_build, options.no_build, options.quiet_build, options.show_build_cmd):
+        if not build.build(options.force_build, options.no_build or getattr(options, 'remote_build', False), options.quiet_build, options.show_build_cmd):
             raise ScriptInitException()
         if not self.build_deps([build.repo], v_internals=v_internals, no_build=options.no_build):
             raise ScriptInitException()

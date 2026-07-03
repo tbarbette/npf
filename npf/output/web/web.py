@@ -27,7 +27,7 @@ def prepare_web_export(datasets, all_results_df, path):
         "id": str(uuid.uuid4()),
         "name": name,
         "parameters": parameters,
-        "measurements": measurements,
+        "measurements": ["y_" + m for m in measurements],
         "data": all_results_df.to_csv(index=True, index_label="index", sep=",", header=True),
         "settings": {
           "x": {
@@ -37,7 +37,7 @@ def prepare_web_export(datasets, all_results_df, path):
           },
           "y": {
             "title": y_axis,
-            "parameter": measurements[0] if len(measurements) > 0 else "undefined",
+            "parameter": "y_" + measurements[0] if len(measurements) > 0 else "undefined",
             "scale": 1
           },
           "split": {

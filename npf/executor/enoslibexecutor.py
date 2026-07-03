@@ -64,6 +64,11 @@ class EnoslibExecutor(Executor):
         super().__init__()
         self.machine = machine
         self.extra_vars = extra_vars
+        import npf.globals
+        path = npf.globals.get_options().experiment_folder or "results"
+        if path[-1] != '/':
+            path += '/'
+        self.path = path
         # Suppress ansible's rich spinner — it hangs in non-terminal environments (Jupyter)
         en.set_config(ansible_stdout="noop")
 
@@ -80,19 +85,27 @@ class EnoslibExecutor(Executor):
 
         env = env.copy()
         env.update(os.environ)
-        if bin_paths:
-            if not sudo:
-                env["PATH"] = ':'.join([cwd + '/' + path if not os.path.abspath(path) else path for path in bin_paths]) + ":" + env["PATH"]
-            else:
-                cmd = 'export PATH=' + ':'.join([cwd + '/' + path if not os.path.abspath(path) else path for path in bin_paths]) + ":" + '$PATH\n' + cmd
+        env_str = self.get_env_str(env, options)
+        cmd = env_str + cmd
+
+        if bin_paths is None:
+            bin_paths = []
+        path_list = [p if os.path.isabs(p) else os.path.join(self.path, p) for p in bin_paths]
+
+        if path_list:
+            path_cmd = 'export PATH="%s:$PATH"\n' % (':'.join(path_list))
+        else:
+            path_cmd = ''
 
         if options is not None and options.show_cmd:
-            print("Executing (PATH+=%s) :\n%s" % (':'.join(bin_paths), cmd.strip()))
+            print("Executing (PATH+=%s) :\n%s" % (':'.join(path_list), cmd.strip()))
 
         if sudo and pwd.getpwuid(os.getuid()).pw_name != "root":
-            cmd = "sudo -E " + virt + "  bash -c '" + cmd.replace("'", "'\"'\"'") + "'"
+            cmd = "sudo -E " + virt + "  bash -c '" + path_cmd + cmd.replace("'", "'\"'\"'") + "'"
         else:
-            cmd = virt + " bash -c '" + cmd.replace("'", "'\"'\"'") + "'"
+            cmd = virt + " bash -c '" + path_cmd + cmd.replace("'", "'\"'\"'") + "'"
+
+        cmd = "mkdir -p " + self.path + " && cd " + self.path + " && " + cmd
 
         pid_file = None
         if queue:
@@ -151,6 +164,11 @@ class EnoslibExecutor(Executor):
         return p.status, stdout_clean, p.stderr, p.rc
 
     def writeFile(self, filename, path_to_root, content, sudo=False):
+        import npf.globals
+        dest_dir = os.path.join(npf.globals.experiment_path(), path_to_root)
+        dest_file = os.path.join(dest_dir, filename)
+        print("Sending %s to %s" % (dest_file, self.machine.address))
         with en.actions(roles=self.machine) as a:
-            a.copy(dest=filename, content=content)
+            a.file(path=dest_dir, state="directory", become=sudo)
+            a.copy(dest=dest_file, content=content, become=sudo)
         return True

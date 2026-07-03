@@ -239,4 +239,7 @@ def add_building_options(parser):
     b.add_argument('--force-build-deps',
                     help='Force to rebuild some dependencies', dest='force_build_deps',
                    action=ExtendAction, default=[], nargs='+')
+    b.add_argument('--remote-build',
+                    help='Build dependencies and repos on the remote machines instead of locally', dest='remote_build',
+                    action='store_true', default=False)
     return b

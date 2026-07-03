@@ -114,15 +114,7 @@ class SSHExecutor(Executor):
         # The pre-command goes into the test folder
         pre = 'cd '+ self.path + ';\n'
 
-        if self.path:
-            env['NPF_ROOT'] = self.path
-            env['NPF_CWD_PATH'] = os.path.relpath(npf.globals.cwd_path(options),self.path)
-            env['NPF_EXPERIMENT_PATH'] = '../' + os.path.relpath(npf.globals.experiment_path(), self.path)
-            env['NPF_ROOT_PATH'] = '../' + os.path.relpath(npf.globals.npf_root_path(), self.path)
-        env_str=""
-        for k,v in env.items():
-            if v is not None:
-                env_str += 'export ' + k + '='+v+'\n'
+        env_str = self.get_env_str(env, options)
         if path_list:
             path_cmd = 'export PATH="%s:$PATH"\n' % (':'.join(path_list))
         else:

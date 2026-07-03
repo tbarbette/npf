@@ -680,7 +680,7 @@ class Grapher:
             self.graph_group(series=exploded_series, vars_values=exploded_vars_values, filename=filename, fileprefix = fileprefix, title=title)
 
 
-        return self.graph_group(series, vars_values, filename=filename, fileprefix = fileprefix, title=title)
+        ret = self.graph_group(series, vars_values, filename=filename, fileprefix = fileprefix, title=title)
 
         # Export to web format
         if options.web is not None:
@@ -689,6 +689,8 @@ class Grapher:
         # Export to Jupyter notebook
         if options.notebook_path is not None:
             prepare_notebook_export(series, all_results_df, self.options, self.config)
+
+        return ret
 
 
     def graph_group(self, series, vars_values, filename, fileprefix, title):
