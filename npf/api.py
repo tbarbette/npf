@@ -11,7 +11,8 @@ def _is_enoslib_host(obj) -> bool:
 
 
 def run(npf_script: str, series: List[str] = [], roles: Dict = {},
-        argsv: List[str] = None, extra_vars: Dict[str, str] = {}) -> tuple:
+        argsv: List[str] = None, extra_vars: Dict[str, str] = {},
+        variables: Dict = None) -> tuple:
     """Run an NPF test script.
 
     Args:
@@ -24,6 +25,7 @@ def run(npf_script: str, series: List[str] = [], roles: Dict = {},
                     Omit or leave empty for local-only execution.
         argsv:      Extra CLI arguments as a list (e.g. ["--no-graph", "--cache"]).
         extra_vars: Ansible extra_vars forwarded to EnoslibExecutor (enoslib path only).
+        variables:  Dict mapping variables to override them. Evaluated as native Python types.
 
     Returns:
         (series_results, time_series) tuple from the comparator run.
@@ -63,6 +65,7 @@ def run(npf_script: str, series: List[str] = [], roles: Dict = {},
 
     args = parser.parse_args(["--test", npf_script, *argsv])
     args.repos.extend(series)
+    args.python_variables = variables
 
     _parsing.initialize(args)
 

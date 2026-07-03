@@ -365,12 +365,17 @@ class SectionVariable(Section):
             print("WARNING : %s does not override anything" % var)
 
         if not isinstance(val, Variable):
-            val = SimpleVariable(var, val)
+            if isinstance(val, (list, tuple)):
+                val = ListVariable(var, list(val))
+            elif isinstance(val, dict):
+                val = DictVariable(var, val)
+            else:
+                val = SimpleVariable(var, val)
         else:
             if val.is_default:
                 return
 
-        self._assign(self.vlist, val.assign, var, val)
+        self._assign(self.vlist, getattr(val, "assign", "="), var, val)
 
     @staticmethod
     def match_tags(text, tags):

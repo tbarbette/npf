@@ -58,7 +58,7 @@ def parse_nodes(args):
 
         nfs = None
         assert isinstance(variables, list)
-        for opts in variables:
+        for opts in list(variables):
             assert isinstance(opts, str)
             var,val = opts.split('=')
             if var == "nfs":
@@ -112,4 +112,6 @@ def override(args, tests):
         overriden_config = parse_variables(args.config, test.tags, test.config)
         test.variables.override_all(overriden_variables)
         test.config.override_all(overriden_config)
+        if hasattr(args, "python_variables") and args.python_variables:
+            test.variables.override_all(args.python_variables)
     return tests
