@@ -445,12 +445,15 @@ npf local --test my_bench.npf --no-graph --csv results.csv
 - Print the raw tool output before the RESULT lines so humans can debug.
 - Use `%init` for one-time setup (start servers, allocate resources) and `%exit` for cleanup.
 - Keep `timeout` generous: SPDK/QEMU startup can take 5–30 s.
+- **Always build and run your application via small local tests first** before wrapping it in an NPF script. NPF can hide application panics, syntax errors, and environment issues. Ensure the app works standalone before adding the NPF layer. When building Iris applications, run the binary locally or through `./build-in-docker.sh` and perform offline PCAP evaluation *before* embedding the execution pipeline in an NPF `.npf` file.
+- Remember that when orchestrating Docker-based tools (like Iris's `./build-in-docker.sh`), any host paths expanded via `EXPAND(${NPF_SCRIPT_PATH}/...)` must be manually translated to the mapped paths inside the Docker container (e.g., `/build/...`) before passing them as command-line arguments in `%script`.
 
 **Don't:**
 - Do not put `RESULT` lines in `%init` or `%exit` — they are ignored there.
 - Do not use NPF variable names (`$TRANSPORT`, `$QD`, etc.) as shell variable names inside a script — NPF will substitute them before the shell sees the script, causing confusing double-expansion.
 - Do not rely on state from one `%script` run surviving to the next — each combination is run in its own subshell.
 - Do not use `%teardown` — the correct section name is `%exit`.
+- Do not hide output of programs, pipe to log file without revealing the output to the user. If need to re-parse a log to extract number for some RESULT, use "tee" to save the log but let it go to stdout still.
 
 ## Enoslib / Grid5000 usage
 
