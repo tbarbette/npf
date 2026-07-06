@@ -811,8 +811,14 @@ class Grapher:
         if len(dyns) > int(self.config("graph_max_variables", 2)):
 
             print("WARNING: Too many variables to plot !")
+            keep_vars = []
+            if hasattr(self.options, 'graph_keep_variables') and self.options.graph_keep_variables:
+                keep_vars = self.options.graph_keep_variables
+            else:
+                keep_vars = self.configlist("graph_keep_variables", [])
+
             maxvar = 0
-            most_useless = list(reversed(dyns))
+            most_useless = [v for v in reversed(dyns) if v not in keep_vars]
             try:
 
                 for i, (test, build, all_results) in enumerate(series):
@@ -823,11 +829,11 @@ class Grapher:
                         disp = np.var(y)/np.mean(y)
                         if disp > maxvar:
                             maxvar = disp
-                            most_useless = [dtype["names"][i] for i in np.argsort(clf.feature_importances_) if dtype["names"][i] in dyns]
+                            most_useless = [dtype["names"][i] for i in np.argsort(clf.feature_importances_) if dtype["names"][i] in dyns and dtype["names"][i] not in keep_vars]
             except Exception as e:
                     print("ERROR: Could not compute feature importance to ignore most meaningless variable...")
                     print(e)
-            while len(dyns) > 2:
+            while len(dyns) > 2 and len(most_useless) > 0:
                 print(f"Variable {most_useless[0]} will be ignored. All points for its various levels will be displayed as variance of the other points.")
                 vars_values[most_useless[0]] = ['AGG']
                 dyns.remove(most_useless[0])

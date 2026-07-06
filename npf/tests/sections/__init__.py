@@ -612,6 +612,7 @@ class SectionConfig(SectionVariable):
         self.__add_list("legend_bbox", [0, 1, 1, .05])
         self.__add("legend_loc", "best")
         self.__add("graph_max_variables",3)
+        self.__add_list("graph_keep_variables", [])
 
         self.__add("legend_frameon", True)
         self.__add("legend_ncol", 1)

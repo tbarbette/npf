@@ -92,6 +92,8 @@ def add_graph_options(parser: ArgumentParser):
     g.add_argument('--no-graph-time', dest='do_time', action='store_false', default=True, help="Do not plot time series graphs")
 
     g.add_argument('--no-graph', dest='no_graph', action='store_true', default=False, help="Do not plot graphs")
+    g.add_argument('--graph-keep-variables', dest='graph_keep_variables', type=str, nargs='+', action=ExtendAction,
+                   help='Keep specific variables dynamic when there are more dynamic variables than graph_max_variables', default=[])
 
     g.add_argument('--iterative', dest='iterative', action='store_true', default=False,
                    help='Graph after each results, allowing to get a faster glimpse at the results')
