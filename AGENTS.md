@@ -89,7 +89,7 @@ Space-separated after the section name:
 | `sudo=true` | Run the script with `sudo` |
 | `delay=N` | Wait N seconds before starting this script |
 | `timeout=N` | Kill this script after N seconds |
-| `autokill=false` | Do not kill this script when the section finishes |
+| `autokill=false` | When this script finishes, do not trigger the kill-all mechanism that kills the other scripts. Use this for setup scripts or early-finishing scripts so they don't terminate the test. |
 | `critical=false` | Non-zero exit does not abort the whole test |
 | `ifeq-VAR=val` | Only include this section when `VAR == val` |
 | `name=<id>` | Give this script a name (for `waitfor=`) |
@@ -258,6 +258,11 @@ server { listen $PORT; }
 
 NPF writes the `%file` contents to disk (with variable substitution) before the scripts run. Files are placed in the test's working directory.
 
+If generating a complete experiment, restrict the use of %file to configuration and files that have some constant that will change accross the experiment. If you generate some "program" files like a ".c", prefer to use a "repo" and have NPF handle building and sending the binaries, or use %sendfile to send the file at the beginning of an experiment run.
+It is better to send a "setup.sh" scripts and run it than embed it in the .npf file.
+
+Do not use "cat <<EOF > " inside the NPF file, use %file instead.
+
 ## %import — reusable modules
 
 ```
@@ -292,6 +297,13 @@ tls:%script
 - **Parallelism**: Scripts across roles run in parallel within a test run; use `waitfor`/`sendto` (EventBus) to synchronize. If printing `EVENT xxx` in one script, scripts with `waitfor=xxx` will start.
 - **`result_overwrite` vs `result_append`**: Default is overwrite (last value wins); use `result_append=METRIC` in `%config` to collect all values.
 - **Jinja2**: Add `jinja` parameter to `%script` or `%file` to enable Jinja2 template rendering with all variables in scope. Jinja is the preferred way rather than python inlining with $(( some python code using VAR )). Using variable replacement like ${VAR} is fine for simple cases. When there is some logic, jinja2 is better. All variables and tags defined are available globally in jinja.
+
+
+## Synchronization
+
+`%scripts` and `%import`take `waitfor=XXX` parameters to wait for a given event. Think about dependencies, like between a client and a server and make sure client runs after server is ready. Use `echo "EVENT XXX"` to start the event after the server is ready.
+
+Beware also of the autokill parameter, a script with `autokill=true` (the default) will kill all other scripts.
 
 ## Running experiments
 
@@ -455,6 +467,8 @@ npf local --test my_bench.npf --no-graph --csv results.csv
 - Do not rely on state from one `%script` run surviving to the next — each combination is run in its own subshell.
 - Do not use `%teardown` — the correct section name is `%exit`.
 - Do not hide output of programs, pipe to log file without revealing the output to the user. If need to re-parse a log to extract number for some RESULT, use "tee" to save the log but let it go to stdout still.
+- Do not invent a `cluster.npf` file for `--cluster`. NPF expects inline definitions like `--cluster role=user@host` or it uses `.node` files in the `cluster/` directory. Passing a file to `--cluster` causes a "Bad definition of node" error.
+- Pipe outout to /dev/null unless really necessary as it prevents debug. If the user wants quiet, they can use --quiet
 
 ## Enoslib / Grid5000 usage
 
