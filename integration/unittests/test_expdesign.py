@@ -1,6 +1,7 @@
 import unittest
 from collections import OrderedDict
 from npf.expdesign.gpexp import GPVariableExpander
+from npf.expdesign.lhsexp import LHSVariableExpander
 from npf.expdesign.multiexp import MultiVariableExpander
 from npf.expdesign.twokexp import TWOKVariableExpander
 from npf.expdesign.zltexp import ZLTVariableExpander
@@ -124,3 +125,10 @@ class TestExpDesign(unittest.TestCase):
         fake_run(2)
         with self.assertRaises(StopIteration):
             run = next(it)
+
+    def test_lhs(self):
+        vlist = {'RATE' : RangeVariable("RATE",1,10,log=False)}
+        lhs = LHSVariableExpander(vlist, overriden={}, seed=42, n_iter=5)
+        it = iter(lhs)
+        runs = list(it)
+        self.assertEqual(len(runs), 5)
