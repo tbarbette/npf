@@ -47,6 +47,7 @@ trap : INT
 PREFIX=$1
 echo "Recording perf..."
 perf record -r 80 -F $PERF_FREQ -a $PERF_OPT -o perf${PREFIX}.data -e $PERF_EVENT sleep $PERF_TIME
+chmod +r perf${PREFIX}.data
 echo "Record finished"
 
 %exit
