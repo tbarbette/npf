@@ -2,7 +2,7 @@ import re
 
 from colorama import Fore, Back, Style
 
-foreColors = [Fore.BLACK, Fore.RED, Fore.GREEN, Fore.YELLOW, Fore.BLUE, Fore.MAGENTA, Fore.CYAN, Fore.WHITE]
+foreColors = [Fore.CYAN, Fore.RED, Fore.GREEN, Fore.YELLOW, Fore.BLUE, Fore.MAGENTA]
 
 class Executor:
 
