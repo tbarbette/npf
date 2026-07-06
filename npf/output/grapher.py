@@ -676,7 +676,8 @@ class Grapher:
         # CPU=0 -> LOAD = 53
         # CPU=1 -> LOAD = 72
         for result_types, var_name in self.configdict('graph_result_as_variable', {}).items():
-            exploded_series, exploded_vars_values = result_as_variable(series, result_types, var_name, vars_values)
+            var_unit = self.scriptconfig("var_unit", var_name, default="")
+            exploded_series, exploded_vars_values = result_as_variable(series, result_types, var_name, vars_values, var_unit = var_unit)
             self.graph_group(series=exploded_series, vars_values=exploded_vars_values, filename=filename, fileprefix = fileprefix, title=title)
 
 

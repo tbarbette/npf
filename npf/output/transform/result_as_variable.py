@@ -1,12 +1,13 @@
 from collections import OrderedDict
 from ordered_set import OrderedSet
 
+import re
 
 from npf.models.units import numericable
 from npf.models.units import get_numeric
+from npf.models.dataset import Run
 
-
-def result_as_variable(series, result_types, var_name, vars_values):
+def result_as_variable(series, result_types, var_name, vars_values, var_unit):
     if len(var_name.split('-')) > 1:
         result_name=var_name.split('-')[1]
         var_name=var_name.split('-')[0]
@@ -48,7 +49,7 @@ def result_as_variable(series, result_types, var_name, vars_values):
                         nn[get_numeric(k)] = v
                     new_run_results_exp = OrderedDict(sorted(nn.items()))
 
-                u = self.scriptconfig("var_unit", var_name, default="")
+                u = var_unit
                 mult = u in ['percent', '%']
                 if mult:
                     tot = 0

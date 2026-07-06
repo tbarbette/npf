@@ -44,6 +44,10 @@ class Statistics:
         else:
             s_dataset = dataset
 
+        if len(s_dataset) == 0:
+            print("No results, so no statistics...")
+            return
+
         #There's one per serie, so for each of those
         for i_dataset, (result_type, X, y, dtype) in enumerate(s_dataset):
             if len(dataset) > 1:
@@ -177,7 +181,7 @@ class Statistics:
 
 
         print('')
-        if len(X) > 1:
+        if X is not None and len(X) > 1:
           try:
             ys = np.ndarray(shape = (len(X), len(dataset)))
 
@@ -197,7 +201,7 @@ class Statistics:
             print(corr.fillna(""))
 
 
-            ax = sn.heatmap(corr, cmap="viridis", fmt=".2f", annot=True)
+            ax = sn.heatmap(corr, cmap="viridis", fmt=".2f" if len(corr) < 8 else ".1f", annot=True)
             ax.figure.tight_layout()
             f = npf.build_filename(test, build, filename if not filename is True else None, {}, 'pdf', result_type, show_serie=False, suffix="correlation")
             plt.savefig(f)
@@ -218,10 +222,18 @@ class Statistics:
         y = OrderedDict()
         dataset = []
         for i, (run, results_types) in enumerate(all_results.items()):
-            vars = list(run.read_variables()[k] for k in dtype['names'] if k in run.read_variables())
+            run_vars = run.read_variables()
+            row = []
+            for name, fmt in zip(dtype['names'], dtype['formats']):
+                if name in run_vars:
+                    row.append(run_vars[name])
+                else:
+                    if fmt is str:
+                        row.append(None)
+                    else:
+                        row.append(np.nan)
             if not results_types is None and len(results_types) > 0:
-
-                dataset.append([v for v in vars])
+                dataset.append(row)
                 for result_type, results in results_types.items():
                     if results and len(results) > 0:
                         r = np.mean(results)
@@ -233,8 +245,13 @@ class Statistics:
                 dtype['formats'][i] = int
                 values = OrderedSet()
                 for row in dataset:
-                    values.add(row[i])
-                    row[i] = values.index(row[i])
+                    if row[i] is not None:
+                        values.add(row[i])
+                for row in dataset:
+                    if row[i] is None:
+                        row[i] = np.nan
+                    else:
+                        row[i] = values.index(row[i])
                 dtype['values'][i] = list(values)
         X = np.array(dataset, ndmin=2)
 

@@ -39,7 +39,8 @@ def _jinja_render(template_str: str, variables: dict, tags, role=None) -> str:
     from jinja2 import Environment, BaseLoader
     env = Environment(loader=BaseLoader)
     template = env.from_string(template_str)
-    ctx = dict([(t, True) for t in tags]) | variables
+    clean_vars = {k: (v[0] if type(v) is tuple else v) for k, v in variables.items()}
+    ctx = dict([(t, True) for t in tags]) | clean_vars
     ctx["get_nodes"] = _get_nodes
     return template.render(**ctx)
 

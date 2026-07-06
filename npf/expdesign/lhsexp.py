@@ -40,8 +40,12 @@ class LHSVariableExpander(FullVariableExpander):
 
         space = Space(v_space)
 
+        if n_iter <= 0:
+            n_iter = min(10, self.orig_n)
+        self.n_iter = n_iter
+
         lhs = Lhs(criterion=criterion, lhs_type=type, iterations=10000)
-        x = lhs.generate(space.dimensions, n_samples=n_iter, random_state=seed)
+        x = lhs.generate(space.dimensions, n_samples=self.n_iter, random_state=seed)
         for line in x:
             d = OrderedDict()
             for i,v in enumerate(line):

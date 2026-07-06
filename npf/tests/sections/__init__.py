@@ -223,7 +223,7 @@ class SectionVariable(Section):
                     seed = int(params[0])
                 else:
                     print("WARNING: Using a time-based seed. Please set the seed with --exp-design random(42)")
-                    seed = time.time()
+                    seed = int(time.time())
                 return RandomVariableExpander(self.vlist, overriden, seed = seed, n_iter = int(params[1]) if len(params) >= 2 else -1)
             elif m.lower().startswith("gp"):
                 if len(params) >= 1:
