@@ -1,0 +1,49 @@
+%info
+HTTP page fetch timings (curl) against either a synthetic nginx server or a list of real websites.
+
+Default (synthetic): the `server` role runs nginx and serves a file of FSIZE KB, the `client` fetches it.
+With --tags real: no server is needed, the client fetches the URLs listed in SITES, one per SITE_ID (line number).
+Change the range of SITE_ID to the size of your list, eg --variables SITE_ID=[1-500].
+
+With --tags netem the client link is delayed by DELAY ms and limited to RATE (tc netem, needs NET_ADMIN and tc).
+
+Local testbed (see examples/docker-testbed/docker-compose.yml):
+  npf --test examples/docker-web.npf local --cluster client=docker://npf-client server=docker://npf-server
+  npf --test examples/docker-web.npf local --tags real,netem --cluster client=docker://npf-client
+Scaling out: the same test without --cluster (or with client=user@host) runs from the machine of your choice.
+
+%config
+default_repo=local
+n_runs=3
+timeout=90
+var_names={TTFB:Time to first byte,TOTAL:Total time,CONNECT:Connect time}
+var_unit={TTFB:ms,TOTAL:ms,CONNECT:ms,SIZE:bytes}
+
+%variables
+FSIZE=32
+DELAY=0
+RATE=100mbit
+SITES=EXPAND(${NPF_SCRIPT_PATH}/docker-testbed/sites.txt)
+real:SITE_ID=[1-10]
+netem:DELAY={0,20,100}
+
+%-real:script@server autokill=false
+dd if=/dev/urandom of=/var/www/html/bin-${FSIZE}K bs=1K count=$FSIZE 2>/dev/null
+
+%script@client jinja delay=1 critical=false timeout=60
+{% if netem %}
+sudo tc qdisc replace dev eth0 root netem delay ${DELAY}ms rate ${RATE}
+{% endif %}
+{% if real %}
+URL=$(sed -n ${SITE_ID}p ${SITES})
+{% else %}
+URL=http://${server:ip}/bin-${FSIZE}K
+{% endif %}
+out=$(curl -sS -L -o /dev/null --max-time 45 -A "npf-bench" \
+    -w '%{http_code} %{time_connect} %{time_starttransfer} %{time_total} %{size_download}' "$URL")
+echo "$URL -> $out"
+echo "$out" | awk '$1 >= 200 && $1 < 400 {
+    printf "RESULT-CONNECT %.3f\nRESULT-TTFB %.3f\nRESULT-TOTAL %.3f\nRESULT-SIZE %d\n", $2*1000, $3*1000, $4*1000, $5 }'
+{% if netem %}
+sudo tc qdisc del dev eth0 root || true
+{% endif %}

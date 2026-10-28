@@ -9,6 +9,7 @@ import npf
 from npf import osutils
 from npf.cluster.nic import NIC
 from npf.executor.localexecutor import LocalExecutor
+from npf.executor.dockerexecutor import DockerExecutor
 from npf.executor.sshexecutor import SSHExecutor
 from npf.executor.executor import Executor
 from npf.models.variables.variable import Variable
@@ -67,7 +68,7 @@ class Node:
             self.parsed = True
         except FileNotFoundError as e:
             print(
-                f"{clusterFilePath} could not be found, we will connect to {name} with SSH using default parameters"
+                f"{clusterFilePath} could not be found, we will connect to {name} using default parameters"
             )
             self.parsed = False
 
@@ -191,6 +192,52 @@ class Node:
             if ret != 0:
                 raise Exception("The local executor could not find the file created at %s. Check your --experiment-path argument! Current folder : %s" % ( node.experiment_path() + ".access_test", out+err) )
         return node
+
+    @classmethod
+    def makeDocker(cls, container):
+        """A node running its scripts with `docker exec` in an existing container. The experiment path must be
+        bind-mounted at the same location in the container."""
+        options = npf.globals.options
+        dex = DockerExecutor(container)
+        node = Node(container, dex, options.tags)
+        node.nfs = True
+        cls._nodes[container] = node
+
+        if options.do_test and options.do_conntest:
+            access = os.path.join(os.path.abspath(npf.globals.experiment_path()), ".access_test")
+            ret, out = dex.run_raw("test -e '%s' && echo access_ok" % access)
+            if ret != 0 or "access_ok" not in out:
+                raise Exception(
+                    f"Could not use container {container} (is it running? `docker ps`) or it does not see the "
+                    f"experiment folder at {os.path.abspath(npf.globals.experiment_path())}. Start it with "
+                    f"-v {os.path.abspath(npf.globals.experiment_path())}:{os.path.abspath(npf.globals.experiment_path())} "
+                    f"(same path on both sides).")
+            if not node.parsed:
+                node._find_docker_nics()
+        node.ip = node.ip or node._nics[0].ip
+        return node
+
+    def _find_docker_nics(self):
+        """Fills the NIC table from the interfaces of the container, eth0 first."""
+        ret, out = self.executor.run_raw(
+            'for d in /sys/class/net/*; do n=${d##*/}; [ "$n" = lo ] && continue; '
+            '[ "$(cat $d/type 2>/dev/null)" = 1 ] && [ "$(cat $d/operstate 2>/dev/null)" = up ] || continue; '
+            'echo "$n $(cat $d/address) $(ip -4 -o addr show dev $n 2>/dev/null | awk \'{print $4}\' | cut -d/ -f1 | head -n1)"; done')
+        nics = [l.split() for l in out.splitlines() if len(l.split()) >= 2]
+        for i, f in enumerate(sorted(nics)):
+            nic = self._nics[i]
+            nic.ifname, nic.mac = f[0], f[1]
+            if len(f) > 2:
+                nic.ip = f[2]
+        if nics:
+            if len(nics[0]) < 3:
+                # No iproute2 in the container, use what docker knows
+                for nic, ip in zip(self._nics, self.executor.inspect_ips()):
+                    nic.ip = ip
+            self.ip = self._nics[0].ip
+            self.parsed = True
+        else:
+            print(f"WARNING: could not list the interfaces of container {self.name}")
 
     @classmethod
     def makeSSH(cls, user, addr, path, port=22, nfs=None):

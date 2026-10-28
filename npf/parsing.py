@@ -69,8 +69,12 @@ def parse_nodes(args):
                 continue
             variables.remove(opts)
 
-        if match.group('addr') == 'localhost':
+        if match.group('addr') == 'localhost' and not match.group('docker'):
             node = local
+        elif match.group('docker'):
+            if path is not None or nfs == 0:
+                raise Exception("Docker nodes use the bind-mounted experiment folder: path= and nfs=0 are not supported (%s)" % mapping)
+            node = Node.makeDocker(container=match.group('addr'))
         else:
             node = Node.makeSSH(user=match.group('user'), addr=match.group('addr'), path=path, nfs=nfs)
         role = match.group('role')
