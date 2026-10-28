@@ -631,6 +631,15 @@ class Test:
             -> Tuple[Dict, Dict, str, str, int]:
         """Executes all repetitions of an experiment for the given set of variables.
         """
+        save_path = os.getcwd()
+        try:
+            return self._execute(build, run, v, n_runs, n_retry, allowed_types, m, do_imports, test_folder, event, v_internals, before_test)
+        finally:
+            os.chdir(save_path)
+
+    def _execute(self, build, run, v, n_runs=1, n_retry=0, allowed_types=SectionScript.ALL_TYPES_SET, m:multiprocessing.Manager=None, do_imports=True,
+                test_folder=None, event=None, v_internals={}, before_test = None) \
+            -> Tuple[Dict, Dict, str, str, int]:
 
         # Get address definition for roles from scripts
         self.parse_script_roles()
@@ -934,7 +943,7 @@ class Test:
 
                         # Execution of the %exit script
                         try:
-                            pid, s_output, s_err, c = executor.exec(cmd=ncmd, options=self.options)
+                            pid, s_output, s_err, c = node.executor.exec(cmd=ncmd, options=self.options)
                         except Exception as e:
                             s_output = ""
                             s_err = ""
