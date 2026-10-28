@@ -93,6 +93,15 @@ class LocalExecutor(Executor):
         else:
             cmd = virt + " bash -c '"+ cmd.replace("'", "'\"'\"'") + "'";
 
+        return self._run(cmd, env, queue, options, timeout, event, title)
+
+    def _make_killer(self, pgpid):
+        return LocalKiller(pgpid)
+
+    def _run(self, cmd, env, queue, options, timeout, event, title, make_killer=None):
+        """Runs a shell command line, streams its output and returns pid, stdout, stderr, return code.
+        Shared with executors that wrap the command (eg docker exec)."""
+        make_killer = make_killer or self._make_killer
         outputs = ['', '']
 
         p = Popen(cmd,
@@ -111,7 +120,7 @@ class LocalExecutor(Executor):
 
         step = 0.2
         start = time.time()
-        killer = LocalKiller(pgpid)
+        killer = make_killer(pgpid)
         if queue:
             queue.put(killer)
         try:
@@ -146,15 +155,18 @@ class LocalExecutor(Executor):
             print("Test expired")
             p.terminate()
             p.kill()
-            os.killpg(pgpid, signal.SIGKILL)
-            os.killpg(pgpid, signal.SIGTERM)
+            killer.kill()
+            try:
+                os.killpg(pgpid, signal.SIGTERM)
+            except (ProcessLookupError, PermissionError):
+                pass
             p.stdin.close()
             p.stderr.close()
             p.stdout.close()
 
             return 0, outputs[0], outputs[1], p.returncode
         except KeyboardInterrupt:
-            os.killpg(pgpid, signal.SIGKILL)
+            killer.kill()
 
             return -1, outputs[0], outputs[1], p.returncode
 
