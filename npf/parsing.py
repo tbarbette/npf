@@ -39,7 +39,15 @@ def parse_nodes(args):
     initialize(args)
     local = create_local()
 
-    for val in get_options().cluster:
+    cluster = list(get_options().cluster)
+    if getattr(get_options(), 'gns3', None):
+        from npf.cluster.gns3 import discover, GNS3Error
+        try:
+            cluster += discover(get_options())
+        except GNS3Error as e:
+            raise Exception(str(e))
+
+    for val in cluster:
 
         # Create the test file
         os.close(os.open(experiment_path() + ".access_test" , os.O_CREAT))
@@ -57,14 +65,17 @@ def parse_nodes(args):
         del variables[0]
 
         nfs = None
+        dockerhost = None
         assert isinstance(variables, list)
         for opts in list(variables):
             assert isinstance(opts, str)
-            var,val = opts.split('=')
+            var,val = opts.split('=', 1)
             if var == "nfs":
                 nfs = int(val)
             elif var == "path":
                 path = val
+            elif var == "dockerhost":
+                dockerhost = val
             else:
                 continue
             variables.remove(opts)
@@ -72,10 +83,10 @@ def parse_nodes(args):
         if match.group('addr') == 'localhost' and not match.group('docker'):
             node = local
         elif match.group('docker'):
-            if path is not None or nfs == 0:
-                raise Exception("Docker nodes use the bind-mounted experiment folder: path= and nfs=0 are not supported (%s)" % mapping)
-            node = Node.makeDocker(container=match.group('addr'))
+            node = Node.makeDocker(container=match.group('addr'), host=dockerhost, path=path, nfs=nfs)
         else:
+            if dockerhost:
+                raise Exception("dockerhost= is only for docker:// nodes (%s)" % mapping)
             node = Node.makeSSH(user=match.group('user'), addr=match.group('addr'), path=path, nfs=nfs)
         role = match.group('role')
         if role in roles:

@@ -2,15 +2,16 @@
 HTTP page fetch timings (curl) against either a synthetic nginx server or a list of real websites.
 
 Default (synthetic): the `server` role runs nginx and serves a file of FSIZE KB, the `client` fetches it.
-With --tags real: no server is needed, the client fetches the URLs listed in SITES, one per SITE_ID (line number).
+With --tags real: no server is needed, the client fetches the URLs of the sites.txt file below, one per SITE_ID (line number).
 Change the range of SITE_ID to the size of your list, eg --variables SITE_ID=[1-500].
 
 With --tags netem the client link is delayed by DELAY ms and limited to RATE (tc netem, needs NET_ADMIN and tc).
 
-Local testbed (see examples/docker-testbed/docker-compose.yml):
+Testbed (see examples/docker-testbed/README.md for the whole GNS3 -> local -> remote -> real chain):
   npf --test examples/docker-web.npf local --cluster client=docker://npf-client server=docker://npf-server
-  npf --test examples/docker-web.npf local --tags real,netem --cluster client=docker://npf-client
-Scaling out: the same test without --cluster (or with client=user@host) runs from the machine of your choice.
+  npf --test examples/docker-web.npf local --tags real netem --cluster client=docker://npf-client
+  npf --test examples/docker-web.npf local --gns3 my-project --gns3-start
+Scaling out: --gns3-url http://host:3080 for a remote GNS3 server, or client=user@host for real machines.
 
 %config
 default_repo=local
@@ -23,9 +24,20 @@ var_unit={TTFB:ms,TOTAL:ms,CONNECT:ms,SIZE:bytes}
 FSIZE=32
 DELAY=0
 RATE=100mbit
-SITES=EXPAND(${NPF_SCRIPT_PATH}/docker-testbed/sites.txt)
 real:SITE_ID=[1-10]
 netem:DELAY={0,20,100}
+
+%real:file@client sites.txt
+https://www.wikipedia.org/
+https://www.debian.org/
+https://www.kernel.org/
+https://www.python.org/
+https://www.gnu.org/
+https://www.mozilla.org/
+https://www.ietf.org/
+https://www.eff.org/
+https://example.com/
+https://www.iana.org/
 
 %-real:script@server autokill=false
 dd if=/dev/urandom of=/var/www/html/bin-${FSIZE}K bs=1K count=$FSIZE 2>/dev/null
@@ -35,7 +47,7 @@ dd if=/dev/urandom of=/var/www/html/bin-${FSIZE}K bs=1K count=$FSIZE 2>/dev/null
 sudo tc qdisc replace dev eth0 root netem delay ${DELAY}ms rate ${RATE}
 {% endif %}
 {% if real %}
-URL=$(sed -n ${SITE_ID}p ${SITES})
+URL=$(sed -n ${SITE_ID}p sites.txt)
 {% else %}
 URL=http://${server:ip}/bin-${FSIZE}K
 {% endif %}

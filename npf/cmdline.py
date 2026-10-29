@@ -212,6 +212,25 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
     c.add_argument('--cluster-autosave', default=False, action='store_true', dest='cluster_autosave',
                     help='Automatically save NICs found on the machine. If the file cluster/address.node does not exists, NPF will attempt to auto-discover NICs. If this option is set, it will auto-create the file.')
 
+    c.add_argument('--gns3', metavar='project', type=str, default=None, dest='gns3',
+                   help='Use the docker nodes of a GNS3 project as cluster nodes. Roles come from node names '
+                        '(client-1 and client2 are role client).')
+    c.add_argument('--gns3-url', metavar='url', type=str, default=None, dest='gns3_url',
+                   help='GNS3 server URL (default: $GNS3_URL or http://127.0.0.1:3080). Credentials can be in the URL '
+                        'or in $GNS3_USER and $GNS3_PASSWORD.')
+    c.add_argument('--gns3-user', metavar='user', type=str, default=None, dest='gns3_user',
+                   help='GNS3 server user, the password is read from $GNS3_PASSWORD')
+    c.add_argument('--gns3-api', type=int, default=2, dest='gns3_api', help='GNS3 API version, 2 or 3')
+    c.add_argument('--gns3-start', default=False, action='store_true', dest='gns3_start',
+                   help='Open the GNS3 project and start its nodes, stopping them at the end unless --gns3-keep')
+    c.add_argument('--gns3-keep', default=False, action='store_true', dest='gns3_keep',
+                   help='Do not stop the GNS3 nodes started by --gns3-start')
+    c.add_argument('--gns3-map', metavar='role=node', type=str, nargs='*', default=[], dest='gns3_map',
+                   help='Role of GNS3 nodes whose name does not give it')
+    c.add_argument('--gns3-docker-host', metavar='host', type=str, default=None, dest='gns3_docker_host',
+                   help='Docker daemon of the GNS3 server, as for docker -H (e.g. ssh://user@host). Default is the '
+                        'local daemon if the GNS3 server is local, else ssh://<server host>. "local" forces local.')
+
     c.add_argument('--no-ssh-config', help='Do not use the SSH config file (~/.ssh/config) when connecting to remote nodes', dest='sshconfig', action='store_false', default=True)
 
     return t

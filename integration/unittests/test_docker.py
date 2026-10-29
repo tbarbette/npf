@@ -80,5 +80,46 @@ class TestDockerExecutor(unittest.TestCase):
         self.assertEqual(self._in_container("for p in /proc/[0-9]*; do tr '\\0' ' ' < $p/cmdline 2>/dev/null; echo; done | grep -c '^%s'" % marker).strip(), "0")
 
 
+@unittest.skipUnless(docker_available(), "docker daemon not available")
+class TestDockerNotShared(unittest.TestCase):
+    """A container without the experiment folder, like a GNS3 node"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.name = "npf-ut-ns-" + uuid.uuid4().hex[:8]
+        r = subprocess.run(["docker", "run", "-d", "--rm", "--name", cls.name, IMAGE, "sleep", "600"],
+                           capture_output=True, text=True)
+        if r.returncode != 0:
+            raise unittest.SkipTest("could not start %s: %s" % (IMAGE, r.stderr))
+        cls.addClassCleanup(subprocess.run, ["docker", "rm", "-f", cls.name], capture_output=True)
+        cls.saved_options = npf.globals.options
+        npf.globals.options = argparse.Namespace(color=False, cwd=os.getcwd(), experiment_folder="./")
+        cls.addClassCleanup(setattr, npf.globals, "options", cls.saved_options)
+        cls.root = "/tmp/npf-ut-root"
+        cls.ex = DockerExecutor(cls.name, path=cls.root)
+        cls.ex.run_raw("mkdir -p " + cls.root)
+
+    def test_not_shared(self):
+        self.assertFalse(self.ex.shared)
+        _, out, _, _ = self.ex.exec("test -e %s && echo yes || echo no" % os.getcwd())
+        self.assertEqual(out.strip(), "no")
+
+    def test_runs_in_remote_root(self):
+        _, out, _, ret = self.ex.exec("pwd")
+        self.assertEqual(ret, 0)
+        self.assertTrue(out.strip().startswith(self.root), out)
+
+    def test_write_file(self):
+        self.ex.writeFile("hello.txt", self.root, "hi there\n", sudo=False)
+        _, out, _, _ = self.ex.exec("cat %s/hello.txt" % self.root)
+        self.assertEqual(out.strip(), "hi there")
+
+    def test_timeout_kills(self):
+        marker = "sleep 8%d" % (os.getpid() % 1000 + 100)
+        self.ex.exec("echo start; %s" % marker, timeout=2)
+        _, out = self.ex.run_raw("for p in /proc/[0-9]*; do tr '\\0' ' ' < $p/cmdline 2>/dev/null; echo; done | grep -c '^%s'" % marker)
+        self.assertEqual(out.strip(), "0")
+
+
 if __name__ == '__main__':
     unittest.main()
