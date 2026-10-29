@@ -194,26 +194,40 @@ class Node:
         return node
 
     @classmethod
-    def makeDocker(cls, container):
-        """A node running its scripts with `docker exec` in an existing container. The experiment path must be
-        bind-mounted at the same location in the container."""
+    def makeDocker(cls, container, host=None, path=None, nfs=None):
+        """A node running its scripts with `docker exec` in an existing container, on the local docker daemon or on
+        the one at `host` (eg ssh://user@server).
+
+        If the container sees the experiment folder at the same path (bind mount), it is used as a shared (nfs) node.
+        Otherwise (nfs=0, or not found while auto-detecting with nfs unset) files are copied in the container, in
+        `path` (default: same as the experiment folder), as for an SSH node without nfs."""
         options = npf.globals.options
-        dex = DockerExecutor(container)
+        exp_path = os.path.abspath(npf.globals.experiment_path())
+        dex = DockerExecutor(container, host=host)
         node = Node(container, dex, options.tags)
-        node.nfs = True
+        node.nfs = nfs != 0
         cls._nodes[container] = node
 
         if options.do_test and options.do_conntest:
-            access = os.path.join(os.path.abspath(npf.globals.experiment_path()), ".access_test")
-            ret, out = dex.run_raw("test -e '%s' && echo access_ok" % access)
-            if ret != 0 or "access_ok" not in out:
-                raise Exception(
-                    f"Could not use container {container} (is it running? `docker ps`) or it does not see the "
-                    f"experiment folder at {os.path.abspath(npf.globals.experiment_path())}. Start it with "
-                    f"-v {os.path.abspath(npf.globals.experiment_path())}:{os.path.abspath(npf.globals.experiment_path())} "
-                    f"(same path on both sides).")
-            if not node.parsed:
-                node._find_docker_nics()
+            ret, out = dex.run_raw("echo docker_ok; test -e '%s' && echo access_ok" % os.path.join(exp_path, ".access_test"))
+            if "docker_ok" not in out:
+                raise Exception(f"Could not run commands in container {container}{' on ' + host if host else ''} "
+                                f"(is it running? `docker ps`). It needs a shell and bash.")
+            if "access_ok" not in out:
+                if nfs == 1:
+                    raise Exception(
+                        f"Container {container} does not see the experiment folder at {exp_path}. Start it with "
+                        f"-v {exp_path}:{exp_path} (same path on both sides) or use nfs=0.")
+                node.nfs = False
+        if not node.nfs:
+            dex.path = os.path.abspath(path) if path else exp_path
+            if options.do_test and options.do_conntest:
+                ret, out = dex.run_raw("mkdir -p '%s' && echo ok" % dex.path)
+                if "ok" not in out:
+                    raise Exception(f"Could not create {dex.path} in container {container}")
+            print(f"Container {container} does not share the experiment folder, files will be copied to {dex.path}.")
+        if options.do_test and options.do_conntest and not node.parsed:
+            node._find_docker_nics()
         node.ip = node.ip or node._nics[0].ip
         return node
 

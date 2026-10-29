@@ -1,12 +1,10 @@
-# Small local testbed for examples/docker-web.npf
+# Small local testbed for examples/docker-web.npf, see README.md in this folder.
 #
-#   export NPF_DIR=$PWD            # the folder from which you run npf (experiment path)
 #   docker compose -f examples/docker-testbed/docker-compose.yml up -d --build
 #   npf --test examples/docker-web.npf local --cluster client=docker://npf-client server=docker://npf-server
 #
-# The experiment folder is mounted at the same absolute path in the containers, which is what the
-# docker:// nodes of NPF expect. The same image can be used as a Docker template in GNS3: start GNS3's
-# containers, then pass their names (`docker ps`) to --cluster.
+# NPF detects that the containers do not see the experiment folder and copies what it needs in them.
+# Mounting the experiment folder at the same absolute path (volumes: ["$PWD:$PWD"]) is optional (shared mode).
 services:
   client:
     build: .
@@ -14,9 +12,7 @@ services:
     container_name: npf-client
     command: sleep infinity
     cap_add: [NET_ADMIN]       # tc netem to emulate the access link
-    volumes: ["${NPF_DIR:?set NPF_DIR to the folder you run npf from}:${NPF_DIR}"]
   server:
     image: npf-node
     container_name: npf-server
     depends_on: [client]
-    volumes: ["${NPF_DIR}:${NPF_DIR}"]
