@@ -12,7 +12,7 @@ class DictVariable(Variable):
     """
     def __init__(self, name, data):
         super().__init__(name)
-        if type(data) is dict:
+        if isinstance(data, dict):
             self.vdict = data
         else:
             self.vdict = OrderedDict()
