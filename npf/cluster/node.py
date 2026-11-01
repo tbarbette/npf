@@ -235,7 +235,9 @@ class Node:
         """Fills the NIC table from the interfaces of the container, eth0 first."""
         ret, out = self.executor.run_raw(
             'for d in /sys/class/net/*; do n=${d##*/}; [ "$n" = lo ] && continue; '
-            '[ "$(cat $d/type 2>/dev/null)" = 1 ] && [ "$(cat $d/operstate 2>/dev/null)" = up ] || continue; '
+            '[ "$(cat $d/type 2>/dev/null)" = 1 ] || continue; '
+            # veth pairs, as made by GNS3, report "unknown"
+            'case "$(cat $d/operstate 2>/dev/null)" in up|unknown) ;; *) continue ;; esac; '
             'echo "$n $(cat $d/address) $(ip -4 -o addr show dev $n 2>/dev/null | awk \'{print $4}\' | cut -d/ -f1 | head -n1)"; done')
         nics = [l.split() for l in out.splitlines() if len(l.split()) >= 2]
         for i, f in enumerate(sorted(nics)):
@@ -252,6 +254,9 @@ class Node:
             self.parsed = True
         else:
             print(f"WARNING: could not list the interfaces of container {self.name}")
+            ips = self.executor.inspect_ips()
+            if ips:
+                self.ip = ips[0]
 
     @classmethod
     def makeSSH(cls, user, addr, path, port=22, nfs=None):
