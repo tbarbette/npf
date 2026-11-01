@@ -91,6 +91,9 @@ class GNS3Client:
     def open_project(self, pid):
         self.request("POST", "/projects/%s/open" % pid, {})
 
+    def set_auto_close(self, pid, value: bool):
+        self.request("PUT", "/projects/%s" % pid, {"auto_close": value})
+
     def nodes(self, pid) -> List[Dict]:
         return self.request("GET", "/projects/%s/nodes" % pid)
 
@@ -173,6 +176,10 @@ def discover(options) -> List[str]:
     if getattr(options, "gns3_start", False):
         if project.get("status") != "opened":
             client.open_project(pid)
+        if project.get("auto_close"):
+            # Else GNS3 closes the project, and stops its nodes, when the last web UI or GUI client disconnects
+            client.set_auto_close(pid, False)
+            atexit.register(_restore_auto_close, client, pid)
         if any(n["status"] != "started" and n["node_type"] != "cloud" for n in client.nodes(pid)):
             print("Starting the nodes of GNS3 project %s..." % project["name"])
             client.start_nodes(pid)
@@ -195,6 +202,13 @@ def discover(options) -> List[str]:
     print("GNS3 project %s%s: %s" % (project["name"], " (docker on %s)" % host if host else "",
                                     ", ".join("%s=%s" % (r, n["name"]) for r, n in assigned)))
     return specs
+
+
+def _restore_auto_close(client, pid):
+    try:
+        client.set_auto_close(pid, True)
+    except GNS3Error:
+        pass
 
 
 def _stop(client, pid, name):
