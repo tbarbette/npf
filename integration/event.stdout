@@ -2,23 +2,23 @@
 Event test
 Executing init scripts...
 [run 1/3 for test 1/1]
-[30m[0][0m EVENT tost
-[30m[0][0m RESULT-Y 1
-[30m[0][0m EVENT test
-[30m[0][0m RESULT-X 1
-[30m[0][0m RESULT-Z 1
+[36m[0][0m EVENT tost
+[36m[0][0m RESULT-Y 1
+[36m[0][0m EVENT test
+[36m[0][0m RESULT-X 1
+[36m[0][0m RESULT-Z 1
 [run 2/3 for test 1/1]
-[30m[0][0m EVENT tost
-[30m[0][0m RESULT-Y 1
-[30m[0][0m EVENT test
-[30m[0][0m RESULT-X 1
-[30m[0][0m RESULT-Z 1
+[36m[0][0m EVENT tost
+[36m[0][0m RESULT-Y 1
+[36m[0][0m EVENT test
+[36m[0][0m RESULT-X 1
+[36m[0][0m RESULT-Z 1
 [run 3/3 for test 1/1]
-[30m[0][0m EVENT tost
-[30m[0][0m RESULT-Y 1
-[30m[0][0m EVENT test
-[30m[0][0m RESULT-X 1
-[30m[0][0m RESULT-Z 1
+[36m[0][0m EVENT tost
+[36m[0][0m RESULT-Y 1
+[36m[0][0m EVENT test
+[36m[0][0m RESULT-X 1
+[36m[0][0m RESULT-Z 1
 X: [1.0, 1.0, 1.0], Y: [1.0, 1.0, 1.0], Z: [1.0, 1.0, 1.0]
 Generating graphs...
 Graph of test written to compare/event_click-2022-X.pdf

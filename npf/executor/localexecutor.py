@@ -6,6 +6,7 @@ from multiprocessing import Queue, Event
 from subprocess import PIPE, Popen, TimeoutExpired
 from typing import List
 from .executor import Executor
+import npf.globals
 from pathlib import Path
 import time
 
@@ -29,6 +30,18 @@ class LocalKiller:
         return True
 
 class LocalExecutor(Executor):
+    @staticmethod
+    def _absolute_paths(paths, options):
+        """Relative paths (such as the build folder of a repository given as local/some/folder) are relative to the folder
+        NPF was started in, while scripts run in a folder of the experiment."""
+        try:
+            base = npf.globals.cwd_path(options)
+        except AttributeError:
+            base = None
+        if not base:
+            base = str(Path(os.getcwd()).parent)
+        return [p if os.path.isabs(p) else os.path.join(base, p) for p in paths or []]
+
     def __init__(self):
         super().__init__()
 
@@ -59,19 +72,21 @@ class LocalExecutor(Executor):
 
         if not title:
             title = "local"
-        cwd = str(Path(os.getcwd()).parent)
         env = env.copy()
-        env.update(os.environ)
+        # Only NPF's variables are exported in the script: exporting the inherited environment would reset PATH and
+        # hide the bin folders of the repositories added below
         env_str = self.get_env_str(env, options)
         cmd = env_str + cmd
+        env.update(os.environ)
+        bin_path = ':'.join(self._absolute_paths(bin_paths, options))
         if bin_paths:
             if not sudo:
-                env["PATH"] = ':'.join([cwd + '/' + path if not os.path.abspath(path) else path for path in bin_paths]) + ":" + env["PATH"]
+                env["PATH"] = bin_path + ":" + env["PATH"]
             else:
-                cmd = 'export PATH=' + ':'.join([cwd + '/' + path if not os.path.abspath(path) else path for path in bin_paths]) + ":" + '$PATH\n' + cmd
+                cmd = 'export PATH=' + bin_path + ':$PATH\n' + cmd
 
         if options is not None and options.show_cmd:
-            print("Executing (PATH+=%s) :\n%s" % (':'.join(bin_paths), cmd.strip()))
+            print("Executing (PATH+=%s) :\n%s" % (bin_path, cmd.strip()))
 
         if sudo and pwd.getpwuid(os.getuid()).pw_name != "root":
             cmd = "sudo -E " + virt + "  bash -c '"+ cmd.replace("'", "'\"'\"'") + "'";
