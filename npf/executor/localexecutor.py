@@ -61,9 +61,11 @@ class LocalExecutor(Executor):
             title = "local"
         cwd = str(Path(os.getcwd()).parent)
         env = env.copy()
-        env.update(os.environ)
+        # Only NPF's variables are exported in the script: exporting the inherited environment would reset PATH and
+        # hide the bin folders of the repositories added below
         env_str = self.get_env_str(env, options)
         cmd = env_str + cmd
+        env.update(os.environ)
         if bin_paths:
             if not sudo:
                 env["PATH"] = ':'.join([cwd + '/' + path if not os.path.abspath(path) else path for path in bin_paths]) + ":" + env["PATH"]

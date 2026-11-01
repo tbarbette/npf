@@ -2,7 +2,7 @@
 Timeout overwrite test
 Executing init scripts...
 [run 1/1 for test 1/1]
-[30m[0][0m RESULT 1
+[36m[0][0m RESULT 1
 [1.0]
 Generating graphs...
 Graph of test written to compare/timeout-overwrite_click-2022.pdf

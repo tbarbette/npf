@@ -67,13 +67,13 @@ class Statistics:
                 if (max_depth is None and len(X) > 16) or (max_depth is not None and max_depth > 8):
                     print("No tree graph when maxdepth is > 8. Use --statistics-maxdepth 8 to fix it to 8.")
                 else:
-                    dot_data = tree.export_graphviz(clf, out_file=None, filled=True, rounded=True, special_characters=True,
+                    # No special_characters: pydotplus cannot parse the HTML labels it gives with pyparsing 3
+                    dot_data = tree.export_graphviz(clf, out_file=None, filled=True, rounded=True, special_characters=False,
                                                     feature_names=dtype['names'])
-                    graph = pydotplus.graph_from_dot_data(dot_data)
-
 
                     f = npf.build_filename(test, build, filename if not filename is True else None, {}, 'pdf', result_type, show_serie=False, suffix="clf")
                     try:
+                        graph = pydotplus.graph_from_dot_data(dot_data)
                         graph.write(f, format=os.path.splitext(f)[1][1:])
                         print(f"Decision tree visualization written to {f}")
                     except Exception as e:
