@@ -5,7 +5,9 @@ Default (synthetic): the `server` role runs nginx and serves a file of FSIZE KB,
 With --tags real: no server is needed, the client fetches the URLs of the sites.txt file below, one per SITE_ID (line number).
 Change the range of SITE_ID to the size of your list, eg --variables SITE_ID=[1-500].
 
-With --tags netem the client link is delayed by DELAY ms and limited to RATE (tc netem, needs NET_ADMIN and tc).
+With --tags netem the client link is delayed by DELAY ms (on the way out, so it adds to every round trip) and the
+download is limited to RATE (on the way in, through an ifb device, or by policing where ifb is not available, as in
+Docker Desktop). Needs NET_ADMIN and tc.
 
 Testbed (see examples/docker-testbed/README.md for the whole GNS3 -> local -> remote -> real chain):
   npf --test examples/docker-web.npf local --cluster client=docker://npf-client server=docker://npf-server
@@ -44,7 +46,16 @@ dd if=/dev/urandom of=/var/www/html/bin-${FSIZE}K bs=1K count=$FSIZE 2>/dev/null
 
 %script@client jinja delay=1 critical=false timeout=60
 {% if netem %}
-sudo tc qdisc replace dev eth0 root netem delay ${DELAY}ms rate ${RATE}
+sudo tc qdisc replace dev eth0 root netem delay ${DELAY}ms
+sudo tc qdisc replace dev eth0 handle ffff: ingress
+if sudo ip link add ifb0 type ifb 2>/dev/null || ip link show ifb0 > /dev/null 2>&1; then
+    sudo ip link set ifb0 up
+    sudo tc filter replace dev eth0 parent ffff: protocol all matchall action mirred egress redirect dev ifb0
+    sudo tc qdisc replace dev ifb0 root netem rate ${RATE} limit 10000
+else
+    echo "No ifb device: policing the download to ${RATE} instead of shaping it, the rate is only approximate"
+    sudo tc filter replace dev eth0 parent ffff: protocol all u32 match u32 0 0 police rate ${RATE} burst 1m drop flowid :1
+fi
 {% endif %}
 {% if real %}
 URL=$(sed -n ${SITE_ID}p sites.txt)
@@ -58,4 +69,6 @@ echo "$out" | awk '$1 >= 200 && $1 < 400 {
     printf "RESULT-CONNECT %.3f\nRESULT-TTFB %.3f\nRESULT-TOTAL %.3f\nRESULT-SIZE %d\n", $2*1000, $3*1000, $4*1000, $5 }'
 {% if netem %}
 sudo tc qdisc del dev eth0 root || true
+sudo tc qdisc del dev eth0 ingress || true
+sudo ip link del ifb0 2>/dev/null || true
 {% endif %}

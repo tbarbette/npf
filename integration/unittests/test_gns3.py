@@ -34,7 +34,8 @@ class FakeGNS3(BaseHTTPRequestHandler):
         st = self.state
         st["auth"] = self.headers.get("Authorization")
         if self.path == "/v2/projects":
-            return self._reply([{"name": "poc", "project_id": PID, "status": st["project_status"]}])
+            return self._reply([{"name": "poc", "project_id": PID, "status": st["project_status"],
+                                 "auto_close": st.get("auto_close", False)}])
         if self.path == "/v2/projects/%s/nodes" % PID:
             return self._reply(st["nodes"])
         self.send_error(404)
@@ -54,6 +55,15 @@ class FakeGNS3(BaseHTTPRequestHandler):
                 x["status"] = "stopped"
         else:
             return self.send_error(404)
+        self._reply({})
+
+    def do_PUT(self):
+        st = self.state
+        body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")
+        if self.path != "/v2/projects/%s" % PID:
+            return self.send_error(404)
+        st["calls"].append("PUT " + self.path)
+        st.update({k: v for k, v in body.items() if k == "auto_close"})
         self._reply({})
 
 
@@ -119,6 +129,14 @@ class TestDiscovery(unittest.TestCase):
         self.assertIn("/v2/projects/%s/open" % PID, calls)
         self.assertIn("/v2/projects/%s/nodes/start" % PID, calls)
         self.assertNotIn("/v2/projects/%s/nodes/stop" % PID, calls)
+        self.assertNotIn("PUT /v2/projects/%s" % PID, calls)
+
+    def test_start_disables_auto_close(self):
+        FakeGNS3.state["auto_close"] = True
+        gns3.discover(self.opts(gns3_start=True, gns3_keep=True))
+        self.assertFalse(FakeGNS3.state["auto_close"])
+        gns3._restore_auto_close(gns3.GNS3Client(self.url), PID)
+        self.assertTrue(FakeGNS3.state["auto_close"])
 
     def test_unknown_project_and_auth(self):
         with self.assertRaisesRegex(gns3.GNS3Error, "No GNS3 project named nope"):
