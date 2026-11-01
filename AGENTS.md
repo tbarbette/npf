@@ -104,12 +104,20 @@ Example: `%script@client delay=1 timeout=30 critical=true sudo=false waitfor=EVE
 VAR=[1-16]           # integer range
 VAR=[1-16#2]         # range with step
 VAR={a,b,c}          # explicit set
-VAR={a:Label A,...}  # set with display names
+VAR={a:Label A,...}  # set with display names (scripts get a, graphs show Label A)
+VAR={"a,b","c d"}    # quoted values may contain , : { } and spaces
+VAR={https://a.org/,https://b.org/:B}  # "://" is never a separator, URLs need no quotes
+VAR=FILE(list.txt)   # one value per line (relative to the .npf file); blank and # lines ignored
+VAR=CONCAT({1,2},[8-10],FILE(more.txt))  # values of all arguments, in order
 tag:VAR=value        # set VAR only when tag is active
 tag1,tag2:VAR=value  # set VAR only when BOTH tag1 and tag2 are active (logical AND)
 tag:VAR={1,2,4,8}    # sweep VAR only when tag is active
 -tag:VAR=value       # set VAR only when tag is NOT active
 ```
+
+A set or range can be followed by a `//` or `#` comment. The grammar of these values is in
+`npf/models/variables/grammar.py`. A value starting with `{` that is not a valid set is an error, so a missing quote
+is reported instead of silently becoming a plain string.
 
 Variables will be substituted in scripts and files sections.
 

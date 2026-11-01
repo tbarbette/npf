@@ -270,7 +270,7 @@ class Test:
                         script.multi = imp.multi
             overriden_variables = {}
             for k, v in imp.params.items():
-                overriden_variables[k] = VariableFactory.build(k, v)
+                overriden_variables[k] = VariableFactory.build(k, v, base_path=self.path)
             imp.test.variables.override_all(overriden_variables)
             if "require_tags" in imp.test.config.vlist:
                 tags = imp.test.config.vlist["require_tags"].makeValues()

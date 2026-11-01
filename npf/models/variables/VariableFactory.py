@@ -8,6 +8,7 @@ from npf.models.variables.ListVariable import ListVariable
 from npf.models.variables.RandomVariable import RandomVariable
 from npf.models.variables.RangeVariable import RangeVariable
 from npf.models.variables.SimpleVariable import SimpleVariable
+from npf.models.variables.grammar import parse_value
 
 
 import regex
@@ -16,30 +17,20 @@ import re
 
 class VariableFactory:
     @staticmethod
-    def build(name, valuedata, vsection=None):
-        result = re.match("(?P<doubleopen>\[?)\[(?P<a>-?[0-9.]+)(?P<log>[+-]|[*]|[,])(?P<b>-?[0-9.]+)(?P<step>[#][0-9.]*)?\](?P<doubleclose>\]?)", valuedata)
-        if result:
-            return RangeVariable(name, result.group('a'), result.group('b'), result.group('log') == "*", step= (get_numeric(result.group('step')[1:]) if result.group('step') else None), force_int=result.group('doubleopen')=='[')
+    def build(name, valuedata, vsection=None, base_path=None):
+        """Builds the variable for a value, see npf/models/variables/grammar.py for ranges, sets, CONCAT() and FILE().
 
-        result = regex.match("\{([^:]*:[^,:]+)(?:(?:,)([^,:]*:[^,:]+))*\}", valuedata)
-        if result:
-            return DictVariable(name, result.captures(1) + result.captures(2))
-
-        result = regex.match("\{([^,]+)(?:(?:,)([^,]*))*}", valuedata)
-        if result:
-            return ListVariable(name, result.captures(1) + result.captures(2))
-        if valuedata.strip() == "{}":
-            return DictVariable(name, {})
+        :param base_path: folder of the test, where relative FILE() paths are searched first
+        """
+        var = parse_value(name, valuedata, vsection, base_path)
+        if var is not None:
+            return var
 
         result = regex.match("EXPAND\((.*)\)", valuedata)
         if result:
             if vsection is None:
                 raise Exception("EXPAND variable without vsection",vsection)
             return ExpandVariable(name, result.group(1), vsection)
-
-        result = regex.match("CONCAT\((.*),(.*)\)", valuedata)
-        if result:
-            return ParentVariable(name, [VariableFactory.build(name,result.group(1),vsection), VariableFactory.build(name,result.group(2),vsection)])
 
         result = regex.match("RANDOM[ ]*\([ ]*([^,]+)[ ]*,[ ]*([^,]+)[ ]*\)", valuedata)
         if result:

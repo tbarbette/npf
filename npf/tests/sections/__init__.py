@@ -400,7 +400,7 @@ class SectionVariable(Section):
         return valid
 
     @staticmethod
-    def parse_variable(line, tags, vsection=None, fail=True):
+    def parse_variable(line, tags, vsection=None, fail=True, base_path=None):
         try:
             if not line:
                 return None, None, False
@@ -413,7 +413,7 @@ class SectionVariable(Section):
                 return None, None, False
 
             name = match.group('name')
-            return name, VariableFactory.build(name, match.group('value'), vsection), match.group('assignType')
+            return name, VariableFactory.build(name, match.group('value'), vsection, base_path), match.group('assignType')
         except:
             if fail:
                 print("Error parsing line %s" % line)
@@ -436,7 +436,8 @@ class SectionVariable(Section):
             else:
                 line = line.lstrip()
                 sect = sections_stack[-1]
-                var, val, assign = self.parse_variable(line, test.tags, vsection=sect, fail=fail)
+                var, val, assign = self.parse_variable(line, test.tags, vsection=sect, fail=fail,
+                                                       base_path=getattr(test, "path", None))
                 if not var is None and not val is None:
                     # If check_exists, we verify that we overwrite a variable. This is used by config section to ensure we write known parameters
                     if check_exists and not var in sect.vlist:
