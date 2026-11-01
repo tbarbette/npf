@@ -1,0 +1,12 @@
+# Sites fetched by examples/docker-web.npf --tags real, one URL per line.
+# Blank lines and lines starting with # are ignored.
+https://www.wikipedia.org/
+https://www.debian.org/
+https://www.kernel.org/
+https://www.python.org/
+https://www.gnu.org/
+https://www.mozilla.org/
+https://www.ietf.org/
+https://www.eff.org/
+https://example.com/
+https://www.iana.org/

@@ -67,22 +67,25 @@ Where ifb is not available (Docker Desktop), it polices the download instead, wh
 
 ```sh
 npf --test examples/docker-web.npf local --tags real netem --gns3 npf-poc --gns3-start --gns3-keep \
-    --gns3-docker-host unix:///tmp/npf-demo/docker.sock --variables 'DELAY={0,100}' --config n_runs=2
+    --gns3-docker-host ssh://dormeur --variables 'DELAY={0,100}' --config n_runs=2
 ```
 
-With `--tags real` the server node is not used: the client fetches the 10 sites of the `sites.txt` section of
-`docker-web.npf`, one per `SITE_ID`, through the DUT and the NAT node. `--gns3-start` opened the (closed) project and
-started its nodes. 39 of the 40 fetches succeeded:
+With `--tags real` the server node is not used: the client fetches each URL of
+[../docker-testbed/sites.txt](../docker-testbed/sites.txt) (`URL=FILE(docker-testbed/sites.txt)` in the test), through
+the DUT and the NAT node. `--gns3-docker-host ssh://dormeur` forwards the remote Docker socket over one ssh
+connection, without the manual tunnel of step 1. All 40 fetches succeeded:
 
 ![Total time per site, with and without 100 ms of added delay](demo/real-TOTAL.png)
 
-The added 100 ms shows on every site as a few extra round trips (TCP and TLS handshakes, then the page). Site 2
-(debian.org) varies between 0.7 s and 4.2 s at both delays, and its time to first byte varies the same way, so the
-variation is on the server side, not in the testbed.
+With 100 ms added, the time to first byte of most sites is about 420 ms: four round trips (DNS, TCP, TLS 1.3 and the
+request). The total grows by 370 ms (example.com) to 690 ms (wikipedia.org, 120 KB): larger pages need more round
+trips to download.
 
-The failed fetch is the very first one: the nodes had just been started and the DUT did not have its DHCP lease on the
-NAT link yet, so DNS failed. `--gns3-start` waits for GNS3 to report the nodes as started, not for their start command
-to finish. Leave the nodes a few seconds, or start them first and run without `--gns3-start`.
+Before this run, the client node had been up for 8 hours and had lost its link: `eth0` was gone, NPF printed
+`WARNING: could not list the interfaces of container ...` and every fetch failed with curl code 000. Reloading the node
+did not help, stopping and starting it in GNS3 did. On a first start, the DUT may also need a few seconds to get its
+DHCP lease on the NAT link: `--gns3-start` waits for GNS3 to report the nodes as started, not for their start command
+to finish.
 
 ## Notes
 

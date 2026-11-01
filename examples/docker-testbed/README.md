@@ -52,8 +52,9 @@ npf --test examples/docker-web.npf local --cluster client=user@host1 --tags real
 
 ## Scaling to real servers
 
-With `--tags real` the `server` role is not used: the client fetches each URL of the `sites.txt` section of
-`docker-web.npf`, one per `SITE_ID`. Put your list in that section and set the range, e.g. `--variables SITE_ID=[1-500]`.
+With `--tags real` the `server` role is not used: the client fetches each URL of [sites.txt](sites.txt), one per line
+(`URL=FILE(docker-testbed/sites.txt)` in `docker-web.npf`). Use your own list with
+`--variables 'URL=FILE(/path/to/list.txt)'`, or give a few URLs inline: `--variables 'URL={https://a.org/,https://b.org/}'`.
 Keep `n_runs` low and the request rate polite when hitting sites you do not own.
 
 ## Without GNS3
