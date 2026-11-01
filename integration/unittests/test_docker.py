@@ -3,11 +3,12 @@ import os
 import shutil
 import subprocess
 import unittest
+import unittest.mock
 import uuid
 
 import npf.globals
 from npf.cluster.factory import nodePattern
-from npf.executor.dockerexecutor import DockerExecutor
+from npf.executor.dockerexecutor import DockerExecutor, SSHDockerSocket
 
 IMAGE = "debian:bookworm-slim"
 
@@ -119,6 +120,65 @@ class TestDockerNotShared(unittest.TestCase):
         self.ex.exec("echo start; %s" % marker, timeout=2)
         _, out = self.ex.run_raw("for p in /proc/[0-9]*; do tr '\\0' ' ' < $p/cmdline 2>/dev/null; echo; done | grep -c '^%s'" % marker)
         self.assertEqual(out.strip(), "0")
+
+
+class TestSSHDockerSocket(unittest.TestCase):
+    def test_command(self):
+        cmd = SSHDockerSocket.command("ssh://bob@lab.example.com:2222", "/tmp/x/docker.sock", "/var/run/docker.sock")
+        self.assertEqual(cmd[0], "ssh")
+        self.assertIn("-N", cmd)
+        self.assertEqual(cmd[cmd.index("-L") + 1], "/tmp/x/docker.sock:/var/run/docker.sock")
+        self.assertEqual(cmd[cmd.index("-p") + 1], "2222")
+        self.assertEqual(cmd[-2:], ["--", "bob@lab.example.com"])
+        self.assertNotIn("-p", SSHDockerSocket.command("ssh://lab", "/tmp/x", "/y"))
+
+    def test_unreachable_falls_back(self):
+        SSHDockerSocket._tunnels.pop("ssh://nonexistent.invalid", None)
+        self.addCleanup(SSHDockerSocket._tunnels.pop, "ssh://nonexistent.invalid", None)
+        with unittest.mock.patch("builtins.print"):
+            self.assertEqual(SSHDockerSocket.endpoint("ssh://nonexistent.invalid"), "ssh://nonexistent.invalid")
+
+
+def ssh_localhost_available():
+    if not shutil.which("ssh"):
+        return False
+    return subprocess.run(["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=3", "localhost", "true"],
+                          capture_output=True).returncode == 0
+
+
+@unittest.skipUnless(docker_available() and ssh_localhost_available(), "needs docker and passwordless ssh to localhost")
+class TestDockerOverSSH(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.name = "npf-ut-ssh-" + uuid.uuid4().hex[:8]
+        r = subprocess.run(["docker", "run", "-d", "--rm", "--name", cls.name, IMAGE, "sleep", "600"],
+                           capture_output=True, text=True)
+        if r.returncode != 0:
+            raise unittest.SkipTest("could not start %s: %s" % (IMAGE, r.stderr))
+        cls.addClassCleanup(subprocess.run, ["docker", "rm", "-f", cls.name], capture_output=True)
+        cls.saved_options = npf.globals.options
+        npf.globals.options = argparse.Namespace(color=False, cwd=os.getcwd(), experiment_folder="./")
+        cls.addClassCleanup(setattr, npf.globals, "options", cls.saved_options)
+        SSHDockerSocket._tunnels.pop("ssh://localhost", None)
+
+    def test_one_shared_connection(self):
+        a = DockerExecutor(self.name, host="ssh://localhost", path="/tmp/npf-ut-ssh")
+        b = DockerExecutor(self.name, host="ssh://localhost", path="/tmp/npf-ut-ssh")
+        for ex in (a, b, a):
+            _, out, _, ret = ex.exec("echo hello")
+            self.assertEqual((out.strip(), ret), ("hello", 0))
+        tunnel = SSHDockerSocket._tunnels["ssh://localhost"]
+        self.assertIsNotNone(tunnel, "forwarding failed, fell back to docker's ssh transport")
+        self.assertIsNone(tunnel.proc.poll())
+        self.assertEqual(a._docker("ps")[1:3], ["-H", "unix://" + tunnel.sock])
+        self.assertEqual(oct(os.stat(tunnel.dir).st_mode & 0o777), "0o700")
+
+    def test_tunnel_removed_at_close(self):
+        tunnel = SSHDockerSocket._tunnels.get("ssh://localhost") or SSHDockerSocket("ssh://localhost")
+        d = tunnel.dir
+        tunnel.close()
+        self.assertFalse(os.path.exists(d))
+        SSHDockerSocket._tunnels.pop("ssh://localhost", None)
 
 
 if __name__ == '__main__':

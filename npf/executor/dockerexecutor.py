@@ -1,6 +1,11 @@
+import atexit
 import os
 import shlex
+import shutil
 import subprocess
+import tempfile
+import time
+import urllib.parse
 import uuid
 from multiprocessing import Queue
 from typing import List
@@ -20,6 +25,65 @@ echo $p > "$1"
 wait $p'''
 
 _IGNORED = ['.git', '.vimhistory']
+
+
+class SSHDockerSocket:
+    """One ssh connection per remote docker host, forwarding its docker socket to a private local unix socket.
+
+    `docker -H ssh://host` opens a new ssh connection (through the jump hosts of your ssh config, with a handshake each
+    time) for every single docker command, and a sweep runs hundreds of them. With this, they all share one connection.
+    The remote socket is $NPF_DOCKER_SOCK or /var/run/docker.sock (the user needs access to it, as for docker)."""
+    _tunnels = {}
+
+    def __init__(self, host, wait=60):
+        self.pid = os.getpid()
+        self.dir = tempfile.mkdtemp(prefix="npf-dk-", dir="/tmp")
+        self.sock = os.path.join(self.dir, "docker.sock")
+        self.proc = subprocess.Popen(self.command(host, self.sock), stdin=subprocess.DEVNULL,
+                                     stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+        atexit.register(self.close)
+        end = time.time() + wait
+        while not os.path.exists(self.sock):
+            if self.proc.poll() is not None or time.time() > end:
+                err = self.proc.stderr.read() if self.proc.poll() is not None else "timeout"
+                self.close()
+                raise RuntimeError(err.strip() or "ssh exited")
+            time.sleep(0.1)
+
+    @staticmethod
+    def command(host, local_sock, remote_sock=None):
+        u = urllib.parse.urlsplit(host)
+        target = (u.username + "@" if u.username else "") + (u.hostname or "")
+        cmd = ["ssh", "-N", "-x", "-o", "BatchMode=yes", "-o", "ExitOnForwardFailure=yes", "-o", "LogLevel=ERROR",
+               "-o", "ConnectTimeout=30", "-o", "ServerAliveInterval=15", "-o", "ServerAliveCountMax=4",
+               "-L", "%s:%s" % (local_sock, remote_sock or os.environ.get("NPF_DOCKER_SOCK", "/var/run/docker.sock"))]
+        if u.port:
+            cmd += ["-p", str(u.port)]
+        return cmd + ["--", target]
+
+    def close(self):
+        if os.getpid() != self.pid:
+            return
+        if self.proc.poll() is None:
+            self.proc.terminate()
+            try:
+                self.proc.wait(5)
+            except subprocess.TimeoutExpired:
+                self.proc.kill()
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    @classmethod
+    def endpoint(cls, host):
+        """The docker -H value to use for `host`: the forwarded socket, or host itself if ssh forwarding fails."""
+        if host not in cls._tunnels:
+            try:
+                cls._tunnels[host] = cls(host)
+            except (RuntimeError, OSError) as e:
+                print("WARNING: could not forward the docker socket of %s (%s), using docker's own ssh transport "
+                      "(slower: one ssh connection per command)." % (host, e))
+                cls._tunnels[host] = None
+        t = cls._tunnels[host]
+        return "unix://" + t.sock if t else host
 
 
 class DockerKiller:
@@ -80,7 +144,10 @@ class DockerExecutor(LocalExecutor):
         return self.path is None
 
     def _docker(self, *args):
-        return ["docker"] + (["-H", self.host] if self.host else []) + list(args)
+        daemon = []
+        if self.host:
+            daemon = ["-H", SSHDockerSocket.endpoint(self.host) if self.host.startswith("ssh://") else self.host]
+        return ["docker"] + daemon + list(args)
 
     def _workdir(self):
         """Where the scripts run in the container: the folder in which NPF currently is, translated to the container."""
