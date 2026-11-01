@@ -2,8 +2,8 @@
 HTTP page fetch timings (curl) against either a synthetic nginx server or a list of real websites.
 
 Default (synthetic): the `server` role runs nginx and serves a file of FSIZE KB, the `client` fetches it.
-With --tags real: no server is needed, the client fetches the URLs of the sites.txt file below, one per SITE_ID (line number).
-Change the range of SITE_ID to the size of your list, eg --variables SITE_ID=[1-500].
+With --tags real: no server is needed, the client fetches each URL of docker-testbed/sites.txt (one per line).
+Use another list with --variables 'URL=FILE(/path/to/list.txt)', or a few URLs with --variables 'URL={https://a.org/,https://b.org/}'.
 
 With --tags netem the client link is delayed by DELAY ms (on the way out, so it adds to every round trip) and the
 download is limited to RATE (on the way in, through an ifb device, or by policing where ifb is not available, as in
@@ -21,25 +21,14 @@ n_runs=3
 timeout=90
 var_names={TTFB:Time to first byte,TOTAL:Total time,CONNECT:Connect time}
 var_unit={TTFB:ms,TOTAL:ms,CONNECT:ms,SIZE:bytes}
+graph_force_diagonal_labels=1
 
 %variables
 FSIZE=32
 DELAY=0
 RATE=100mbit
-real:SITE_ID=[1-10]
+real:URL=FILE(docker-testbed/sites.txt)
 netem:DELAY={0,20,100}
-
-%real:file@client sites.txt
-https://www.wikipedia.org/
-https://www.debian.org/
-https://www.kernel.org/
-https://www.python.org/
-https://www.gnu.org/
-https://www.mozilla.org/
-https://www.ietf.org/
-https://www.eff.org/
-https://example.com/
-https://www.iana.org/
 
 %-real:script@server autokill=false
 dd if=/dev/urandom of=/var/www/html/bin-${FSIZE}K bs=1K count=$FSIZE 2>/dev/null
@@ -57,9 +46,7 @@ else
     sudo tc filter replace dev eth0 parent ffff: protocol all u32 match u32 0 0 police rate ${RATE} burst 1m drop flowid :1
 fi
 {% endif %}
-{% if real %}
-URL=$(sed -n ${SITE_ID}p sites.txt)
-{% else %}
+{% if not real %}
 URL=http://${server:ip}/bin-${FSIZE}K
 {% endif %}
 out=$(curl -sS -L -o /dev/null --max-time 45 -A "npf-bench" \
