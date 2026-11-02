@@ -529,16 +529,34 @@ Use `${role:ip}` (not `${role:0:ip}`) in `.npf` scripts for enoslib-backed nodes
 `${role:0:ip}` accesses the NIC table which requires a `.node` config file or auto-discovery;
 `${role:ip}` uses the node-level IP set directly from `eno_obj.address`.
 
+### How enoslib hosts are driven
+
+Hosts reached with ssh (ansible's default connection) are driven with the `ssh` client directly,
+using the connection parameters enoslib gives ansible (user, port, key, gateways,
+`ansible_ssh_common_args`), through one shared master connection per host. Output is streamed as
+it comes, so `EVENT` lines and `waitfor=` work as with local scripts, and a command costs an ssh
+session (~0.2 s) instead of an ansible play. `LocalHost` runs locally the same way.
+
+Hosts with another `ansible_connection` (docker, paramiko...) still go through `en.run_command`:
+there, output only arrives when the script ends, so `waitfor=` on an event from a long-running
+script never fires. Use `delay=` for those.
+
 ### G5K SSH "Shared connection closed" error
 
-If you see `EnosUnreachableHostsError: Failed to connect … Shared connection to X closed`, the
-SSH ControlMaster socket created during `provider.init()` or the apt install cell has expired
-(G5K's `~/.ssh/config` typically sets `ControlPersist 10` — a 10-second idle timeout).
+If, after about a minute, every host fails at once with `Failed to connect to the host via ssh:
+Shared connection to X closed` (or an empty message, or `timed out during banner exchange`),
+check `~/.ssh/config` for `ControlMaster auto` without `ControlPersist` (often under `Host *`).
+Connections to `*.grid5000.fr` go through `ProxyCommand ssh access.grid5000.fr -W ...`; that
+inner ssh reads `~/.ssh/config` too, so the first one becomes a foreground multiplexing master
+and all later tunnels, to all nodes, go through it. When the connection that owns it exits
+(ansible closes the `sudo-g5k` connection from `provider.init()` after 60 s idle), every tunnel
+dies at the same time.
 
-NPF's `EnoslibExecutor` disables ControlMaster for its own ansible calls, so the connection
-uses a fresh socket each time and won't be affected by an expired shared socket. If you still
-see this error, check your `~/.ssh/config` and increase `ControlPersist` for G5K hosts, or run
-the cells closer together to avoid the idle timeout.
+Fix it in `~/.ssh/config`, for the gateway host (e.g. `Host g5kaccess` or `access.grid5000.fr`):
+`ControlPersist 10m` (the master is then a background process) or `ControlMaster no`. Passing
+`ControlMaster=no` through `extra_vars` / `ansible_ssh_common_args` does **not** help: it only
+applies to the outer ssh, not to the one started by `ProxyCommand`. NPF reports such failures
+as a script exiting with code 255.
 
 ## Documentation
 
