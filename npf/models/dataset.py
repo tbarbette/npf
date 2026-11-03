@@ -301,7 +301,8 @@ def prepare_csvs(all_result_types, datasets, statics, run_list, options, kind=No
                            elif t == 'raw':
                                row.extend(result)
                            else:
-                               yval = group_val(result,t,all_results=results_types)
+                               # where(...) filters on the other result types of the same run
+                               yval = group_val(result, t, lambda fl: results_types.get(fl, []))
                                if yval is not None:
                                    try:
                                        it = iter(yval)
