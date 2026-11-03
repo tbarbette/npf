@@ -1,5 +1,6 @@
 import multiprocessing
 import os,errno
+import re
 import shlex
 import threading
 import time
@@ -33,6 +34,9 @@ class SSHExecutor(Executor):
         self.ssh = False
         self.identityfile = None
         self.ssh_config = None
+        # Connection parameters that win over ~/.ssh/config (hostname, username, port, identityfile, proxycommand),
+        # e.g. the ones enoslib gives ansible for a host. %h, %p and %r in proxycommand are expanded as ssh does.
+        self.overrides = {}
         # Scripts run in threads and share one connection, each in its own channel
         self._lock = threading.Lock()
         #Executor should not make any connection in init as parameters can be overwritten afterward
@@ -89,39 +93,26 @@ class SSHExecutor(Executor):
                     ssh_config.parse(f)
 
             user_config = ssh_config.lookup(cfg['hostname'])
-            for k in ('hostname', 'username', 'port', 'identityfile'):
+            for k in ('hostname', 'username', 'port', 'identityfile', 'proxycommand'):
                 if k in user_config:
                     cfg[k] = user_config[k]
 
-            if 'proxycommand' in user_config:
-                # Through a shell, as ssh does: paramiko runs it directly, without $(...), pipes or ~
-                cfg['sock'] = paramiko.ProxyCommand(shlex.join(["/bin/sh", "-c", user_config['proxycommand']]))
+        cfg.update({k: v for k, v in self.overrides.items() if v is not None})
+        if self.overrides.get('proxycommand'):
+            tokens = {'%': '%', 'h': cfg['hostname'], 'p': str(cfg['port']), 'r': cfg['username'] or ''}
+            cfg['proxycommand'] = re.sub(r'%([%hpr])', lambda m: tokens[m.group(1)], self.overrides['proxycommand'])
+        if cfg.get('proxycommand'):
+            # Through a shell, as ssh does: paramiko runs it directly, without $(...), pipes or ~
+            cfg['sock'] = paramiko.ProxyCommand(shlex.join(["/bin/sh", "-c", cfg['proxycommand']]))
 
-            #ssh.load_system_host_keys()
-            if cfg["identityfile"]:
-                try:
-                    found=False
-                    for key_class in [paramiko.RSAKey, paramiko.DSSKey, paramiko.ECDSAKey, paramiko.Ed25519Key]:
-                        keys = cfg["identityfile"]
-                        if not type(keys) is list:
-                            keys = [keys]
-                        for key in keys:
-                            try:
-                                k = key_class.from_private_key_file(key)
-                                found=True
-                                break
-                            except paramiko.ssh_exception.SSHException as e:
-                                continue
-                        if found:
-                            break
-                    if not found:
-                        raise paramiko.ssh_exception.SSHException("Could not load private key from %s" % cfg["identityfile"])
-                except IOError as e:
-                    print("Could not load host keys from %s" % cfg["identityfile"])
-                    raise e
+        keys = cfg["identityfile"]
+        if keys and not type(keys) is list:
+            keys = [keys]
         self.ssh_config = cfg
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect(cfg["hostname"], username=cfg["username"], port=cfg["port"],sock=cfg['sock'] if "sock" in cfg else None, pkey=k if cfg["identityfile"] else None)
+        # paramiko loads any key type itself, and still tries the agent and the default keys
+        ssh.connect(cfg["hostname"], username=cfg["username"], port=int(cfg["port"]), sock=cfg.get('sock'),
+                    key_filename=[os.path.expanduser(k) for k in keys] if keys else None)
         return ssh
 
 

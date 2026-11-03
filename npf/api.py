@@ -1,3 +1,4 @@
+import os
 import re
 from typing import Dict, Iterable, List
 
@@ -12,7 +13,7 @@ def _is_enoslib_host(obj) -> bool:
 
 def run(npf_script: str, series: List[str] = [], roles: Dict = {},
         argsv: List[str] = None, extra_vars: Dict[str, str] = {},
-        variables: Dict = None) -> tuple:
+        variables: Dict = None, enoslib_ssh: bool = False) -> tuple:
     """Run an NPF test script.
 
     Args:
@@ -26,6 +27,11 @@ def run(npf_script: str, series: List[str] = [], roles: Dict = {},
         argsv:      Extra CLI arguments as a list (e.g. ["--no-graph", "--cache"]).
         extra_vars: Ansible extra_vars forwarded to EnoslibExecutor (enoslib path only).
         variables:  Dict mapping variables to override them. Evaluated as native Python types.
+        enoslib_ssh: Run the scripts of enoslib hosts with NPF's SSH executor instead of ansible, with the
+                    connection parameters enoslib gives ansible (user, port, key, gateways). Ansible only
+                    returns the output of a script when it ends, so use this for tests that wait for
+                    events (waitfor=). Local hosts then run locally, hosts with another
+                    ansible_connection (e.g. docker) still use ansible.
 
     Returns:
         (series_results, time_series) tuple from the comparator run.
@@ -74,17 +80,64 @@ def run(npf_script: str, series: List[str] = [], roles: Dict = {},
 
     _parsing.create_local()
 
+    # The connection test of SSH nodes sends this file, as when the nodes come from --cluster
+    access_test = _globals.experiment_path() + ".access_test"
+    os.close(os.open(access_test, os.O_CREAT))
+    try:
+        _make_roles(roles, args, extra_vars, enoslib_ssh)
+    finally:
+        if os.path.exists(access_test):
+            os.unlink(access_test)
+
+    repo_list = []
+    for repo_name in args.repos:
+        repo = Repository.get_instance(repo_name, args)
+        repo_list.append(repo)
+    if not repo_list:
+        repo = get_default_repository(args)
+        repo_list.append(repo)
+
+    comparator = Comparator(repo_list)
+    results, time_series = comparator.run(
+        test_name=args.test_files,
+        tags=args.tags,
+        options=args,
+        do_regress=False,
+    )
+
+    filename = build_output_filename(repo_list)
+    generate_outputs(filename, series=results, time_series=time_series, options=args)
+
+    return results, time_series
+
+
+def _make_roles(roles, args, extra_vars, enoslib_ssh):
+    """Adds the nodes of npf.run(roles=...) to npf.globals.roles."""
+    import npf.globals as _globals
+    from npf.cluster.node import Node
     for r, role_objs in roles.items():
         if isinstance(role_objs, str) or not isinstance(role_objs, Iterable):
             role_objs = [role_objs]
         for role_obj in role_objs:
             if _is_enoslib_host(role_obj):
-                from npf.executor.enoslibexecutor import EnoslibExecutor
-                ex = EnoslibExecutor(role_obj, extra_vars=extra_vars)
-                node = Node(role_obj.address, executor=ex, tags=args.tags)
-                # Make ${role:ip} and ${role:addr} work for inter-node communication
-                node.ip = role_obj.address
-                node.addr = role_obj.address
+                from npf.executor.enoslibexecutor import EnoslibExecutor, ssh_parameters
+                ssh = ssh_parameters(role_obj, extra_vars) if enoslib_ssh else None
+                if ssh == "local":
+                    node = Node.makeLocal(test_access=False)
+                elif ssh:
+                    # The same folder as with ansible
+                    path = _globals.get_options().experiment_folder or "results"
+                    node = Node.makeSSH(user=ssh["username"], addr=ssh["hostname"], path=path, port=ssh["port"],
+                                        nfs=False, overrides=ssh)
+                else:
+                    if enoslib_ssh:
+                        print(f"Host {role_obj.address} is not reached with ssh, its scripts go through ansible")
+                    ex = EnoslibExecutor(role_obj, extra_vars=extra_vars)
+                    node = Node(role_obj.address, executor=ex, tags=args.tags)
+                if ssh != "local":
+                    # Make ${role:ip} and ${role:addr} work for inter-node communication
+                    node.ip = role_obj.address
+                    node.addr = role_obj.address
             elif isinstance(role_obj, Node):
                 node = role_obj
             elif isinstance(role_obj, str):
@@ -107,27 +160,6 @@ def run(npf_script: str, series: List[str] = [], roles: Dict = {},
                 _globals.roles[r].append(node)
             else:
                 _globals.roles[r] = [node]
-
-    repo_list = []
-    for repo_name in args.repos:
-        repo = Repository.get_instance(repo_name, args)
-        repo_list.append(repo)
-    if not repo_list:
-        repo = get_default_repository(args)
-        repo_list.append(repo)
-
-    comparator = Comparator(repo_list)
-    results, time_series = comparator.run(
-        test_name=args.test_files,
-        tags=args.tags,
-        options=args,
-        do_regress=False,
-    )
-
-    filename = build_output_filename(repo_list)
-    generate_outputs(filename, series=results, time_series=time_series, options=args)
-
-    return results, time_series
 
 
 def plot(results, time_series=None, argsv: List[str] = None) -> dict:

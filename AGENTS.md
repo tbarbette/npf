@@ -526,16 +526,41 @@ Use `${role:ip}` (not `${role:0:ip}`) in `.npf` scripts for enoslib-backed nodes
 `${role:0:ip}` accesses the NIC table which requires a `.node` config file or auto-discovery;
 `${role:ip}` uses the node-level IP set directly from `eno_obj.address`.
 
+### How enoslib hosts are driven
+
+By default, scripts on enoslib hosts run with `en.run_command`: one ansible play per command, and
+ansible only returns the output of a command when it ends. `EVENT` lines are therefore only seen
+when their script ends, so a script with `waitfor=` on an event of a script that runs until it is
+killed (e.g. `iperf -s`) only starts when that script reaches its `timeout`. NPF warns about it when a
+test uses `waitfor=`.
+
+For such tests, pass `enoslib_ssh=True` to `npf.run()`. Hosts that ansible reaches with ssh then use
+NPF's SSH executor (the one of `user@host` nodes), with the connection parameters enoslib gives
+ansible: `ansible_host`, user, port, key and the gateways (`ProxyCommand` in
+`ansible_ssh_common_args`), with `extra_vars` on top. These win over `~/.ssh/config`. Output is read
+as it comes, so `EVENT` and `waitfor=` work. `LocalHost` runs locally, hosts with another
+`ansible_connection` (e.g. docker) still go through ansible.
+
+```python
+results, _ = npf.run("iperf-waitfor.npf", ["local"], roles=roles, enoslib_ssh=True)
+```
+
 ### G5K SSH "Shared connection closed" error
 
-If you see `EnosUnreachableHostsError: Failed to connect … Shared connection to X closed`, the
-SSH ControlMaster socket created during `provider.init()` or the apt install cell has expired
-(G5K's `~/.ssh/config` typically sets `ControlPersist 10` — a 10-second idle timeout).
+If, after about a minute, every host fails at once with `Failed to connect to the host via ssh:
+Shared connection to X closed` (or an empty message, or `timed out during banner exchange`),
+check `~/.ssh/config` for `ControlMaster auto` without `ControlPersist` (often under `Host *`).
+Connections to `*.grid5000.fr` go through `ProxyCommand ssh access.grid5000.fr -W ...`; that
+inner ssh reads `~/.ssh/config` too, so the first one becomes a foreground multiplexing master
+and all later tunnels, to all nodes, go through it. When the connection that owns it exits
+(ansible closes the `sudo-g5k` connection from `provider.init()` after 60 s idle), every tunnel
+dies at the same time.
 
-NPF's `EnoslibExecutor` disables ControlMaster for its own ansible calls, so the connection
-uses a fresh socket each time and won't be affected by an expired shared socket. If you still
-see this error, check your `~/.ssh/config` and increase `ControlPersist` for G5K hosts, or run
-the cells closer together to avoid the idle timeout.
+Fix it in `~/.ssh/config`, for the gateway host (e.g. `Host g5kaccess` or `access.grid5000.fr`):
+`ControlPersist 10m` (the master is then a background process) or `ControlMaster no`. Passing
+`ControlMaster=no` through `extra_vars` / `ansible_ssh_common_args` does **not** help: it only
+applies to the outer ssh, not to the one started by `ProxyCommand`. NPF reports such failures
+as a script exiting with code 255.
 
 ## Documentation
 

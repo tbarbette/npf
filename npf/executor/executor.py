@@ -7,6 +7,9 @@ foreColors = [Fore.CYAN, Fore.RED, Fore.GREEN, Fore.YELLOW, Fore.BLUE, Fore.MAGE
 class Executor:
 
     index = 0
+    # Whether the output of a script is read while it runs. When it is not, its EVENT lines are only seen once it
+    # ends, so a script waiting for them (waitfor=) may wait until the timeout.
+    live_output = True
 
     def __init__(self):
         from npf import globals

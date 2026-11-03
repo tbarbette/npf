@@ -259,12 +259,15 @@ class Node:
                 self.ip = ips[0]
 
     @classmethod
-    def makeSSH(cls, user, addr, path, port=22, nfs=None):
+    def makeSSH(cls, user, addr, path, port=22, nfs=None, overrides=None):
+        """overrides: connection parameters that win over ~/.ssh/config, see SSHExecutor.overrides"""
         options = npf.globals.options
         if path is None:
             path = os.path.abspath(npf.globals.experiment_path())
         node = cls._nodes.get(addr, None)
         sshex = SSHExecutor(user, addr, path, port)
+        if overrides:
+            sshex.overrides = dict(overrides)
 
         node = Node(addr, sshex, options.tags)
         if nfs is not None:

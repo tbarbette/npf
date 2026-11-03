@@ -679,6 +679,20 @@ class Test:
         finally:
             os.chdir(save_path)
 
+    def _warn_no_live_output(self, remote_params):
+        """Warns once if scripts wait for events while some run where their output is only read at the end."""
+        if getattr(self, "_warned_live_output", False) or not any(p.waitfor for p in remote_params):
+            return
+        roles = sorted({p.role for p in remote_params if not p.nodes[p.role_id].executor.live_output})
+        if not roles:
+            return
+        self._warned_live_output = True
+        print("WARNING: some scripts wait for events (waitfor=), but role(s) %s run through enoslib/ansible, which only "
+              "returns the output of a script when it ends. Their EVENTs are only seen then: a script waiting for an "
+              "EVENT of a script that runs until it is killed (e.g. a server) only starts when that script reaches "
+              "its timeout. Use npf.run(..., enoslib_ssh=True) to run ssh hosts with NPF's SSH executor, or delay= "
+              "instead of waitfor=." % ", ".join(roles))
+
     def _execute(self, build, run, v, n_runs=1, n_retry=0, allowed_types=SectionScript.ALL_TYPES_SET, m:multiprocessing.Manager=None, do_imports=True,
                 test_folder=None, event=None, v_internals={}, before_test = None) \
             -> Tuple[Dict, Dict, str, str, int]:
@@ -887,6 +901,7 @@ class Test:
                 n_exec += n
                 if n == 0:
                     break
+                self._warn_no_live_output(remote_params)
                 try:
                     ##### Actual execution ######
                     if self.options.allow_mp:
