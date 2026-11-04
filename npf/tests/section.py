@@ -26,6 +26,14 @@ hu.add_words(known_sections)
 
 class SectionFactory:
     varPattern = "([a-zA-Z0-9_:-]+)[=](" + Variable.VALUE_REGEX + ")?"
+    # Template engines of a section, before or among the parameters of a script
+    enginePattern = "(?:jinja|python-inline)(?=\\s|$)"
+
+    @staticmethod
+    def engines(header_part):
+        """:return: whether jinja and python-inline are in this part of a section header"""
+        words = re.findall(r'(?:^|\s)(jinja|python-inline)(?=\s|$)', header_part or "")
+        return 'jinja' in words, 'python-inline' in words
     namePattern = re.compile(
         "^(?P<tags>" + Variable.TAGS_REGEX + "[:])?(?P<name>info|"
         "config|"
@@ -35,11 +43,11 @@ class SectionFactory:
         "pyexit(:?\\s+(?P<PyExitName>.*))?|"
         "late_variables|"
         "include\\s+(?P<includeName>[a-zA-Z0-9_./-]+)(?P<includeParams>([ \t]+" + varPattern + ")+)?|"
-        "(init-)?file(:?[@](?P<fileRole>[a-zA-Z0-9]+))?\\s+(?P<fileName>[a-zA-Z0-9_.${}-]+)(:? (?P<fileNoparse>noparse))?(?P<fileEngines>(?:\\s+(?:jinja|python-inline))*)|"
-        "require(?P<requireEngines>(?:\\s+(?:jinja|python-inline))*)|"
+        "(init-)?file(:?[@](?P<fileRole>[a-zA-Z0-9]+))?\\s+(?P<fileName>[a-zA-Z0-9_.${}-]+)(:? (?P<fileNoparse>noparse))?(?P<fileEngines>(?:\\s+" + enginePattern + ")*)|"
+        "require(?P<requireEngines>(?:\\s+" + enginePattern + ")*)|"
         "import(:?[@](?P<importRole>[a-zA-Z0-9]+)(:?[-](?P<importMulti>[*0-9]+))?)?[ \t]+(?P<importModule>" + Variable.VALUE_REGEX + ")(?P<importParams>([ \t]+" + varPattern + ")+)?|"
         "sendfile(:?[@](?P<sendfileRole>[a-zA-Z0-9]+))?\\s+(?P<sendfilePath>.*)|"
-        "(:?script|init|exit)(:?[@](?P<scriptRole>[a-zA-Z0-9]+)(:?[-](?P<scriptMulti>[*0-9]+))?)?(?P<scriptEngines>(?:\\s+(?:jinja|python-inline))*)(?P<scriptParams>([ \t]+" + varPattern + ")*)"
+        "(:?script|init|exit)(:?[@](?P<scriptRole>[a-zA-Z0-9]+)(:?[-](?P<scriptMulti>[*0-9]+))?)?(?P<scriptParams>([ \t]+(?:" + enginePattern + "|" + varPattern + "))*)"
         ")$"
     )
 
@@ -82,11 +90,9 @@ class SectionFactory:
         if sectionName.startswith('script') or sectionName.startswith('exit') or (
                 sectionName.startswith('init') and not sectionName.startswith('init-file')):
             params = matcher.group('scriptParams')
+            jinja, python_inline = SectionFactory.engines(params)
             params = dict(re.findall(SectionFactory.varPattern, params)) if params else {}
 
-            match_result = matcher.group('scriptEngines')
-            jinja = 'jinja' in match_result 
-            python_inline = 'python-inline' in match_result
             s = SectionScript(matcher.group('scriptRole'), params, jinja=jinja, python_inline=python_inline)
             multi = matcher.group('scriptMulti')
             s.multi = multi
@@ -111,9 +117,7 @@ class SectionFactory:
             raise Exception("Only script sections takes arguments (" + sectionName + " has argument " +
                             matcher.groups("params") + ")")
 
-        match_result = matcher.group('fileEngines') or ""
-        jinja = 'jinja' in match_result 
-        python_inline = 'python-inline' in match_result
+        jinja, python_inline = SectionFactory.engines(matcher.group('fileEngines'))
 
         if sectionName.startswith('file'):
             s = SectionFile(matcher.group('fileName').strip(), role=matcher.group('fileRole'),
@@ -125,13 +129,11 @@ class SectionFactory:
             return s
         elif sectionName.startswith('include'):
             params = matcher.group('includeParams')
-            paramSectionRequires = dict(re.findall(SectionFactory.varPattern, params)) if params else {}
+            params = dict(re.findall(SectionFactory.varPattern, params)) if params else {}
             s = SectionImport(None, matcher.group('includeName').strip(), params, is_include=True)
             return s
-        elif sectionName == 'require':
-            match_result = matcher.group('requireEngines') or ""
-            jinja = 'jinja' in match_result 
-            python_inline = 'python-inline' in match_result
+        elif sectionName.startswith('require'):
+            jinja, python_inline = SectionFactory.engines(matcher.group('requireEngines'))
             s = SectionRequire(jinja=jinja, python_inline=python_inline)
             return s
         elif sectionName == 'late_variables':
@@ -151,8 +153,7 @@ class SectionFactory:
         elif sectionName == 'info':
             s = Section('info')
         if s is None:
-            print(sectionName)
-            raise Exception("Unknown section %s, did you meant %s?" % sectionName, hu.suggest(sectionName))
+            raise Exception("Unknown section %s, did you meant %s?" % (sectionName, hu.suggest(sectionName)))
         setattr(test, s.name, s)
         return s
 

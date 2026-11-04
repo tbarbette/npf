@@ -44,7 +44,7 @@ elementclass Replayer { $srcmac, $dstmac, $srcip, $dstip |
     -> output
 }
 
-%rate:file REPLAYER
+%rate:file REPLAYER python-inline
 elementclass Replayer { $srcmac, $dstmac, $srcip, $dstip |
     gen :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH $GEN_LENGTH, SRCETH $srcmac, DSTETH $dstmac, SRCIP $srcip, DSTIP $dstip, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST)
     -> replay :: RatedUnqueue( $(( (int)(ceil($GEN_RATE  / 2) ) )) )

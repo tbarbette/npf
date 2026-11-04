@@ -12,7 +12,7 @@ var_format={RESULT:%d}
 %variables
 N=[1-32]
 
-%script
+%script python-inline
 echo "RESULT-N $N"
 echo "RESULT-LOG $(( round(log($N), 2) ))"
 echo "RESULT-EXP $(( round(pow(2,$N), 2) ))"

@@ -63,6 +63,8 @@ def replace_variables(v: dict, content: str, self_role=None, self_node=None, def
     :param v: Dictionary of variables
     :param content: Text to change
     :param self_role: Role of the caller, that self reference in nic will map to
+    :param python_inline: Evaluate $(( )) as Python expressions. Else they are left to the shell, but an escaped \\$(( ))
+                          still loses its backslash.
     :return: The text with reference to variables and nics replaced
     """
 
@@ -113,13 +115,14 @@ def replace_variables(v: dict, content: str, self_role=None, self_node=None, def
             do_replace, expr)
         if prefix:
             return "$((" + str(expr) + "))"
+        elif not python_inline:
+            return match.group(0)
         else:
             return str(aeval(expr))
 
-    if python_inline:
-        content = re.sub(
-            Variable.MATH_REGEX,
-            do_replace_math, content)
+    content = re.sub(
+        Variable.MATH_REGEX,
+        do_replace_math, content)
     return content
 
 
