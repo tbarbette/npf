@@ -1,0 +1,11 @@
+%info
+Results printed before a timeout are kept
+
+%config
+timeout=2
+n_runs=1
+
+%script
+echo "RESULT 1"
+sleep 5
+echo "RESULT 2"

@@ -915,7 +915,8 @@ class Test:
                         output += "stdout of script %s on %s :\n" % (script.get_name(), script.get_role())
                         err += "stderr of script %s on %s :\n" % (script.get_name(), script.get_role())
 
-                    if r:
+                    # The output of a script that timed out (r is 0) is parsed too, it may hold results
+                    if r or o or e:
                         worked = True
                         output += o
                         err += e
