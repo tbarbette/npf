@@ -1,5 +1,7 @@
 import os
+import pty
 import pwd
+import termios
 import signal
 import select
 from multiprocessing import Queue, Event
@@ -16,11 +18,28 @@ class LocalKiller:
 
     def kill(self):
         os.killpg(self.pgpid, signal.SIGKILL)
+        # A shell forking when the signal arrives can miss it and go on with the next command (seen on macOS)
+        for _ in range(50):
+            time.sleep(0.01)
+            if not self.is_alive():
+                return
+            try:
+                os.killpg(self.pgpid, signal.SIGKILL)
+            except (ProcessLookupError, PermissionError):
+                return
 
     def force_kill(self):
         os.killpg(self.pgpid, signal.SIGTERM)
 
     def is_alive(self):
+        # The leader of the group is the shell started by NPF: once killed, it stays in its group as a zombie until it
+        # is reaped, which the executor may not do if it returned when the test was terminated. So do its orphans when
+        # NPF adopts them (as PID 1 of a container).
+        try:
+            while os.waitpid(-self.pgpid, os.WNOHANG)[0]:
+                pass
+        except ChildProcessError:
+            pass
         try:
             os.killpg(self.pgpid, 0)
         except PermissionError:
@@ -95,15 +114,26 @@ class LocalExecutor(Executor):
 
         outputs = ['', '']
 
-        p = Popen(cmd,
-                  stdin=PIPE, stdout=PIPE, stderr=PIPE,
-                  shell=True, preexec_fn=os.setsid,
-                  env=env)
+        # stdout is a terminal, so programs flush it at each line instead of when their buffer is full, and EVENTs are
+        # seen when printed. It is not the controlling terminal of the script (a new session that does not open it):
+        # sudo still cannot ask for a password, and stdin and stderr stay pipes.
+        master, slave = pty.openpty()
+        attrs = termios.tcgetattr(slave)
+        attrs[1] &= ~termios.OPOST  # "\n" stays "\n"
+        termios.tcsetattr(slave, termios.TCSANOW, attrs)
+        try:
+            p = Popen(cmd,
+                      stdin=PIPE, stdout=slave, stderr=PIPE,
+                      shell=True, preexec_fn=os.setsid,
+                      env=env)
+        finally:
+            os.close(slave)
+        stdout = os.fdopen(master, 'rb')
 
         select_set = select.poll()
-        select_set.register(p.stdout,select.POLLIN)
+        select_set.register(stdout,select.POLLIN)
         select_set.register(p.stderr,select.POLLIN)
-        os.set_blocking(p.stdout.fileno(), False)
+        os.set_blocking(master, False)
         os.set_blocking(p.stderr.fileno(), False)
         pid = p.pid
         pgpid = os.getpgid(pid)
@@ -117,8 +147,13 @@ class LocalExecutor(Executor):
         try:
             while True:
                 select_set.poll(step * 1000)
-                for ichannel, channel in enumerate([p.stdout,p.stderr]):
-                    for line in channel.readlines():
+                for ichannel, channel in enumerate([stdout,p.stderr]):
+                    try:
+                        lines = channel.readlines()
+                    except OSError:
+                        # Linux reports a terminal closed by all the processes of the script as EIO
+                        lines = []
+                    for line in lines:
                         line = line.decode()
                         outputs[ichannel] += line
                         self.searchEvent(line, event)
@@ -139,7 +174,7 @@ class LocalExecutor(Executor):
 
             p.stdin.close()
             p.stderr.close()
-            p.stdout.close()
+            stdout.close()
 
             return pid, outputs[0], outputs[1], 0 if event and event.is_terminated() else p.returncode
         except TimeoutExpired:
@@ -150,7 +185,7 @@ class LocalExecutor(Executor):
             os.killpg(pgpid, signal.SIGTERM)
             p.stdin.close()
             p.stderr.close()
-            p.stdout.close()
+            stdout.close()
 
             return 0, outputs[0], outputs[1], p.returncode
         except KeyboardInterrupt:
