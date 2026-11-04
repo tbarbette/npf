@@ -112,7 +112,7 @@ class Node:
             print(
                 f"To avoid this message write down the configuration in cluster/{self.name}.node or run again NPF with --cluster-autosave to create the file automatically."
             )
-        pid, out, err, ret = self.executor.exec(cmd="sudo lshw -class network -businfo -quiet", title="Listing network devices")
+        pid, out, err, ret = self.executor.exec(cmd="sudo -n lshw -class network -businfo -quiet", title="Listing network devices")
         if ret != 0 or out == "" or out.isspace():
             print(
                 f"WARNING: {self.name} has no configuration file and the NICs could not be found automatically. Please refer to the cluster documentation in NPF to define NIC order and addresses."
@@ -133,9 +133,9 @@ class Node:
                 continue
 
             ifname = words[1]
-            cmd = f"echo \"SPEED=$( sudo ethtool {ifname} | grep Speed | grep -oE '[0-9]+' )\"\n"
+            cmd = f"echo \"SPEED=$( sudo -n ethtool {ifname} | grep Speed | grep -oE '[0-9]+' )\"\n"
             cmd+= f"echo \"MAC=$(cat /sys/class/net/{ifname}/address)\"\n"
-            cmd+= f"echo \"IP=$( (ip -br -4 addr show dev {ifname} | awk '{{print $3}}' | cut -d/ -f1 ) || (sudo /sbin/ifconfig {ifname} | grep 'inet addr:' | cut -d: -f2| cut -d' ' -f1 ) )\""
+            cmd+= f"echo \"IP=$( (ip -br -4 addr show dev {ifname} | awk '{{print $3}}' | cut -d/ -f1 ) || (sudo -n /sbin/ifconfig {ifname} | grep 'inet addr:' | cut -d: -f2| cut -d' ' -f1 ) )\""
             pid, out, err, ret = self.executor.exec(cmd=cmd, title=f"Getting device {ifname} info")
 
             res = re.findall("(SPEED|MAC|IP)=(.*)",out)
@@ -226,7 +226,7 @@ class Node:
                     )
                     raise e
 
-            pid, out, err, ret = sshex.exec(cmd="pwd;test -e " + ".access_test" + " && echo 'access_ok' &&  if sudo whoami ; then echo 'sudo_ok' ; else echo 'sudo_fail' ; fi ; if ! type 'unbuffer' ; then echo \"installing expect...\" && ( ( sudo apt-get update && sudo apt-get install -y expect ) || sudo yum install -y expect ) fi ; ( ( type 'unbuffer' && echo 'unbuffer_ok' )  || echo 'unbuffer_fail' ) ; echo 'test'", raw=True, title="SSH dependencies installation")
+            pid, out, err, ret = sshex.exec(cmd="pwd;test -e " + ".access_test" + " && echo 'access_ok' &&  if sudo -n whoami ; then echo 'sudo_ok' ; else echo 'sudo_fail' ; fi ; echo 'test'", raw=True, title="SSH connection test")
             out = out.strip()
             if not node.nfs:
                 node.executor.deleteFolder(".access_test")
@@ -254,10 +254,8 @@ class Node:
             if not "sudo_ok" in out:
                 print("WARNING : node %s does not seem tu support passwordless sudo." % sshex.addr)
                 sshex.sudo = False
-            if not "unbuffer_ok" in out:
-                sshex.unbuffer = False
             if out.split("\n")[-1] != "test":
-                raise Exception("Could not communicate with user %s on node %s, unbuffer (expect package) could not be installed, or passwordless sudo is not working, got return code %d : %s" %  (sshex.user, sshex.addr, ret, out + err))
+                raise Exception("Could not communicate with user %s on node %s, got return code %d : %s" %  (sshex.user, sshex.addr, ret, out + err))
 
         if options.do_test:
             try:

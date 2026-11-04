@@ -33,10 +33,12 @@ class Executor:
                 env_str += 'export ' + str(k) + '=' + shlex.quote(str(v)) + '\n'
         return env_str
 
-    def searchEvent(self, output, eb):
-        results = re.finditer("EVENT ([a-zA-Z_-]+)", output)
-        for result in results:
-            eb.post(result.group(1))
+    def searchEvent(self, output, eb, skip=0):
+        """Posts the EVENTs of output, but the first skip ones. :return: the number of EVENTs in output"""
+        results = re.findall("EVENT ([a-zA-Z_-]+)", output)
+        for result in results[skip:]:
+            eb.post(result)
+        return len(results)
 
     def _print(self, title, line, nl = True):
         try:
