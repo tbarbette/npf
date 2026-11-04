@@ -213,6 +213,7 @@ compare integration-01 $python
 compare integration-02 $python
 compare timeout $python
 compare timeout-overwrite $python
+compare timeout-results $python
 compare event $python
 compare math $python
 compare jinja $python
