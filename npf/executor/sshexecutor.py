@@ -1,5 +1,7 @@
 import multiprocessing
 import os,errno
+import shlex
+import threading
 import time
 from multiprocessing import Queue
 from typing import List
@@ -29,9 +31,10 @@ class SSHExecutor(Executor):
             self.path = path + '/'
         self.port = port
         self.ssh = False
-        self.unbuffer = True
         self.identityfile = None
         self.ssh_config = None
+        # Scripts run in threads and share one connection, each in its own channel
+        self._lock = threading.Lock()
         #Executor should not make any connection in init as parameters can be overwritten afterward
 
     def __del__(self):
@@ -39,9 +42,39 @@ class SSHExecutor(Executor):
             self.ssh.close()
 
     def get_connection(self, cache=True):
-        import paramiko
-        if cache and self.ssh:
+        """The connection to the node, shared by all its scripts. With cache=False, a new one the caller closes."""
+        if not cache:
+            return self._connect()
+        with self._lock:
+            transport = self.ssh.get_transport() if self.ssh else None
+            if not transport or not transport.is_active():
+                if self.ssh:
+                    self.ssh.close()
+                self.ssh = self._connect()
+                # Keeps it open through gateways and NATs while no script runs
+                self.ssh.get_transport().set_keepalive(30)
             return self.ssh
+
+    def _exec_command(self, cmd, pty=False):
+        """Runs cmd in a new channel of the shared connection.
+
+        :return: stdin, stdout, stderr, and the connection to close after the command when the shared one could not
+                 take another channel (sshd allows MaxSessions channels per connection, 10 by default), else None
+        """
+        shared = self.get_connection()
+        try:
+            return shared.exec_command(cmd, get_pty=pty) + (None,)
+        except paramiko.ssh_exception.SSHException:
+            # A refused channel is not always a ChannelException: threads opening channels at the same time share
+            # the error of the transport
+            if not shared.get_transport().is_active():
+                # The connection died (e.g. the node rebooted), get_connection makes a new one
+                return self.get_connection().exec_command(cmd, get_pty=pty) + (None,)
+            own = self._connect()
+            return own.exec_command(cmd, get_pty=pty) + (own,)
+
+    def _connect(self):
+        import paramiko
         ssh = paramiko.SSHClient()
 
         cfg = {'hostname': self.addr, 'username': self.user, 'port': self.port, 'identityfile': self.identityfile}
@@ -61,7 +94,8 @@ class SSHExecutor(Executor):
                     cfg[k] = user_config[k]
 
             if 'proxycommand' in user_config:
-                cfg['sock'] = paramiko.ProxyCommand(user_config['proxycommand'])
+                # Through a shell, as ssh does: paramiko runs it directly, without $(...), pipes or ~
+                cfg['sock'] = paramiko.ProxyCommand(shlex.join(["/bin/sh", "-c", user_config['proxycommand']]))
 
             #ssh.load_system_host_keys()
             if cfg["identityfile"]:
@@ -88,8 +122,6 @@ class SSHExecutor(Executor):
         self.ssh_config = cfg
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         ssh.connect(cfg["hostname"], username=cfg["username"], port=cfg["port"],sock=cfg['sock'] if "sock" in cfg else None, pkey=k if cfg["identityfile"] else None)
-        if cache:
-            self.ssh = ssh
         return ssh
 
 
@@ -120,34 +152,35 @@ class SSHExecutor(Executor):
         else:
             path_cmd = ''
 
-        if raw or not self.unbuffer:
-            unbuffer = ""
-        else:
-            unbuffer = "unbuffer"
-            if stdin is not None:
-                unbuffer = unbuffer + " -p"
-
         cmd = env_str + cmd
         if sudo and self.user != "root":
-            cmd = "sudo -E  mkdir -p "+testdir+" && sudo -E " + virt +" "+unbuffer+" bash -c '"+path_cmd + cmd.replace("'", "'\"'\"'") + "'";
+            # -n: in the terminal of the script, sudo would wait for a password instead of failing
+            cmd = "sudo -n -E  mkdir -p "+testdir+" && sudo -n -E " + virt + " bash -c '"+path_cmd + cmd.replace("'", "'\"'\"'") + "'";
         else:
-            cmd = virt + " " + unbuffer +" bash -c '" + path_cmd + cmd.replace("'", "'\"'\"'") + "'";
+            cmd = virt + " bash -c '" + path_cmd + cmd.replace("'", "'\"'\"'") + "'";
 
-        ssh = None
+        own = None
+        ssh_stdout = None
         try:
-            ssh = self.get_connection(cache=False)
-
             #First echo the pid of the shell, so it can be recovered and killed in case of kill from another script
             #Then launch the pre-command (goes to the right folder)
             #Then the user command, wrapped with sudo and/or bash if needed
             final_command = "echo $$;"+ pre + cmd + " ; retval=$? ; echo '' ; exit $retval"
-            ssh_stdin, ssh_stdout, ssh_stderr = ssh.exec_command(final_command)
-            if stdin is not None:
+            # In a terminal, programs flush their output at each line instead of when their buffer is full, so EVENTs
+            # are seen when printed. Its echo is disabled before stdin is sent, once the pid is read. stderr goes
+            # to the same terminal.
+            pty = not raw
+            if pty:
+                final_command = "stty -echo 2>/dev/null; " + final_command
+            ssh_stdin, ssh_stdout, ssh_stderr, own = self._exec_command(final_command, pty)
+            if stdin is not None and not pty:
                 ssh_stdin.write(stdin)
             channels = [ssh_stdout, ssh_stderr]
             output = ['','']
             buffers = ['','']
             rpid = -1
+            # EVENTs of the current partial line already posted, see below
+            partial_events = 0
             pid = os.getpid()
             step = 0.2
             #for channel in channels:
@@ -156,10 +189,12 @@ class SSHExecutor(Executor):
             while ((nokill or not event.is_terminated()) and not ssh_stdout.channel.exit_status_ready()) or (ssh_stdout.channel.recv_ready() or ssh_stderr.channel.recv_ready()):
                 try:
                     line = None
+                    received = False
                     for ichannel,channel in enumerate(channels):
                         chan = channel.channel
                         ichannel = 0
                         if chan.recv_ready():
+                            received = True
                             try:
                                 data = chan.recv(1024)
                                 buffers[ichannel] = buffers[ichannel] + data.decode("utf-8")
@@ -169,13 +204,14 @@ class SSHExecutor(Executor):
                                     buffers[ichannel] = buffers[ichannel][p+1:]
                                     if rpid == -1:
                                         rpid = int(line)
+                                        if stdin is not None and pty:
+                                            ssh_stdin.write(stdin)
                                     else:
                                         if options and not options.quiet:
                                             self._print(title, line, False)
-                                        self.searchEvent(line, event)
+                                        self.searchEvent(line, event, skip=partial_events)
+                                        partial_events = 0
                                         output[ichannel] += line
-                                    if buffers[ichannel]:
-                                        self.searchEvent(buffers[ichannel], event)
                             except UnicodeDecodeError:
                                         print("Could not decode SSH input")
                             except Exception as e:
@@ -184,6 +220,9 @@ class SSHExecutor(Executor):
                                 raise(e)
 
                     else:
+                        # A line printed without its newline (e.g. printf "EVENT ready"), once the output pauses
+                        if not received and buffers[0] and rpid != -1:
+                            partial_events = self.searchEvent(buffers[0], event, skip=partial_events)
                         event.wait_for_termination(step)
                         if timeout is not None:
                             timeout -= step
@@ -196,7 +235,6 @@ class SSHExecutor(Executor):
                         timeout -= step
                 except KeyboardInterrupt:
                     event.terminate()
-                    ssh.close()
                     return -1, output[0], output[1], 0
                 if timeout is not None:
                     if timeout < 0:
@@ -210,9 +248,15 @@ class SSHExecutor(Executor):
                         if options and options.debug:
                             print("[DEBUG] %s: Sending SIGKILL to %d" % (title,rpid))
                         ssh_stdin.channel.send(chr(3))
-                    ssh.exec_command("kill "+str(rpid))
-#                   unneeded ssh.exec_command("kill $(ps -s  "+str(rpid)+" -o pid=)" )
-                    i=0
+                    # sshd starts the shell in a new session: its pid is the process group of the whole script
+                    # (and "kill -1", before the pid is known, would signal every process of the user)
+                    if rpid > 1:
+                        k = "kill -- -%d 2>/dev/null; kill %d 2>/dev/null; true" % (rpid, rpid)
+                        if sudo and self.user != "root":
+                            k = "sudo -n sh -c '%s'" % k
+                        _, k_out, _, k_own = self._exec_command(k)
+                        k_out.channel.status_event.wait(timeout=5)
+                        self._close(k_out, k_own)
                     ssh_stdout.channel.status_event.wait(timeout=1)
                 # end of loop
 
@@ -220,24 +264,25 @@ class SSHExecutor(Executor):
                 ret = 0 #Ignore return code because we kill it before completion.
             else:
                 ret = ssh_stdout.channel.recv_exit_status()
-            ssh.close()
-            ssh=None
-
-
-
             return pid,output[0], output[1],ret
         except socket.gaierror as e:
             print("Error while connecting to %s" % self.addr)
             print(e)
-            if ssh:
-                ssh.close()
             return 0,'','',-1
         except paramiko.ssh_exception.SSHException as e:
             print("Error while connecting to %s" % self.addr)
             print(e)
-            if ssh:
-                    ssh.close()
             return 0,'','',-1
+        finally:
+            self._close(ssh_stdout, own)
+
+    @staticmethod
+    def _close(stdout, own):
+        """Closes the channel of a command, and its connection if it is not the shared one"""
+        if stdout is not None:
+            stdout.channel.close()
+        if own is not None:
+            own.close()
 
     def writeFile(self,filename,path_to_root,content,sudo=False):
         f = open(filename, "w")
