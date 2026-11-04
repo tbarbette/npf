@@ -1,5 +1,6 @@
 import argparse
 import os
+import pty
 import time
 import unittest
 from unittest import mock
@@ -29,6 +30,22 @@ class TestLocalLiveOutput(unittest.TestCase):
     def test_stderr_kept_apart(self):
         _, out, err, ret = LocalExecutor().exec("echo OUT; echo ERR >&2")
         self.assertEqual((out, err.strip(), ret), ("OUT\n", "ERR", 0))
+
+    def test_last_output(self):
+        # Printed just before the script ends, after a pause of the loop: macOS drops it if the terminal is closed
+        cmd = "sleep 0.19; " + "; ".join("echo L%d" % i for i in range(7))
+        for _ in range(5):
+            _, out, _, _ = LocalExecutor().exec(cmd)
+            self.assertEqual(out.split(), ["L%d" % i for i in range(7)])
+
+    def test_read_lines(self):
+        master, slave = pty.openpty()
+        self.addCleanup(os.close, master)
+        self.addCleanup(os.close, slave)
+        os.write(slave, b"one\ntwo\nthr")
+        os.set_blocking(master, False)
+        self.assertEqual([l.replace(b"\r", b"") for l in LocalExecutor._read_lines(master)], [b"one\n", b"two\n", b"thr"])
+        self.assertEqual(LocalExecutor._read_lines(master), [])
 
 
 if __name__ == '__main__':

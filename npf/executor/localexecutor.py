@@ -116,7 +116,8 @@ class LocalExecutor(Executor):
 
         # stdout is a terminal, so programs flush it at each line instead of when their buffer is full, and EVENTs are
         # seen when printed. It is not the controlling terminal of the script (a new session that does not open it):
-        # sudo still cannot ask for a password, and stdin and stderr stay pipes.
+        # sudo still cannot ask for a password, and stdin and stderr stay pipes. NPF keeps the terminal open until the
+        # script ended and its output was read: once all its processes closed it, macOS drops what was not read yet.
         master, slave = pty.openpty()
         attrs = termios.tcgetattr(slave)
         attrs[1] &= ~termios.OPOST  # "\n" stays "\n"
@@ -126,12 +127,13 @@ class LocalExecutor(Executor):
                       stdin=PIPE, stdout=slave, stderr=PIPE,
                       shell=True, preexec_fn=os.setsid,
                       env=env)
-        finally:
+        except BaseException:
+            os.close(master)
             os.close(slave)
-        stdout = os.fdopen(master, 'rb')
+            raise
 
         select_set = select.poll()
-        select_set.register(stdout,select.POLLIN)
+        select_set.register(master,select.POLLIN)
         select_set.register(p.stderr,select.POLLIN)
         os.set_blocking(master, False)
         os.set_blocking(p.stderr.fileno(), False)
@@ -147,13 +149,8 @@ class LocalExecutor(Executor):
         try:
             while True:
                 select_set.poll(step * 1000)
-                for ichannel, channel in enumerate([stdout,p.stderr]):
-                    try:
-                        lines = channel.readlines()
-                    except OSError:
-                        # Linux reports a terminal closed by all the processes of the script as EIO
-                        lines = []
-                    for line in lines:
+                for ichannel, fd in enumerate([master, p.stderr.fileno()]):
+                    for line in self._read_lines(fd):
                         line = line.decode()
                         outputs[ichannel] += line
                         self.searchEvent(line, event)
@@ -174,7 +171,6 @@ class LocalExecutor(Executor):
 
             p.stdin.close()
             p.stderr.close()
-            stdout.close()
 
             return pid, outputs[0], outputs[1], 0 if event and event.is_terminated() else p.returncode
         except TimeoutExpired:
@@ -185,13 +181,34 @@ class LocalExecutor(Executor):
             os.killpg(pgpid, signal.SIGTERM)
             p.stdin.close()
             p.stderr.close()
-            stdout.close()
 
             return 0, outputs[0], outputs[1], p.returncode
         except KeyboardInterrupt:
             os.killpg(pgpid, signal.SIGKILL)
 
             return -1, outputs[0], outputs[1], p.returncode
+        finally:
+            os.close(master)
+            os.close(slave)
+
+    @staticmethod
+    def _read_lines(fd):
+        """Reads what fd has. :return: its lines, the last one may not be finished"""
+        data = b''
+        # Bounded, so a script printing without a pause does not keep the loop from checking its end and timeout
+        while len(data) < 1 << 20:
+            try:
+                chunk = os.read(fd, 65536)
+            except BlockingIOError:
+                break
+            except OSError:
+                # EIO on Linux if the terminal is closed. readlines() would drop the lines it already read.
+                break
+            if not chunk:
+                break
+            data += chunk
+        lines = data.split(b'\n')
+        return [l + b'\n' for l in lines[:-1]] + ([lines[-1]] if lines[-1] else [])
 
     def writeFile(self,filename,path_to_root,content,sudo=False):
         f = open(filename, "w")
