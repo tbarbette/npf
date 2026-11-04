@@ -2,6 +2,7 @@ import argparse
 import os
 import shutil
 import subprocess
+import time
 import unittest
 import unittest.mock
 import uuid
@@ -34,6 +35,20 @@ class TestDockerPattern(unittest.TestCase):
         self.assertEqual(m.group("path"), "/tmp/npf")
 
 
+# Like python's print, perl's print fills a buffer when stdout is a pipe, but flushes each line in a terminal
+BUFFERED_EVENT = "perl -e 'print \"EVENT ready\\n\"; sleep 3'"
+
+
+def event_delay(ex):
+    """Runs BUFFERED_EVENT with ex. :return: how long after the start its EVENT was seen"""
+    seen = []
+    event = unittest.mock.Mock(is_terminated=unittest.mock.Mock(return_value=False))
+    event.post.side_effect = lambda ev: seen.append(time.time())
+    start = time.time()
+    ex.exec(BUFFERED_EVENT, event=event)
+    return seen[0] - start if seen else None
+
+
 @unittest.skipUnless(docker_available(), "docker daemon not available")
 class TestDockerExecutor(unittest.TestCase):
     @classmethod
@@ -56,13 +71,16 @@ class TestDockerExecutor(unittest.TestCase):
 
     def test_output_and_cwd(self):
         pid, out, err, ret = self.ex.exec("pwd; echo ERR >&2")
-        self.assertEqual(out.strip(), os.getcwd())
-        self.assertEqual(err.strip(), "ERR")
+        # In the terminal of docker exec -t, stderr is merged with stdout
+        self.assertEqual(out.split(), [os.getcwd(), "ERR"])
         self.assertEqual(ret, 0)
 
     def test_exit_code(self):
         _, _, _, ret = self.ex.exec("exit 3")
         self.assertEqual(ret, 3)
+
+    def test_event_seen_when_printed(self):
+        self.assertLess(event_delay(self.ex), 2)
 
     def test_env_not_inherited_from_host(self):
         _, out, _, _ = self.ex.exec("echo $MYVAR; echo $PATH", env={"MYVAR": "x y"})

@@ -175,7 +175,9 @@ class DockerExecutor(LocalExecutor):
             print("Executing in %s (PATH+=%s) :\n%s" % (self.container, ':'.join(bin_paths), script.strip()))
 
         pid_file = f"/tmp/npf-{uuid.uuid4().hex}.pid"
-        full = shlex.join(self._docker("exec", "-i", self.container,
+        # -t: in a terminal, programs flush their output at each line, so EVENTs are seen when printed. stderr goes to
+        # the same terminal, and nothing is sent on stdin.
+        full = shlex.join(self._docker("exec", "-t", self.container,
                                        "bash", "-c", _WRAPPER, "npf", pid_file, script, "1" if sudo else "0", virt,
                                        self._workdir()))
 
