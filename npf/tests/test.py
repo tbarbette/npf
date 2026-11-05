@@ -337,7 +337,7 @@ class Test:
         line = s.line + content.count('\n', 0, m.start()) + 1
         what = "looks like Python, but is now left to the shell" if shell else "is not evaluated by NPF anymore"
         more = " (and %d more in this section)" % (len(found) - 1) if len(found) > 1 else ""
-        print("WARNING: %s:%d: %s %s%s. Python inline expressions are disabled by default: add python-inline "
+        print("WARNING: %s:%d: %s %s%s. Python inline expressions are deprecated in favor of Jinja templates, and are now disabled by default: add python-inline "
               "to the section header (%%%s python-inline), or run with --python-inline."
               % (s.source, line, m.group(0), what, more, s.header))
 
