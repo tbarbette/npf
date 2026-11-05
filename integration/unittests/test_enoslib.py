@@ -1,6 +1,7 @@
 import argparse
 import multiprocessing
 import os
+import shlex
 import tempfile
 import unittest
 from unittest import mock
@@ -187,7 +188,7 @@ class TestSSHExecutorOverrides(unittest.TestCase):
         connect, proxy = self.connect(SSHExecutor(None, "n1.example.org", "/tmp/x", 22))
         self.assertEqual(connect.kwargs["port"], 2200)
         self.assertEqual(connect.kwargs["key_filename"], [os.path.join(self.home, ".ssh", "alice")])
-        self.assertEqual(proxy.args[0], "ssh -W n1.example.org:2200 config-gw")
+        self.assertEqual(proxy.args[0], "/bin/sh -c 'ssh -W n1.example.org:2200 config-gw'")
 
     def test_overrides_win(self):
         from npf.executor.sshexecutor import SSHExecutor
@@ -198,7 +199,8 @@ class TestSSHExecutorOverrides(unittest.TestCase):
         self.assertEqual(connect.args[0], "n1.example.org")
         self.assertEqual((connect.kwargs["username"], connect.kwargs["port"]), ("root", 22))
         self.assertEqual(connect.kwargs["key_filename"], [os.path.join(self.home, ".ssh", "k")])
-        self.assertEqual(proxy.args[0], "ssh -W n1.example.org:22 -l root gw -o ProxyCommand='ssh -W %h:%p gw0'")
+        # Run through a shell, as ssh does
+        self.assertEqual(shlex.split(proxy.args[0]), ["/bin/sh", "-c", "ssh -W n1.example.org:22 -l root gw -o ProxyCommand='ssh -W %h:%p gw0'"])
 
 
 @unittest.skipIf(en is None, "enoslib is not installed")
@@ -217,15 +219,16 @@ class TestEnoslibSSHMode(unittest.TestCase):
         host = en.Host("node-1.example.org", user="root", extra={"gateway": "gw.example.org"})
         made = []
 
-        def make_ssh(user, addr, path, port=22, nfs=None, overrides=None):
-            made.append(dict(user=user, addr=addr, path=path, port=port, nfs=nfs, overrides=overrides))
+        def make_ssh(user, addr, path, port=22, nfs=None, overrides=None, mkdir=False):
+            made.append(dict(user=user, addr=addr, path=path, port=port, nfs=nfs, overrides=overrides, mkdir=mkdir))
             raise RuntimeError("stop here")
 
         with mock.patch.object(Node, "makeSSH", side_effect=make_ssh), self.assertRaises(RuntimeError):
             run('integration/sections.npf', roles={"server": host}, enoslib_ssh=True)
         self.assertEqual(len(made), 1)
         m = made[0]
-        self.assertEqual((m["user"], m["addr"], m["port"], m["nfs"]), ("root", "node-1.example.org", 22, False))
+        self.assertEqual((m["user"], m["addr"], m["port"], m["nfs"], m["mkdir"]),
+                         ("root", "node-1.example.org", 22, False, True))
         self.assertEqual(m["path"], npf.globals.options.experiment_folder, "the same folder as with ansible")
         self.assertIn("gw.example.org", m["overrides"]["proxycommand"])
 

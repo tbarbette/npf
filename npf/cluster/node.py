@@ -2,6 +2,7 @@ import os
 import random
 import sys
 import re
+import shlex
 import socket
 import time
 
@@ -259,8 +260,9 @@ class Node:
                 self.ip = ips[0]
 
     @classmethod
-    def makeSSH(cls, user, addr, path, port=22, nfs=None, overrides=None):
-        """overrides: connection parameters that win over ~/.ssh/config, see SSHExecutor.overrides"""
+    def makeSSH(cls, user, addr, path, port=22, nfs=None, overrides=None, mkdir=False):
+        """overrides: connection parameters that win over ~/.ssh/config, see SSHExecutor.overrides
+        mkdir: create path on the node, as ansible does for enoslib hosts, instead of asking for it"""
         options = npf.globals.options
         if path is None:
             path = os.path.abspath(npf.globals.experiment_path())
@@ -286,6 +288,8 @@ class Node:
             if not node.nfs:
                 print("Remote is not shared through nfs... Sending .access_test")
                 assert(isinstance(node.executor, SSHExecutor))
+                if mkdir:
+                    sshex.exec(cmd="mkdir -p " + shlex.quote(sshex.path), raw=True, title="Creating " + sshex.path)
                 try:
 
                     node.executor.sendFolder(".access_test", local=npf.globals.experiment_path())

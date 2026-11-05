@@ -128,7 +128,7 @@ def _make_roles(roles, args, extra_vars, enoslib_ssh):
                     # The same folder as with ansible
                     path = _globals.get_options().experiment_folder or "results"
                     node = Node.makeSSH(user=ssh["username"], addr=ssh["hostname"], path=path, port=ssh["port"],
-                                        nfs=False, overrides=ssh)
+                                        nfs=False, overrides=ssh, mkdir=True)
                 else:
                     if enoslib_ssh:
                         print(f"Host {role_obj.address} is not reached with ssh, its scripts go through ansible")
