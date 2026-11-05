@@ -177,6 +177,9 @@ class Test:
                         continue
                     result = line[1:]
                     section = SectionFactory.build(self, result.strip())
+                    section.header = result.strip()
+                    section.line = i + 1
+                    section.source = os.path.relpath(test_path)
 
                     if not section is SectionNull:
                         self.sections.append(section)
@@ -214,6 +217,8 @@ class Test:
                 raise Exception("An exception occured while accessing the file %s" % (test_path)) from e
             else:
                 raise Exception("An exception occured while parsing %s at line %d:\n%s" % (test_path, i, e.__str__())) from e
+
+        self.check_python_inline()
 
         # Check that all reference roles are defined
         known_roles = {'self', 'default'}.union(set(npf.globals.roles.keys()))
@@ -300,6 +305,41 @@ class Test:
                     imp.test.exit._role = imp.get_role()
             else: #is include
                 self.variables.vlist.update(imp.test.variables.vlist)
+
+    def python_inline(self, section) -> bool:
+        """Whether the $(( )) of a section are Python expressions, evaluated by NPF"""
+        return getattr(self.options, 'python_inline', False) or section.python_inline
+
+    # Python that bash arithmetic does not have: strings, floats, lists, calls and keywords
+    _PYTHON_ONLY = re.compile(r'''["'\[\].]|//|\b(?:if|else|and|or|not|for|in|is|None|True|False|lambda)\b|\b[a-zA-Z_]\w*\s*\(''')
+    _warned_python_inline = set()
+
+    def check_python_inline(self):
+        """Warns, when the test is loaded, about the $(( )) that are not evaluated as Python by default anymore"""
+        for s in self.sections:
+            self.warn_python_inline(s, s.content)
+
+    def warn_python_inline(self, s, content):
+        """Warns about the $(( )) of content, the text of section s, that NPF does not evaluate while they need Python.
+        In scripts and shell files, the shell evaluates those that are shell arithmetic: only those that look like
+        Python (or hold a float once the variables are replaced) are reported. Once per section."""
+        if not hasattr(s, 'line') or getattr(s, 'noparse', False) or (s.source, s.line) in Test._warned_python_inline:
+            return
+        if getattr(s, 'python_inline', True) or getattr(self.options, 'python_inline', False):
+            return
+        shell = not isinstance(s, SectionFile) or s.filename.endswith('.sh') or s.content.startswith('#!')
+        found = [m for m in re.finditer(Variable.MATH_REGEX, content) if not m.group('prefix') and
+                 (not shell or self._PYTHON_ONLY.search(re.sub(r'[$]\{[^}]*\}', 'x', m.group('expr'))))]
+        if not found:
+            return
+        Test._warned_python_inline.add((s.source, s.line))
+        m = found[0]
+        line = s.line + content.count('\n', 0, m.start()) + 1
+        what = "looks like Python, but is now left to the shell" if shell else "is not evaluated by NPF anymore"
+        more = " (and %d more in this section)" % (len(found) - 1) if len(found) > 1 else ""
+        print("WARNING: %s:%d: %s %s%s. Python inline expressions are deprecated in favor of Jinja templates, and are now disabled by default: add python-inline "
+              "to the section header (%%%s python-inline), or run with --python-inline."
+              % (s.source, line, m.group(0), what, more, s.header))
 
     def build_deps(self, repo_under_test: List[Repository], v_internals={}, no_build=False, done=None):
         if done is None:
@@ -428,7 +468,7 @@ class Test:
             v["NPF_NODE_MAX"] = len(npf.cluster.factory.nodes_for_role(role))
             if not s.noparse:
                 s.filename = replace_variables(v, s.filename, role, default_role_map = self.config.get_dict("default_role_map"))
-                p = replace_variables(v, s.content, role,default_role_map = self.config.get_dict("default_role_map"))
+                p = replace_variables(v, s.content, role,default_role_map = self.config.get_dict("default_role_map"),python_inline=self.python_inline(s))
             else:
                 p = s.content
             if s.jinja:
@@ -439,6 +479,7 @@ class Test:
                         if hasattr(e, "lineno"):
                             print(p.splitlines()[e.lineno])
                         raise e
+            self.warn_python_inline(s, p)
 
             create_list.append((s.filename, p, role))
         return create_list
@@ -467,9 +508,10 @@ class Test:
     def test_require(self, v, build):
         for require in self.requirements + list(itertools.chain.from_iterable([imp.test.requirements for imp in self.imports])):
             p = replace_variables(v, require.content, require.role(),
-                                                  self.config.get_dict("default_role_map"))
+                                                  self.config.get_dict("default_role_map"), python_inline=self.python_inline(require))
             if require.jinja:
                     p = _jinja_render(p, v, self.tags, role=require.role())
+            self.warn_python_inline(require, p)
             pid, output, err, returncode = executor(require.role(), self.config.get_dict("default_role_map")).exec(
                 cmd=p, bin_paths=[build.get_local_bin_folder()], options=self.options, event=None, testdir=None)
             if returncode != 0:
@@ -786,7 +828,8 @@ class Test:
                             script.content,
                             self_role = srole, self_node=node,
                             default_role_map= self.config.get_dict(
-                                "default_role_map"))
+                                "default_role_map"),
+                            python_inline=self.python_inline(script))
 
                         if script.jinja:
                             try:
@@ -796,6 +839,7 @@ class Test:
                                 if hasattr(e, "lineno"):
                                     print(param.commands.splitlines()[e.lineno])
                                 raise e
+                        self.warn_python_inline(script, param.commands)
                         param.options = self.options
                         param.queue = None if nokill else queue
                         param.stdin = t.stdin.content
@@ -938,7 +982,9 @@ class Test:
 
                         cmd = replace_variables(
                             vlist,
-                            exitscripts,self_role = role, default_role_map = role_map)
+                            exitscripts,self_role = role, default_role_map = role_map,
+                            python_inline=self.python_inline(script))
+                        self.warn_python_inline(script, cmd)
                         node=node
                         ncmd = "mkdir -p " + test_folder + " && cd " + test_folder + ";\n" + cmd
 

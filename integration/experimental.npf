@@ -10,5 +10,5 @@ X={0,1}
 %config
 var_aggregate={ENORMOUS+HUGE+BIG+SMALL:all}
 
-%script
+%script python-inline
 echo "RESULT $(( ($X + 1) * ($ENORMOUS + $HUGE + $BIG + $SMALL) ))"

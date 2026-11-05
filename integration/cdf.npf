@@ -11,5 +11,5 @@ graph_type=cdf
 %variables
 X=[1-5]
 
-%script
+%script python-inline
 echo "RESULT-N  $(( $X * rand() % 100 )) "

@@ -56,13 +56,15 @@ aeval = Interpreter(usersyms ={'parseBool':get_bool,
                                "rand":random.random})
 
 
-def replace_variables(v: dict, content: str, self_role=None, self_node=None, default_role_map={}, role_index = 0):
+def replace_variables(v: dict, content: str, self_role=None, self_node=None, default_role_map={}, role_index = 0, python_inline=True):
     """
     Replace all variable and nics references in content
     This is done in two step : variables first, then NICs reference so variable can be used in NIC references
     :param v: Dictionary of variables
     :param content: Text to change
     :param self_role: Role of the caller, that self reference in nic will map to
+    :param python_inline: Evaluate $(( )) as Python expressions. Else they are left to the shell, but an escaped \\$(( ))
+                          still loses its backslash.
     :return: The text with reference to variables and nics replaced
     """
 
@@ -113,6 +115,8 @@ def replace_variables(v: dict, content: str, self_role=None, self_node=None, def
             do_replace, expr)
         if prefix:
             return "$((" + str(expr) + "))"
+        elif not python_inline:
+            return match.group(0)
         else:
             return str(aeval(expr))
 

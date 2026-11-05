@@ -28,7 +28,7 @@ DUT_NIC_0=0
 DUT_NIC_1=1
 GEN_PROMISC=false
 
-%late_variables
+%late_variables 
 GEN_TOT=EXPAND( $(( $GEN_BURST * $GEN_FLOWS )) )
 
 %script deps=fastclick sudo=true delay=2
@@ -44,7 +44,7 @@ elementclass Replayer { $srcmac, $dstmac, $srcip, $dstip |
     -> output
 }
 
-%rate:file REPLAYER
+%rate:file REPLAYER python-inline
 elementclass Replayer { $srcmac, $dstmac, $srcip, $dstip |
     gen :: FastUDPFlows(RATE 0, LIMIT -1, LENGTH $GEN_LENGTH, SRCETH $srcmac, DSTETH $dstmac, SRCIP $srcip, DSTIP $dstip, FLOWS $GEN_FLOWS, FLOWSIZE $GEN_BURST)
     -> replay :: RatedUnqueue( $(( (int)(ceil($GEN_RATE  / 2) ) )) )

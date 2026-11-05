@@ -95,6 +95,7 @@ Space-separated after the section name:
 | `name=<id>` | Give this script a name (for `waitfor=`) |
 | `waitfor=<id>` | Block until the named script emits its first output |
 | `jinja` | Enable Jinja2 template rendering in the script body |
+| `python-inline` | Evaluate `$((...))` in the script body as Python expressions (else they are bash arithmetic) |
 
 Example: `%script@client delay=1 timeout=30 critical=true sudo=false waitfor=EVENT jinja ifeq-VAR=value`
 
@@ -171,15 +172,11 @@ taskset -c 0-{{ CPU - 1 }} iperf ...
 {% endif %}
 ```
 
-> **`$((...))` is NPF math, not bash arithmetic**: NPF intercepts `$((...))` and evaluates it with a Python/asteval evaluator — it is **not** passed to bash. Use it for Python-style math on NPF variables: `$(( log($N) ))`, `$(( $N * 2 ))`. To run real bash arithmetic on shell variables, escape it: `\$((a+b))` — NPF strips the backslash and passes `$((a+b))` to bash unchanged. Alternatively use `expr $a + $b`.
+> **`$((...))` in scripts and files is left to the shell, unless the section has `python-inline`**: with `%script python-inline` (or `%file name python-inline`, or `--python-inline` for all sections), NPF evaluates `$((...))` as a Python/asteval expression before the script runs: `$(( log($N) ))`, `$(( "-s x" if $X else "" ))`. Without it, `$((...))` is bash arithmetic, after NPF replaced the variables. NPF warns when a section without `python-inline` has a `$((...))` that only Python can evaluate (calls, floats, strings, `if`), or any `$((...))` in a file that is not a shell script. In `%variables` and `%late_variables`, `$((...))` is always Python. Prefer `jinja` for logic. An escaped `\$((a+b))` is always passed to bash as `$((a+b))`.
 
 > **Variable expansion gotcha**: NPF substitutes `$VAR` in script text before running it. Always use `$VAR` (not bare `VAR`) inside NPF `$((...))`: `$(( $N * 2 ))` works; `$(( N * 2 ))` does not (asteval sees `N` as undefined → 0).
 
 Variables will be substitued in scripts and files sections.
-
-> **`$((...))` is NPF math, not bash arithmetic**: NPF intercepts `$((...))` and evaluates it with a Python/asteval evaluator — it is **not** passed to bash. Use it for Python-style math on NPF variables: `$(( log($N) ))`, `$(( $N * 2 ))`. To run real bash arithmetic on shell variables, escape it: `\$((a+b))` — NPF strips the backslash and passes `$((a+b))` to bash unchanged. Alternatively use `expr $a + $b`.
-
-> **Variable expansion gotcha**: NPF substitutes `$VAR` in script text before running it. Always use `$VAR` (not bare `VAR`) inside NPF `$((...))`: `$(( $N * 2 ))` works; `$(( N * 2 ))` does not (asteval sees `N` as undefined → 0).
 
 **NPF substitutes `$VAR` (and `${VAR}`) in script bodies before the shell runs.**
 

@@ -193,6 +193,8 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
     t.add_argument('--test', '--testie', '--npf', dest='test_files', metavar='path or test', type=str, default='tests',
                    help='script or script folder. Default is tests')
 
+    t.add_argument('--python-inline',help="Evaluate $(( )) in all scripts and files as Python expressions, as before. Prefer adding python-inline to the sections that need it, or jinja templates",dest='python_inline', action='store_true', default=False)
+
 
     t.add_argument('--build-folder', '--build-path', metavar='path', type=str, default=None, dest='build_folder', help='Set where dependencies would be built. Defaults to npf\'s folder itself, so dependencies are shared between test scripts.')
 

@@ -43,7 +43,7 @@ function waitwhile() {
     done
 }
 
-%script title=WRKClientPre sudo=true autokill=false
+%script title=WRKClientPre sudo=true autokill=false python-inline
 source client.sh
 
 ifconfig brns down
@@ -96,7 +96,7 @@ echo "EVENT WRK_READY"
 
 
 
-%script deps=wrk-tbarbette title=WRKClientLaunch sudo=true waitfor=2WRK_READY delay=0
+%script deps=wrk-tbarbette title=WRKClientLaunch sudo=true waitfor=2WRK_READY delay=0 python-inline
 name=wrk${NPF_NODE_ID}-${NPF_MULTI_ID}
 for P in $(seq $GEN_PROCESS) ; do
     fname=${name}-$P

@@ -9,7 +9,7 @@ r:R=[1-4]
 %late_variables
 R?=1
 
-%script
+%script python-inline
 echo "RESULT-N $N"
 echo "RESULT-M $(( $N * $R ))"
 if [ $((${N}%2)) -eq 0 ]; then

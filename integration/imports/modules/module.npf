@@ -1,4 +1,4 @@
-%script
+%script python-inline
 echo "RESULT-N $N"
 echo "RESULT-LOG-MODULE $(( log(2*$N) ))"
 echo "RESULT-EXP-MODULE $(( pow(3,$N) ))"
