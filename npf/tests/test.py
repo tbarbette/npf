@@ -509,7 +509,8 @@ class Test:
     def test_require(self, v, build):
         for require in self.requirements + list(itertools.chain.from_iterable([imp.test.requirements for imp in self.imports])):
             p = replace_variables(v, require.content, require.role(),
-                                                  self.config.get_dict("default_role_map"), python_inline=self.python_inline(require))
+                                  default_role_map=self.config.get_dict("default_role_map"),
+                                  python_inline=self.python_inline(require))
             if require.jinja:
                     p = _jinja_render(p, v, self.tags, role=require.role())
             self.warn_python_inline(require, p)
@@ -980,7 +981,7 @@ class Test:
 
                     role = script.get_role()
 
-                    for i_node, node in enumerate(npf.cluster.factory.nodes_for_role(role, role_map)):
+                    for i_node, node in enumerate(npf.cluster.factory.nodes_for_role(role, default_role_map=role_map)):
                         vlist["NPF_NODE"] = node.get_name()
                         vlist["NPF_NODE_ID"] = i_node
 
@@ -1654,7 +1655,7 @@ class Test:
             for k, val in script.params.items():
                 nic_match = re.match(r'(?P<nic_idx>[0-9]+)[:](?P<type>' + NIC.TYPES + '+)', k, re.IGNORECASE)
                 if nic_match:
-                    npf.cluster.factory.nodes_for_role(script.get_role(), self.config.get_dict("default_role_map"))[0].get_nic(
+                    npf.cluster.factory.nodes_for_role(script.get_role(), default_role_map=self.config.get_dict("default_role_map"))[0].get_nic(
                         int(nic_match.group('nic_idx')))[nic_match.group('type')] = val
 
     def get_imports(self) -> List[SectionImport]:

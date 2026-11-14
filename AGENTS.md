@@ -321,7 +321,8 @@ Beware also of the autokill parameter, a script with `autokill=true` (the defaul
 # Local single-machine experiment
 npf-run --test experiments/mytest.npf --no-build
 
-# With cluster (roles mapped to SSH hosts)
+# With cluster (roles mapped to SSH hosts). A role missing from --cluster runs on localhost, with a warning
+# if --cluster maps other roles: add role=localhost to silence it
 npf-run --test mytest.npf \
   --cluster client=user@host1 server=user@host2
 
