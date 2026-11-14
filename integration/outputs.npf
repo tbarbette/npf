@@ -1,0 +1,17 @@
+%info
+With --preserve-temporaries, the test folder keeps the output of each script
+
+%variables
+N=[1-2]
+
+%init
+echo "init done"
+
+%script
+echo "RESULT-X $N"
+echo "an error line" >&2
+echo $N > value.txt
+
+%exit
+echo "exit of the run"
+echo "RESULT-EXITFILE $(cat value.txt)"

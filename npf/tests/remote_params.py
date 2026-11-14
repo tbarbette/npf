@@ -33,5 +33,10 @@ class RemoteParameters:
         self.env = None
         self.virt = ""
         self.options = None
+        # With --preserve-temporaries, the output of the script is kept in output_name.stdout and .stderr, after a
+        # line telling the run and the node
+        self.output_name = None
+        self.run_title = None
+        self.node_title = None
 
     pass
