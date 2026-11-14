@@ -50,6 +50,7 @@ from npf.output.graph.variable_to_series import extract_variable_to_series
 from npf.output.graph.series_to_graph import series_to_graph
 from npf.output.graph.graphdata import GraphData
 import npf
+import npf.globals
 
 import matplotlib
 # There is a matplotlib bug which causes CI failures
@@ -588,6 +589,7 @@ class Grapher:
             print("No data...")
             return
 
+        all_results_df = None
         # Add series to a pandas dataframe
         if options.pandas_filename is not None or options.web is not None or options.notebook_path is not None:
             all_results_df = to_pandas(series)
@@ -602,6 +604,8 @@ class Grapher:
 
                 all_results_df.to_csv(pandas_df_name, index=True, index_label="index", sep=",", header=True)
                 print("Pandas dataframe written to %s" % pandas_df_name)
+
+        self.pdf_metadata = self.build_pdf_metadata(series, all_results_df) if filename and not return_fig else None
 
         #Overwrite markers and lines from user
         self.graphmarkers = self.configlist("graph_markers")
@@ -693,6 +697,53 @@ class Grapher:
 
         return ret
 
+
+    # Largest CSV of the results embedded in the PDF files
+    PDF_RESULTS_MAX = 1 << 20
+
+    def build_pdf_metadata(self, series, all_results_df=None):
+        """What is needed to draw the graphs again, embedded in their PDF files: the command line, the versions of NPF
+        and of the series, the test scripts and the results. pdfinfo -custom shows them."""
+        import shlex
+        import subprocess
+        npf_version = __version__
+        try:
+            git = subprocess.run(["git", "-C", npf.globals.npf_root_path(), "describe", "--always", "--dirty"],
+                                 capture_output=True, text=True, timeout=10)
+            if git.returncode == 0 and git.stdout.strip():
+                npf_version += " (git %s)" % git.stdout.strip()
+        except (OSError, subprocess.SubprocessError):
+            pass
+
+        scripts = []
+        for test in self.scripts:
+            try:
+                with open(os.path.join(test.path, test.filename), "r") as f:
+                    scripts.append("----- File %s -----\n%s" % (test.filename, f.read()))
+            except (OSError, AttributeError, TypeError):
+                continue
+
+        try:
+            cwd = npf.globals.cwd_path(self.options)
+        except AttributeError:
+            cwd = os.getcwd()
+        metadata = {
+            "Creator": "NPF %s" % npf_version,
+            "NPF-Command": "cd %s && %s" % (shlex.quote(cwd), shlex.join(sys.argv)),
+            "NPF-Series": "\n".join("%s: %s %s" % (build.pretty_name(), build.repo.reponame, build.version)
+                                    for _, build, _ in series if build is not None),
+        }
+        if scripts:
+            metadata["Subject"] = "\n".join(scripts)
+
+        if all_results_df is None:
+            all_results_df = to_pandas(series)
+        results = all_results_df.to_csv(index=False)
+        if len(results) <= self.PDF_RESULTS_MAX:
+            metadata["NPF-Results"] = results
+        else:
+            metadata["NPF-Results"] = "Not embedded: %d bytes. Use --csv to export the results." % len(results)
+        return metadata
 
     def graph_group(self, series, vars_values, filename, fileprefix, title):
         if len(series) == 0:
@@ -1024,26 +1075,17 @@ class Grapher:
             else:
                 type_filename = npf.build_filename(one_test, one_build, filename if not filename is True else None, graph.statics(), 'pdf', type_str=(fileprefix +'-' if fileprefix else "") +result_type, show_serie=False)
                 try:
-                    if os.path.splitext(type_filename)[1].lower() == "pdf":
-                        metadata_creator = f"npf v{__version__}"
+                    metadata = None
+                    if os.path.splitext(type_filename)[1].lower() == ".pdf" and getattr(self, "pdf_metadata", None):
+                        metadata = dict(self.pdf_metadata, Title="%s: %s" % (one_test.filename, result_type))
 
-                        test_script = list(self.scripts)[0]     # there should only be one script
-                        script_filename = f"{test_script.path}/{test_script.filename}"
-                        with open(script_filename, "r") as f:
-                            metadata_subject = f"----- File {test_script.filename} -----\n{f.read()}"
-
-
-                        metadata = {
-                            "Creator": metadata_creator,
-                            "Subject": metadata_subject
-                        }
-                    else:
-                        metadata = None
-
-                    plt.savefig(type_filename, bbox_extra_artists=extra_artists if len(extra_artists) > 0 else [],
-                            bbox_inches='tight',
-                            dpi=self.options.graph_dpi, transparent=True,
-                            metadata=metadata)
+                    with warnings.catch_warnings():
+                        # The NPF-* keys are not standard PDF keys, which a PDF can hold
+                        warnings.filterwarnings("ignore", message="Unknown infodict keyword")
+                        plt.savefig(type_filename, bbox_extra_artists=extra_artists if len(extra_artists) > 0 else [],
+                                bbox_inches='tight',
+                                dpi=self.options.graph_dpi, transparent=True,
+                                metadata=metadata)
                     print("Graph of test written to %s" % type_filename)
                 except Exception as e:
                     print("ERROR : Could not draw the graph!")
