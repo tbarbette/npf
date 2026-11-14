@@ -176,3 +176,43 @@ class TestSSHExecutorSharedConnection(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TestSendFolder(unittest.TestCase):
+    """sendFolder() sends what it can read: a file it cannot read is skipped with a warning"""
+
+    def setUp(self):
+        saved = npf.globals.options
+        self.addCleanup(setattr, npf.globals, "options", saved)
+        npf.globals.options = argparse.Namespace(color=False, sshconfig=False, quiet=True, show_cmd=False)
+
+    @unittest.skipIf(os.geteuid() == 0, "root can read any file")
+    def test_unreadable_file(self):
+        import contextlib
+        import io
+        import shutil
+        from npf.executor.sshexecutor import SSHExecutor
+        folder = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, folder)
+        os.mkdir(os.path.join(folder, "build"))
+        for name in ("ok", "root-only"):
+            with open(os.path.join(folder, "build", name), "w") as f:
+                f.write(name)
+        os.chmod(os.path.join(folder, "build", "root-only"), 0)
+
+        sftp = mock.MagicMock()
+        sftp.listdir.return_value = []
+        sent = []
+
+        def put(local, remote):
+            open(local, "rb").close()  # As paramiko does before sending
+            sent.append(remote)
+        sftp.put.side_effect = put
+        ex = SSHExecutor("root", "n1", "/remote/", 22)
+        out = io.StringIO()
+        with mock.patch.object(ex, "get_connection"), \
+                mock.patch("paramiko.SFTPClient.from_transport", return_value=sftp), \
+                contextlib.redirect_stdout(out):
+            ex.sendFolder("build", local=folder)
+        self.assertEqual(sent, ["/remote/build/ok"])
+        self.assertIn("could not read %s/build/root-only" % folder, out.getvalue())
