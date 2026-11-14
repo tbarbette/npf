@@ -226,6 +226,10 @@ def add_building_options(parser):
                     help='Use a local version of the program instead of the automatically builded one',
                     dest='use_local',
                     default=None)
+    b.add_argument('--install-packages',
+                   help='Install the system packages that the repositories need (packages= in their .repo file) when '
+                        'they are missing, with sudo and apt-get or dnf. Without it, NPF tells how to install them',
+                   dest='install_packages', action='store_true', default=False)
     bf.add_argument('--no-build',
                     help='Do not build the last version, use the currently compiled one', dest='no_build', action='store_true', default=False)
     bf.add_argument('--force-build',

@@ -3,6 +3,8 @@ method=get
 url=https://snort.org/downloads/snort/snort-$version.tar.gz
 tags=snort
 version=2.9.20
+//Libraries from the system, with their Debian and Red Hat names
+packages=deb:libdumbnet-dev,rpm:libdnet-devel
 
 bin_folder=snort-$version/src/
 bin_name=snort

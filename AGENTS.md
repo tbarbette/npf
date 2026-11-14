@@ -44,7 +44,7 @@ docker run --rm -w /npf npf npf local --test examples/math.npf --no-graph
 | `npf/models/` | `dataset.py` (Run/Dataset), `variables/` (range/set/tag expansion), `units.py` |
 | `npf/executor/` | Local, SSH, and enoslib execution backends |
 | `npf/cluster/` | Node/NIC abstractions, cluster spec parsing |
-| `npf/repo/` | Git repo interface for multi-version comparisons |
+| `npf/repo/` | Git repo interface for multi-version comparisons. A `.repo` file can list the system packages it needs (`packages=a,deb:b,rpm:c`), checked before building; `--install-packages` installs the missing ones |
 | `npf/output/` | Graphing (`grapher.py`), statistics, Jupyter notebook, web export |
 | `npf/expdesign/` | Experimental designs: full, random, LHS, 2k, GP, ZLT, etc. |
 | `npf/cmdline.py` | All CLI argument definitions |
