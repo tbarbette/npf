@@ -1034,7 +1034,9 @@ class Test:
                             python_inline=self.python_inline(script))
                         self.warn_python_inline(script, cmd)
                         node=node
-                        ncmd = "mkdir -p " + test_folder + " && cd " + test_folder + ";\n" + cmd
+                        # The local executor already runs in the test folder: a relative path made a test folder in it
+                        exit_folder = os.path.join(node.experiment_path(), test_folder)
+                        ncmd = "mkdir -p " + exit_folder + " && cd " + exit_folder + ";\n" + cmd
                         start, c = time.time(), -1
 
                         # Execution of the %exit script

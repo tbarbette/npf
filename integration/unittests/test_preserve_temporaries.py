@@ -43,4 +43,7 @@ class TestPreserveTemporaries(unittest.TestCase):
         self.assertRegex(out[6], r"N = 2 \[run 2/2\]")
         self.assertEqual(read("0.stderr")[1], "an error line")
         self.assertEqual(read("init-0.stdout")[1:], ["init done"])
-        self.assertEqual(read("exit-0.stdout")[1::2], ["exit of the run"] * 4)
+        exits = read("exit-0.stdout")
+        self.assertEqual(exits[1::3], ["exit of the run"] * 4)
+        # %exit runs in the test folder, where the scripts of the run wrote value.txt
+        self.assertEqual(exits[2::3], ["RESULT-EXITFILE 1"] * 2 + ["RESULT-EXITFILE 2"] * 2)
