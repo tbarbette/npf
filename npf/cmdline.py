@@ -190,8 +190,10 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
 
     t.add_argument('--env', metavar='list of variables', dest='keep_env', type=str, nargs='+', help='list of environment variables to pass in scripts', default=[], action=ExtendAction)
 
-    t.add_argument('--test', '--testie', '--npf', dest='test_files', metavar='path or test', type=str, default='tests',
+    t.add_argument('--test', '--npf', dest='test_files', metavar='path or test', type=str, default='tests',
                    help='script or script folder. Default is tests')
+    # Old spelling of --test, still accepted but not shown in the help
+    t.add_argument('--testie', dest='test_files', type=str, default=argparse.SUPPRESS, help=argparse.SUPPRESS)
 
     t.add_argument('--python-inline',help="Evaluate $(( )) in all scripts and files as Python expressions, as before. Prefer adding python-inline to the sections that need it, or jinja templates",dest='python_inline', action='store_true', default=False)
 
