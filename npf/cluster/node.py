@@ -56,6 +56,15 @@ class Node:
                         continue
                     self._nics[int(match.group('nic_idx'))][match.group('type')] = match.group('val')
                     continue
+                if re.match(r'env\s*=', line, re.IGNORECASE):
+                    match = re.match(r'env\s*=\s*(?P<key>[a-zA-Z_][a-zA-Z0-9_]*)\s*=(?P<val>.*)', line, re.IGNORECASE)
+                    if not match:
+                        raise Exception("%s:%d : env node config expects env=KEY=VALUE, got %s" % (clusterFilePath, i + 1, line))
+                    # $KEY and ${KEY} of the env lines above are replaced, others are left to the shell
+                    val = re.sub(r'\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}|\$([a-zA-Z_][a-zA-Z0-9_]*)',
+                                 lambda m: executor.env.get(m.group(1) or m.group(2), m.group(0)), match.group('val').strip())
+                    executor.env[match.group('key')] = val
+                    continue
                 match = re.match(r'(?P<var>' + Variable.ALLOWED_NODE_VARS + ')=(?P<val>.*)', line,
                                  re.IGNORECASE)
                 if match:

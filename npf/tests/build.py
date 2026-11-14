@@ -289,11 +289,12 @@ class Build:
             env.update(self.repo.env)
 
             if node:
-                # Add exports for environment variables and cd to the remote build path
-                env_prefix = " ".join([f"export {k}='{v}'" for k, v in self.repo.env.items()])
+                # The executor exports the variables of the node, then the ones of the repo, properly quoted
+                remote_env = dict(node.executor.env)
+                remote_env.update(self.repo.env)
                 remote_path = self.repo.get_remote_build_path(node)
-                remote_command = f"cd {remote_path} && {env_prefix} {command}"
-                pid, output, err, returncode = node.executor.exec(cmd=remote_command, title=what)
+                remote_command = f"cd {remote_path} && {command}"
+                pid, output, err, returncode = node.executor.exec(cmd=remote_command, title=what, env=remote_env)
             else:
                 p = subprocess.Popen(command, shell=True, stdin=PIPE, stdout=PIPE, stderr=PIPE, env=env)
                 output, err = [x.decode() for x in p.communicate()]

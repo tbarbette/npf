@@ -16,6 +16,8 @@ class Executor:
             self.color = ""
         Executor.index = Executor.index + 1
         self.path = None
+        # Variables of the node (env=KEY=VALUE lines of its node file), for the builds on the node
+        self.env = {}
 
     def get_env_str(self, env, options):
         import os

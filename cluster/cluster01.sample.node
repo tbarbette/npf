@@ -3,6 +3,10 @@ addr=cluster01.example.com
 //Username
 user=user01
 
+#Environment variables of the builds on this node (the repo's own env wins). $VAR of the env lines above is replaced
+#env=RTE_SDK=/opt/dpdk
+#env=PKG_CONFIG_PATH=$RTE_SDK/lib/pkgconfig
+
 #Private key file to connect with user
 #id_rsa=path/to/id_rsa //TODO:Unimplemented
 #tags={tags,added,when,using,me}  //TODO:Unimplemented
