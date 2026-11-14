@@ -1309,7 +1309,7 @@ class Test:
                     for late_variables in imp.test.get_late_variables():
                         variables.update(late_variables.execute({**variables, **v_internals}, imp.test))
 
-                r_status, r_out, r_err = self.test_require(variables, build)
+                r_status, r_out, r_err = self.test_require({**variables, **v_internals}, build)
                 if not r_status:
                     if not self.options.quiet:
                         print("Requirement not met for %s" % run.format_variables(self.config["var_hide"]))

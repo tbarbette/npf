@@ -1,0 +1,11 @@
+%info
+The require section gets the internal variables of NPF, such as NPF_VERSION, also without %late_variables
+
+%variables
+N=[1-2]
+
+%require
+test -n "${NPF_VERSION}" && test $N -lt 2
+
+%script
+echo "RESULT-SCRIPT 1"
