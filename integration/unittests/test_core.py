@@ -200,3 +200,18 @@ class TestCore(unittest.TestCase):
         import npf
         import npf_regress
         import npf_watch
+
+
+class TestResultsFile(unittest.TestCase):
+    def test_special_characters(self):
+        # Values such as DPDK device options hold , : and =, which also separate the fields of the results file
+        from collections import OrderedDict
+        from npf.models.dataset import Run
+        d = tempfile.mkdtemp(prefix="npf-ut-")
+        self.addCleanup(shutil.rmtree, d)
+        b = Build.__new__(Build)
+        b.cache = {}
+        run = Run(OrderedDict([("ARGS", ",txqs_min_inline=0,a:b"), ("CPU", 4)]))
+        b._writeversion(os.path.join(d, "t.results"), {run: {"PPS": [1.0, 2.0]}}, allow_overwrite=True)
+        results = b._load_results(os.path.join(d, "t.results"), cache=False)
+        self.assertEqual(results, {run: {"PPS": [1.0, 2.0]}})

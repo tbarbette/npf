@@ -122,7 +122,7 @@ class Build:
             for key, val in sorted(run.read_variables().items()):
                 if type(val) is tuple:
                     val = val[1]
-                v.append((key + ":" + str(val).replace('\\:', ':').replace(':','\\:')).replace('\\,', ',').replace(',','\\,'))
+                v.append((key + ":" + str(val).replace('\\:', ':').replace(':','\\:')).replace('\\,', ',').replace(',','\\,').replace('\\=', '=').replace('=', '\\='))
             type_results = []
             for t,r in results.items():
                 str_results = []
@@ -189,14 +189,14 @@ class Build:
             for iline,line in enumerate(f):
                 if not line.strip():
                     continue
-                variables_data, results_data = line.strip().split('=')
+                variables_data, results_data = re.split(r'(?<!\\)=', line.strip(), maxsplit=1)
 
                 variables = OrderedDict()
 
                 for v_data in re.split(r'(?<!\\),', variables_data):
                     if v_data.strip():
                         k, v = re.split(r'(?<!\\):', v_data)
-                        variables[k] = npf.models.units.get_numeric(v) if npf.models.units.is_numeric(k) else str(v).replace('\\:',':')
+                        variables[k] = npf.models.units.get_numeric(v) if npf.models.units.is_numeric(k) else str(v).replace('\\:',':').replace('\\,',',').replace('\\=','=')
                 results = {}
 
                 results_data = results_data.strip()[1:-1].split('},{')

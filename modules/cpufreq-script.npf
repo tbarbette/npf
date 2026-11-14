@@ -24,9 +24,9 @@ CPUFREQ_CORES=
 CPUFREQ_SILENT=
 
 %late_variables
-CPUFREQ_CPUCORES?= $(("-c $CPUFREQ_CORES" if "$CPUFREQ_CORES" != "" else "" ))
+CPUFREQ_CPUCORES?=EXPAND( $(("-c $CPUFREQ_CORES" if "$CPUFREQ_CORES" != "" else "" )) )
 CPUFREQ_NUMA?=0
-CPUFREQ_FIRST_ONLY= $(( "| head -n1" if "$CPUFREQ_SILENT" else "" ))
+CPUFREQ_FIRST_ONLY=EXPAND( $(( "| head -n1" if "$CPUFREQ_SILENT" else "" )) )
 CPUFREQ_FORCE_RANGE?=false
 
 %script sudo=true autokill=false
