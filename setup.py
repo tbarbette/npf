@@ -31,6 +31,7 @@ install_requires = [
     'npf-web-extension >= 0.6.4',
     'nbformat',
     'nbconvert',
+    'ipykernel',
     'jinja2',
     'spellwise',
     'seaborn',
