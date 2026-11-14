@@ -45,7 +45,7 @@ class TestNodeEnv(unittest.TestCase):
         n = self.node("env=CC=gcc\nenv=RTE_SDK=/opt/dpdk\n")
         n.executor.exec = mock.Mock(return_value=(1, "", "", 0))
         repo = mock.Mock(url="https://example.org/r.git", build_info=None, configure="", clean="",
-                         make="make CC=$CC", env={"CC": "clang"})
+                         make="make CC=$CC", env={"CC": "clang"}, packages="")
         repo.get_remote_build_path.return_value = "/remote/build"
         with mock.patch("builtins.print"):
             self.assertTrue(Build(repo, "local").compile(node=n))
