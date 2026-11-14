@@ -177,7 +177,8 @@ class SSHExecutor(Executor):
             if stdin is not None and not pty:
                 ssh_stdin.write(stdin)
             channels = [ssh_stdout, ssh_stderr]
-            output = ['','']
+            # Lines, joined at the end: appending to a string copies it, which takes minutes for a few MB of output
+            output = [[], []]
             buffers = ['','']
             # recv() can split a multi-byte character: decode incrementally
             decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
@@ -186,8 +187,7 @@ class SSHExecutor(Executor):
             partial_events = 0
             pid = os.getpid()
             step = 0.2
-            #for channel in channels:
-            #   channel.channel.setblocking(False)
+            deadline = time.time() + timeout if timeout is not None else None
 
             while ((nokill or not event.is_terminated()) and not ssh_stdout.channel.exit_status_ready()) or (ssh_stdout.channel.recv_ready() or ssh_stderr.channel.recv_ready()):
                 try:
@@ -199,12 +199,10 @@ class SSHExecutor(Executor):
                         if chan.recv_ready():
                             received = True
                             try:
-                                data = chan.recv(1024)
-                                buffers[ichannel] = buffers[ichannel] + decoder.decode(data)
-                                while "\n" in buffers[ichannel]:
-                                    p = buffers[ichannel].index("\n")
-                                    line = buffers[ichannel][:p+1]
-                                    buffers[ichannel] = buffers[ichannel][p+1:]
+                                data = chan.recv(65536)
+                                *lines, buffers[ichannel] = (buffers[ichannel] + decoder.decode(data)).split("\n")
+                                for line in lines:
+                                    line += "\n"
                                     if rpid == -1:
                                         rpid = int(line)
                                         if stdin is not None and pty:
@@ -214,7 +212,7 @@ class SSHExecutor(Executor):
                                             self._print(title, line, False)
                                         self.searchEvent(line, event, skip=partial_events)
                                         partial_events = 0
-                                        output[ichannel] += line
+                                        output[ichannel].append(line)
                             except UnicodeDecodeError:
                                         print("Could not decode SSH input")
                             except Exception as e:
@@ -222,25 +220,23 @@ class SSHExecutor(Executor):
                                 print(e)
                                 raise(e)
 
-                    else:
+                    # Waits only when there was nothing to read: a script printing a lot would otherwise be read at a
+                    # few kB/s, and block once the SSH window is full
+                    if not received:
                         # A line printed without its newline (e.g. printf "EVENT ready"), once the output pauses
-                        if not received and buffers[0] and rpid != -1:
+                        if buffers[0] and rpid != -1:
                             partial_events = self.searchEvent(buffers[0], event, skip=partial_events)
                         event.wait_for_termination(step)
-                        if timeout is not None:
-                            timeout -= step
                 except PipeTimeout:
                     pass
                 except socket.timeout:
                     self._print(title, "Interrupted by timeout", True)
                     event.wait_for_termination(step)
-                    if timeout is not None:
-                        timeout -= step
                 except KeyboardInterrupt:
                     event.terminate()
-                    return -1, output[0], output[1], 0
-                if timeout is not None:
-                    if timeout < 0:
+                    return -1, ''.join(output[0]), ''.join(output[1]), 0
+                if deadline is not None:
+                    if time.time() > deadline:
                         event.terminate()
                         pid = 0
                         break
@@ -267,7 +263,7 @@ class SSHExecutor(Executor):
                 ret = 0 #Ignore return code because we kill it before completion.
             else:
                 ret = ssh_stdout.channel.recv_exit_status()
-            return pid,output[0], output[1],ret
+            return pid, ''.join(output[0]), ''.join(output[1]), ret
         except socket.gaierror as e:
             print("Error while connecting to %s" % self.addr)
             print(e)
