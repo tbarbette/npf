@@ -1,3 +1,4 @@
+import codecs
 import multiprocessing
 import os,errno
 import shlex
@@ -178,6 +179,8 @@ class SSHExecutor(Executor):
             channels = [ssh_stdout, ssh_stderr]
             output = ['','']
             buffers = ['','']
+            # recv() can split a multi-byte character: decode incrementally
+            decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
             rpid = -1
             # EVENTs of the current partial line already posted, see below
             partial_events = 0
@@ -197,7 +200,7 @@ class SSHExecutor(Executor):
                             received = True
                             try:
                                 data = chan.recv(1024)
-                                buffers[ichannel] = buffers[ichannel] + data.decode("utf-8")
+                                buffers[ichannel] = buffers[ichannel] + decoder.decode(data)
                                 while "\n" in buffers[ichannel]:
                                     p = buffers[ichannel].index("\n")
                                     line = buffers[ichannel][:p+1]
