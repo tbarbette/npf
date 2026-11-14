@@ -1808,20 +1808,35 @@ class Grapher:
         return True, nbars
 
     def do_cdf(self, axis, key, result_type, data : XYEB, xdata : XYEB,shift=0,idx=0):
-
+        """One CDF of the results of the runs per value of key and per series: the share of the runs whose result is at
+        most a given value. With a single series, each value of key has its color, else each series has its color and
+        each value of key its line style."""
         isLog = self.format_figure(axis, result_type, shift, key=key, default_format="%d")
         nseries = max([len(y) for y in [y for x,y,e,build in data]])
+        lines = self.graphlines if self.graphlines else ['-', '--', ':', '-.']
 
         for i, (x, ys, e, build) in enumerate(data):
-            for yi in range(nseries):
-                y = e[yi][2]
-                x2 = np.sort(y)
-                N=len(y)
-                y2 = np.arange(N) / float(N)
-
-                axis.plot(x2, y2 * 100,  color = build._color, label = x[yi])
+            for yi in range(len(ys)):
+                y = np.sort(np.asarray(e[yi][2], dtype=float))
+                y = y[np.isfinite(y)]
+                if len(y) == 0:
+                    continue
+                # A step of 1/N at each result, from 0 to 100%
+                cdf = np.arange(1, len(y) + 1) / float(len(y)) * 100
+                if len(data) == 1:
+                    color = graphcolorseries[0][yi % len(graphcolorseries[0])]
+                    linestyle = '-'
+                    label = x[yi]
+                else:
+                    color = build._color
+                    linestyle = lines[yi % len(lines)]
+                    label = "%s, %s" % (build.pretty_name(), x[yi]) if nseries > 1 else build.pretty_name()
+                axis.plot(np.concatenate(([y[0]], y)), np.concatenate(([0], cdf)), drawstyle='steps-post',
+                          color=color, linestyle=linestyle, label=label)
         axis.yname = "Cumulative distribution of "+axis.yname+" (%)"
-
+        if len(data) == 1 and nseries > 1 and key and not self.glob_legend_title:
+            # The legend lists the values of key
+            self.glob_legend_title = self.var_name(key)
 
         if nseries*len(data) > 4:
             print("Remember: CDF show the CDF of results for each point. Maybe you want to use var_aggregate={VAR1+VAR2+...+VARN:all}?")
