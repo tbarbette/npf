@@ -105,11 +105,12 @@ class TestSSHExecutorSharedConnection(unittest.TestCase):
     def test_kill_process_group(self):
         # It did not exit in its hardkill time after its Ctrl-C: what is left of its session is killed
         from npf.executor.sshexecutor import SSHExecutor
-        leftovers = shlex.quote(SSHExecutor.LEFTOVERS % 4242)
-        self.assertEqual(self.kill_script(b"4242\n", hardkill=0), ["sh -c " + leftovers])
-        self.ex.user = "bob"
-        self.assertEqual(self.kill_script(b"4242\n", hardkill=0, sudo=True, testdir="t"),
-                         ["sudo -n sh -c " + leftovers])
+        with mock.patch("uuid.uuid4", return_value=mock.Mock(hex="0123456789abcdef0123")):
+            leftovers = shlex.quote(SSHExecutor.LEFTOVERS % (4242, "0123456789abcdef"))
+            self.assertEqual(self.kill_script(b"4242\n", hardkill=0), ["sh -c " + leftovers])
+            self.ex.user = "bob"
+            self.assertEqual(self.kill_script(b"4242\n", hardkill=0, sudo=True, testdir="t"),
+                             ["sudo -n sh -c " + leftovers])
 
     def test_results_printed_when_stopped(self):
         # Programs such as click print their results once interrupted: they are read until the script exits

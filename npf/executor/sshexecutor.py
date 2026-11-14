@@ -2,6 +2,7 @@ import codecs
 import multiprocessing
 import os,errno
 import shlex
+import uuid
 import threading
 import time
 from multiprocessing import Queue
@@ -153,7 +154,10 @@ class SSHExecutor(Executor):
         else:
             path_cmd = ''
 
-        cmd = env_str + cmd
+        # Inherited by all the processes of the script, also the ones that leave its session or lose their parent, so
+        # that _kill_leftovers() finds them
+        marker = uuid.uuid4().hex[:16]
+        cmd = "export NPF_SCRIPT_ID=" + marker + "\n" + env_str + cmd
         if sudo and self.user != "root":
             # -n: in the terminal of the script, sudo would wait for a password instead of failing
             cmd = "sudo -n -E  mkdir -p "+testdir+" && sudo -n -E " + virt + " bash -c '"+path_cmd + cmd.replace("'", "'\"'\"'") + "'";
@@ -260,7 +264,7 @@ class SSHExecutor(Executor):
             if stopping is not None and rpid > 1:
                 # Kills what is left of it (all of it if it did not exit in time, else what it started in the
                 # background), then reads what it printed meanwhile
-                self._kill_leftovers(rpid, sudo, title)
+                self._kill_leftovers(rpid, marker, sudo, title)
                 ssh_stdout.channel.status_event.wait(1)
                 read()
 
@@ -280,20 +284,22 @@ class SSHExecutor(Executor):
         finally:
             self._close(ssh_stdout, own)
 
-    # The processes of a script: the session of the shell that sshd started (its pid is the id of the session), and the
-    # ones they started in their own session, such as the command of sudo with use_pty. Killed with SIGTERM, then
-    # SIGKILL, each time waiting up to 5 s for them to be gone. It prints the ones that are still there.
-    LEFTOVERS = ("procs() { ps -e -o pid= -o sid= -o ppid= | awk -v s=%d '{ sid[$1] = $2; pp[$1] = $3 } "
-                 "END { for (p in sid) { q = p; while (q + 0 > 1) { if (sid[q] + 0 == s) { print p; break }; q = pp[q] } } }'; }; "
+    # The processes of a script: the session of the shell that sshd started (its pid is the id of the session), the
+    # ones they started in their own session, such as the command of sudo with use_pty, and the ones with its
+    # NPF_SCRIPT_ID, such as that command once sudo died. Killed with SIGTERM, then SIGKILL, each time waiting up to 5 s
+    # for them to be gone. It prints the ones that are still there.
+    LEFTOVERS = ("procs() { { ps -e -o pid= -o sid= -o ppid= | awk -v s=%d '{ sid[$1] = $2; pp[$1] = $3 } "
+                 "END { for (p in sid) { q = p; while (q + 0 > 1) { if (sid[q] + 0 == s) { print p; break }; q = pp[q] } } }'; "
+                 "grep -lsxz 'NPF_SCRIPT_ID=%s' /proc/[0-9]*/environ | cut -d/ -f3; } | sort -un; }; "
                  "for sig in TERM KILL; do "
                  "p=$(procs); [ -z \"$p\" ] && exit 0; kill -$sig $p 2>/dev/null; "
                  "for i in $(seq 50); do sleep 0.1; [ -z \"$(procs)\" ] && exit 0; done; "
                  "done; echo $(procs); exit 1")
 
-    def _kill_leftovers(self, rpid, sudo, title):
+    def _kill_leftovers(self, rpid, marker, sudo, title):
         """Kills what is left of a script that was asked to stop, and waits for it to be gone, so nothing of a run
         still runs when the next one starts"""
-        k = "sh -c " + shlex.quote(self.LEFTOVERS % rpid)
+        k = "sh -c " + shlex.quote(self.LEFTOVERS % (rpid, marker))
         if sudo and self.user != "root":
             k = "sudo -n " + k
         _, k_out, _, k_own = self._exec_command(k)
