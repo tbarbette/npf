@@ -22,7 +22,7 @@ import git
 from npf.models.units import is_numeric
 
 repo_variables = ['name', 'branch', 'configure', 'url', 'method', 'parent', 'tags', 'make', 'version', 'clean', 'build_info',
-                  'bin_folder', 'bin_name', 'env']
+                  'bin_folder', 'bin_name', 'env', 'packages']
 
 
 class Method(metaclass=ABCMeta):
@@ -178,6 +178,16 @@ class MethodLocal(UnversionedMethod):
 
 
 class MethodPackage(UnversionedMethod):
+    """The repository is a package of the system, installed with its package manager (see npf.repo.packages)"""
+    is_package = True
+
+    def __init__(self, repo):
+        super().__init__(repo)
+        if not repo.packages:
+            repo.packages = repo.reponame
+        if repo.bin_folder == 'bin':
+            repo.bin_folder = '/usr/bin'
+
     def checkout(self, branch=None):
         if not Path(self.repo.get_build_path()).exists():
             os.makedirs(self.repo.get_build_path())
@@ -223,6 +233,8 @@ class Repository:
         self.bin_name = self.reponame  # Wild guess that may work some times...
         self.build_info = None
         self.configure = ''
+        self.packages = ''
+        self.url = None  # Not needed with method=package
         self.last_build = None
         self._last_100 = None
 
@@ -388,7 +400,8 @@ class Repository:
             bp = self.get_remote_build_path(node=remote)
         else:
             bp = self.get_build_path()
-        return os.path.join(bp,'') + ( os.path.join(bin_folder, '') if bin_folder else '')
+        # An absolute bin_folder, such as /usr/bin for method=package, is not in the build folder
+        return os.path.join(bp, bin_folder, '') if bin_folder else os.path.join(bp, '')
 
     def get_local_bin_path(self, version):
         if version is None:

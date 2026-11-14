@@ -267,6 +267,10 @@ class Build:
         Compile the currently checked out repo, assuming it is currently at self.version
         :return: True upon success, False if not
         """
+        from npf.repo import packages
+        if not packages.ensure(self.repo, self.repo.options, node=node,
+                               required=getattr(self.repo.method, "is_package", False)):
+            return False
         if not self.repo.url:
             return True
         pwd = os.getcwd()
