@@ -19,6 +19,8 @@ class RemoteParameters:
         self.queue = None
         self.sudo = None
         self.autokill = None
+        self.nokill = False
+        self.hardkill = None
         self.queue = None
         self.timeout = None
         self.options = None

@@ -75,7 +75,7 @@ class EnoslibExecutor(Executor):
     def exec(self, cmd: str, bin_paths: List[str] = [],
              queue: Queue = None, options=None,
              stdin=None, timeout=None, sudo=False,
-             testdir=None, event=None, title=None, env={}, virt="", nokill=False
+             testdir=None, event=None, title=None, env={}, virt="", nokill=False, hardkill=None
              ) -> [int, str, str, int]:
         if testdir:
             cmd = "mkdir -p " + testdir + " && cd " + testdir + ";\n" + cmd

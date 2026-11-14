@@ -91,6 +91,7 @@ Space-separated after the section name:
 | `delay=N` | Wait N seconds before starting this script |
 | `timeout=N` | Kill this script after N seconds |
 | `autokill=false` | When this script finishes, do not trigger the kill-all mechanism that kills the other scripts. Use this for setup scripts or early-finishing scripts so they don't terminate the test. |
+| `hardkill=N` | Milliseconds this script has to exit once it is stopped (end of the run or timeout), e.g. to print its results, before what is left of it is killed. Default 5000, also a `%config` key |
 | `critical=false` | Non-zero exit does not abort the whole test |
 | `ifeq-VAR=val` | Only include this section when `VAR == val` |
 | `name=<id>` | Give this script a name (for `waitfor=`) |
@@ -237,6 +238,7 @@ $NPF_NODE_ID        # current node index
 %config
 n_runs=3                         # repeat each combination N times (averaged)
 timeout=120                      # seconds before a test run is killed
+hardkill=5000                    # ms a stopped script has to exit before it is killed
 default_repo=local               # use 'local' for single-machine experiments
 accept_zero={METRIC,...}         # allow zero results for these metrics
 var_names={KEY:Label,...}        # human-readable names for variables and results
@@ -311,7 +313,7 @@ tls:%script
 
 `%scripts` and `%import`take `waitfor=XXX` parameters to wait for a given event. Think about dependencies, like between a client and a server and make sure client runs after server is ready. Use `echo "EVENT XXX"` to start the event after the server is ready.
 
-Beware also of the autokill parameter, a script with `autokill=true` (the default) will kill all other scripts.
+Beware also of the autokill parameter, a script with `autokill=true` (the default) will stop all other scripts when it finishes. Over SSH, NPF sends them a Ctrl-C (one SIGINT, so click and the like stop cleanly and print their results), reads their output until they exit, and kills what is left of them after `hardkill` ms. The next run only starts once they are all gone: a script does not need to wait for the processes of the previous run. Local scripts are killed at once.
 
 ## Running experiments
 
