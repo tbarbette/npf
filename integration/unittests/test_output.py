@@ -33,3 +33,23 @@ class TestOutput(unittest.TestCase):
             self.assertEqual(f.read().split("\n"), ["1 11.0 2 12.0 10 12", "2 21.0 2 22.0 20 22", ""])
         with open(os.path.join(folder, "B.csv")) as f:
             self.assertEqual(f.read().split("\n"), ["1 0.5 2 1.0 0 1", "2 1.0 2 2.0 0 2", ""])
+
+    def test_barplot_labels_prefix(self):
+        """Labels of combined variables, when the name of one is the beginning of another one, as MPRQ and
+        MPRQ_MEMCPY_LEN: it looped forever"""
+        import threading
+        from npf.output.graph.plots.barplot import combine_variables_late
+
+        class Graph:
+            def var_name(self, k):
+                return k
+
+        runs = [Run(OrderedDict(MPRQ=m, MPRQ_MEMCPY_LEN=l, CPU=8)) for m in (0, 1) for l in (0, 128)]
+        labels = []
+        t = threading.Thread(target=lambda: labels.append(
+            combine_variables_late(Graph(), runs, ["MPRQ", "MPRQ_MEMCPY_LEN", "CPU"])), daemon=True)
+        t.start()
+        t.join(10)
+        self.assertFalse(t.is_alive(), "combine_variables_late loops forever")
+        # Long labels use the end of the names that other variables do not share
+        self.assertEqual(labels[0][1], "MPRQ = 0,_ME = 128,CPU = 8")

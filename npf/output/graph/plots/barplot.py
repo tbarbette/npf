@@ -142,10 +142,13 @@ def combine_variables_late(graph, run_list, variables_to_merge):
                 l_short=[]
                 t_short_s=Trie(short_s)
                 for k,v in short_s.items():
+                    # Drops the beginning of the name that other variables share. When the name is the beginning of
+                    # another one (e.g. MPRQ and MPRQ_LEN), no prefix of it is unique: it is kept whole.
                     p=1
-                    while len(list(t_short_s.keys(k[:p]))) > 1:
+                    while p <= len(k) and len(list(t_short_s.keys(k[:p]))) > 1:
                         p+=1
-                    k = k[(p-1):]
+                    if p <= len(k):
+                        k = k[(p-1):]
                     l_short.append("%s = %s" % (k if len(k) < 6 else k[:3], v))
                 short_ss.append(','.join(l_short))
             if use_short:
