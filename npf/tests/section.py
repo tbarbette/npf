@@ -7,7 +7,7 @@ from spellwise import Editex
 
 import re
 
-known_sections = ['info', 'config', 'variables', 'exit', 'pypost' , 'pyexit', 'late_variables', 'include', 'file', 'require', 'import', 'script', 'init', 'exit']
+known_sections = ['info', 'config', 'variables', 'exit', 'pypost' , 'pyexit', 'late_variables', 'include', 'file', 'require', 'import', 'script', 'init', 'exit', 'cleanup']
 
 class SpellChecker:
     def __init__(self) -> None:
@@ -47,7 +47,7 @@ class SectionFactory:
         "require(?P<requireEngines>(?:\\s+" + enginePattern + ")*)|"
         "import(:?[@](?P<importRole>[a-zA-Z0-9]+)(:?[-](?P<importMulti>[*0-9]+))?)?[ \t]+(?P<importModule>" + Variable.VALUE_REGEX + ")(?P<importParams>([ \t]+" + varPattern + ")+)?|"
         "sendfile(:?[@](?P<sendfileRole>[a-zA-Z0-9]+))?\\s+(?P<sendfilePath>.*)|"
-        "(:?script|init|exit)(:?[@](?P<scriptRole>[a-zA-Z0-9]+)(:?[-](?P<scriptMulti>[*0-9]+))?)?(?P<scriptParams>([ \t]+(?:" + enginePattern + "|" + varPattern + "))*)"
+        "(:?script|init|exit|cleanup)(:?[@](?P<scriptRole>[a-zA-Z0-9]+)(:?[-](?P<scriptMulti>[*0-9]+))?)?(?P<scriptParams>([ \t]+(?:" + enginePattern + "|" + varPattern + "))*)"
         ")$"
     )
 
@@ -87,7 +87,7 @@ class SectionFactory:
             s = SectionSendFile(matcher.group('sendfileRole'), matcher.group('sendfilePath'))
             return s
 
-        if sectionName.startswith('script') or sectionName.startswith('exit') or (
+        if sectionName.startswith('script') or sectionName.startswith('exit') or sectionName.startswith('cleanup') or (
                 sectionName.startswith('init') and not sectionName.startswith('init-file')):
             params = matcher.group('scriptParams')
             jinja, python_inline = SectionFactory.engines(params)
@@ -101,6 +101,9 @@ class SectionFactory:
                 s.params.setdefault("autokill", False)
             if sectionName.startswith('exit'):
                 s.type = SectionScript.TYPE_EXIT
+            if sectionName.startswith('cleanup'):
+                s.type = SectionScript.TYPE_CLEANUP
+                s.params.setdefault("autokill", False)
 
             return s
 

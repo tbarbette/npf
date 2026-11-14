@@ -53,7 +53,8 @@ class SectionScript(Section):
     TYPE_INIT = "init"
     TYPE_SCRIPT = "script"
     TYPE_EXIT = "exit"
-    ALL_TYPES_SET = {TYPE_INIT, TYPE_SCRIPT, TYPE_EXIT}
+    TYPE_CLEANUP = "cleanup"
+    ALL_TYPES_SET = {TYPE_INIT, TYPE_SCRIPT, TYPE_EXIT, TYPE_CLEANUP}
 
     num = 0
 

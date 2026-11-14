@@ -1,0 +1,23 @@
+%info
+Order of the %init, %script, %exit and %cleanup sections
+
+%config
+n_runs=2
+
+%variables
+N={1,2}
+LOG=lifecycle.log
+
+%init
+echo "init" >> $LOG
+
+%script
+echo "script $N" >> $LOG
+echo "RESULT-N $N"
+
+%exit
+echo "exit $N" >> $LOG
+echo "RESULT-EXIT 1"
+
+%cleanup
+echo "cleanup" >> $LOG

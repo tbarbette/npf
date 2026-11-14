@@ -22,7 +22,7 @@ syntax keyword node_kw path user addr tags nfs arch port
 " Sections will match in reverse order to handle overlapping names
 syntax match pysections /\v(^\%|\:)\zs(pyexit)\ze( |$|\@)/
 syntax match sections2 /\v(^\%|\:)\zs(|sendfile|late_variables)\ze( |$|\@)/ nextgroup=pysections
-syntax match sections /\v(^\%|\:)\zs(info|config|script|exit|pypost|variables|import|require|file|init)\ze( |$|\@)/ nextgroup=sections2
+syntax match sections /\v(^\%|\:)\zs(info|config|script|exit|cleanup|pypost|variables|import|require|file|init)\ze( |$|\@)/ nextgroup=sections2
 
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -61,6 +61,7 @@ syntax include @SH syntax/bash.vim
 syntax region initRegion start="\v.*(\%|\:)init.*" end="\v\ze^\%" contains=@SH,calledvariables,inlinePy,comments,role,tag,sections transparent keepend
 syntax region scriptRegion start="\v.*(\%|\:)script.*" end="\v\ze^\%" contains=@SH,calledvariables,inlinePy,comments,sections,role,tag transparent keepend
 syntax region exitRegion start="\v.*(\%|\:)exit.*" end="\v\ze^\%" contains=@SH,calledvariables,inlinePy,comments,role,sections,tag transparent keepend
+syntax region cleanupRegion start="\v.*(\%|\:)cleanup.*" end="\v\ze^\%" contains=@SH,calledvariables,inlinePy,comments,role,sections,tag transparent keepend
 " Try to highlight file with .sh in the first line
 syntax region bashScriptRegion start="\v.*(\%|\:)file.*\.sh" end="\v\ze^\%" contains=@SH,calledvariables,inlinePy,comments,role,sections,tag transparent keepend
 

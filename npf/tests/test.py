@@ -711,7 +711,8 @@ class Test:
 
         # Build file list
         file_list = []
-        if SectionScript.TYPE_INIT in allowed_types:
+        init_or_cleanup = SectionScript.TYPE_INIT in allowed_types or SectionScript.TYPE_CLEANUP in allowed_types
+        if init_or_cleanup:
             initv = {}
             for k, vinit in self.variables.statics().items():
                 initv[k] = vinit.makeValues()[0]
@@ -733,7 +734,7 @@ class Test:
             for late_variables in imp.test.get_late_variables():
                 imp.imp_v.update(late_variables.execute(imp.imp_v, imp.test))
 
-            if SectionScript.TYPE_INIT in allowed_types:
+            if init_or_cleanup:
                 file_list.extend(imp.test.build_file_list(imp.imp_v, imp.get_role(), files=imp.test.init_files))
             else:
                 file_list.extend(imp.test.build_file_list(imp.imp_v, imp.get_role()))
@@ -1032,7 +1033,7 @@ class Test:
                         all_pyexits.append(p)
                         all_pyexits_v.append(vlist)
 
-                if len(all_pyexits) >0 and allowed_types != set([SectionScript.TYPE_INIT]):
+                if len(all_pyexits) >0 and SectionScript.TYPE_SCRIPT in allowed_types:
                     vs = {'RESULTS': new_data_results,
                           'TIME_RESULTS': new_time_results["time"], #Deprecated
                           'KIND_RESULTS': new_time_results, #Deprecated
@@ -1225,6 +1226,38 @@ class Test:
                     print("Stderr:")
                     print("\n".join(err))
                 raise ScriptInitException()
+            self.init_ran = True
+
+    def do_cleanup_all(self, build, options, test_folder=None, v_internals={}, m: multiprocessing.Manager=None):
+        """Run the %cleanup scripts once, after the last run, if the %init scripts ran"""
+        if not getattr(self, "init_ran", False):
+            return
+        self.init_ran = False
+        if not any(script.get_type() == SectionScript.TYPE_CLEANUP
+                   for t in [self] + [imp.test for imp in self.imports] for script in t.scripts):
+            return
+        if not options.quiet:
+            print("Executing cleanup scripts...")
+        vs = {}
+        for k, v in self.variables.statics().items():
+            vs[k] = v.makeValues()[0]
+        for late_variables in self.get_late_variables():
+            vs.update(late_variables.execute(vs, self, fail=False))
+        if m is None:
+            m = multiprocessing.Manager()
+        data_results, all_time_results, output, err, num_exec, num_err = self.execute(build, Run(vs), v=vs, n_runs=1,
+                                                                                  n_retry=0,
+                                                                                  allowed_types={SectionScript.TYPE_CLEANUP},
+                                                                                  do_imports=True,
+                                                                                  test_folder=test_folder,
+                                                                                  v_internals=v_internals,
+                                                                                  m=m)
+        if num_err > 0 and not options.quiet:
+            print("WARNING: cleanup scripts did not run correctly !")
+            print("Stdout:")
+            print("\n".join(output))
+            print("Stderr:")
+            print("\n".join(err))
 
     def execute_all(self, build, options, prev_results: Dataset = None,
                     do_test=True, on_finish=None,

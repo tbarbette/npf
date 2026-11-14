@@ -214,6 +214,7 @@ class Regression:
                                                 nseries=len(tests)*nseries)
 
                 if all_results is None and time_results is None:
+                    test.do_cleanup_all(build, get_options())
                     return None, None, None
             except ScriptInitException:
                 return None, None, None
@@ -222,6 +223,8 @@ class Regression:
                                                                     old_all_results,
                                                                     repo.last_build,
                                                                     init_done=init_done, allow_supplementary=get_options().allow_supplementary)
+            # After the supplementary runs of compare, that use the same %init
+            test.do_cleanup_all(build, get_options())
             if variables_passed == variables_total:
                 nok += 1
             data_datasets.append(all_results)
