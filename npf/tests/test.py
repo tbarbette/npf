@@ -990,7 +990,7 @@ class Test:
 
                         # Execution of the %exit script
                         try:
-                            pid, s_output, s_err, c = node.executor.exec(cmd=ncmd, options=self.options)
+                            pid, s_output, s_err, c = node.executor.exec(cmd=ncmd, options=self.options, sudo=script.params.get("sudo", False))
                         except Exception as e:
                             s_output = ""
                             s_err = ""
