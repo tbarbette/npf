@@ -508,7 +508,8 @@ class Test:
     def test_require(self, v, build):
         for require in self.requirements + list(itertools.chain.from_iterable([imp.test.requirements for imp in self.imports])):
             p = replace_variables(v, require.content, require.role(),
-                                                  self.config.get_dict("default_role_map"), python_inline=self.python_inline(require))
+                                  default_role_map=self.config.get_dict("default_role_map"),
+                                  python_inline=self.python_inline(require))
             if require.jinja:
                     p = _jinja_render(p, v, self.tags, role=require.role())
             self.warn_python_inline(require, p)
