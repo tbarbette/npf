@@ -81,7 +81,8 @@ def _parallel_exec(param: RemoteParameters):
                                  title=param.name,
                                  env=param.env,
                                  virt=param.virt,
-                                 nokill=param.nokill)
+                                 nokill=param.nokill,
+                                 hardkill=param.hardkill)
 
     sys.stdout.flush()
     sys.stderr.flush()
@@ -772,6 +773,7 @@ class Test:
 
                     autokill = m.Value('i', 0) if parseBool(script.params.get("autokill", t.config["autokill"])) else None
                     nokill = parseBool(script.params.get("nokill", t.config["nokill"]))
+                    hardkill = float(script.params.get("hardkill", t.config["hardkill"]))
 
                     v["NPF_NODE_MAX"] = len(nodes)
                     for i_node, node in enumerate(nodes):
@@ -868,6 +870,7 @@ class Test:
                         param.name = script.get_name(True)
                         param.autokill = autokill
                         param.nokill = nokill
+                        param.hardkill = hardkill
                         param.env = OrderedDict()
                         if self.options.keep_env:
                             param.env.update({key:os.environ[key] for key in self.options.keep_env})

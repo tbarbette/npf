@@ -129,7 +129,7 @@ class SSHExecutor(Executor):
     def exec(self, cmd, bin_paths : List[str] = None,
              queue: Queue = None, options = None,
              stdin = None, timeout=None, sudo=False, testdir=None,
-             event=None, title=None, env={}, virt = "", raw = False, nokill = False):
+             event=None, title=None, env={}, virt = "", raw = False, nokill = False, hardkill = None):
         if testdir:
             cmd = "mkdir -p " + testdir + " && cd " + testdir + ";\n" + cmd;
         if not title:
@@ -188,45 +188,47 @@ class SSHExecutor(Executor):
             pid = os.getpid()
             step = 0.2
             deadline = time.time() + timeout if timeout is not None else None
+            # When the script was asked to stop. It then has hardkill ms to exit, and print its last results.
+            stopping = None
+            grace = (5000 if hardkill is None else float(hardkill)) / 1000
 
-            while ((nokill or not event.is_terminated()) and not ssh_stdout.channel.exit_status_ready()) or (ssh_stdout.channel.recv_ready() or ssh_stderr.channel.recv_ready()):
+            def read():
+                """Reads what the script printed. :return: whether there was something to read"""
+                nonlocal rpid, partial_events
+                received = False
+                for channel in channels:
+                    chan = channel.channel
+                    if not chan.recv_ready():
+                        continue
+                    received = True
+                    *lines, buffers[0] = (buffers[0] + decoder.decode(chan.recv(65536))).split("\n")
+                    for line in lines:
+                        line += "\n"
+                        if rpid == -1:
+                            rpid = int(line)
+                            if stdin is not None and pty:
+                                ssh_stdin.write(stdin)
+                        else:
+                            if options and not options.quiet:
+                                self._print(title, line, False)
+                            self.searchEvent(line, event, skip=partial_events)
+                            partial_events = 0
+                            output[0].append(line)
+                return received
+
+            while not ssh_stdout.channel.exit_status_ready() or ssh_stdout.channel.recv_ready() or ssh_stderr.channel.recv_ready():
                 try:
-                    line = None
-                    received = False
-                    for ichannel,channel in enumerate(channels):
-                        chan = channel.channel
-                        ichannel = 0
-                        if chan.recv_ready():
-                            received = True
-                            try:
-                                data = chan.recv(65536)
-                                *lines, buffers[ichannel] = (buffers[ichannel] + decoder.decode(data)).split("\n")
-                                for line in lines:
-                                    line += "\n"
-                                    if rpid == -1:
-                                        rpid = int(line)
-                                        if stdin is not None and pty:
-                                            ssh_stdin.write(stdin)
-                                    else:
-                                        if options and not options.quiet:
-                                            self._print(title, line, False)
-                                        self.searchEvent(line, event, skip=partial_events)
-                                        partial_events = 0
-                                        output[ichannel].append(line)
-                            except UnicodeDecodeError:
-                                        print("Could not decode SSH input")
-                            except Exception as e:
-                                print("Error")
-                                print(e)
-                                raise(e)
-
                     # Waits only when there was nothing to read: a script printing a lot would otherwise be read at a
                     # few kB/s, and block once the SSH window is full
-                    if not received:
+                    if not read():
                         # A line printed without its newline (e.g. printf "EVENT ready"), once the output pauses
                         if buffers[0] and rpid != -1:
                             partial_events = self.searchEvent(buffers[0], event, skip=partial_events)
-                        event.wait_for_termination(step)
+                        if event.is_terminated():
+                            # Returns as soon as the script exited
+                            ssh_stdout.channel.status_event.wait(step)
+                        else:
+                            event.wait_for_termination(step)
                 except PipeTimeout:
                     pass
                 except socket.timeout:
@@ -235,29 +237,32 @@ class SSHExecutor(Executor):
                 except KeyboardInterrupt:
                     event.terminate()
                     return -1, ''.join(output[0]), ''.join(output[1]), 0
-                if deadline is not None:
-                    if time.time() > deadline:
-                        event.terminate()
-                        pid = 0
-                        break
-                if not nokill and event.is_terminated():
-                    print("Terminated, so killing if", queue)
-                    if not ssh_stdin.channel.closed:
-
+                if deadline is not None and pid != 0 and time.time() > deadline:
+                    # Stopped as the other scripts, which the end of the test stops
+                    event.terminate()
+                    pid = 0
+                if event.is_terminated() and (not nokill or pid == 0):
+                    if stopping is None:
+                        stopping = time.time()
                         if options and options.debug:
-                            print("[DEBUG] %s: Sending SIGKILL to %d" % (title,rpid))
-                        ssh_stdin.channel.send(chr(3))
-                    # sshd starts the shell in a new session: its pid is the process group of the whole script
-                    # (and "kill -1", before the pid is known, would signal every process of the user)
-                    if rpid > 1:
-                        k = "kill -- -%d 2>/dev/null; kill %d 2>/dev/null; true" % (rpid, rpid)
-                        if sudo and self.user != "root":
-                            k = "sudo -n sh -c '%s'" % k
-                        _, k_out, _, k_own = self._exec_command(k)
-                        k_out.channel.status_event.wait(timeout=5)
-                        self._close(k_out, k_own)
-                    ssh_stdout.channel.status_event.wait(timeout=1)
-                # end of loop
+                            print("[DEBUG] %s: Interrupting it, it has %gs to exit" % (title, grace))
+                        if pty and not ssh_stdin.channel.closed:
+                            # Ctrl-C: one SIGINT for the processes of the script, that sudo passes on to its command.
+                            # Programs that exit cleanly on a first signal, such as click, die at once on a second.
+                            ssh_stdin.channel.send(chr(3))
+                        else:
+                            stopping -= grace
+                    if time.time() - stopping > grace:
+                        if options and options.debug:
+                            print("[DEBUG] %s: Still running after %gs, killing it" % (title, grace))
+                        break
+
+            if stopping is not None and rpid > 1:
+                # Kills what is left of it (all of it if it did not exit in time, else what it started in the
+                # background), then reads what it printed meanwhile
+                self._kill_leftovers(rpid, sudo, title)
+                ssh_stdout.channel.status_event.wait(1)
+                read()
 
             if event.is_terminated():
                 ret = 0 #Ignore return code because we kill it before completion.
@@ -274,6 +279,31 @@ class SSHExecutor(Executor):
             return 0,'','',-1
         finally:
             self._close(ssh_stdout, own)
+
+    # The processes of a script: the session of the shell that sshd started (its pid is the id of the session), and the
+    # ones they started in their own session, such as the command of sudo with use_pty. Killed with SIGTERM, then
+    # SIGKILL, each time waiting up to 5 s for them to be gone. It prints the ones that are still there.
+    LEFTOVERS = ("procs() { ps -e -o pid= -o sid= -o ppid= | awk -v s=%d '{ sid[$1] = $2; pp[$1] = $3 } "
+                 "END { for (p in sid) { q = p; while (q + 0 > 1) { if (sid[q] + 0 == s) { print p; break }; q = pp[q] } } }'; }; "
+                 "for sig in TERM KILL; do "
+                 "p=$(procs); [ -z \"$p\" ] && exit 0; kill -$sig $p 2>/dev/null; "
+                 "for i in $(seq 50); do sleep 0.1; [ -z \"$(procs)\" ] && exit 0; done; "
+                 "done; echo $(procs); exit 1")
+
+    def _kill_leftovers(self, rpid, sudo, title):
+        """Kills what is left of a script that was asked to stop, and waits for it to be gone, so nothing of a run
+        still runs when the next one starts"""
+        k = "sh -c " + shlex.quote(self.LEFTOVERS % rpid)
+        if sudo and self.user != "root":
+            k = "sudo -n " + k
+        _, k_out, _, k_own = self._exec_command(k)
+        try:
+            if not k_out.channel.status_event.wait(timeout=15):
+                self._print(title, "Could not kill the processes of the script", True)
+            elif k_out.channel.recv_exit_status() != 0:
+                self._print(title, "Could not kill processes %s of the script" % k_out.read().decode().strip(), True)
+        finally:
+            self._close(k_out, k_own)
 
     @staticmethod
     def _close(stdout, own):

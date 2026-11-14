@@ -103,10 +103,32 @@ class TestSSHExecutorSharedConnection(unittest.TestCase):
         return [c.args[0] for c in shared.exec_command.call_args_list[before + 1:]]
 
     def test_kill_process_group(self):
-        self.assertEqual(self.kill_script(b"4242\n"), ["kill -- -4242 2>/dev/null; kill 4242 2>/dev/null; true"])
+        # It did not exit in its hardkill time after its Ctrl-C: what is left of its session is killed
+        from npf.executor.sshexecutor import SSHExecutor
+        leftovers = shlex.quote(SSHExecutor.LEFTOVERS % 4242)
+        self.assertEqual(self.kill_script(b"4242\n", hardkill=0), ["sh -c " + leftovers])
         self.ex.user = "bob"
-        self.assertEqual(self.kill_script(b"4242\n", sudo=True, testdir="t"),
-                         ["sudo -n sh -c 'kill -- -4242 2>/dev/null; kill 4242 2>/dev/null; true'"])
+        self.assertEqual(self.kill_script(b"4242\n", hardkill=0, sudo=True, testdir="t"),
+                         ["sudo -n sh -c " + leftovers])
+
+    def test_results_printed_when_stopped(self):
+        # Programs such as click print their results once interrupted: they are read until the script exits
+        shared = self.ex.get_connection()
+        script = self._command(None)
+        ch = script[1].channel
+        chunks = [b"4242\n", b"ready\n"]
+        stopped = []
+        script[0].channel.closed = False
+        script[0].channel.send.side_effect = lambda c: stopped.append(c) or chunks.append(b"RESULT 1\n")
+        ch.exit_status_ready.side_effect = lambda: bool(stopped) and not chunks
+        ch.recv_ready.side_effect = lambda: bool(chunks)
+        ch.recv.side_effect = lambda n: chunks.pop(0)
+        shared.exec_command.side_effect = [script] + [self._command(None) for _ in range(3)]
+        before = shared.exec_command.call_count
+        pid, out, err, ret = self.ex.exec("click", event=mock.Mock(is_terminated=lambda: not chunks or bool(stopped)))
+        self.assertEqual(stopped, [chr(3)], "one Ctrl-C, as a second signal kills click at once")
+        self.assertEqual(out, "ready\nRESULT 1\n")
+        self.assertEqual(len(shared.exec_command.call_args_list[before + 1:]), 1, "then what it left is killed")
 
     def test_no_kill_before_the_pid(self):
         # "kill -1" would signal every process of the user

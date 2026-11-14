@@ -67,7 +67,7 @@ class LocalExecutor(Executor):
     def exec(self, cmd : str, bin_paths : List[str]=[],
              queue: Queue = None, options = None,
              stdin = None, timeout = None, sudo = False,
-             testdir=None, event=None, title=None, env = {}, virt="" , nokill=False
+             testdir=None, event=None, title=None, env = {}, virt="" , nokill=False, hardkill=None
         ) -> [int, str, str, int]:
         """Runs a command in local
 
@@ -84,6 +84,8 @@ class LocalExecutor(Executor):
             title (_type_, optional): Title for the script. Defaults to None.
             env (dict, optional): Env array. Defaults to {}.
             virt (str, optional): Virtualisation decorator (eg namespaces). Defaults to "".
+            hardkill (float, optional): Milliseconds a script that is stopped has to exit before it is killed. Only the
+                SSH executor gives it that time for now, this one kills it at once.
 
         Returns:
             [int, str, str, int]: pid, stdout, stderr, return code
