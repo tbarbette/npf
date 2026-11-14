@@ -574,8 +574,8 @@ class Test:
                         'NPF_BUILD_PATH': bp,
                         'NPF_BUILD_ROOT': bp, #Deprecated
                         'NPF_SCRIPT_PATH': tp,
-                        'NPF_TEST_PATH': tp, #Deprecatefd
-                        'NPF_TESTIE_PATH': tp, #Deprecatefd
+                        'NPF_TEST_PATH': tp, #Deprecated
+                        'NPF_TESTIE_PATH': tp, #Deprecated, kept for old test scripts
                         'NPF_RESULT_PATH': os.path.relpath(build.result_folder(), abs_test_folder)})
         if out_path:
             v_internals.update({'NPF_OUTPUT_PATH': os.path.relpath(out_path, abs_test_folder)})

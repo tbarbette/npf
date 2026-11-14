@@ -194,7 +194,6 @@ To prevent NPF from substituting a literal `$` in a here-doc, escape it: `\$`.
 | Variable | Value |
 |---|---|
 | `$NPF_SCRIPT_PATH` | Directory containing the `.npf` file |
-| `$NPF_TESTIE_PATH` | Deprecated alias for `$NPF_SCRIPT_PATH` |
 | `$NPF_ARRAY_ID` | Run index within the current combination |
 | `$NPF_ROLE` | Current role name |
 | `$NPF_NODE_ID` | Current node index |
