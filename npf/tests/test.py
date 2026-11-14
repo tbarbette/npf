@@ -68,7 +68,9 @@ def _parallel_exec(param: RemoteParameters):
     if param.event.is_terminated():
         if param.options.debug:
                 print("[DEBUG] Script %s killed before its execution" % param.name)
+        _keep_output(param, "not started, the run ended before", "", "", time.time())
         return 1, 'Killed before execution', 'Killed before execution', 0, param.script
+    start = time.time()
     pid, o, e, c = executor.exec(cmd=param.commands,
                                  stdin=param.stdin,
                                  timeout=param.timeout,
@@ -85,6 +87,16 @@ def _parallel_exec(param: RemoteParameters):
 
     sys.stdout.flush()
     sys.stderr.flush()
+    if pid == 0:
+        how = "stopped at its timeout"
+    elif pid == -1:
+        how = "interrupted (Ctrl-C)"
+    elif param.event.is_terminated():
+        how = "stopped by NPF at the end of the run"
+    else:
+        how = "exited with code %d" % c
+    _keep_output(param, how, o, e, start)
+
     if pid == 0:
         return False, o, e, c, param.script
     else:
@@ -108,6 +120,26 @@ def _parallel_exec(param: RemoteParameters):
         if pid == -1:
             return -1, o, e, c, param.script
         return True, o, e, c, param.script
+
+
+def _keep_output(param, how, o, e, start):
+    """With --preserve-temporaries, appends the output of a script to <name>.stdout and <name>.stderr in the test
+    folder, after a line telling the run, the node, and how the script ended. --debug prints the same events live."""
+    if not param.options or not param.options.preserve_temp or not param.output_name:
+        return
+    line = "===== %s on %s: %s after %.1f s =====\n" % (param.run_title, param.node_title, how, time.time() - start)
+    try:
+        for ext, text in (("stdout", o), ("stderr", e)):
+            with open("%s.%s" % (param.output_name, ext), "a") as f:
+                f.write(line)
+                if text:
+                    f.write(text if text.endswith("\n") else text + "\n")
+    except OSError as err:
+        print("Could not keep the output of %s: %s" % (param.name, err))
+        return
+    if param.options.debug:
+        print("[DEBUG] Output of %s appended to %s.stdout and %s.stderr" % (param.name, param.output_name,
+                                                                          param.output_name))
 
 
 class ScriptInitException(Exception):
@@ -668,6 +700,19 @@ class Test:
             raise e
         return has_err, has_values
 
+    def _name_output(self, param, script, run, i, n_runs, node, i_node=None, i_multi=0):
+        """Where _keep_output() keeps the output of a script with --preserve-temporaries, and the line before it"""
+        # %init, %exit and %cleanup scripts can have the same name as a %script
+        param.output_name = ("" if script.get_type() == SectionScript.TYPE_SCRIPT else script.get_type() + "-") + \
+            get_valid_filename(param.name) + ("-%d" % i_node if i_node is not None else "") + \
+            ("-%d" % i_multi if i_multi else "")
+        title = "%%%s %s" % (script.get_type(), param.name)
+        if script.get_type() in (SectionScript.TYPE_SCRIPT, SectionScript.TYPE_EXIT):
+            variables = run.format_variables(self.config["var_hide"], maxlen=0) if run.variables else ""
+            title += ", %s[run %d/%d]" % (variables + " " if variables else "", i + 1, n_runs)
+        param.run_title = title
+        param.node_title = getattr(node.executor, "addr", None) or "localhost"
+
     def execute(self, build, run, v, n_runs=1, n_retry=0, allowed_types=SectionScript.ALL_TYPES_SET, m:multiprocessing.Manager=None, do_imports=True,
                 test_folder=None, event=None, v_internals={}, before_test = None) \
             -> Tuple[Dict, Dict, str, str, int]:
@@ -866,6 +911,9 @@ class Test:
                         param.event = event
                         param.script = script
                         param.name = script.get_name(True)
+                        if self.options.preserve_temp:
+                            self._name_output(param, script, run, i, n_runs, node, i_node if len(nodes) > 1 else None,
+                                              i_multi)
                         param.autokill = autokill
                         param.nokill = nokill
                         param.env = OrderedDict()
@@ -987,6 +1035,7 @@ class Test:
                         self.warn_python_inline(script, cmd)
                         node=node
                         ncmd = "mkdir -p " + test_folder + " && cd " + test_folder + ";\n" + cmd
+                        start, c = time.time(), -1
 
                         # Execution of the %exit script
                         try:
@@ -998,6 +1047,12 @@ class Test:
                         #print(s_output, s_err)
                         output += s_output
                         err += s_err
+                        if self.options.preserve_temp:
+                            param = RemoteParameters()
+                            param.options = self.options
+                            param.name = script.get_name(True)
+                            self._name_output(param, script, run, i, n_runs, node, i_node if i_node else None)
+                            _keep_output(param, "exited with code %d" % c, s_output, s_err, start)
 
 
                 all_output.append(output)

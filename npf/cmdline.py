@@ -23,7 +23,7 @@ def add_verbosity_options(parser: ArgumentParser):
     v.add_argument('--quiet-regression', help='Do not tell about the regression process', dest='quiet_regression',
                     action='store_true', default=False)
 
-    v.add_argument('--debug', help='Debug mode : show scripts execution and termination and more information about synchronization', dest='debug', action='store_true', default=False)
+    v.add_argument('--debug', help='Debug mode : show scripts execution and termination and more information about synchronization. With --preserve-temporaries, also tells in which file the output of each script is kept', dest='debug', action='store_true', default=False)
 
     vf = v.add_mutually_exclusive_group()
     vf.add_argument('--quiet-build', help='Do not tell about the build process', dest='quiet_build',
@@ -172,7 +172,7 @@ def add_testing_options(parser: ArgumentParser, regression: bool = False):
                    help='Count the number of valid previous tests as the maxium number of points in all tests, instead of the minimum', dest='min_test', action='store_false',
                    default=True)
     t.add_argument('--preserve-temporaries',
-                   help='Do not delete test folder with temporary files. If a value is provided, each test result will be moved to that folder. The folder path may contain variable values to do the replacement.',
+                   help='Do not delete test folder with temporary files. The output of each script is kept there, in <script name>.stdout and .stderr, each run after a line telling its variables, its node and how the script ended. If a value is provided, each test result will be moved to that folder. The folder path may contain variable values to do the replacement.',
                    dest='preserve_temp',
                    nargs='?',
                    const=True,
