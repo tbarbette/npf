@@ -472,7 +472,7 @@ npf local --test my_bench.npf --no-graph --csv results.csv
 - Do not rely on state from one `%script` run surviving to the next — each combination is run in its own subshell.
 - Do not use `%teardown` — the correct section name is `%exit`.
 - Do not hide output of programs, pipe to log file without revealing the output to the user. If need to re-parse a log to extract number for some RESULT, use "tee" to save the log but let it go to stdout still.
-- Do not invent a `cluster.npf` file for `--cluster`. NPF expects inline definitions like `--cluster role=user@host` or it uses `.node` files in the `cluster/` directory. Passing a file to `--cluster` causes a "Bad definition of node" error.
+- Do not invent a `cluster.npf` file for `--cluster`. NPF expects inline definitions like `--cluster role=user@host` or it uses `.node` files in the `cluster/` directory. Passing a file to `--cluster` causes a "Bad definition of node" error. A `.node` file holds `addr=`, `user=`, `path=`, `nfs=`, `port=`, `identityfile=` lines, NIC lines like `0:ip=10.0.0.1`, and `env=KEY=VALUE` lines for the builds on that node (the repo's own env wins).
 - Pipe outout to /dev/null unless really necessary as it prevents debug. If the user wants quiet, they can use --quiet
 
 ## Enoslib / Grid5000 usage
