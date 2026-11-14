@@ -17,9 +17,12 @@ def prepare_web_export(datasets, all_results_df, path):
         parameters = list(run.variables.keys())
         break
 
-      for var, var_name in test.config["var_names"]:
-        x_axis = var_name if len(parameters) > 0 and var == parameters[0] else parameters[0]
-        y_axis = var_name if len(measurements) > 0 and var == measurements[0] else measurements[0]
+      # Titles of the axes: the names of the first variable and result (var_names), if any
+      var_names = dict(test.config["var_names"])
+      if parameters:
+        x_axis = var_names.get(parameters[0], parameters[0])
+      if measurements:
+        y_axis = var_names.get("result-" + measurements[0], var_names.get(measurements[0], measurements[0]))
       break
 
     # Preparing configuration data
