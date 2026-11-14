@@ -167,6 +167,32 @@ class TestCore(unittest.TestCase):
                           options=args
                           )
 
+    def test_lifecycle(self):
+        """%init and %cleanup run once, %script and %exit at each run"""
+        parser = argparse.ArgumentParser(description='NPF test')
+        cmdline.add_verbosity_options(parser)
+        cmdline.add_building_options(parser)
+        cmdline.add_testing_options(parser, regression=False)
+        cmdline.add_graph_options(parser)
+        parser.add_argument('repo', metavar='repo name', type=str, nargs='?', help='name of the repo/group of builds', default=None)
+
+        log = os.path.join(tempfile.mkdtemp(), "lifecycle.log")
+        args = parser.parse_args(["--test", "integration/lifecycle.npf", "--force-retest", "--variables", "LOG=" + log])
+        npf.parsing.initialize(args)
+        npf.parsing.create_local()
+
+        series, time_series = Comparator([repository.Repository.get_instance("local", options=args)]).run(
+            test_name=args.test_files, tags=args.tags, options=args)
+        with open(log) as f:
+            lines = f.read().splitlines()
+        shutil.rmtree(os.path.dirname(log))
+        self.assertEqual(lines, ["init",
+                                 "script 1", "exit 1", "script 1", "exit 1",
+                                 "script 2", "exit 2", "script 2", "exit 2",
+                                 "cleanup"])
+        for run, results in series[0][2].items():
+            self.assertEqual(list(results["EXIT"]), [1, 1])
+
     def test_test_main(self):
         t = Test("examples/iperf.npf", options = npf.globals.options)
 

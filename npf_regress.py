@@ -168,6 +168,7 @@ def main():
             print("Executing test %s" % test.filename)
             try:
                 all_results, time_results, init_done = test.execute_all(b,options=args, prev_results=prev_results)
+                test.do_cleanup_all(b, args)
 
                 if all_results is None and time_results is None:
                     continue
@@ -225,6 +226,7 @@ def main():
                 if all_results is None and time_results is None:
                     all_results, time_results, init_done = test.execute_all(build, prev_results=prev_results, prev_time_results=prev_time_results, do_test=args.do_test, options=args)
                 if not all_results and not time_results:
+                    test.do_cleanup_all(build, args)
                     returncode+=1
                     continue
             except ScriptInitException:
@@ -237,6 +239,8 @@ def main():
                 else:
                     returncode += 1
                 ntests += 1
+            # After the supplementary runs of compare, that use the same %init
+            test.do_cleanup_all(build, args)
 
             if all_results and len(all_results) > 0:
                 build.writeResults()

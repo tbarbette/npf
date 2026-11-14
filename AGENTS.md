@@ -61,12 +61,13 @@ Sections begin with `%name`. Role suffix `@role` (e.g. `@server`, `@client`) tar
 | `%variables` | Parameter space definition |
 | `%config` | Test configuration (n_runs, timeouts, graph options) |
 | `%script[@role]` | Main test script (bash) |
-| `%init[@role]` | Setup script (runs once before the sweep) |
-| `%exit[@role]` | Cleanup script (runs once after all combinations) |
+| `%init[@role]` | Setup script (runs once, before the first run) |
+| `%exit[@role]` | Script run at the end of each run, after its scripts |
+| `%cleanup[@role]` | Teardown script (runs once, after the last run, if `%init` ran) |
 | `%file FILENAME` | Write a file before test execution |
 | `%import[@role] MODULE` | Include a reusable module |
 | `%late_variables` | Variables computed from results |
-| `%pyexit` | Python post-processing (access `RESULTS` dict) |
+| `%pyexit` | Python post-processing at the end of each run (access `RESULTS` dict) |
 
 ### Roles
 
@@ -247,11 +248,14 @@ result_append={METRIC,...}       # collect all values across runs
 graph_subplot_results={A:1,B:2}  # put A and B on separate subplots
 ```
 
-## %init and %exit
+## %init, %exit and %cleanup
 
-- `%init` runs **once** before the variable sweep. It does not need to print `RESULT` lines. If it exits with a non-zero code, NPF aborts.
-- `%exit` runs **once** after all test combinations finish (cleanup).
-- Both support `sudo=true` and role specifiers.
+A test goes through: `%init` once, then for each run (each repetition of each combination of variables) the `%script` sections in parallel, then `%exit`, then `%pyexit`, and finally `%cleanup` once.
+
+- `%init` runs **once** before the first run. It does not need to print `RESULT` lines. If it exits with a non-zero code, NPF aborts.
+- `%exit` runs at the end of **each run**, after its scripts finished. Its `RESULT` lines are added to the results of the run (e.g. `modules/perf-class.npf` analyses the perf record of the run there).
+- `%cleanup` runs **once** after the last run, only if `%init` ran: undo there what `%init` set up. Its `RESULT` lines are ignored.
+- All of them support `sudo=true` and role specifiers.
 
 ## %file — embed configuration files
 
@@ -460,16 +464,16 @@ npf local --test my_bench.npf --no-graph --csv results.csv
 - Use `$NPF_SCRIPT_PATH` (with `EXPAND()` in `%variables`) to reference files relative to the .npf file, making the script portable.
 - Use `RESULT-KEY value` lines — not print statements or log lines — for metrics.
 - Print the raw tool output before the RESULT lines so humans can debug.
-- Use `%init` for one-time setup (start servers, allocate resources) and `%exit` for cleanup.
+- Use `%init` for one-time setup (start servers, allocate resources) and `%cleanup` to undo it once at the end. `%exit` is for what must happen after every run.
 - Keep `timeout` generous: SPDK/QEMU startup can take 5–30 s.
 - **Always build and run your application via small local tests first** before wrapping it in an NPF script. NPF can hide application panics, syntax errors, and environment issues. Ensure the app works standalone before adding the NPF layer. When building Iris applications, run the binary locally or through `./build-in-docker.sh` and perform offline PCAP evaluation *before* embedding the execution pipeline in an NPF `.npf` file.
 - Remember that when orchestrating Docker-based tools (like Iris's `./build-in-docker.sh`), any host paths expanded via `EXPAND(${NPF_SCRIPT_PATH}/...)` must be manually translated to the mapped paths inside the Docker container (e.g., `/build/...`) before passing them as command-line arguments in `%script`.
 
 **Don't:**
-- Do not put `RESULT` lines in `%init` or `%exit` — they are ignored there.
+- Do not put `RESULT` lines in `%init` or `%cleanup` — they are ignored there.
 - Do not use NPF variable names (`$TRANSPORT`, `$QD`, etc.) as shell variable names inside a script — NPF will substitute them before the shell sees the script, causing confusing double-expansion.
 - Do not rely on state from one `%script` run surviving to the next — each combination is run in its own subshell.
-- Do not use `%teardown` — the correct section name is `%exit`.
+- Do not use `%teardown` — the correct section names are `%cleanup` (once at the end) and `%exit` (after each run).
 - Do not hide output of programs, pipe to log file without revealing the output to the user. If need to re-parse a log to extract number for some RESULT, use "tee" to save the log but let it go to stdout still.
 - Do not invent a `cluster.npf` file for `--cluster`. NPF expects inline definitions like `--cluster role=user@host` or it uses `.node` files in the `cluster/` directory. Passing a file to `--cluster` causes a "Bad definition of node" error. A `.node` file holds `addr=`, `user=`, `path=`, `nfs=`, `port=`, `identityfile=` lines, NIC lines like `0:ip=10.0.0.1`, and `env=KEY=VALUE` lines for the builds on that node (the repo's own env wins).
 - Pipe outout to /dev/null unless really necessary as it prevents debug. If the user wants quiet, they can use --quiet

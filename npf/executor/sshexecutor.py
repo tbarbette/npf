@@ -155,7 +155,7 @@ class SSHExecutor(Executor):
         cmd = env_str + cmd
         if sudo and self.user != "root":
             # -n: in the terminal of the script, sudo would wait for a password instead of failing
-            cmd = "sudo -n -E  mkdir -p "+testdir+" && sudo -n -E " + virt + " bash -c '"+path_cmd + cmd.replace("'", "'\"'\"'") + "'";
+            cmd = ("sudo -n -E  mkdir -p "+testdir+" && " if testdir else "") + "sudo -n -E " + virt + " bash -c '"+path_cmd + cmd.replace("'", "'\"'\"'") + "'";
         else:
             cmd = virt + " bash -c '" + path_cmd + cmd.replace("'", "'\"'\"'") + "'";
 
