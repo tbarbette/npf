@@ -349,6 +349,10 @@ class SSHExecutor(Executor):
                                     except FileNotFoundError:
                                         sftp.close()
                                         raise(Exception("Could not send %s to %s"  % (path + '/' + entry.name, remote)))
+                                    except PermissionError:
+                                        # E.g. a perf.data recorded as root in a build folder: the rest is still useful
+                                        print("Warning: could not read %s, so it is not sent to %s" %
+                                              (lpath + '/' + entry.name, self.addr))
                                 else:
                                     skipped += entry.stat().st_size
                             else:
