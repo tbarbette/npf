@@ -32,7 +32,7 @@ def add_verbosity_options(parser: ArgumentParser):
                     default=False)
 
     from npf.version import __version__
-    v.add_argument('--version', action='version',
+    v.add_argument('--version', action='version', help='Print the version of NPF and exit',
                     version='%(prog)s {version}'.format(version=__version__))
 
     return v
@@ -73,9 +73,11 @@ def add_graph_options(parser: ArgumentParser):
                    help='path to the file to output the graph')
 
     g.add_argument('--show-serie', dest='show_serie', action='store_true', default=False, help='always add the serie name in the file path')
-    g.add_argument('--graph-reject-outliers', dest='graph_reject_outliers', action='store_true', default=False)
+    g.add_argument('--graph-reject-outliers', dest='graph_reject_outliers', action='store_true', default=False,
+                   help='Do not plot the outliers: the values further from the mean than accept_outliers_mult (see %%config) standard deviations')
 
-    g.add_argument('--graph-no-series', dest='graph_no_series', action='store_true', default=False)
+    g.add_argument('--graph-no-series', dest='graph_no_series', action='store_true', default=False,
+                   help='With a single series, do not make series of the values of a dynamic variable')
 
     g.add_argument('--graph-group-repo', dest='group_repo', action='store_true', default=False, help="Group series, using the repository name as a variable")
 
@@ -87,7 +89,7 @@ def add_graph_options(parser: ArgumentParser):
 
     g.add_argument('--graph-select-max', dest='graph_select_max', type=int, default=None, help="Only keep the first X results for each run.")
 
-    g.add_argument('--graph-dpi', dest='graph_dpi', type=int, default=300)
+    g.add_argument('--graph-dpi', dest='graph_dpi', type=int, default=300, help='Resolution of the graphs, in dots per inch. Default: 300')
 
     g.add_argument('--no-graph-time', dest='do_time', action='store_false', default=True, help="Do not plot time series graphs")
 
@@ -236,7 +238,7 @@ def add_building_options(parser):
                     help='Do not build the last version, use the currently compiled one', dest='no_build', action='store_true', default=False)
     bf.add_argument('--force-build',
                     help='Force to rebuild even if the current version is matching the regression versions '
-                         '(see --version or --history).', dest='force_build',
+                         '(see --regress-version or --history).', dest='force_build',
                     action='store_true', default=False)
     b.add_argument('--no-build-deps',
                     help='Do not build the last version of some dependencies, use the currently compiled one',
