@@ -201,7 +201,8 @@ GEN_PREFIX?=
 GEN_FNT?=
 DISTRIB?=Rated
 UNQUEUE?=
-udpgen,-replay:UNQUEUE=Unqueue()
+// Unqueue pulls BURST packets each time it runs, 1 by default: batches of 1 packet cost ~4 times the CPU
+udpgen,-replay:UNQUEUE=EXPAND( Unqueue(BURST $GEN_BURST) )
 rate:UNQUEUE=EXPAND( Bandwidth${DISTRIB}Unqueue( $(( int($GEN_RATE / $GEN_NGEN) )), EXTRA_LENGTH true, LINK_RATE $GEN_RATE_LINK, BURST_DURATION 1, BURST $GEN_BURST) )
 prate:UNQUEUE=EXPAND( ${DISTRIB}Unqueue($(( int($GEN_RATE / $GEN_NGEN)  )), BURST $GEN_BURST, ACTIVE $(( "false" if $GEN_ACTIVEDELAY > 0 else "true" )) ) )
 REPLAY=0
