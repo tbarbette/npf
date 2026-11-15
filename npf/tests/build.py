@@ -352,27 +352,39 @@ class Build:
             return "the version built on %s is %s, the newest is %s" % (node.get_name(), built, self.version)
         return None
 
-    def build(self, force_build : bool = False, never_build : bool = False, quiet_build : bool = False, show_build_cmd : bool = False, node=None):
+    def build(self, force_build : bool = False, never_build = False, quiet_build : bool = False, show_build_cmd : bool = False, node=None):
+        """Checks out and builds the version to test, when needed.
+        :param never_build: False, or why NPF must not build it here: "--no-build", or "--remote-build" as each node
+            builds it"""
+        if not self.repo.url:
+            # Nothing to check out or build, such as the local repository
+            self.repo._current_build = self
+            return True
+        name = self.repo.reponame
         if force_build or self.is_checkout_needed():
             if self.get_build_version() == None:
                 force_build = "it is the first checkout"
             else:
                 force_build = "upgrading from %s to %s" % (self.get_build_version(), self.version)
-            if never_build:
-                if not quiet_build:
-                    print("Warning : test will be done with an unknown state of build")
             if not quiet_build and self.repo.name != "Local":
-                print("Checking out %s" % (self.repo.name))
+                print("Checking out %s %s (%s)" % (name, self.version, force_build))
             if not self.checkout(quiet_build):
                 return False
         reason = self.is_compile_needed()
         if force_build or (reason != None):
+            why = "you force the build with --force-build" if force_build is True else reason if not force_build else force_build
             if never_build:
-                print("Warning : version changed but you disallowed build. Test will be done with an unknown state of build")
+                if never_build == "--remote-build":
+                    if not quiet_build:
+                        print("Not building %s here (%s): with --remote-build, each node builds it" % (name, why))
+                else:
+                    print("Warning: not building %s (%s), as %s: the test uses the build that is there, which may be "
+                          "outdated" % (name, why, "%s was given" % never_build if isinstance(never_build, str)
+                                        else "building is disabled"))
                 self.repo._current_build = self
                 return True
             if not quiet_build and self.repo.name != "Local":
-                print("Building %s (because %s)" % (self.repo.name, "you force the build with --force-build" if force_build is True else reason if not force_build else force_build ))
+                print("Building %s (because %s)" % (name, why))
             if not self.compile(quiet_build, show_build_cmd, node=node):
                 return False
         self.repo._current_build = self

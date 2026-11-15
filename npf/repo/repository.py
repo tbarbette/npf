@@ -123,8 +123,13 @@ class MethodGit(Method):
             c = branch
 
         if gitrepo.head.commit != gitrepo.commit(c) and not self.repo.options.no_build:
-            if not self.repo.options.quiet_build:
-                print("Reseting branch to latest %s" % (c))
+            dirty = gitrepo.is_dirty()
+            if not self.repo.options.quiet_build or dirty:
+                print("Resetting %s in %s from %s to %s%s" % (
+                    self.repo.reponame, repo_path, gitrepo.head.commit.hexsha[:7], c,
+                    "" if gitrepo.commit(c).hexsha.startswith(str(c)) else " (%s)" % gitrepo.commit(c).hexsha[:7]))
+            if dirty:
+                print("Its local changes are saved with git stash: see git -C %s stash list" % repo_path)
             gitrepo.git.stash('save')
             gitrepo.head.reset(commit=c, index=True, working_tree=True)
 

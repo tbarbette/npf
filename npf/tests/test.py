@@ -387,7 +387,8 @@ class Test:
             deprepo = Repository.get_instance(dep, self.options)
             if deprepo.url is None or deprepo.reponame in self.options.no_build_deps:
                 continue
-            if not deprepo.get_last_build().build(force_build=deprepo.reponame in self.options.force_build_deps, never_build=getattr(self.options, 'remote_build', False)):
+            if not deprepo.get_last_build().build(force_build=deprepo.reponame in self.options.force_build_deps,
+                                                  never_build="--remote-build" if getattr(self.options, 'remote_build', False) else False):
                 raise Exception("Could not build dependency %s" % dep)
         #Do the same for the imports
         for imp in self.imports:
@@ -1281,7 +1282,8 @@ class Test:
 
     def do_init_all(self, build, options, do_test, allowed_types=SectionScript.ALL_TYPES_SET, test_folder=None,
                     v_internals={}, m: multiprocessing.Manager=None):
-        if not build.build(options.force_build, options.no_build or getattr(options, 'remote_build', False), options.quiet_build, options.show_build_cmd):
+        never_build = "--no-build" if options.no_build else "--remote-build" if getattr(options, 'remote_build', False) else False
+        if not build.build(options.force_build, never_build, options.quiet_build, options.show_build_cmd):
             raise ScriptInitException()
         if not self.build_deps([build.repo], v_internals=v_internals, no_build=options.no_build):
             raise ScriptInitException()
