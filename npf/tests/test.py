@@ -417,7 +417,10 @@ class Test:
 
         for repo_obj,role,node,bp,rbp in toSend.difference(done):
             repo = repo_obj.reponame
-            print("Sending software %s to %s... " % (repo, role), end ='')
+            # A node that builds the software itself only needs its sources, not the local build: it would be sent at
+            # each run, as the build of the node differs, and with another architecture, it would break that build
+            only = osutils.git_sources(bp) if getattr(self.options, 'remote_build', False) else None
+            print("Sending %s %s to %s... " % ("the sources of" if only is not None else "software", repo, role), end ='')
             try:
 
                 #We have to find the local path from which the remote start, so we can advance in the folder at the same point
@@ -426,7 +429,7 @@ class Test:
                 while os.path.basename(local) == os.path.basename(r):
                     local = os.path.dirname(os.path.normpath(local))
                     r = os.path.dirname(os.path.normpath(r))
-                t,s = node.executor.sendFolder(rbp,local)
+                t,s = node.executor.sendFolder(rbp,local,only=only)
             except Exception as e:
                 print ("While sending %s (to folder %s) on node %s= " %  (bp, rbp, node.addr))
                 raise e

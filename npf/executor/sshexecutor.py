@@ -349,8 +349,27 @@ class SSHExecutor(Executor):
             print("Error while connecting to %s" % self.addr)
             raise e
 
-    def sendFolder(self, path, local = None):
+    def sendFolder(self, path, local = None, only = None):
+        """Sends the files of the local folder path (in local if given) that are missing on the node or have another
+        size there. If only is given, a set of absolute local paths, only these files are sent.
+        :return: the bytes sent, and the bytes already on the node"""
         sftp = None
+        debug = getattr(npf.globals.options, "debug", False)
+        only_dirs = None
+        if only is not None:
+            only_dirs = set()
+            for f in only:
+                d = os.path.dirname(f)
+                while d not in only_dirs and d != os.path.dirname(d):
+                    only_dirs.add(d)
+                    d = os.path.dirname(d)
+        first_debug = [True]
+
+        def debug_sent(name, size):
+            # The caller printed "Sending ..." without a newline
+            print("%s[DEBUG] Sent %s (%d bytes) to %s" % ("\n" if first_debug[0] else "", name, size, self.addr))
+            first_debug[0] = False
+
         try:
             with paramiko.SSHClient() as ssh:
                 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -374,6 +393,8 @@ class SSHExecutor(Executor):
                         lpath = path if not local else local + os.sep + path
                         for entry in os.scandir(lpath):
                             if entry.is_file():
+                                if only is not None and os.path.abspath(os.path.join(lpath, entry.name)) not in only:
+                                    continue
                                 remote = self.path + path + '/' + entry.name
                                 if not entry.name in rlist or entry.stat().st_size != sftp.stat(remote).st_size:
                                     try:
@@ -381,6 +402,8 @@ class SSHExecutor(Executor):
                                         sftp.put(lpath + '/' + entry.name, remote)
                                         sftp.chmod(remote, es.st_mode)
                                         total += es.st_size
+                                        if debug:
+                                            debug_sent(os.path.normpath(lpath + '/' + entry.name), es.st_size)
                                     except FileNotFoundError:
                                         sftp.close()
                                         raise(Exception("Could not send %s to %s"  % (path + '/' + entry.name, remote)))
@@ -392,6 +415,8 @@ class SSHExecutor(Executor):
                                     skipped += entry.stat().st_size
                             else:
                                 if entry.name in ignored:
+                                    continue
+                                if only_dirs is not None and os.path.abspath(os.path.join(lpath, entry.name)) not in only_dirs:
                                     continue
                                 if entry.name not in rlist:
                                     sftp.mkdir(self.path + path + '/' + entry.name, mode=0o777 )
