@@ -49,7 +49,8 @@ class TestNodeEnv(unittest.TestCase):
         repo.get_remote_build_path.return_value = "/remote/build"
         with mock.patch("builtins.print"):
             self.assertTrue(Build(repo, "local").compile(node=n))
-        kwargs = n.executor.exec.call_args.kwargs
+        # The build command (then the version built is written on the node)
+        kwargs = n.executor.exec.call_args_list[0].kwargs
         # The repo wins over the node
         self.assertEqual(kwargs["env"], {"CC": "clang", "RTE_SDK": "/opt/dpdk"})
         self.assertEqual(kwargs["cmd"], "cd /remote/build && make CC=clang")
