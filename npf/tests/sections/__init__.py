@@ -533,7 +533,7 @@ class SectionConfig(SectionVariable):
             'var_combine': 'graph_combine_variables',
             'series_as_variables': 'graph_series_as_variables',
             'var_as_series': 'graph_variables_as_series',
-            'result_as_variables': 'graph_result_as_variables',
+            'result_as_variables': 'graph_result_as_variable',
             'y_group': 'graph_y_group',
             'graph_serie_sort':'graph_series_sort',
             'series_prop': 'graph_series_prop',
@@ -542,7 +542,7 @@ class SectionConfig(SectionVariable):
             'graph_do_legend' : 'graph_legend',
             'do_legend'     : 'graph_legend',
             'var_label_dir' : 'graph_label_dir',
-            'graph_max_col' : 'graph_max_col',
+            'graph_max_col' : 'graph_max_cols',
 
         }
 
@@ -591,11 +591,13 @@ class SectionConfig(SectionVariable):
         self.__add_list("graph_hide_variables", [])
         self.__add_dict('graph_result_as_variable', {})
         self.__add_dict('graph_map', {})
+        self.__add_dict('graph_map_inline', {})
         self.__add_dict('graph_x_sort', {})
         self.__add("graph_scatter", False)
         self.__add("graph_show_values", False)
         self.__add("graph_show_ylabel", True)
         self.__add("graph_show_xlabel", True)
+        self.__add("graph_x_label", True)
         self.__add("graph_subplot_type", "subplot")
         self.__add("graph_max_series", None)
         self.__add("graph_max_cols", 2)
@@ -606,9 +608,13 @@ class SectionConfig(SectionVariable):
         self.__add_dict("graph_filter_by", {})
         self.__add("graph_filter_linestyle", "--")
         self.__add("graph_filter_fillstyle", "none")
+        self.__add_dict("graph_filter", {})
         self.__add("graph_bar_stack", False)
+        self.__add("graph_bar_hatch", False)
+        self.__add("graph_bar_inter", None)
         self.__add("graph_text",'')
         self.__add("graph_legend", None), #the default behavior depends upon the type of graph
+        self.__add_list("graph_labels", [])
         self.__add("graph_error_fill",False)
         self.__add_dict("graph_error", {"CDF":"none"})
         self.__add("graph_mode",None)
@@ -616,8 +622,11 @@ class SectionConfig(SectionVariable):
         self.__add_list("graph_color", [])
         self.__add_list("graph_markers", ['o', '^', 's', 'D', '*', 'x', '.', '_', 'H', '>', '<', 'v', 'd'])
         self.__add_list("graph_lines", ['-', '--', '-.', ':'])
+        self.__add_dict("graph_line_params", {})
         self.__add_list("legend_bbox", [0, 1, 1, .05])
         self.__add("legend_loc", "best")
+        self.__add("legend_mode", None)
+        self.__add_list("subplot_legend_loc", [])
         self.__add("graph_max_variables",3)
         self.__add_list("graph_keep_variables", [])
 
@@ -647,6 +656,7 @@ class SectionConfig(SectionVariable):
         self.__add_dict("var_aggregate", {})
         self.__add_dict("var_drawstyle", {})
         self.__add_list("graph_type", [])
+        self.__add_list("graph_only", [])
         self.__add("title", None)
         self.__add_list("require_tags", [])
         self.__add_dict("graph_label_dir", {})
