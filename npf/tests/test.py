@@ -415,6 +415,7 @@ class Test:
                     if not node.nfs:
                         toSend.add((deprepo,role,node,deprepo.get_build_path(), deprepo.get_remote_build_path(node)))
 
+        sent = {}
         for repo_obj,role,node,bp,rbp in toSend.difference(done):
             repo = repo_obj.reponame
             # A node that builds the software itself only needs its sources, not the local build: it would be sent at
@@ -430,6 +431,7 @@ class Test:
                     local = os.path.dirname(os.path.normpath(local))
                     r = os.path.dirname(os.path.normpath(r))
                 t,s = node.executor.sendFolder(rbp,local,only=only)
+                sent[(repo, node)] = sent.get((repo, node), 0) + t
             except Exception as e:
                 print ("While sending %s (to folder %s) on node %s= " %  (bp, rbp, node.addr))
                 raise e
@@ -448,7 +450,25 @@ class Test:
                 # If NFS is shared, we only need to build once per repo!
                 if node.nfs and repo_obj.reponame in built_repos:
                     continue
-                if not repo_obj.get_last_build().compile(quiet=self.options.quiet_build, show_cmd=self.options.show_build_cmd, node=node):
+                if not repo_obj.url:
+                    # Nothing to build, such as the local repository
+                    continue
+                build = repo_obj.get_last_build()
+                # Like a local build, only when the binary is missing or of another version, or if sources changed
+                if self.options.force_build or repo_obj.reponame in getattr(self.options, 'force_build_deps', []):
+                    reason = "you force the build"
+                elif sent.get((repo_obj.reponame, node), 0) > 0:
+                    reason = "files were sent"
+                else:
+                    reason = build.is_remote_compile_needed(node)
+                if reason is None:
+                    if not self.options.quiet_build:
+                        print("%s is up to date on %s" % (repo_obj.reponame, node.get_name()))
+                    built_repos.add(repo_obj.reponame)
+                    continue
+                if not self.options.quiet_build:
+                    print("Building %s on %s (because %s)" % (repo_obj.reponame, node.get_name(), reason))
+                if not build.compile(quiet=self.options.quiet_build, show_cmd=self.options.show_build_cmd, node=node):
                     raise Exception("Could not compile %s remotely on %s" % (repo_obj.reponame, node.addr))
                 built_repos.add(repo_obj.reponame)
 

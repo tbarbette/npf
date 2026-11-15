@@ -1,4 +1,5 @@
 import os
+import shlex
 import subprocess
 from collections import OrderedDict
 from subprocess import PIPE
@@ -320,8 +321,36 @@ class Build:
         if not node:
             os.chdir(pwd)
             self.__write_file(Build.__get_build_version_path(self.repo), self.version)
-        # TODO: how to write build_version for remote?
+        elif self.version:
+            # Like locally, the node keeps the version it built, see is_remote_compile_needed
+            node.executor.exec(cmd="cd %s && echo %s > .build_version" % (
+                shlex.quote(self.repo.get_remote_build_path(node)), shlex.quote(self.version)), title="Build version")
         return True
+
+    def get_remote_bin_path(self, node):
+        bin_name = self.repo.bin_name.replace('$version', self.version) if self.version else self.repo.bin_name
+        return self.get_remote_bin_folder(node) + bin_name
+
+    def is_remote_compile_needed(self, node):
+        """Like is_compile_needed, on a node that builds the software itself (--remote-build): the binary must be
+        there, built from this version.
+        :return: why the build is needed, or None"""
+        if not self.version:
+            return "the version is unknown"
+        bin_path = self.get_remote_bin_path(node)
+        cmd = "test -e %s || exit 3; cat %s/.build_version 2>/dev/null; exit 0" % (
+            shlex.quote(bin_path), shlex.quote(self.repo.get_remote_build_path(node)))
+        pid, out, err, ret = node.executor.exec(cmd=cmd, title="Build version")
+        if ret == 3:
+            return "could not find %s on %s" % (bin_path, node.get_name())
+        if ret != 0:
+            return "could not check the build on %s" % node.get_name()
+        built = out.strip() if isinstance(out, str) else "".join(out).strip()
+        if not built:
+            return "the version built on %s is unknown" % node.get_name()
+        if built != self.version:
+            return "the version built on %s is %s, the newest is %s" % (node.get_name(), built, self.version)
+        return None
 
     def build(self, force_build : bool = False, never_build : bool = False, quiet_build : bool = False, show_build_cmd : bool = False, node=None):
         if force_build or self.is_checkout_needed():
