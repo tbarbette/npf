@@ -475,6 +475,13 @@ $(( "" if $GEN_IPV6 and $GEN_CSUM else " -> ResetIPChecksum()  " ))
     -> Unstrip(14) -> output
 }
 
+{% if REPLAY %}
+// Each thread preloads its share of LIMIT: a single script, run when the first thread has its share, would stop
+// the preload of the others
+{% for t in range($GEN_NGEN) %}
+ender{{ t }} :: Script(TYPE PASSIVE, write fdIN{{ t }}.active false, please_stop);
+{% endfor %}
+{% else %}
 ender :: Script(TYPE PASSIVE,
                 print "Limit of $LIMIT reached",
                 print "Stopping all inputs",
@@ -483,12 +490,13 @@ ender :: Script(TYPE PASSIVE,
                 please_stop,
                 {% endfor %}
                 print "Moving on...");
+{% endif %}
 $FDDISPATCH
 
 {% for t in range(GEN_NGEN | int ) %}
      fdIN{{t}}
     {% if (LIMIT | int) > 0 and not HAVE_PRATE and not (REPLAY and trace) %}
-         -> limit{{t}} :: Counter(COUNT_CALL {{ ( (LIMIT | int) / (GEN_NGEN | int) )  | int }} ender.run)
+         -> limit{{t}} :: Counter(COUNT_CALL {{ ( (LIMIT | int) / (GEN_NGEN | int) )  | int }} ender{{ t if REPLAY else "" }}.run)
     {% endif %}
     {% if HAVE_UNQUEUE %}
         -> unqueue{{t}} :: $UNQUEUE
