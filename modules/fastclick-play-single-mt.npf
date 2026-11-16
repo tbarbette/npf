@@ -414,11 +414,12 @@ StaticThreadSched(jc -1);
                             SEQUENTIAL $GEN_SEQUENTIAL, BURST $GEN_BURST, ACTIVE false)
         {% endif %}
     {% elif GEN_DUMP == 0 %}
-        fdIN{{t}} :: FromDump({{t_path}}, STOP true, TIMING {{ $TIMING if not $REPLAY else 0 }}, {% if not $REPLAY %} TIMING_FNT "$TIMING_FNT", {% endif %} END_AFTER $END_AFTER, ACTIVE {{ "true" if (REPLAY and not GEN_ACTIVEDELAY) else "false" }}, BURST 32 {% if PRELOAD > 0 %}, PRELOAD $PRELOAD{% endif %} , MMAP false, DPDK true);
+        // In replay mode, the end of the trace is the end of the preload: ReplayUnqueue stops the router
+        fdIN{{t}} :: FromDump({{t_path}}, STOP {{ "false" if REPLAY else "true" }}, TIMING {{ $TIMING if not $REPLAY else 0 }}, {% if not $REPLAY %} TIMING_FNT "$TIMING_FNT", {% endif %} END_AFTER $END_AFTER, ACTIVE {{ "true" if (REPLAY and not GEN_ACTIVEDELAY) else "false" }}, BURST 32 {% if PRELOAD > 0 %}, PRELOAD $PRELOAD{% endif %} , MMAP false, DPDK true);
     {% elif GEN_DUMP == 1 %}
-        fdIN{{t}} :: FromIPSummaryDump({{t_path}}, TIMES $replay_count, TIMING $TIMING, TIMESTAMP $TIMING, ZERO false, BURST $GEN_BURST, STOP true);
+        fdIN{{t}} :: FromIPSummaryDump({{t_path}}, TIMES $replay_count, TIMING $TIMING, TIMESTAMP $TIMING, ZERO false, BURST $GEN_BURST, STOP {{ "false" if REPLAY else "true" }});
     {% else %}
-        fdIN{{t}} :: FromMinDump({{t_path}}, TIMES $replay_count,  BURST $GEN_BURST, STOP true, DPDK true);
+        fdIN{{t}} :: FromMinDump({{t_path}}, TIMES $replay_count,  BURST $GEN_BURST, STOP {{ "false" if REPLAY else "true" }}, DPDK true);
     {% endif %}
 {% endfor %}
 
