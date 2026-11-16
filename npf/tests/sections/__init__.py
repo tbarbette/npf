@@ -50,6 +50,23 @@ class SectionSendFile(Section):
         self._role = role
 
 class SectionScript(Section):
+    """
+    A %script, %init, %exit or %cleanup section: %script[@ROLE[-N]] [jinja] [python-inline] [PARAM=VALUE ...]
+
+    Its parameters, documented in tests.rst of npf-docs:
+      name=NAME       Name of the script in NPF's messages and in the output files of --preserve-temporaries
+      sudo=true       Run the script with sudo
+      delay=SECONDS   Start the script this many seconds after the run starts, or after its waitfor event
+      waitfor=EVENT   Start the script when another script prints "EVENT EVENT"
+      deps=A,B        Repositories the script needs: NPF builds them, and adds their binaries to the PATH
+      timeout=S       Seconds after which the script is stopped (default: timeout of %config)
+      autokill=false  When this script ends, do not stop the other scripts (default: autokill of %config)
+      nokill=true     At the end of the run, let this script end by itself (default: nokill of %config)
+      hardkill=MS     Milliseconds the script has to exit once stopped (default: hardkill of %config)
+      critical=true   When this script fails, stop the test (default: critical of %config)
+    %import takes delay, waitfor, autokill and nokill for all the scripts of the module, and as_init, which has
+    no effect. Its other parameters set variables of the module.
+    """
     TYPE_INIT = "init"
     TYPE_SCRIPT = "script"
     TYPE_EXIT = "exit"
@@ -533,7 +550,7 @@ class SectionConfig(SectionVariable):
             'var_combine': 'graph_combine_variables',
             'series_as_variables': 'graph_series_as_variables',
             'var_as_series': 'graph_variables_as_series',
-            'result_as_variables': 'graph_result_as_variables',
+            'result_as_variables': 'graph_result_as_variable',
             'y_group': 'graph_y_group',
             'graph_serie_sort':'graph_series_sort',
             'series_prop': 'graph_series_prop',
@@ -542,124 +559,138 @@ class SectionConfig(SectionVariable):
             'graph_do_legend' : 'graph_legend',
             'do_legend'     : 'graph_legend',
             'var_label_dir' : 'graph_label_dir',
-            'graph_max_col' : 'graph_max_col',
+            'graph_max_col' : 'graph_max_cols',
 
         }
 
+        # All the options of the %config section, with their default value. They are documented in
+        # npf-docs (tests.rst for the test options, regress.rst, graph.rst). Most options taking a list
+        # or a dict per result type also accept "result" as a key, for all result types.
+
         # Environment
-        self.__add("default_repo", "local")
+        self.__add("default_repo", "local")  # Repository used when none is given (e.g. npf-run without a repo)
 
         # Regression related
-        self.__add_list("accept_zero", ["time", "DROP", "DROPPED", "DROPPEDPC", "LOST"])
-        self.__add("n_supplementary_runs", 3)
-        self.__add("acceptable", 0.01)
-        self.__add("accept_outliers_mult", 1)
-        self.__add("accept_variance", 1)
+        self.__add_list("accept_zero", ["time", "DROP", "DROPPED", "DROPPEDPC", "LOST"])  # Result types (and time series namespaces) that may be 0. Other results at 0 are ignored, as an error
+        self.__add("n_supplementary_runs", 3)  # Runs added when a regression is found, before telling about it
+        self.__add("acceptable", 0.01)  # Accepted relative difference with the previous version (0.01 = 1%)
+        self.__add("accept_outliers_mult", 1)  # Values further than this many standard deviations from the mean are outliers (regression, --graph-reject-outliers)
+        self.__add("accept_variance", 1)  # Also accept a difference of this many standard deviations of the results, divided by the mean
 
         # Test related
 
-        self.__add_list("time_kinds", [])
-        self.__add("n_runs", 3)
-        self.__add("n_retry", 0)
-        self.__add_dict("var_n_runs", {})
-        self.__add_dict("var_markers", {}) #Do not set CDF here, small CDF may want them, and then scatterplot would not work
-        self.__add("result_add", False)
-        self.__add("result_append", False)
-        self.__add("result_overwrite", False)
+        self.__add_list("time_kinds", [])  # Time series namespaces to take from the cache. Empty: all of them
+        self.__add("n_runs", 3)  # Runs of each combination of variables
+        self.__add("n_retry", 0)  # Times a run is retried when it fails, e.g. when a script does not give its results
+        self.__add_dict("var_n_runs", {})  # {RESULT:N}: only keep the time series of RESULT for the N first runs
+        self.__add_dict("var_markers", {}) #Do not set CDF here, small CDF may want them, and then scatterplot would not work. {RESULT:o;^}: markers of the lines of RESULT, per series
+        self.__add("result_add", False)  # true, or a list of result types: when a script gives the same result several times, add the values
+        self.__add("result_append", False)  # true, or a list of result types: keep all the values, as several points of the run
+        self.__add("result_overwrite", False)  # true, or a list of result types: keep the last value
         self.__add_list("result_regex", [
-            r"(:?(:?(?P<kind>[A-Z0-9_]+)-)?(?P<time_value>[0-9.]+)-)?RESULT(:?-(?P<type>[A-Z0-9_:~.@()-]+))?[ \t]+(?P<value>[-]?[0-9.]+(e[+-][0-9]+)?)[ ]*(?P<multiplier>[nµugmkKGT]?)(?P<unit>s|sec|b|byte|bits)?"])
-        self.__add_list("results_expect", [])
-        self.__add("autokill", True)
-        self.__add("nokill", False)
-        self.__add("critical", False)
+            r"(:?(:?(?P<kind>[A-Z0-9_]+)-)?(?P<time_value>[0-9.]+)-)?RESULT(:?-(?P<type>[A-Z0-9_:~.@()-]+))?[ \t]+(?P<value>[-]?[0-9.]+(e[+-][0-9]+)?)[ ]*(?P<multiplier>[nµugmkKGT]?)(?P<unit>s|sec|b|byte|bits)?"])  # Regexes finding the results in the output of the scripts
+        self.__add_list("results_expect", [])  # Result types that each run must give, else the run failed
+        self.__add("autokill", True)  # When a script ends, stop the other scripts of the run. %script autokill=false overrides it
+        self.__add("nokill", False)  # Do not stop this script at the end of the run, let it end by itself. %script nokill=true overrides it
+        self.__add("critical", False)  # When a script fails, stop the whole test. %script critical=true overrides it
         self.__add_dict("env", {})  # Unimplemented yet
-        self.__add("timeout", 30)
-        self.__add("hardkill", 5000)
+        self.__add("timeout", 30)  # Seconds after which the scripts of a run are stopped. %script timeout= overrides it
+        self.__add("hardkill", 5000)  # Milliseconds a stopped script has to exit before it is killed. %script hardkill= overrides it
 
         # Role related
-        self.__add_dict("default_role_map", {})
-        self.__add_list("role_exclude", [])
+        self.__add_dict("default_role_map", {})  # {ROLE:OTHER}: a role that is not given with --cluster runs where OTHER runs
+        self.__add_list("role_exclude", [])  # {A+B}: roles that must not run on the same node
 
         # Graph options
-        self.__add_dict("graph_combine_variables", {})
-        self.__add_dict("graph_subplot_results", {})
-        self.__add("graph_subplot_variable", None)
-        self.__add("graph_subplot_unique_legend", False)
-        self.__add_list("graph_display_statics", [])
-        self.__add_list("graph_variables_as_series", [])
-        self.__add("graph_variables_explicit", False)
-        self.__add_list("graph_hide_variables", [])
-        self.__add_dict('graph_result_as_variable', {})
-        self.__add_dict('graph_map', {})
-        self.__add_dict('graph_x_sort', {})
-        self.__add("graph_scatter", False)
-        self.__add("graph_show_values", False)
-        self.__add("graph_show_ylabel", True)
-        self.__add("graph_show_xlabel", True)
-        self.__add("graph_subplot_type", "subplot")
-        self.__add("graph_max_series", None)
-        self.__add("graph_max_cols", 2)
-        self.__add("graph_series_as_variables", False)
-        self.__add("graph_series_prop", False)
-        self.__add("graph_series_sort", None)
-        self.__add("graph_series_label", None)
-        self.__add_dict("graph_filter_by", {})
-        self.__add("graph_filter_linestyle", "--")
-        self.__add("graph_filter_fillstyle", "none")
-        self.__add("graph_bar_stack", False)
-        self.__add("graph_text",'')
-        self.__add("graph_legend", None), #the default behavior depends upon the type of graph
-        self.__add("graph_error_fill",False)
-        self.__add_dict("graph_error", {"CDF":"none"})
-        self.__add("graph_mode",None)
-        self.__add_dict("graph_y_group",{})
-        self.__add_list("graph_color", [])
-        self.__add_list("graph_markers", ['o', '^', 's', 'D', '*', 'x', '.', '_', 'H', '>', '<', 'v', 'd'])
-        self.__add_list("graph_lines", ['-', '--', '-.', ':'])
-        self.__add_list("legend_bbox", [0, 1, 1, .05])
-        self.__add("legend_loc", "best")
-        self.__add("graph_max_variables",3)
-        self.__add_list("graph_keep_variables", [])
+        self.__add_dict("graph_combine_variables", {})  # {A+B:AB}: combine variables A and B into a single variable AB
+        self.__add_dict("graph_subplot_results", {})  # {A+B:2}: plot results A and B in one figure, with 2 columns or 2 axes (graph_subplot_type)
+        self.__add("graph_subplot_variable", None)  # One subplot per value of this variable
+        self.__add("graph_subplot_unique_legend", False)  # With graph_subplot_type=axis, one legend for all the axes
+        self.__add_list("graph_display_statics", [])  # Add a subplot showing the values of the static variables
+        self.__add_list("graph_variables_as_series", [])  # Variables that become series (lines)
+        self.__add("graph_variables_explicit", False)  # Name the series made from a variable "VAR = value" instead of "value"
+        self.__add_list("graph_hide_variables", [])  # Variables removed from the graphs and outputs, as if they were not dynamic
+        self.__add_dict('graph_result_as_variable', {})  # {COUNT-Q(.*):QUEUE}: results matching the regex become values of a variable (also graph_result_as_variables)
+        self.__add_dict('graph_map', {})  # {VAR:file}: replace the values of VAR with the map in file
+        self.__add_dict('graph_map_inline', {})  # {regex:value}: replace the values of all variables matching regex with value
+        self.__add_dict('graph_x_sort', {})  # true/false, or the X variables, to sort the X axis (default: only numerical variables)
+        self.__add("graph_scatter", False)  # true, or result types: scatter plot instead of lines
+        self.__add("graph_show_values", False)  # Write the values on the graph, with this number of decimals
+        self.__add("graph_show_ylabel", True)  # true/false, or result types: show the label of the Y axis
+        self.__add("graph_show_xlabel", True)  # true/false, or result types: show the label of the X axis
+        self.__add("graph_x_label", True)  # Bar plots: false to hide the labels of the bar groups
+        self.__add("graph_subplot_type", "subplot")  # subplot: one subplot per result of graph_subplot_results. axis: one Y axis per result, in one plot
+        self.__add("graph_max_series", None)  # Keep only the N first series (see graph_series_sort)
+        self.__add("graph_max_cols", 2)  # Maximum number of columns of subplots
+        self.__add("graph_series_as_variables", False)  # The series become values of a variable, e.g. to use another variable as series
+        self.__add("graph_series_prop", False)  # Divide the results by those of the first series, which is removed. A number: also multiply by it (100: percents)
+        self.__add("graph_series_sort", None)  # Sort the series: natsort, avg, min, max. Prefix with - to reverse
+        self.__add("graph_series_label", None)  # Name of the series, with variables replaced, e.g. "$CPU cores"
+        self.__add_dict("graph_filter_by", {})  # {RESULT:FILTER}: draw RESULT dashed where FILTER is true, e.g. {THROUGHPUT:DROPPEDPC>0}
+        self.__add("graph_filter_linestyle", "--")  # Line style of the parts that graph_filter_by filters
+        self.__add("graph_filter_fillstyle", "none")  # Marker fill style of the parts that graph_filter_by filters
+        self.__add_dict("graph_filter", {})  # {RESULT:expression of x}: keep only the values x of RESULT for which the expression is true, e.g. {LATENCY:x<1000}
+        self.__add("graph_bar_stack", False)  # Bar plots: stack the bars of a group instead of putting them side by side
+        self.__add("graph_bar_hatch", False)  # Bar plots: hatch the bars, with a pattern per series
+        self.__add("graph_bar_inter", None)  # Bar plots: space between the groups of bars. Default: depends on the plot
+        self.__add("graph_text",'')  # Text added under the graphs
+        self.__add("graph_legend", None), #the default behavior depends upon the type of graph. true/false, or result types: show the legend
+        self.__add_list("graph_labels", [])  # Labels of the legend, replacing the names of the series
+        self.__add("graph_error_fill",False)  # Draw the confidence interval as a filled zone instead of error bars
+        self.__add_dict("graph_error", {"CDF":"none"})  # {RESULT:type}: confidence interval of lines, bar (std. dev.), barminmax, fill, fillminmax, fill50 (25th-75th percentiles) or none
+        self.__add("graph_mode",None)  # Unused
+        self.__add_dict("graph_y_group",{})  # {RESULT:method}: how the values of the runs give a point: mean (default), median, min, max, perc95, std, n, first, last, all
+        self.__add_list("graph_color", [])  # Color set of each series: 0 (several colors) to 5 (shades of one color)
+        self.__add_list("graph_markers", ['o', '^', 's', 'D', '*', 'x', '.', '_', 'H', '>', '<', 'v', 'd'])  # Markers of the series, in order
+        self.__add_list("graph_lines", ['-', '--', '-.', ':'])  # Line styles of the series, in order
+        self.__add_dict("graph_line_params", {})  # {param:value}: arguments of matplotlib's plot() for lines, e.g. {linewidth:2}
+        self.__add_list("legend_bbox", [0, 1, 1, .05])  # bbox_to_anchor of the legend when it is outside the graph (legend_loc=outer ...)
+        self.__add("legend_loc", "best")  # Location of the legend (matplotlib's loc), or "outer ..." to put it outside of the graph
+        self.__add("legend_mode", None)  # mode of matplotlib's legend(), e.g. expand
+        self.__add_list("subplot_legend_loc", [])  # With graph_subplot_type=axis, location of the legend of each axis
+        self.__add("graph_max_variables",3)  # When there are more dynamic variables, the least useful are removed
+        self.__add_list("graph_keep_variables", [])  # Variables never removed by graph_max_variables
 
-        self.__add("legend_frameon", True)
-        self.__add("legend_ncol", 1)
-        self.__add("var_hide", {})
-        self.__add_list("var_log", [])
-        self.__add_dict("var_log_base", {})
-        self.__add_dict("var_divider", {'result': 1})
-        self.__add_dict("var_lim", {})
-        self.__add_dict("var_format", {})
-        self.__add_dict("var_ticks", {})
+        self.__add("legend_frameon", True)  # Draw a frame around the legend
+        self.__add("legend_ncol", 1)  # Number of columns of the legend. A list: per subplot
+        self.__add("var_hide", {})  # Variables not shown when NPF prints the variables of a run
+        self.__add_list("var_log", [])  # Variables and results drawn on a logarithmic axis
+        self.__add_dict("var_log_base", {})  # {VAR:base}: base of the logarithmic axis (default 2)
+        self.__add_dict("var_divider", {'result': 1})  # {VAR:N}: divide the values of a variable or result by N
+        self.__add_dict("var_lim", {})  # {VAR:min-max}: range of an axis. Several ranges separated by + make a broken axis
+        self.__add_dict("var_format", {})  # {VAR:format}: printf-like format of the values, or eng
+        self.__add_dict("var_ticks", {})  # {VAR:0+5+10}: ticks of the axis
 
-        self.__add_dict("graph_legend_params", {})
-        self.__add_list("var_grid", ["result"])
-        self.__add("graph_grid_linestyle", ":")
+        self.__add_dict("graph_legend_params", {})  # Arguments of matplotlib's legend(), e.g. {frameon:0}
+        self.__add_list("var_grid", ["result"])  # Variables and results that have a grid
+        self.__add("graph_grid_linestyle", ":")  # Line style of the grid
 
-        self.__add("graph_fillstyle", "full")
-        self.__add_dict("graph_tick_params", {})
-        self.__add("var_serie",None)
-        self.__add_dict("var_names", {"result-LATENCY":"Latency (µs)", "result-THROUGHPUT":"Throughput", "^THROUGHPUT$":"Throughput", "boxplot":"", "^PARALLEL$":"Number of parallel connections", "^ZEROCOPY$":"Zero-Copy", "CDFLATPC":"CDF", "CDFLATVAL":"Latency"})
-        self.__add_dict("var_unit", {"result": "","result-LATENCY":"us","latency":"us","throughput":"bps"})
-        self.__add("graph_show_fliers", True)
-        self.__add_dict("graph_cross_reference", {})
-        self.__add_dict("graph_background", {})
-        self.__add_dict("var_round", {})
-        self.__add_dict("var_aggregate", {})
-        self.__add_dict("var_drawstyle", {})
-        self.__add_list("graph_type", [])
-        self.__add("title", None)
-        self.__add_list("require_tags", [])
-        self.__add_dict("graph_label_dir", {})
-        self.__add("graph_force_diagonal_labels", False)
-        self.__add("graph_smooth", 1)
+        self.__add("graph_fillstyle", "full")  # Fill style of the markers
+        self.__add_dict("graph_tick_params", {})  # Arguments of matplotlib's tick_params(), e.g. {direction:in}
+        self.__add("var_serie",None)  # Variable used as series of a line plot
+        self.__add_dict("var_names", {"result-LATENCY":"Latency (µs)", "result-THROUGHPUT":"Throughput", "^THROUGHPUT$":"Throughput", "boxplot":"", "^PARALLEL$":"Number of parallel connections", "^ZEROCOPY$":"Zero-Copy", "CDFLATPC":"CDF", "CDFLATVAL":"Latency"})  # {VAR:name}: names of variables and results on the graphs
+        self.__add_dict("var_unit", {"result": "","result-LATENCY":"us","latency":"us","throughput":"bps"})  # {VAR:unit}: units of variables and results
+        self.__add("graph_show_fliers", True)  # Box plots: show the outliers
+        self.__add_dict("graph_cross_reference", {})  # {RESULT:VAR}: on the graph of RESULT, use VAR as X axis, e.g. the measured rate instead of the requested one
+        self.__add_dict("graph_background", {})  # A color index, or {RESULT:index}: background color of the graph (true: index 15)
+        self.__add_dict("var_round", {})  # {VAR:precision}: round the values of VAR, merging the runs that become equal
+        self.__add_dict("var_aggregate", {})  # {VAR:method}: merge the values of VAR: all, mean, median, ...
+        self.__add_dict("var_drawstyle", {})  # {RESULT:style}: drawstyle of matplotlib's plot(), e.g. steps-post
+        self.__add_list("graph_type", [])  # Graph types: line, bar, simple_bar, barh, boxplot, cdf, heatmap, sparse_heatmap. {RESULT:type} per result
+        self.__add_list("graph_only", [])  # Only draw the graphs of these results
+        self.__add("title", None)  # Title of the graphs
+        self.__add_list("require_tags", [])  # Tags the test needs: without them, it is skipped
+        self.__add_dict("graph_label_dir", {})  # {VAR:direction}: direction of the labels of the X axis: vertical, horizontal, diagonal
+        self.__add("graph_force_diagonal_labels", False)  # Always use diagonal labels on the X axis
+        self.__add("graph_smooth", 1)  # Lines: smooth over N% of the X range (1: no smoothing)
 
         # Time series
-        self.__add("time_precision", 1)
-        self.__add("time_sync", False)
-        self.__add_list("glob_sync", [])
-        self.__add_list("var_sync", ["time"])
-        self.__add_dict("var_shift", {})
-        self.__add_dict("var_repeat", {})
+        self.__add("time_precision", 1)  # Decimals of the time, to merge the values of close times
+        self.__add("time_sync", False)  # true, or namespaces: time starts at 0 at the first non-zero value
+        self.__add_list("glob_sync", [])  # Namespaces whose time is synchronized together
+        self.__add_list("var_sync", ["time"])  # Variables synchronized on the graphs: the time series start at 0
+        self.__add_dict("var_shift", {})  # {RESULT:shift}: shift the time of RESULT on the graphs
+        self.__add_dict("var_repeat", {})  # Results repeated at each time, from their previous value, when they have no value there
 
     def var_name(self, key):
         key = key.lower()

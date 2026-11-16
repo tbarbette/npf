@@ -141,7 +141,7 @@ def main():
     parser.add_argument('--interval', metavar='secs', type=int, nargs=1, default=60,
                         help='interval in seconds between polling of repositories')
     parser.add_argument('--history', dest='history', metavar='N', type=int, default=1,
-                        help='assume last N commits as untested (default 0)')
+                        help='assume last N commits as untested (default 1)')
 
     v = npf.cmdline.add_verbosity_options(parser)
 
@@ -157,9 +157,9 @@ def main():
     m.add_argument('--mail-to', metavar='email', type=str, nargs='+', help='list of e-mails for report',
                    default=[])
     m.add_argument('--mail-from', metavar='email', type=str, nargs=1, dest='mail_from', default='tom.barbette@ulg.ac.be',
-                   help='list of e-mails for report')
+                   help='sender of the report e-mails')
     m.add_argument('--mail-erroronly', default=True, dest='mail_always',  action='store_false',
-                   help='e-mail even if there is an error')
+                   help='only send a report when there is an error')
     m.add_argument('--mail-smtp', metavar='address', type=str, dest='mail_smtp', default='localhost',
                    help='smtp server address. Default is localhost')
 

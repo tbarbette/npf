@@ -1,5 +1,9 @@
 
 class NIC:
+    # The attributes of a NIC, set in .node files with N:TYPE=VALUE and read in scripts with ${ROLE:N:TYPE}:
+    #   ifname, pci, mac, ip, ip6, mask (default 255.255.255.0)
+    #   raw_mac       Read only: the MAC address without colons
+    #   driver        Set only: no script can read it
     TYPES = "driver|ip|ip6|mac|raw_mac|ifname|pci|mask"
 
     def __init__(self, pci, mac, ip, ip6, ifname, mask='255.255.255.0'):

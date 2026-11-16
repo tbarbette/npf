@@ -26,7 +26,8 @@ def do_barplot(graph, axis, vars_all, dyns, result_type, data, shift, show_value
         #Filters allow to hatch bars where a value of another variable is higher than something. Stack not implemented yet.
         filters = graph.configdict("graph_filter_by", default={})
 
-        interbar = graph.config('graph_bar_inter', default=interbar)
+        if graph.config('graph_bar_inter') is not None:
+            interbar = graph.config('graph_bar_inter')
         stack = graph.config_bool('graph_bar_stack')
         do_hatch = graph.config_bool('graph_bar_hatch', default=False)
         n_series = len(vars_all)

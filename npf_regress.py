@@ -31,7 +31,7 @@ def main():
     b = npf.cmdline.add_building_options(parser)
     b.add_argument('--allow-old-build',
                    help='Re-build and run test for old versions (compare-version and graph-version) without results. '
-                        'By default, only building for the regression versions (see --history or --version) is done',
+                        'By default, only building for the regression versions (see --history or --regress-version) is done',
                    dest='allow_oldbuild', action='store_true', default=False)
     b.add_argument('--force-old-build',
                    help='Force to rebuild the old versions. Ignored if allow-old-build is not set', dest='force_oldbuild',
@@ -52,7 +52,7 @@ def main():
                          'commits up to now. Difference with --allow-old-build is that the regression test '
                          'will be done for each commit instead of just graphing the results, so error message and'
                          'return code will concern any regression between HEAD and HEAD~N. '
-                         'Ignored if --version is given.',
+                         'Ignored if --regress-version is given.',
                     dest='history', metavar='N',
                     nargs='?', type=int, default=1)
     g.add_argument('--branch', help='Branch', type=str, nargs='?', default=None)

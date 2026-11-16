@@ -25,6 +25,24 @@ hu = SpellChecker()
 hu.add_words(known_sections)
 
 class SectionFactory:
+    """
+    Builds the sections of a test script from their header. Any header can start with TAGS: to apply only with
+    those tags. The sections, documented in tests.rst of npf-docs:
+      %info                       Description of the test; its first line is the title of the graphs
+      %config                     Options of the test and of the graphs (see SectionConfig)
+      %variables                  Variables of the test, whose combinations NPF runs
+      %late_variables             Constants, evaluated after the variables, and not shown in the graphs
+      %script, %init, %exit, %cleanup   Shell scripts, see SectionScript for their parameters
+      %file[@ROLE] NAME [noparse] Creates NAME before the run; noparse leaves its variables as they are
+      %init-file[@ROLE] NAME      Creates NAME for the %init and %cleanup scripts, with the static variables
+      %require                    Script that must succeed for a run to happen
+      %import[@ROLE[-N]] MODULE [PARAM=VALUE ...]   Imports a module of the modules folder
+      %include FILE [VAR=VALUE ...]   Includes another test script in this one
+      %sendfile[@ROLE] PATH       Sends PATH to the nodes of the role
+      %pyexit [NAME]              Python run after each run, with its results in RESULTS, to change them
+      %pypost                     Python run on all the results (ALL_RESULTS) before the graphs and outputs
+    jinja and python-inline after %script, %file and %require headers choose how their content is templated.
+    """
     varPattern = "([a-zA-Z0-9_:-]+)[=](" + Variable.VALUE_REGEX + ")?"
     # Template engines of a section, before or among the parameters of a script
     enginePattern = "(?:jinja|python-inline)(?=\\s|$)"

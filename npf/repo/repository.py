@@ -21,6 +21,24 @@ import git
 
 from npf.models.units import is_numeric
 
+# The keys of a .repo file, documented in repos.rst of npf-docs. KEY+=VALUE appends, TAG:KEY=VALUE only applies
+# with the tag TAG.
+#   name         Name of the repository in the graphs and messages
+#   method       How to get it: git (default), get (download and extract an archive), package (system package),
+#                local (use the build folder as it is)
+#   url          Where to get it: git URL, or archive URL with get ($version and the $VAR of env are replaced)
+#   branch       Git branch (default: master)
+#   version      Version of the get, package and local methods. $version in url, bin_folder and bin_name is replaced
+#   parent       Another repository whose keys are the defaults of this one
+#   tags         Tags added to the test when using this repository
+#   configure    Command to configure it before the build (default: none)
+#   make         Command to build it (default: make -j12)
+#   clean        Command to clean it (default: make clean)
+#   build_info   Message printed before building it, e.g. what the build needs
+#   bin_folder   Folder of its binaries, added to the PATH of the scripts (default: bin)
+#   bin_name     Binary whose presence tells it is built (default: the name of the repository)
+#   env          Environment variables of the build and of the scripts, e.g. env={CC:clang}
+#   packages     System packages it needs (see --install-packages)
 repo_variables = ['name', 'branch', 'configure', 'url', 'method', 'parent', 'tags', 'make', 'version', 'clean', 'build_info',
                   'bin_folder', 'bin_name', 'env', 'packages']
 
