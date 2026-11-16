@@ -97,9 +97,11 @@ get_csv_value_by_column_name() {
 }
 
 
+#csv_check COLUMN VALUE [TOLERANCE]: the value of COLUMN in out.csv is VALUE, within TOLERANCE (default 0.02, 2%)
 csv_check() {
     val=$(get_csv_value_by_column_name "out.csv" $1)
-    if (( $(echo "$val/$2 < 1.02 && $val/$2 > 0.98 " | bc -l) )); then
+    tol=${3:-0.02}
+    if (( $(echo "$val/$2 < 1 + $tol && $val/$2 > 1 - $tol " | bc -l) )); then
         return 0
     else
         echo "Value $val is not $2 for $1"
@@ -189,8 +191,9 @@ if pkg-config --exists libdpdk ; then
     try integration/fastclick-generator.npf $python --tags udpgen replay --variables LIMIT=10000 PKTGEN_REPLAY_COUNT=10 LIMIT_TIME=10 --csv out.csv
 
     #We have to IGNORE=2 as the token bucket starts full, so the rate is slightly higher at the beginning, still there is a small increase in PPS left
+    #The rate is measured over less than 2 seconds: one packet more or less gives 10 or 10.5
     try integration/fastclick-generator.npf $python --tags udpgen rate --variables LIMIT=50 GEN_RATE=10000 GEN_LENGTH=1000 GEN_RATE_LINK=0 GEN_BURST=1 IGNORE=2 --csv out.csv
-    csv_check y_PPS 10.5
+    csv_check y_PPS 10.25 0.05
 
     try integration/fastclick-generator.npf $python --tags udpgen prate --variables LIMIT=1000 GEN_RATE=500  --csv out.csv
     csv_check y_COUNT 1000
