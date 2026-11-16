@@ -76,7 +76,7 @@ jobs:
     - name: Install DPDK
       run: |
         sudo apt-get update
-        sudo apt-get install -y dpdk-dev libdpdk-dev libnuma-dev
+        sudo apt-get install -y dpdk-dev libdpdk-dev libnuma-dev libsystemd-dev
         pkg-config --modversion libdpdk
     - name: Install dependencies
       run: |
