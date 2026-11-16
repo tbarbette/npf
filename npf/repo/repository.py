@@ -370,7 +370,7 @@ class Repository:
             else:
                 self._build_path = path
         else:
-            self._build_path = npf.globals.get_build_path(self.options) + self.reponame
+            self._build_path = os.path.join(npf.globals.get_build_path(self.options), self.reponame)
         #Ensure trailing /
         self._build_path = os.path.join(self._build_path,'')
 
