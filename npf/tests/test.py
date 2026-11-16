@@ -290,7 +290,7 @@ class Test:
                         else:
                             if type(script.params['waitfor']) is not list:
                                 script.params['waitfor'] = [script.params['waitfor']]
-                            script.params['waitfor'].expand(wf)
+                            script.params['waitfor'].extend(wf)
                 del imp.params['waitfor']
             if 'autokill' in imp.params:
                 for script in imp.test.scripts:
