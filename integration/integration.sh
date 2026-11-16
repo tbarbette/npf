@@ -182,6 +182,10 @@ if pkg-config --exists libdpdk ; then
     csv_check y_COUNT 440
     csv_check y_BYTES 186370
 
+    #Replay for more than a second: the end of the trace, once preloaded, must not stop the generator
+    try integration/fastclick-generator.npf $python --tags replay --variables LIMIT=100 trace=../integration/tls.pcap-1 PKTGEN_REPLAY_COUNT=50000 LIMIT_TIME=60 --csv out.csv
+    csv_check y_COUNT 2200000
+
     #Now replay 2 traces, preloaded from memory, 10 times, using 2 threads
     try integration/fastclick-generator.npf $python --tags replay scale_multi_trace --variables LIMIT=100 trace=../integration/tls.pcap GEN_MULTI_TRACE=2 PKTGEN_REPLAY_COUNT=10 GEN_THREADS=2 --csv out.csv
     csv_check y_COUNT 880
