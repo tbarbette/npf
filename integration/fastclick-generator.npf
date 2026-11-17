@@ -1,0 +1,20 @@
+%variables
+GEN_THREADS=1
+GEN_RX_THREADS=1
+//The ring driver is single-queue only
+GEN_MAX_QUEUES=1
+
+%init
+killall -9 click
+exit 0
+
+%late_variables
+GEN_OVERWRITE_NIC=--vdev=net_ring0  --no-huge --no-pci -m 1024M 
+NBBUF=65535
+GEN_CSUM=0 //Checksum offload not supported with ring
+GEN_PAUSE=unset //Same
+
+%script@local deps=fastclick-utime
+click --dpdk --vdev=net_ring0  --no-huge --no-pci -m 512M  -- -e "fd::FromDPDKDevice(0, PROMISC true, MAXTHREADS 1) -> EtherMirror -> ToDPDKDevice(0);DriverManager(wait,read fd.xstats);"
+
+%import@local fastclick-play-single-mt
