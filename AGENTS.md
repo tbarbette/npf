@@ -286,6 +286,8 @@ Modules live in `./modules/` or the installed NPF `modules/` directory. Pass par
 %import wrk THREADS=16 CONNECTIONS=128
 ```
 
+The `%info` and the `//` comments of the variables of a module become its page on npf-docs (`modules/generate_doc.py`, run by the CI at every commit to `main`). Follow the conventions of "Documenting a module" in `modules/README.md` when writing or changing a module.
+
 ## Conditional sections (tags)
 
 Tags are enabled on the command line with `--tags`:
