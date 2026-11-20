@@ -2,23 +2,23 @@
 Measure the receiving rate of a DPDK port using FastClick.
 
 Receives packets on a single DPDK port and reports the average link rate
-(RESULT-RX) and hardware-dropped packets (RESULT-DROPPED) using an
+(`RESULT-RX`) and hardware-dropped packets (`RESULT-DROPPED`) using an
 AverageCounter element.
 
-Variables:
-  NT      - Number of receive threads (default: 1)
-  NDESC   - Number of RX descriptors (default: 256)
-  NB_MBUF - Number of memory buffers (default: 65536)
-
 Usage:
-  %import@dut fastclick-rcv NT=4
+```bash
+%%import@dut fastclick-rcv NT=4
+```
 
 %config
 accept_zero={DROPPED}
 
 %variables
+//Number of receive threads
 NT=1
+//Number of RX descriptors
 NDESC=256
+//Number of memory buffers
 NB_MBUF=65536
 
 %late_variables

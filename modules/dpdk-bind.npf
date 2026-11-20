@@ -4,13 +4,14 @@
 This module is intended to be imported to set some interfaces in DPDK mode. Technically, that only means
 binding NICs to the UIO driver.
 
-User can set the igb_uio tag to use igb_uio instead of uio_pci_generic
+Set the `igb_uio` tag to use igb_uio instead of uio_pci_generic.
 
-Suggested usage example in your test (omit the prefixed "//" that prevent loop import here)
+Suggested usage example in your test:
+```bash
+%%import@client dpdk-bind NIC=0
+```
 
-//%import@client dpdk-bind NIC=0
-
-That will bind NIC 0 of the client node to uio_pci_generic and ensure pages are mounted
+That will bind NIC 0 of the client node to uio_pci_generic and ensure pages are mounted.
 
 %config
 n_retry=0
@@ -18,7 +19,9 @@ n_runs=1
 require_tags={import}
 
 %variables
+//NIC index to bind
 NIC=0
+//Kernel driver to bind the NIC to, use the igb_uio tag rather than changing it
 DRIVER=uio_pci_generic
 igb_uio:DRIVER=igb_uio
 

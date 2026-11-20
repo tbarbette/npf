@@ -1,15 +1,18 @@
 %info
 Drop TCP connections in TIME_WAIT state by writing to /proc/net/tcpdropsock.
 
-Emits the event TCP_CLEAN when done. Useful to clean up lingering connections
+Emits the event `TCP_CLEAN` when done. Useful to clean up lingering connections
 between test runs.
 
-Needs the drop-tcp-sock module from https://github.com/milabs/drop-tcp-sock
+Needs the drop-tcp-sock kernel module from <https://github.com/milabs/drop-tcp-sock>.
 
 Usage:
-  %import@server droptcpsock
+```bash
+%%import@server droptcpsock
+```
 
-Typically you then want to have a script that will start only when the TCP_CLEAN event is launched.
+Typically you then want to have a script that will start only when the `TCP_CLEAN` event is launched,
+using `waitfor=TCP_CLEAN` in its section header.
 
 %script waitfor=TCP_CLEAN
 

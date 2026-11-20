@@ -1,11 +1,16 @@
 %info
+Replay two traces with FastClick on two NICs, with throughput and latency measurement
+
 Packets are directed towards the server NIC 0 MAC address using the client NIC 0 and expect to receive packets back on the NIC 1. There is no L3 support (ARP).
 This module is "dual" because NIC 0 sends packets to NIC 1 and vice versa, whereas the basic fastclick-play-single-mt module is only generating on one interface.
-The aformentioned module is much more advanced though.
+The aforementioned module is much more advanced though.
 
-Suggested usage example in your test (omit the prefixed "//" that prevent loop import here)
+The traces are given by the variables `traceIN` (sent on `NIC_IN`) and `traceOUT` (sent on `NIC_OUT`).
 
-//%import@client fastclick-replay-dual traceIN=path/to.pcap traceOUT=path/to.pcap NIC_IN=0 NIC_OUT=1
+Suggested usage example in your test:
+```bash
+%%import@client fastclick-replay-dual traceIN=path/to.pcap traceOUT=path/to.pcap NIC_IN=0 NIC_OUT=1
+```
 
 %config
 n_retry=0
@@ -13,13 +18,21 @@ n_runs=1
 require_tags=import,dpdk
 
 %variables
+//Number of packets sent in a burst
 PKTGEN_BURST_OUT=32
+//Number of times the traces are replayed
 PKTGEN_REPLAY_COUNT=1
+//NIC index sending traceIN
 NIC_IN=0
+//NIC index sending traceOUT
 NIC_OUT=1
+//Number of DPDK packet buffers
 NBUF=1048576
+//Receive in promiscuous mode
 GEN_PROMISC=false
+//Stop reading the traces after this number of seconds (END_AFTER of FromDump)
 GEN_ENDAFTER=8
+//Number of latency samples that can be recorded
 GEN_RESERVE=5000000
 nolinktest=0
 

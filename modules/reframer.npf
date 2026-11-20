@@ -2,8 +2,9 @@
 Generate HTTP requests from clients towards a server through a packet gateway and a mux
 
 The wiring should be:
-
+```text
 client <-> reframer <-> server
+```
 
 This command line will run the most advanced mode (SFMaker, SMMaker, coalescing of acks), and tune all possible parameters (try every possible combinations)
 
@@ -62,6 +63,7 @@ bf:PAUSE1=
 bf:TXDESC=512
 
 // These are just failsafe in case they are not defined
+
 REF_IF1?=${self:1:pci}
 REF_MAC1?=${self:1:mac}
 DUT_IFRET?=${dut:0:pci}

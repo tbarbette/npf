@@ -3,11 +3,13 @@ Start the T-Rex traffic generator with 8 cores.
 
 Warning: this is a stub only.
 
-Requires the trex dependency to be built. Launches t-rex-64 in
+Requires the trex dependency to be built. Launches `t-rex-64` in
 stateless mode.
 
 Usage:
-  %import@client trex
+```bash
+%%import@client trex
+```
 
 %script deps=trex
 ./t-rex-64 -c 8 -l

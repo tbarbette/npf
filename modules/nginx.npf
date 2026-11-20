@@ -1,36 +1,37 @@
 %info
 Launch and configure an NGINX HTTP server.
 
-Automatically generates an nginx.conf with configurable workers, CPU affinity,
-NIC queue count, keepalive, gzip, and optional SSL support (use the "ssl" tag).
-Also configures IRQ affinity for the server NIC if NGINX_IRQ_AFFINITY is set.
-
-Variables:
-  NGINX_NWORKER      - Number of worker processes (default: 16)
-  NGINX_PORT         - Listening port (default: 8188)
-  NGINX_GZIP         - Enable gzip compression: "on" or "off" (default: off)
-  NGINX_ROOT         - Document root directory (default: ./nginx/)
-  NGINX_USER         - User to run NGINX as (default: www-data)
-  KEEPALIVE          - Keepalive timeout in seconds (default: 30)
-  NGINX_CPU_STEP     - CPU core step for worker affinity (default: 1)
-  NGINX_IRQ_AFFINITY - Set NIC IRQ affinity to match workers (default: 1)
+Automatically generates an `nginx.conf` with configurable workers, CPU affinity,
+NIC queue count, keepalive, gzip, and optional SSL support (use the `ssl` tag).
+Also configures IRQ affinity for the server NIC if `NGINX_IRQ_AFFINITY` is set.
 
 Tags:
-  ssl - Enable SSL with a self-signed certificate
+- `ssl`: enable SSL with a self-signed certificate
 
 Usage:
-  %import@server nginx NGINX_NWORKER=8 NGINX_PORT=80
+```bash
+%%import@server nginx NGINX_NWORKER=8 NGINX_PORT=80
+```
 
 %variables
+//Number of worker processes
 NGINX_NWORKER=16
+//Listening port
 NGINX_PORT=8188
+//Enable gzip compression: on or off
 NGINX_GZIP=off
+//Document root directory
 NGINX_ROOT=./nginx/
+//User to run NGINX as
 NGINX_USER=www-data
+//Keepalive timeout in seconds
 KEEPALIVE=30
 ssl:NGINX_SSL=1
+//CPU core step for worker affinity
 NGINX_CPU_STEP=1
+//Run NGINX as a daemon: on or off
 NGINX_DAEMON=on
+//Set NIC IRQ affinity to match workers
 NGINX_IRQ_AFFINITY=1
 
 %late_variables

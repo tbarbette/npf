@@ -7,16 +7,20 @@ This will generate UDP traffic using 4 NICs.
 Packets are expected to come back, and the sum of UDP
 traffic is accounted for and printed as the RESULT.
 
-GEN_WAIT is the test time, while the client generates $GEN_FLOWS flows of $GEN_BURST packets in loop
+`GEN_WAIT` is the test time, while the client generates `GEN_FLOWS` flows of `GEN_BURST` packets in loop.
 
 %config
 default_role_map={dut:client,server:client}
 require_tags=import,dpdk
 
 %variables
+//Number of packets of each flow
 GEN_BURST=32
+//Number of flows
 GEN_FLOWS=128
+//Packet size in bytes
 GEN_LENGTH=64
+//Test time in seconds
 GEN_WAIT=5
 
 %late_variables 

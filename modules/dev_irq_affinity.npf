@@ -1,21 +1,21 @@
 %info
 Set the IRQ affinity for a network device to pin interrupts to specific CPU cores.
 
-Kills irqbalance first, then uses set_irq_affinity_cpulist.sh if available,
+Kills irqbalance first, then uses `set_irq_affinity_cpulist.sh` if available,
 otherwise falls back to a built-in script (based on Intel/Robert Olsson).
-The OFFSET variable allows shifting the CPU core assignment.
-
-Variables:
-  N      - Number of CPU cores to use (if empty, uses all available)
-  NIC    - NIC index to configure (default: 0)
-  OFFSET - First CPU core index to start binding from (default: 0)
+The `OFFSET` variable allows shifting the CPU core assignment.
 
 Usage:
-  %import@dut dev_irq_affinity N=4 NIC=0 OFFSET=0
+```bash
+%%import@dut dev_irq_affinity N=4 NIC=0 OFFSET=0
+```
 
 %variables
+//Number of CPU cores to use (if empty, uses all available)
 N=
+//NIC index to configure
 NIC=0
+//First CPU core index to start binding from
 OFFSET=0
 
 %late_variables
@@ -23,7 +23,7 @@ OFFSET?=0
 
 %script sudo=true autokill=false python-inline
 killall irqbalance &> /dev/null
-if [ -n "$N" -a -e /usr/sbin/set_irqjinja=jinja, python_inline=python_inline_affinity_cpulist.sh ] ; then
+if [ -n "$N" -a -e /usr/sbin/set_irq_affinity_cpulist.sh ] ; then
     set_irq_affinity_cpulist.sh $OFFSET-$(( $OFFSET + $N - 1 )) ${self:$NIC:ifname}
     exit $?
 else

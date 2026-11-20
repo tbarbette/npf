@@ -1,27 +1,35 @@
 %info
-HTTP Request sizes
+Generate HTTP requests using WRK
 
-Generate HTTP requests towards "http://server/bin-XK" files using WRK
+Generate HTTP requests towards `http://server/bin-XK` files using WRK.
 
 The HTTP server configuration is not part of this test. Your main test
-should include something like FILE_PATH={file1,file2}
+should include something like `FILE_PATH={file1,file2}`.
 
-The address to make the request will use the adress from the node having the "dut" role. The port can be changed setting the HTTP_PORT variable.
+The requests go to the address of the node having the "dut" role. The port can be changed setting the `HTTP_PORT` variable.
 
-See generic/http.wrk for examples such as fetching files with sizes from 1K to 1G
-See experiments/test_wrk.test for an experiment trying to find best configuration for 1K requests varying GEN_THREADS and GEN_CONCURRENT on a 16 cores CPU
+See `generic/http.wrk` for examples such as fetching files with sizes from 1K to 1G.
+See `experiments/test_wrk.test` for an experiment trying to find the best configuration for 1K requests varying `GEN_THREADS` and `GEN_CONCURRENT` on a 16 cores CPU.
 
 %variables
+//Number of concurrent connections
 GEN_CONCURRENT=128
+//Number of WRK threads, at most GEN_CONCURRENT
 GEN_THREADS=16
+//Path of the requested file on the server
 FILE_PATH=index.htm
+//Port of the HTTP server
 HTTP_PORT=80
+//Duration of the test in seconds
 GEN_TIME=10
 WRKNIC=0
+//Address of the HTTP server, by default the first address of the dut role
 WRK_HOST=EXPAND(${dut:0:ip})
+//Protocol, http or https
 WRK_PROTOCOL=http
 
 %late_variables
+//Lua script given to wrk with -s
 WRK_SCRIPT?=
 
 %script deps=wrk-tbarbette title=WRKClient python-inline

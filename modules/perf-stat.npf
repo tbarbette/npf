@@ -1,22 +1,27 @@
 %info
 Collect hardware performance counters using perf stat.
 
-Runs perf stat on cores 0 to N_CORES-1 for PERF_TIME seconds, collecting
+Runs `perf stat` on cores 0 to `N_CORES-1` for `PERF_TIME` seconds, collecting
 events such as LLC misses, L1 cache misses, branch misses, TLB misses, and
 instructions per cycle (IPC). Computes and outputs miss ratios.
 
-Use the tag "perf_all" to enable a more set of hardware events than the default events.
+Use the tag `perf_all` to enable a larger set of hardware events than the default events.
 
 Usage:
-  %import@dut perf-stat N_CORES=4 PERF_TIME=5
+```bash
+%%import@dut perf-stat N_CORES=4 PERF_TIME=5
+```
 
-See also perf-class
+See also `perf-class`.
 
 // Perf stat
 
 %variables
+//Number of cores to monitor, from core 0
 N_CORES=1
+//Recording duration in seconds
 PERF_TIME=1
+//Events to collect on top of the LLC, L1 and branch events
 PERF_EVENTS=instructions,cycles,cache-misses,cache-references
 perf_all:PERF_EVENTS=dTLB-loads,instructions,cycles,iTLB-loads,cache-misses,cache-references,dTLB-load-misses,iTLB-load-misses,mem-loads,l2_rqsts.references,l2_rqsts.miss,cycle_activity.stalls_l3_miss,cycle_activity.stalls_total,cycle_activity.stalls_mem_any,cycle_activity.stalls_l2_miss,cycle_activity.stalls_l1d_miss,L1-icache-load-misses,L1-icache-loads,L1-dcache-stores,l1d.replacement,l2_rqsts.all_pf,mem_load_retired.l1_hit,mem_load_retired.l1_miss
 
