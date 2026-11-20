@@ -7,7 +7,9 @@ source and destination addresses using EtherMirror. Uses cores 0-7.
 With the FastClick dependency, it will build itself.
 
 Usage:
-  %import@dut fastclick-echo
+```bash
+%%import@dut fastclick-echo
+```
 
 %script deps=fastclick sudo=true
 click --dpdk -l 0-7 -a ${self:0:pci} -- -e "FromDPDKDevice(0, PROMISC true) -> EtherMirror -> ToDPDKDevice(0);"

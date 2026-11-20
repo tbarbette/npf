@@ -1,60 +1,63 @@
 %info
-Module generate traffic using FastClick with throughput and latency measurement
+Generate traffic using FastClick with throughput and latency measurement
 
 This module supports generating UDP traffic or playing a PCAP.
 
 Both can generate at a given rate (UDP) or acceleration factor (PCAP).
-Both can also use a "replay" mode, that is preloading packet in memory then replaying them in loop.
+Both can also use a "replay" mode, that is preloading packets in memory then replaying them in loop.
 
-Packets are directed towards one NIC of the "server" role using one NIC of the CLIENT and expect to receive packets back on any (eventually the same) NIC.
+Packets are directed towards one NIC of the "server" role using one NIC of the "client" role and expect to receive packets back on any (eventually the same) NIC.
 
-There is no L3 support (ARP). MAC adresses must be set correctly.
+There is no L3 support (ARP). MAC addresses must be set correctly.
 
 # Usage
 
-Add in your NPF test script (omit the prefixed "//" that prevent loop import here)
-
-//%import@client fastclick-play-single-mt
+Add in your NPF test script:
+```bash
+%%import@client fastclick-play-single-mt
+```
 
 ## Playing a trace
-Be sure to pass the variable trace=path/to/trace
-The variable LIMIT_TIME will limit the replay time.
-
+Be sure to pass the variable `trace=path/to/trace`.
+The variable `LIMIT_TIME` will limit the replay time.
 
 ## Playing UDP traffic
-Give the tag "udpgen" with --tags udpgen to npf cmdline
-The variable GEN_LENGTH=128 allows to set the packet size to 128 bytes. Check the variables section below for other parameters.
-The variable LIMIT_TIME will limit the replay time.
+Give the tag `udpgen` with `--tags udpgen` to the npf command line.
+The variable `GEN_LENGTH=128` sets the packet size to 128 bytes. Check the variables section below for other parameters.
+The variable `LIMIT_TIME` will limit the replay time.
 
 ## Preloading in memory
-Give the "replay" tag with --tags replay to npf cmdline
-The variable PKTGEN_REPLAY_COUNT=10 will replay 10 times.
-The variable LIMIT_TIME will limit the replay time instead.
+Give the `replay` tag with `--tags replay` to the npf command line.
+The variable `PKTGEN_REPLAY_COUNT=10` will replay 10 times.
+The variable `LIMIT_TIME` will limit the replay time instead.
 
 ## Packet or bit rate (UDP or trace)
-Pass the "rate" tag to express a rate in BPS, "prate" for a rate in PPS
-Then set GEN_RATE to define the rate
+Pass the `rate` tag to express a rate in BPS, `prate` for a rate in PPS.
+Then set `GEN_RATE` to define the rate.
 
 ## Timing acceleration (traces, replayed or not)
-Use TIMING=0 to play as fast possible the packets (you might consider preloading in memory, see below).
-Use TIMING=1 to play packets using the original timing, eventually tweaked at X% of the original timing using TIMING_FNT.
-For instance TIMING_FNT=200 will replay twice faster. TIMING_FNT can be a function of time (given as x). For instance to start replay at 1% at t=0 then 100% at t=10 and then stay at 100%:
+Use `TIMING=0` to play the packets as fast as possible (you might consider preloading in memory, see above).
+Use `TIMING=1` to play packets using the original timing, eventually tweaked at X% of the original timing using `TIMING_FNT`.
+For instance `TIMING_FNT=200` will replay twice faster. `TIMING_FNT` can be a function of time (given as `x`).
+For instance to start replay at 1% at t=0 then 100% at t=10 and then stay at 100%:
+```bash
 TIMING_FNT=1+min(99,x*10)
+```
 
 Arrange the function so the timing is never 0%. At 0% the system will be unscheduled, as the timing is computed for inter-packet time. At 0%, the next packet is never sent so the time stops.
 
 ## Replaying from compressed dump (particular cases)
-Set GEN_DUMP=1 to use a FromIPSummaryDump instead of FromDump, the trace parameter should therefore follow the FromIPSummaryDump format. Similarly, use GEN_DUMP=2 to use FromMinDump.
+Set `GEN_DUMP=1` (tag `gen_dump`) to use a FromIPSummaryDump instead of FromDump, the trace parameter should therefore follow the FromIPSummaryDump format. Similarly, use `GEN_DUMP=2` (tag `gen_mindump`) to use FromMinDump.
 
 # Zero-loss throughput
-Altough not tied to this specific module, it is often combined with experimental design to find the zero-loss-throughput. The following cmdline arguments will give the maximum rate a DUT can forward.
-
---variables GEN_RATE=[1000000-16000000#1000000]
---exp-design zlt(GEN_RATE,PPS,1.01)
+Although not tied to this specific module, it is often combined with experimental design to find the zero-loss throughput. The following command line arguments will give the maximum rate a DUT can forward:
+```bash
+--variables "GEN_RATE=[1000000-16000000#1000000]" --exp-design "zlt(GEN_RATE,PPS,1.01)"
+```
 
 # Multi-threading
 
-Pass the variables GEN_THREADS=X and GEN_RX_THREADS=y to use x threads for TX and y threads for RX. Default is 4 for both.
+Pass the variables `GEN_THREADS=X` and `GEN_RX_THREADS=Y` to use X threads for TX and Y threads for RX. Default is 4 for both.
 
 ## Multi-threading with traces
 The normal way to use multi-threading would be to round-robin the trace between the threads.
@@ -62,20 +65,19 @@ The normal way to use multi-threading would be to round-robin the trace between 
 By default, each thread will re-read the same trace, which is generally not convenient.
 
 A more efficient way is to use multiple traces pre-split, for instance one trace per thread.
-Use the "GEN_MULTI_TRACE=N" tag to use multiple traces, using -1, -2, ... -N suffixes to the trace. If you only have 4 threads (GEN_THREADS=4), then only traces from 1 to 4 will be used. Inversely, if you have 4 threads but only two traces, the threads 3 and 4 will fail.
+Set `GEN_MULTI_TRACE=N` to use multiple traces, using -1, -2, ... -N suffixes to the trace. If you only have 4 threads (`GEN_THREADS=4`), then only traces from 1 to 4 will be used. Inversely, if you have 4 threads but only two traces, the threads 3 and 4 will fail.
 
-If the tag scale_multi_trace tag is given, then the number of traces is fixed always sending traces from 1 to .. GEN_MULTI_TRACE. If GEN_MULTI_TRACE is smaller than GEN_THREADS, some threads will be unused. If GEN_MULTI_TRACE is bigger than the number of threads, then they will be distributed in a round-robin fashion. For instance with 16 traces and 4 threads, the first thread will send trace 1,5,9 and 13. This tags therefore ensure there is no mismatch between the numbers of traces and thread.
-
+If the `scale_multi_trace` tag is given, then the number of traces is fixed, always sending traces from 1 to `GEN_MULTI_TRACE`. If `GEN_MULTI_TRACE` is smaller than `GEN_THREADS`, some threads will be unused. If `GEN_MULTI_TRACE` is bigger than the number of threads, then they will be distributed in a round-robin fashion. For instance with 16 traces and 4 threads, the first thread will send traces 1, 5, 9 and 13. This tag therefore ensures there is no mismatch between the numbers of traces and threads.
 
 ## Deactivate latency to improve performance
-Use the "gen_nolat" tag to disable latency tracking. This cannot be done using variables.
+Use the `gen_nolat` tag to disable latency tracking. This cannot be done using variables.
 
-## Deactivate packet receiption
-Use the gen_norx tag to disable receiving packets. This will leave CPU resources available for sending.
+## Deactivate packet reception
+Use the `gen_norx` tag to disable receiving packets. This will leave CPU resources available for sending.
 
 ## Notes on pipeline
 
-The script has a pipelined mode (use gen_pipeline tag which will set GEN_PIPELINE to 1) used to ensure only one thread reads from the generator (packet trace, UDP, mindump, etc...). The best option is to pre-split a trace, or use UDP generation that can natively be multi-threaded. Use this as last resort or if you got enough performance wihout the hassle of splitting the trace.
+The script has a pipelined mode (use the `gen_pipeline` tag which will set `GEN_PIPELINE` to 1) used to ensure only one thread reads from the generator (packet trace, UDP, mindump, etc.). The best option is to pre-split a trace, or use UDP generation that can natively be multi-threaded. Use this as last resort or if you got enough performance without the hassle of splitting the trace.
 
 %config
 n_retry=0
@@ -93,8 +95,12 @@ PKTGEN_BURST_OUT=32
 PKTGEN_REPLAY_COUNT=1
 
 //NICs to be used. Deprecated, one should use the NIC specification through the cluster argument and leave 0 here
+
+//Index of the server NIC the packets are sent to (destination MAC)
 NIC=0
+//Index of the client NIC used as source MAC
 CLIENT_NIC=0
+//Index of the NIC of this node used to send and receive
 RCV_NIC=0
 
 //Maximum number of packets to read
@@ -109,9 +115,11 @@ GEN_THRESHOLD=0
 //Similarly, we can IGNORE the measurement for the X first seconds after the first packet is received.
 IGNORE?=0
 
-//Number of threads
+//Number of TX threads
 GEN_THREADS=4
+//Number of RX threads
 GEN_RX_THREADS=4
+//Pipelined mode, use the gen_pipeline tag (see above)
 GEN_PIPELINE=0
 //udpgen|gen_multi_trace|replay|scale_multi_trace:GEN_PIPELINE=0
 gen_pipeline:GEN_PIPELINE=1
@@ -164,6 +172,7 @@ trace_is_ip:GEN_FORCE_ETHER=1
 GEN_DUMP=0
 gen_dump:GEN_DUMP=1
 gen_mindump:GEN_DUMP=2
+//Packet size in bytes, with the udpgen tag
 udpgen:GEN_LENGTH=64
 udpgen:GEN_DUMP=-1
 
@@ -174,8 +183,9 @@ GEN_SEQUENTIAL=1
 GEN_RX=1
 gen_norx:GEN_RX=0
 
-//Timing
+//Use the timing of the trace, see above
 timing:TIMING=1
+//Speed of the replay in percent of the original timing, can be a function of the time x (see above)
 timing:TIMING_FNT=100
 
 //Delay trace start

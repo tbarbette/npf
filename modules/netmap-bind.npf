@@ -8,7 +8,9 @@ network drivers.
 Requires the netmap dependency to be built. Runs as an init script.
 
 Usage:
-  %import@dut netmap-bind
+```bash
+%%import@dut netmap-bind
+```
 
 %init sudo=true deps=netmap
 lsmod | grep netmap &> /dev/null

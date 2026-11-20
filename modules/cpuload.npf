@@ -1,21 +1,27 @@
 %info
 Monitor CPU load by reading /proc/stat in a loop.
 
-Outputs time-series results TLOAD-<timestamp>-RESULT-CPU-<id> with per-core
-utilization percentage. Use variables CPUMIN/CPUMAX to select a range of cores,
-CPUTHRESH to only start reporting after utilization exceeds a threshold,
-and CPUSUM=1 to aggregate all cores into a single CPUSUM result.
+Outputs time-series results `TLOAD-<timestamp>-RESULT-CPU-<id>` with the per-core
+utilization percentage. Use the variables `CPUMIN`/`CPUMAX` to select a range of cores,
+`CPUTHRESH` to only start reporting after utilization exceeds a threshold,
+and `CPUSUM=1` to aggregate all cores into a single `CPUSUM` result.
 
 Usage:
-  %import@server cpuload CPUMIN=0 CPUMAX=16
+```bash
+%%import@server cpuload CPUMIN=0 CPUMAX=16
+```
 
 %script title=cpuload
 unbuffer python3 cpuload.py "${NPF_ROLE}"
 
 %variables
+//First core to monitor
 CPUMIN=0
+//Monitor cores up to this one, excluded
 CPUMAX=128
+//Only start reporting once a core exceeds this utilization percentage, 0 to report from the start
 CPUTHRESH=1
+//Report the sum of the utilization of all monitored cores instead of one result per core
 CPUSUM=0
 
 %init

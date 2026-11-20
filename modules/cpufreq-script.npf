@@ -1,26 +1,32 @@
 %info
 This module sets the CPU frequency to a given value using cpupower
 
-You can specify which cores to apply the settings with CPUFREQ_CORES=%. If not specified, settings will
+You can specify which cores to apply the settings to with `CPUFREQ_CORES`. If not specified, settings will
 be applied to all cores of the system.
 
-If no CPUFREQ is given, the default limits are set.
-If the CPUFREQ_CORES are specified and no frequency is specified, it is safer to 
-set also the NUMA, although limit requencies should be equal on different sockets.
+If no `CPUFREQ` is given, the default limits are set.
+If `CPUFREQ_CORES` is specified and no frequency is specified, it is safer to
+also set `CPUFREQ_NUMA`, although limit frequencies should be equal on different sockets.
 
-Set SILENT if you use '--show-all' and you want a cleaner output.
+Set `CPUFREQ_SILENT` if you use `--show-all` and want a cleaner output.
 
-Usage:
-    %import@client cpufreq CPUFREQ=1200 [CPUFREQ_CORES=18-25] [CPUFREQ_NUMA=1] [CPUFREQ_SILENT=1]
+Usage (arguments in brackets are optional):
+```bash
+%%import@client cpufreq-script CPUFREQ=1200 [CPUFREQ_CORES=18-25] [CPUFREQ_NUMA=1] [CPUFREQ_SILENT=1]
+```
 
 
 %config
 require_tags={import}
 
 %variables
-CPUFREQ= //This must be passed by the script absolutely
+//Frequency to set, in MHz (in kHz if above 10000). If empty, the default frequency limits are restored
+CPUFREQ=
+//NUMA node of the cores, to get the frequency limits from
 CPUFREQ_NUMA=
+//Cores to set, in the cpupower -c syntax (e.g. 18-25). All cores if empty
 CPUFREQ_CORES=
+//Print only the first line of cpupower output
 CPUFREQ_SILENT=
 
 %late_variables
